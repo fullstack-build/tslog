@@ -1,3 +1,5 @@
+import { Chalk } from "chalk";
+
 export interface ISettingsParam {
   instanceId?: string;
   name?: string;
@@ -59,7 +61,7 @@ export interface ILogObject extends IStackFrame {
   date: Date;
   logLevel: number;
   logLevelName: string;
-  argumentsArray: (string | object)[];
+  argumentsArray: (IErrorObject | unknown)[];
   stack?: IStackFrame[];
 }
 
@@ -82,7 +84,7 @@ export interface ITransportLogger<T> {
 
 export interface ITransportProvider {
   minLevel: TLogLevel;
-  logger: ITransportLogger<(...args: any[]) => void>;
+  logger: ITransportLogger<(...args: unknown[]) => void>;
 }
 
 export interface IJsonHighlightColors {
@@ -91,4 +93,12 @@ export interface IJsonHighlightColors {
   string: string;
   boolean: string;
   null: string;
+}
+
+export interface IJsonHighlightColorsChalk {
+  number: Chalk;
+  key: Chalk;
+  string: Chalk;
+  boolean: Chalk;
+  null: Chalk;
 }
