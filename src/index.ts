@@ -1,5 +1,4 @@
 import * as chalk from "chalk";
-import { highlight } from "cli-highlight";
 import {
   basename as fileBasename,
   normalize as fileNormalize,
@@ -8,10 +7,13 @@ import {
 import { format, types } from "util";
 import {
   IErrorObject,
+  IJsonHighlightColors,
   ILogLevel,
   ILogObject,
+  ISettings,
   ISettingsParam,
   IStackFrame,
+  IStd,
   ITransportLogger,
   ITransportProvider,
   TLogLevel,
@@ -34,31 +36,39 @@ export class Logger {
   private readonly minLevelToStdErr: number = 4;
 
   // Settings
-  private readonly name?: string;
-  private readonly minLevel: number;
-  private readonly exposeStack: boolean;
-  private readonly doOverwriteConsole: boolean;
-  private readonly logAsJson: boolean;
-  private readonly logLevelsColors: ILogLevel;
+  public readonly settings: ISettings;
 
-  constructor(private readonly nodeId: string, settings: ISettingsParam) {
-    this.name = settings.name;
-    this.minLevel = settings.minLevel ?? 0;
-    this.exposeStack = settings.exposeStack ?? false;
-    this.doOverwriteConsole = settings.doOverwriteConsole ?? false;
-    this.logAsJson = settings.logAsJson ?? false;
-    this.logLevelsColors = settings.logLevelsColors ?? {
-      0: "#B0B0B0",
-      1: "#FFFFFF",
-      2: "#63C462",
-      3: "#2020C0",
-      4: "#CE8743",
-      5: "#CD444C",
-      6: "#FF0000",
+  constructor(settings?: ISettingsParam) {
+    this.settings = {
+      instanceId: settings?.instanceId,
+      name: settings?.name ?? "",
+      minLevel: settings?.minLevel ?? 0,
+      exposeStack: settings?.exposeStack ?? false,
+      suppressLogging: settings?.suppressLogging ?? false,
+      doOverwriteConsole: settings?.doOverwriteConsole ?? false,
+      logAsJson: settings?.logAsJson ?? false,
+      logLevelsColors: settings?.logLevelsColors ?? {
+        0: "#B0B0B0",
+        1: "#FFFFFF",
+        2: "#63C462",
+        3: "#2020C0",
+        4: "#CE8743",
+        5: "#CD444C",
+        6: "#FF0000",
+      },
+      jsonHighlightColors: {
+        number: "#FF6188",
+        key: "#A9DC76",
+        string: "#FFD866",
+        boolean: "#FC9867",
+        null: "#AB9DF2",
+      },
+      stdOut: settings?.stdOut ?? process.stdout,
+      stdErr: settings?.stdErr ?? process.stderr,
     };
 
     LoggerHelper.errorToJsonHelper();
-    if (this.doOverwriteConsole) {
+    if (this.settings.doOverwriteConsole) {
       LoggerHelper.overwriteConsole(this, this.handleLog);
     }
   }
@@ -104,7 +114,7 @@ export class Logger {
   private handleLog(
     logLevel: TLogLevel,
     logArguments: any[],
-    doExposeStack: boolean = this.exposeStack
+    doExposeStack: boolean = this.settings.exposeStack
   ): ILogObject {
     const logObject = this.buildLogObject(
       logLevel,
@@ -112,8 +122,8 @@ export class Logger {
       doExposeStack
     );
 
-    if (logLevel >= this.minLevel) {
-      if (!this.logAsJson) {
+    if (!this.settings.suppressLogging && logLevel >= this.settings.minLevel) {
+      if (!this.settings.logAsJson) {
         this.printPrettyLog(logObject);
       } else {
         this.printJsonLog(logObject);
@@ -140,7 +150,7 @@ export class Logger {
     const stackFrameObject = Logger.toStackFrameObject(stackFrame);
 
     const logObject: ILogObject = {
-      loggerName: this.name ?? "",
+      loggerName: this.settings.name ?? "",
       date: new Date(),
       logLevel: logLevel,
       logLevelName: this.logLevels[logLevel],
@@ -213,13 +223,13 @@ export class Logger {
     // only errors should go to stdErr
     const std =
       logObject.logLevel < this.minLevelToStdErr
-        ? process.stdout
-        : process.stderr;
+        ? this.settings.stdOut
+        : this.settings.stdErr;
     const nowStr = logObject.date
       .toISOString()
       .replace("T", " ")
       .replace("Z", "");
-    const hexColor = this.logLevelsColors[logObject.logLevel];
+    const hexColor = this.settings.logLevelsColors[logObject.logLevel];
 
     std.write(chalk`{grey ${nowStr}}\t`);
     std.write(
@@ -231,9 +241,13 @@ export class Logger {
       : logObject.methodName != null
       ? `${logObject.typeName}.${logObject.methodName}`
       : `${logObject.functionName}`;
+
+    const optionalInstanceId =
+      this.settings.instanceId != null ? `@${this.settings.instanceId}` : "";
+
     std.write(
       chalk.gray(
-        `[${logObject.loggerName}@${this.nodeId} ${logObject.filePath}:${logObject.lineNumber} ${functionName}]\t`
+        `[${logObject.loggerName}${optionalInstanceId} ${logObject.filePath}:${logObject.lineNumber} ${functionName}]\t`
       )
     );
 
@@ -241,7 +255,11 @@ export class Logger {
       if (typeof arg === "object" && !arg.isError) {
         std.write(
           "\n" +
-            highlight(JSON.stringify(arg, null, 2), { language: "JSON" }) +
+            LoggerHelper.colorizeJson(
+              arg,
+              chalk,
+              this.settings.jsonHighlightColors
+            ) +
             " "
         );
       } else if (typeof arg === "object" && arg.isError) {
@@ -266,10 +284,7 @@ export class Logger {
     }
   }
 
-  private printPrettyStack(
-    std: NodeJS.WriteStream,
-    stackObjectArray: IStackFrame[]
-  ) {
+  private printPrettyStack(std: IStd, stackObjectArray: IStackFrame[]) {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
       std.write(
@@ -293,8 +308,14 @@ export class Logger {
     // only errors should go to stdErr
     const std =
       logObject.logLevel < this.minLevelToStdErr
-        ? process.stdout
-        : process.stderr;
-    std.write(highlight(JSON.stringify(logObject)) + "\n");
+        ? this.settings.stdOut
+        : this.settings.stdErr;
+    std.write(
+      LoggerHelper.colorizeJson(
+        JSON.stringify(logObject),
+        chalk,
+        this.settings.jsonHighlightColors
+      ) + "\n"
+    );
   }
 }

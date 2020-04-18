@@ -8,7 +8,8 @@
     "build": "tsc",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "ava",
+    "coverage": "nyc --all ava"
   },
   "repository": {
     "type": "git",
@@ -34,11 +35,12 @@
     "husky": "~4.2.5",
     "lint-staged": "~10.1.3",
     "prettier": "^2.0.4",
-    "typescript": "^3.8.3"
+    "typescript": "^3.8.3",
+    "ava": "~3.7.0",
+    "nyc": "~15.0.1"
   },
   "dependencies": {
     "chalk": "~4.0.0",
-    "cli-highlight": "~2.1.4",
     "source-map-support": "~0.5.16",
     "ts-node": "~8.8.2"
   },
@@ -52,5 +54,35 @@
       "eslint --fix",
       "git add"
     ]
+  },
+  "ava": {
+    "verbose": true,
+    "extensions": [
+      "ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ]
+  },
+  "nyc": {
+    "include": [
+      "index.ts",
+      "src/**/*.ts"
+    ],
+    "exclude": [
+      "src/**/*.d.ts"
+    ],
+    "extension": [
+      ".ts"
+    ],
+    "require": [
+      "ts-node/register"
+    ],
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "sourceMap": true,
+    "instrument": true
   }
 }

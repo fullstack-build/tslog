@@ -1,6 +1,8 @@
 import { sep as pathSeparator } from "path";
 import { wrapCallSite } from "source-map-support";
 import { Logger } from "./index";
+import { Chalk } from "chalk";
+import { IJsonHighlightColors } from "./interfaces";
 
 export class LoggerHelper {
   public static cwdArray = process.cwd().split(pathSeparator);
@@ -72,5 +74,41 @@ export class LoggerHelper {
         ]);
       };
     });
+  }
+
+  public static colorizeJson(
+    json: any,
+    chalk: Chalk,
+    colors: IJsonHighlightColors
+  ) {
+    const chalkColors = {
+      number: chalk.hex(colors.number),
+      key: chalk.hex(colors.key),
+      string: chalk.hex(colors.string),
+      boolean: chalk.hex(colors.boolean),
+      null: chalk.hex(colors.null),
+    };
+
+    if (typeof json !== "string") {
+      json = JSON.stringify(json, undefined, 2);
+    }
+    return json.replace(
+      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+      function (match: string) {
+        var cls = "number";
+        if (/^"/.test(match)) {
+          if (/:$/.test(match)) {
+            cls = "key";
+          } else {
+            cls = "string";
+          }
+        } else if (/true|false/.test(match)) {
+          cls = "boolean";
+        } else if (/null/.test(match)) {
+          cls = "null";
+        }
+        return chalkColors[cls](match);
+      }
+    );
   }
 }
