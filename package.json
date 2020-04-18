@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "description": "TypeScript and JavaScript Logger",
   "main": "index",
   "typings": "src/index",
