@@ -220,7 +220,6 @@ export class Logger {
   }
 
   private _printPrettyLog(logObject: ILogObject): void {
-    // only errors should go to stdErr
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr
         ? this.settings.stdOut
@@ -306,7 +305,6 @@ export class Logger {
   }
 
   private _printJsonLog(logObject: ILogObject): void {
-    // only errors should go to stdErr
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr
         ? this.settings.stdOut
