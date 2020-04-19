@@ -14,7 +14,7 @@ import {
   TLogLevel,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
-export { ITransportLogger };
+export { ITransportLogger, ILogObject, IErrorObject };
 
 export class Logger {
   private readonly _logLevels: ILogLevel = {
@@ -40,7 +40,7 @@ export class Logger {
       minLevel: settings?.minLevel ?? 0,
       exposeStack: settings?.exposeStack ?? false,
       suppressLogging: settings?.suppressLogging ?? false,
-      doOverwriteConsole: settings?.doOverwriteConsole ?? false,
+      overwriteConsole: settings?.overwriteConsole ?? false,
       logAsJson: settings?.logAsJson ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
         0: "#B0B0B0",
@@ -63,13 +63,13 @@ export class Logger {
     };
 
     LoggerHelper.errorToJsonHelper();
-    if (this.settings.doOverwriteConsole) {
+    if (this.settings.overwriteConsole) {
       LoggerHelper.overwriteConsole(this, this._handleLog);
     }
   }
 
   public attachTransport(
-    logger: ITransportLogger<(...args: unknown[]) => void>,
+    logger: ITransportLogger<(message: ILogObject) => void>,
     minLevel: TLogLevel = 0
   ): void {
     this._attachedTransports.push({
@@ -127,7 +127,7 @@ export class Logger {
 
     this._attachedTransports.forEach((transport: ITransportProvider) => {
       if (logLevel >= transport.minLevel) {
-        transport[this._logLevels[logLevel]](logObject);
+        transport.logger[this._logLevels[logLevel]](logObject);
       }
     });
 
@@ -236,17 +236,19 @@ export class Logger {
     );
 
     const functionName: string = logObject.isConstructor
-      ? `${logObject.typeName}.constructor`
+      ? ` ${logObject.typeName}.constructor`
       : logObject.methodName != null
-      ? `${logObject.typeName}.${logObject.methodName}`
-      : `${logObject.functionName}`;
+      ? ` ${logObject.typeName}.${logObject.methodName}`
+      : logObject.functionName != null
+      ? ` ${logObject.functionName}`
+      : "";
 
     const optionalInstanceId: string =
       this.settings.instanceId != null ? `@${this.settings.instanceId}` : "";
 
     std.write(
       chalk.gray(
-        `[${logObject.loggerName}${optionalInstanceId} ${logObject.filePath}:${logObject.lineNumber} ${functionName}]\t`
+        `[${logObject.loggerName}${optionalInstanceId} ${logObject.filePath}:${logObject.lineNumber}${functionName}]\t`
       )
     );
 

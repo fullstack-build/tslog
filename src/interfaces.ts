@@ -6,7 +6,7 @@ export interface ISettingsParam {
   minLevel?: number;
   exposeStack?: boolean;
   suppressLogging?: boolean;
-  doOverwriteConsole?: boolean;
+  overwriteConsole?: boolean;
   logAsJson?: boolean;
   logLevelsColors?: ILogLevel;
   jsonHighlightColors?: IJsonHighlightColors;
@@ -20,7 +20,7 @@ export interface ISettings extends ISettingsParam {
   minLevel: number;
   exposeStack: boolean;
   suppressLogging: boolean;
-  doOverwriteConsole: boolean;
+  overwriteConsole: boolean;
   logAsJson: boolean;
   logLevelsColors: ILogLevel;
   jsonHighlightColors: IJsonHighlightColors;
@@ -84,7 +84,7 @@ export interface ITransportLogger<T> {
 
 export interface ITransportProvider {
   minLevel: TLogLevel;
-  logger: ITransportLogger<(...args: unknown[]) => void>;
+  logger: ITransportLogger<(message: ILogObject) => void>;
 }
 
 export interface IJsonHighlightColors {
