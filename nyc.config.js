@@ -1,0 +1,1 @@
+../../nyc.config.js
