@@ -51,7 +51,7 @@ export class Logger {
         5: "#CD444C",
         6: "#FF0000",
       },
-      jsonHighlightColors: {
+      jsonHighlightColors: settings?.jsonHighlightColors ?? {
         number: "#FF6188",
         key: "#A9DC76",
         string: "#FFD866",

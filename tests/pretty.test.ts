@@ -24,17 +24,6 @@ avaTest.beforeEach((test: ExecutionContext<IContext>) => {
   };
 });
 
-avaTest("init plain logger", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger();
-  test.is(logger instanceof Logger, true);
-});
-
-avaTest("init named logger", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger({ name: "Test" });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.name, "Test");
-});
-
 avaTest("silly log (stdOut)", (test: ExecutionContext<IContext>): void => {
   test.context.logger.silly("test message");
   test.true(doesLogContain(test.context.stdOut, "SILLY"));

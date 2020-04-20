@@ -25,12 +25,6 @@ avaTest.beforeEach((test: ExecutionContext<IContext>) => {
   };
 });
 
-avaTest("init json logger", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger({ logAsJson: true });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.logAsJson, true);
-});
-
 avaTest("silly log (stdOut)", (test: ExecutionContext<IContext>): void => {
   test.context.logger.silly("test message");
   try {
