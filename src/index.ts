@@ -1,5 +1,5 @@
 import * as chalk from "chalk";
-import { basename as fileBasename, normalize as fileNormalize } from "path";
+import { normalize as fileNormalize } from "path";
 import { format, types } from "util";
 import {
   IErrorObject,
@@ -29,8 +29,6 @@ export class Logger {
   private _ignoreStackLevels: number = 3;
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
-
-  // Settings
   public readonly settings: ISettings;
 
   public constructor(settings?: ISettingsParam) {
@@ -102,10 +100,18 @@ export class Logger {
     return this._handleLog.apply(this, [5, args]);
   }
 
+  /**
+   * Returns the average of two numbers.
+   *
+   * @param x - The first input number
+   * @returns LogObject containing all the relevant information about this log
+   *
+   */
   public fatal(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [6, args]);
   }
 
+  /** @internal */
   private _handleLog(
     logLevel: TLogLevel,
     logArguments: unknown[],
@@ -134,6 +140,7 @@ export class Logger {
     return logObject;
   }
 
+  /** @internal */
   private _buildLogObject(
     logLevel: TLogLevel,
     logArguments: unknown[],
@@ -146,7 +153,7 @@ export class Logger {
     const stackFrame: NodeJS.CallSite = LoggerHelper.wrapCallSiteOrIgnore(
       relevantCallSites[0]
     );
-    const stackFrameObject: IStackFrame = Logger._toStackFrameObject(
+    const stackFrameObject: IStackFrame = LoggerHelper.toStackFrameObject(
       stackFrame
     );
 
@@ -189,11 +196,12 @@ export class Logger {
     return logObject;
   }
 
+  /** @internal */
   private _toStackObjectArray(jsStack: NodeJS.CallSite[]): IStackFrame[] {
     const prettyStack: IStackFrame[] = Object.values(jsStack).reduce(
       (iPrettyStack: IStackFrame[], stackFrame: NodeJS.CallSite) => {
         iPrettyStack.push(
-          Logger._toStackFrameObject(
+          LoggerHelper.toStackFrameObject(
             LoggerHelper.wrapCallSiteOrIgnore(stackFrame)
           )
         );
@@ -204,21 +212,7 @@ export class Logger {
     return prettyStack;
   }
 
-  private static _toStackFrameObject(stackFrame: NodeJS.CallSite): IStackFrame {
-    const filePath: string | null = stackFrame.getFileName();
-    return {
-      filePath: LoggerHelper.cleanUpFilePath(filePath) ?? "",
-      fullFilePath: filePath ?? "",
-      fileName: fileBasename(stackFrame.getFileName() ?? ""),
-      lineNumber: stackFrame.getLineNumber(),
-      columnNumber: stackFrame.getColumnNumber(),
-      isConstructor: stackFrame.isConstructor(),
-      functionName: stackFrame.getFunctionName(),
-      typeName: stackFrame.getTypeName(),
-      methodName: stackFrame.getMethodName(),
-    };
-  }
-
+  /** @internal */
   private _printPrettyLog(logObject: ILogObject): void {
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr
@@ -286,6 +280,7 @@ export class Logger {
     }
   }
 
+  /** @internal */
   private _printPrettyStack(std: IStd, stackObjectArray: IStackFrame[]): void {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
@@ -306,6 +301,7 @@ export class Logger {
     });
   }
 
+  /** @internal */
   private _printJsonLog(logObject: ILogObject): void {
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr

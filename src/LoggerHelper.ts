@@ -1,4 +1,4 @@
-import { sep as pathSeparator } from "path";
+import { basename as fileBasename, sep as pathSeparator } from "path";
 import { wrapCallSite } from "source-map-support";
 import { Logger } from "./index";
 import { Chalk } from "chalk";
@@ -6,6 +6,7 @@ import {
   IJsonHighlightColors,
   IJsonHighlightColorsChalk,
   ILogObject,
+  IStackFrame,
 } from "./interfaces";
 
 export class LoggerHelper {
@@ -45,6 +46,21 @@ export class LoggerHelper {
         : ((error.stack as unknown) as NodeJS.CallSite[]);
     Error.prepareStackTrace = _prepareStackTrace;
     return stack;
+  }
+
+  public static toStackFrameObject(stackFrame: NodeJS.CallSite): IStackFrame {
+    const filePath: string | null = stackFrame.getFileName();
+    return {
+      filePath: LoggerHelper.cleanUpFilePath(filePath) ?? "",
+      fullFilePath: filePath ?? "",
+      fileName: fileBasename(stackFrame.getFileName() ?? ""),
+      lineNumber: stackFrame.getLineNumber(),
+      columnNumber: stackFrame.getColumnNumber(),
+      isConstructor: stackFrame.isConstructor(),
+      functionName: stackFrame.getFunctionName(),
+      typeName: stackFrame.getTypeName(),
+      methodName: stackFrame.getMethodName(),
+    };
   }
 
   public static errorToJsonHelper(): void {

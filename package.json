@@ -6,8 +6,8 @@
   "typings": "src/index",
   "scripts": {
     "build": "tsc",
-    "eslint": "eslint . --ext .ts --ignore-pattern tests/*",
-    "eslint-fix": "eslint . --ext .ts --ignore-pattern tests/* --fix",
+    "eslint": "eslint . --ext .ts",
+    "eslint-fix": "eslint . --ext .ts --fix",
     "test": "ava",
     "coverage": "nyc --all ava"
   },
