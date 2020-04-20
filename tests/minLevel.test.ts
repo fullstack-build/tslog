@@ -1,6 +1,6 @@
 import ava, { ExecutionContext, TestInterface } from "ava";
 import { Logger } from "../src/index";
-import { doesLogContain, IContext } from "./helper";
+import { IContext } from "./helper";
 
 const avaTest = ava as TestInterface<IContext>;
 
