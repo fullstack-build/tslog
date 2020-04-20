@@ -4,14 +4,6 @@ import { doesLogContain, IContext } from "./helper";
 
 const avaTest = ava as TestInterface<IContext>;
 
-avaTest.beforeEach((test: ExecutionContext<IContext>) => {
-  test.context = {
-    stdOut: [],
-    stdErr: [],
-    logger: new Logger(),
-  };
-});
-
 avaTest("init logger: plain", (test: ExecutionContext<IContext>): void => {
   const logger: Logger = new Logger();
   test.is(logger instanceof Logger, true);

@@ -30,6 +30,7 @@ avaTest("suppress logging", (test: ExecutionContext<IContext>): void => {
   test.context.logger.debug("test message");
   test.context.logger.info("test message");
   test.context.logger.warn("test message");
+  test.context.logger.error("test message");
   test.context.logger.fatal("test message");
   test.is(test.context.stdOut.length, 0);
   test.is(test.context.stdErr.length, 0);

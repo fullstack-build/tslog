@@ -52,6 +52,7 @@ avaTest("attach transport", (test: ExecutionContext<IContext>): void => {
   test.context.logger.debug("test message");
   test.context.logger.info("test message");
   test.context.logger.warn("test message");
+  test.context.logger.error("test message");
   test.context.logger.fatal("test message");
 
   test.is(test.context?.transportOut?.length, test.context?.stdOut?.length);
