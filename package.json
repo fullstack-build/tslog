@@ -8,9 +8,12 @@
     "build": "tsc",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
-    "test": "ava",
-    "coverage": "nyc --all ava"
+    "test": "jest"
   },
+  "eslintConfig": {
+    "extends": "../../common/config/eslintrc.js"
+  },
+  "jest": {},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fullstack-build/soniq.git"
@@ -26,15 +29,16 @@
   "homepage": "https://www.fullstack.one",
   "devDependencies": {
     "@rushstack/eslint-config": "^0.5.7",
+    "@types/jest": "~25.2.1",
     "@types/lodash": "~4.14.149",
     "@types/node": "^13.11.0",
     "@types/source-map-support": "~0.5.1",
-    "ava": "~3.7.0",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
-    "nyc": "~15.0.1",
+    "jest": "~25.4.0",
     "prettier": "^2.0.4",
+    "ts-jest": "~25.4.0",
     "typescript": "^3.8.3"
   },
   "dependencies": {

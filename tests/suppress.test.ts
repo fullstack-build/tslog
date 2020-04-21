@@ -1,37 +1,38 @@
-import ava, { ExecutionContext, TestInterface } from "ava";
-import { Logger } from "../src/index";
-import { doesLogContain, IContext } from "./helper";
+import "jest";
+import { Logger } from "../src";
 
-const avaTest = ava as TestInterface<IContext>;
+const stdOut = [];
+const stdErr = [];
 
-avaTest.beforeEach((test: ExecutionContext<IContext>) => {
-  test.context = {
-    stdOut: [],
-    stdErr: [],
-    logger: new Logger({
-      suppressLogging: true,
-      stdOut: {
-        write: (print: string) => {
-          test.context.stdOut.push(print);
-        },
-      },
-      stdErr: {
-        write: (print: string) => {
-          test.context.stdErr.push(print);
-        },
-      },
-    }),
-  };
+const logger: Logger = new Logger({
+  suppressLogging: true,
+  stdOut: {
+    write: (print: string) => {
+      stdOut.push(print);
+    },
+  },
+  stdErr: {
+    write: (print: string) => {
+      stdErr.push(print);
+    },
+  },
 });
 
-avaTest("suppress logging", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.silly("test message");
-  test.context.logger.trace("test message");
-  test.context.logger.debug("test message");
-  test.context.logger.info("test message");
-  test.context.logger.warn("test message");
-  test.context.logger.error("test message");
-  test.context.logger.fatal("test message");
-  test.is(test.context.stdOut.length, 0);
-  test.is(test.context.stdErr.length, 0);
+describe("Logger: surpress logs to std", () => {
+  beforeEach(() => {
+    stdOut.length = 0;
+    stdErr.length = 0;
+  });
+  test("Check literal value", () => {
+    logger.silly("test message");
+    logger.silly("test message");
+    logger.trace("test message");
+    logger.debug("test message");
+    logger.info("test message");
+    logger.warn("test message");
+    logger.error("test message");
+    logger.fatal("test message");
+    expect(stdOut.length).toBe(0);
+    expect(stdErr.length).toBe(0);
+  });
 });

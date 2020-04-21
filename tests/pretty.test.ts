@@ -1,91 +1,83 @@
-import ava, { ExecutionContext, TestInterface } from "ava";
-import { Logger } from "../src/index";
-import { doesLogContain, IContext } from "./helper";
+import "jest";
+import { Logger } from "../src";
+import { doesLogContain } from "./helper";
 
-const avaTest = ava as TestInterface<IContext>;
+const stdOut: string[] = [];
+const stdErr: string[] = [];
 
-avaTest.beforeEach((test: ExecutionContext<IContext>) => {
-  test.context = {
-    stdOut: [],
-    stdErr: [],
-    logger: new Logger({
-      name: "Test",
-      stdOut: {
-        write: (print: string) => {
-          test.context.stdOut.push(print);
-        },
-      },
-      stdErr: {
-        write: (print: string) => {
-          test.context.stdErr.push(print);
-        },
-      },
-    }),
-  };
+const logger: Logger = new Logger({
+  stdOut: {
+    write: (print: string) => {
+      stdOut.push(print);
+    },
+  },
+  stdErr: {
+    write: (print: string) => {
+      stdErr.push(print);
+    },
+  },
 });
 
-avaTest("silly log (stdOut)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.silly("test message");
-  test.true(doesLogContain(test.context.stdOut, "SILLY"));
-  test.true(doesLogContain(test.context.stdOut, "test message"));
-});
+describe("Logger: Pretty print", () => {
+  beforeEach(() => {
+    stdOut.length = 0;
+    stdErr.length = 0;
+  });
 
-avaTest("debug log (stdOut)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.debug("test message");
-  test.true(doesLogContain(test.context.stdOut, "DEBUG"));
-  test.true(doesLogContain(test.context.stdOut, "test message"));
-});
+  test("silly log (stdOut)", (): void => {
+    logger.silly("test message");
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "test message")).toBeTruthy();
+  });
 
-avaTest("info log (stdOut)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.info("test message");
-  test.true(doesLogContain(test.context.stdOut, "INFO"));
-  test.true(doesLogContain(test.context.stdOut, "test message"));
-});
+  test("debug log (stdOut)", (): void => {
+    logger.debug("test message");
+    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+    expect(doesLogContain(stdOut, "test message")).toBeTruthy();
+  });
 
-avaTest("warn log (stdErr)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.warn("test message");
-  test.true(doesLogContain(test.context.stdErr, "WARN"));
-  test.true(doesLogContain(test.context.stdErr, "test message"));
-});
+  test("info log (stdOut)", (): void => {
+    logger.info("test message");
+    expect(doesLogContain(stdOut, "INFO")).toBeTruthy();
+    expect(doesLogContain(stdOut, "test message")).toBeTruthy();
+  });
 
-avaTest("error log (stdErr)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.error("test message");
-  test.true(doesLogContain(test.context.stdErr, "ERROR"));
-  test.true(doesLogContain(test.context.stdErr, "test message"));
-});
+  test("warn log (stdErr)", (): void => {
+    logger.warn("test message");
+    expect(doesLogContain(stdErr, "WARN")).toBeTruthy();
+    expect(doesLogContain(stdErr, "test message")).toBeTruthy();
+  });
 
-avaTest(
-  "fatal log (stdErr and not stdOut)",
-  (test: ExecutionContext<IContext>): void => {
-    test.context.logger.fatal("test message");
-    test.true(doesLogContain(test.context.stdErr, "FATAL"));
-    test.true(doesLogContain(test.context.stdErr, "test message"));
-    test.false(doesLogContain(test.context.stdOut, "FATAL"));
-    test.false(doesLogContain(test.context.stdOut, "test message"));
-  }
-);
+  test("error log (stdErr)", (): void => {
+    logger.error("test message");
+    expect(doesLogContain(stdErr, "ERROR")).toBeTruthy();
+    expect(doesLogContain(stdErr, "test message")).toBeTruthy();
+  });
 
-avaTest(
-  "trace log has a trace (stdOut)",
-  (test: ExecutionContext<IContext>): void => {
-    test.context.logger.trace("test message");
-    test.true(doesLogContain(test.context.stdOut, "TRACE"));
-    test.true(doesLogContain(test.context.stdOut, "test message"));
-    test.true(doesLogContain(test.context.stdOut, "log stack"));
-  }
-);
+  test("fatal log (stdErr and not stdOut)", (): void => {
+    logger.fatal("test message");
+    expect(doesLogContain(stdErr, "FATAL")).toBeTruthy();
+    expect(doesLogContain(stdErr, "test message")).toBeTruthy();
+    expect(doesLogContain(stdOut, "FATAL")).toBeFalsy();
+    expect(doesLogContain(stdOut, "test message")).toBeFalsy();
+  });
 
-avaTest(
-  "Pretty Error with stack (stdErr)",
-  (test: ExecutionContext<IContext>): void => {
-    test.context.logger.warn(new Error("TestError"));
-    test.true(doesLogContain(test.context.stdErr, "Error: TestError"));
-    test.true(doesLogContain(test.context.stdErr, ".test.ts"));
-  }
-);
+  test("trace log has a trace (stdOut)", (): void => {
+    logger.trace("test message");
+    expect(doesLogContain(stdOut, "TRACE")).toBeTruthy();
+    expect(doesLogContain(stdOut, "test message")).toBeTruthy();
+    expect(doesLogContain(stdOut, "log stack")).toBeTruthy();
+  });
 
-avaTest("Pretty object (stdOut)", (test: ExecutionContext<IContext>): void => {
-  test.context.logger.info({ very: "much" });
-  //json indentation discovered
-  test.true(doesLogContain(test.context.stdOut, '\n{\n  "very": "much"\n}'));
+  test("Pretty Error with stack (stdErr)", (): void => {
+    logger.warn(new Error("TestError"));
+    expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
+    expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+  });
+
+  test("Pretty object (stdOut)", (): void => {
+    logger.info({ very: "much" });
+    //json indentation discovered
+    expect(doesLogContain(stdOut, '\n{\n  "very": "much"\n}'));
+  });
 });

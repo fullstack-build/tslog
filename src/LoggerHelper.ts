@@ -1,5 +1,5 @@
 import { basename as fileBasename, sep as pathSeparator } from "path";
-import { wrapCallSite } from "source-map-support";
+
 import { Logger } from "./index";
 import { Chalk } from "chalk";
 import {
@@ -23,16 +23,6 @@ export class LoggerHelper {
           : cleanFileName,
       ""
     );
-  }
-
-  public static wrapCallSiteOrIgnore(
-    callSiteFrame: NodeJS.CallSite
-  ): NodeJS.CallSite {
-    try {
-      return wrapCallSite(callSiteFrame);
-    } catch {
-      return callSiteFrame;
-    }
   }
 
   public static getCallSites(error?: Error): NodeJS.CallSite[] {

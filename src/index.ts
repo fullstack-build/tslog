@@ -1,6 +1,8 @@
-import * as chalk from "chalk";
 import { normalize as fileNormalize } from "path";
+import { wrapCallSite } from "source-map-support";
+import * as chalk from "chalk";
 import { format, types } from "util";
+
 import {
   IErrorObject,
   ILogLevel,
@@ -14,6 +16,7 @@ import {
   TLogLevel,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
+
 export { ITransportLogger, ILogObject, IErrorObject };
 
 export class Logger {
@@ -150,9 +153,7 @@ export class Logger {
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
       this._ignoreStackLevels
     );
-    const stackFrame: NodeJS.CallSite = LoggerHelper.wrapCallSiteOrIgnore(
-      relevantCallSites[0]
-    );
+    const stackFrame: NodeJS.CallSite = wrapCallSite(relevantCallSites[0]);
     const stackFrameObject: IStackFrame = LoggerHelper.toStackFrameObject(
       stackFrame
     );
@@ -201,9 +202,7 @@ export class Logger {
     const prettyStack: IStackFrame[] = Object.values(jsStack).reduce(
       (iPrettyStack: IStackFrame[], stackFrame: NodeJS.CallSite) => {
         iPrettyStack.push(
-          LoggerHelper.toStackFrameObject(
-            LoggerHelper.wrapCallSiteOrIgnore(stackFrame)
-          )
+          LoggerHelper.toStackFrameObject(wrapCallSite(stackFrame))
         );
         return iPrettyStack;
       },

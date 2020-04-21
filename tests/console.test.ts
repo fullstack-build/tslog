@@ -1,60 +1,68 @@
-import ava, { ExecutionContext, TestInterface } from "ava";
-import { Logger } from "../src/index";
-import { doesLogContain, IContext } from "./helper";
+import "jest";
+import { Logger } from "../src";
 
-const avaTest = ava as TestInterface<IContext>;
+const stdOut: string[] = [];
+const stdErr: string[] = [];
 
-avaTest.beforeEach((test: ExecutionContext<IContext>) => {
-  test.context = {
-    stdOut: [],
-    stdErr: [],
-    logger: new Logger({
-      suppressLogging: true,
-    }),
-  };
+const logger: Logger = new Logger({
+  suppressLogging: true,
+  stdOut: {
+    write: (print: string) => {
+      stdOut.push(print);
+    },
+  },
+  stdErr: {
+    write: (print: string) => {
+      stdErr.push(print);
+    },
+  },
 });
 
-avaTest.serial(
-  "not overwritten console",
-  (test: ExecutionContext<IContext>): void => {
+describe("Logger: overwrite console", () => {
+  console.debug = jest.fn();
+  console.error = jest.fn();
+
+  beforeEach(() => {
+    stdOut.length = 0;
+    stdErr.length = 0;
+  });
+
+  test("not overwritten console", (): void => {
     const logger: Logger = new Logger({
       stdOut: {
         write: (print: string) => {
-          test.context.stdOut.push(print);
+          stdOut.push(print);
         },
       },
       stdErr: {
         write: (print: string) => {
-          test.context.stdErr.push(print);
+          stdErr.push(print);
         },
       },
     });
     console.debug("--> log to console (should be visible in tests)");
-    test.is(test.context.stdOut.length, 0);
-    console.warn("--> log to console (should be visible in tests)");
-    test.is(test.context.stdErr.length, 0);
-  }
-);
+    expect(stdOut.length).toBe(0);
+    console.error("--> log to console (should be visible in tests)");
+    expect(stdErr.length).toBe(0);
+  });
 
-avaTest.serial(
-  "overwritten console",
-  (test: ExecutionContext<IContext>): void => {
+  test("overwritten console", (): void => {
     const logger: Logger = new Logger({
       overwriteConsole: true,
       stdOut: {
         write: (print: string) => {
-          test.context.stdOut.push(print);
+          stdOut.push(print);
         },
       },
       stdErr: {
         write: (print: string) => {
-          test.context.stdErr.push(print);
+          stdErr.push(print);
         },
       },
     });
     console.debug("--> log to console (should NOT be visible in tests)");
-    test.not(test.context.stdOut.length, 0);
-    console.warn("--> log to console (should NOT be visible in tests)");
-    test.not(test.context.stdErr.length, 0);
-  }
-);
+    expect(stdOut.length).toBeGreaterThan(0);
+    console.error("--> log to console (should NOT be visible in tests)");
+    expect(stdErr.length).toBeGreaterThan(0);
+  });
+});

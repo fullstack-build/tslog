@@ -1,71 +1,77 @@
-import ava, { ExecutionContext, TestInterface } from "ava";
-import { Logger } from "../src/index";
-import { doesLogContain, IContext } from "./helper";
+import "jest";
+import { Logger } from "../src";
 
-const avaTest = ava as TestInterface<IContext>;
+const stdOut = [];
+const stdErr = [];
 
-avaTest("init logger: plain", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger();
-  test.is(logger instanceof Logger, true);
+const logger: Logger = new Logger({
+  suppressLogging: true,
+  stdOut: {
+    write: (print: string) => {
+      stdOut.push(print);
+    },
+  },
+  stdErr: {
+    write: (print: string) => {
+      stdErr.push(print);
+    },
+  },
 });
 
-avaTest(
-  "init logger: instanceId ",
-  (test: ExecutionContext<IContext>): void => {
+describe("Logger: settings", () => {
+  beforeEach(() => {
+    stdOut.length = 0;
+    stdErr.length = 0;
+  });
+
+  test("init logger: plain", (): void => {
+    const logger: Logger = new Logger();
+    expect(logger instanceof Logger).toBe(true);
+  });
+
+  test("init logger: instanceId ", (): void => {
     const logger: Logger = new Logger({ instanceId: "ABC" });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.instanceId, "ABC");
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.instanceId).toBe("ABC");
+  });
 
-avaTest("init logger: minLevel", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger({ minLevel: 3 });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.minLevel, 3);
-});
+  test("init logger: minLevel", (): void => {
+    const logger: Logger = new Logger({ minLevel: 3 });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.minLevel).toBe(3);
+  });
 
-avaTest("init logger: name", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger({ name: "Test" });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.name, "Test");
-});
+  test("init logger: name", (): void => {
+    const logger: Logger = new Logger({ name: "Test" });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.name).toBe("Test");
+  });
 
-avaTest(
-  "init logger: exposeStack",
-  (test: ExecutionContext<IContext>): void => {
+  test("init logger: exposeStack", (): void => {
     const logger: Logger = new Logger({ exposeStack: true });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.exposeStack, true);
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.exposeStack).toBe(true);
+  });
 
-avaTest(
-  "init logger: suppressLogging",
-  (test: ExecutionContext<IContext>): void => {
+  test("init logger: suppressLogging", (): void => {
     const logger: Logger = new Logger({ suppressLogging: true });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.suppressLogging, true);
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.suppressLogging).toBe(true);
+  });
 
-avaTest(
-  "init logger: overwriteConsole",
-  (test: ExecutionContext<IContext>): void => {
+  test("init logger: overwriteConsole", (): void => {
     const logger: Logger = new Logger({ overwriteConsole: true });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.overwriteConsole, true);
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.overwriteConsole).toBe(true);
+  });
 
-avaTest("init logger: logAsJson", (test: ExecutionContext<IContext>): void => {
-  const logger: Logger = new Logger({ logAsJson: true });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.logAsJson, true);
-});
+  test("init logger: logAsJson", (): void => {
+    const logger: Logger = new Logger({ logAsJson: true });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.logAsJson).toBe(true);
+  });
 
-avaTest(
-  "init logger: logLevelsColors",
-  (test: ExecutionContext<IContext>): void => {
+  test("init logger: logLevelsColors", (): void => {
     const logger: Logger = new Logger({
       logLevelsColors: {
         0: "#000000",
@@ -77,20 +83,17 @@ avaTest(
         6: "#00000F",
       },
     });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.logLevelsColors[0], "#000000");
-    test.is(logger.settings.logLevelsColors[1], "#F00000");
-    test.is(logger.settings.logLevelsColors[2], "#0F0000");
-    test.is(logger.settings.logLevelsColors[3], "#00F000");
-    test.is(logger.settings.logLevelsColors[4], "#000F00");
-    test.is(logger.settings.logLevelsColors[5], "#0000F0");
-    test.is(logger.settings.logLevelsColors[6], "#00000F");
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.logLevelsColors[0]).toBe("#000000");
+    expect(logger.settings.logLevelsColors[1]).toBe("#F00000");
+    expect(logger.settings.logLevelsColors[2]).toBe("#0F0000");
+    expect(logger.settings.logLevelsColors[3]).toBe("#00F000");
+    expect(logger.settings.logLevelsColors[4]).toBe("#000F00");
+    expect(logger.settings.logLevelsColors[5]).toBe("#0000F0");
+    expect(logger.settings.logLevelsColors[6]).toBe("#00000F");
+  });
 
-avaTest(
-  "init logger: jsonHighlightColors",
-  (test: ExecutionContext<IContext>): void => {
+  test("init logger: jsonHighlightColors", (): void => {
     const logger: Logger = new Logger({
       jsonHighlightColors: {
         number: "#000000",
@@ -100,25 +103,25 @@ avaTest(
         null: "#000F00",
       },
     });
-    test.is(logger instanceof Logger, true);
-    test.is(logger.settings.jsonHighlightColors.number, "#000000");
-    test.is(logger.settings.jsonHighlightColors.key, "#F00000");
-    test.is(logger.settings.jsonHighlightColors.string, "#0F0000");
-    test.is(logger.settings.jsonHighlightColors.boolean, "#00F000");
-    test.is(logger.settings.jsonHighlightColors.null, "#000F00");
-  }
-);
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.jsonHighlightColors.number).toBe("#000000");
+    expect(logger.settings.jsonHighlightColors.key).toBe("#F00000");
+    expect(logger.settings.jsonHighlightColors.string).toBe("#0F0000");
+    expect(logger.settings.jsonHighlightColors.boolean).toBe("#00F000");
+    expect(logger.settings.jsonHighlightColors.null).toBe("#000F00");
+  });
 
-avaTest("init logger: stdOut", (test: ExecutionContext<IContext>): void => {
-  const std: { write: () => void } = { write: () => {} };
-  const logger: Logger = new Logger({ stdOut: std });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.stdOut, std);
-});
+  test("init logger: stdOut", (): void => {
+    const std: { write: () => void } = { write: () => {} };
+    const logger: Logger = new Logger({ stdOut: std });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.stdOut).toBe(std);
+  });
 
-avaTest("init logger: stdErr", (test: ExecutionContext<IContext>): void => {
-  const std: { write: () => void } = { write: () => {} };
-  const logger: Logger = new Logger({ stdErr: std });
-  test.is(logger instanceof Logger, true);
-  test.is(logger.settings.stdErr, std);
+  test("init logger: stdErr", (): void => {
+    const std: { write: () => void } = { write: () => {} };
+    const logger: Logger = new Logger({ stdErr: std });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.stdErr).toBe(std);
+  });
 });
