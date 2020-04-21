@@ -11,7 +11,7 @@
     "test": "jest"
   },
   "eslintConfig": {
-    "extends": "../../common/config/eslintrc.js"
+    "extends": "../../eslintrc.js"
   },
   "jest": {},
   "repository": {
