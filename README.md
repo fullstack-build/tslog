@@ -1,1 +1,1 @@
-TypeScript and JavaScript Logger
+# TypeScript and JavaScript Logger
