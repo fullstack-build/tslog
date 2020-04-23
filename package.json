@@ -1,11 +1,12 @@
 {
   "name": "tslog",
-  "version": "1.0.0-dev.4",
+  "version": "1.0.0-dev.5",
   "description": "TypeScript and JavaScript Logger",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
     "build": "tsc",
+    "prepublish": "tsc",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest"
