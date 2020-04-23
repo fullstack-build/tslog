@@ -1,0 +1,27 @@
+#!/bin/sh
+echo --------------------------------------------
+echo Starting Git hook: pre-commit
+
+# TypeScript files only
+FILES=$(git diff --cached --name-only --diff-filter=ACMR "*.ts" | sed 's| |\\ |g')
+[ -z "$FILES" ] && exit 0
+
+# Prettify all selected files
+echo "$FILES" | xargs ./node_modules/.bin/prettier --write
+
+# ESLint
+echo "$FILES" | xargs ./common/temp/node_modules/.bin/eslint --ext .ts --ignore-pattern tests/*
+eslint_exit=$?
+
+# Add back the modified/prettified files to staging
+echo "$FILES" | xargs git add
+
+if [ ${eslint_exit} -eq 0 ]; then
+  echo "✓ ESLint passed"
+else
+  echo "✘ ESLint failed!" 1>&2
+  exit ${eslint_exit}
+fi
+
+echo Finished Git hook: pre-commit
+echo --------------------------------------------
