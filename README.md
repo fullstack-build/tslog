@@ -5,3 +5,4 @@
 
 > Expressive, beautiful yet simple logging for TypeScript and Node.js 
 
+![tslog output (pretty)](/docs/assets/tslog_pretty_output.png?raw=true "tslog output (pretty)")
