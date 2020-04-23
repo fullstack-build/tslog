@@ -29,7 +29,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/fullstack-build/soniq.git"
+    "url": "git+https://github.com/fullstack-build/tslog.git"
   },
   "authors": [
     "Eugene Terehov <eugene@fullstack.build>",
@@ -37,9 +37,9 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/fullstack-build/soniq/issues"
+    "url": "https://github.com/fullstack-build/tslog/issues"
   },
-  "homepage": "https://soniq.js.org",
+  "homepage": "https://tslog.js.org",
   "devDependencies": {
     "@rushstack/eslint-config": "^0.5.7",
     "@types/jest": "~25.2.1",
