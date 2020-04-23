@@ -1,5 +1,8 @@
 import { Chalk } from "chalk";
 
+/**
+ * @public
+ */
 export interface ISettingsParam {
   instanceId?: string;
   name?: string;
@@ -32,6 +35,9 @@ export interface IStd {
   write: Function;
 }
 
+/**
+ * @public
+ */
 export type TLogLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface ILogLevel {
@@ -56,6 +62,9 @@ export interface IStackFrame {
   methodName: string | null;
 }
 
+/**
+ * @public
+ */
 export interface ILogObject extends IStackFrame {
   loggerName: string;
   date: Date;
@@ -65,6 +74,9 @@ export interface ILogObject extends IStackFrame {
   stack?: IStackFrame[];
 }
 
+/**
+ * @public
+ */
 export interface IErrorObject {
   isError: true;
   name: string;
@@ -72,6 +84,9 @@ export interface IErrorObject {
   stack: IStackFrame[];
 }
 
+/**
+ * @public
+ */
 export interface ITransportLogger<T> {
   silly?: T;
   trace?: T;

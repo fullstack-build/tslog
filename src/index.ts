@@ -17,8 +17,18 @@ import {
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
-export { ITransportLogger, ILogObject, IErrorObject };
+export {
+  ITransportLogger,
+  ILogObject,
+  IErrorObject,
+  ISettingsParam,
+  TLogLevel,
+};
 
+/**
+ * The Logger class
+ * @public
+ */
 export class Logger {
   private readonly _logLevels: ILogLevel = {
     0: "silly",
