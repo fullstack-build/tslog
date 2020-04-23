@@ -49,11 +49,12 @@
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
+    "git-hooks": "^1.1.10",
     "jest": "~25.4.0",
     "prettier": "^2.0.4",
     "ts-jest": "~25.4.0",
-    "typescript": "^3.8.3",
-    "ts-node": "~8.9.0"
+    "ts-node": "~8.9.0",
+    "typescript": "^3.8.3"
   },
   "dependencies": {
     "chalk": "~4.0.0",

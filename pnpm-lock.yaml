@@ -10,6 +10,7 @@ devDependencies:
   eslint: 6.8.0
   eslint-config-prettier: 6.11.0_eslint@6.8.0
   eslint-plugin-prettier: 3.1.3_eslint@6.8.0+prettier@2.0.5
+  git-hooks: 1.1.10
   jest: 25.4.0
   prettier: 2.0.5
   ts-jest: 25.4.0_jest@25.4.0+typescript@3.8.3
@@ -1922,6 +1923,13 @@ packages:
     dev: true
     resolution:
       integrity: sha1-Xv+OPmhNVprkyysSgmBOi6YhSfo=
+  /git-hooks/1.1.10:
+    dev: true
+    engines:
+      node: '>=0.8.x'
+    requiresBuild: true
+    resolution:
+      integrity: sha512-23nto1qLsqJdY0daAUYqeKPyTvzefR2wZv1krgFRnPg0FxrmITCeWAIv/QfR+fAD7eZC7Rp5OSicJB4hDKyp1A==
   /glob-parent/5.1.1:
     dependencies:
       is-glob: 4.0.1
@@ -4661,6 +4669,7 @@ specifiers:
   eslint: ^6.8.0
   eslint-config-prettier: ^6.10.1
   eslint-plugin-prettier: ^3.1.2
+  git-hooks: ^1.1.10
   jest: ~25.4.0
   prettier: ^2.0.4
   source-map-support: ~0.5.16
