@@ -11,9 +11,22 @@
     "test": "jest"
   },
   "eslintConfig": {
-    "extends": "../../eslintrc.js"
+    "extends": "./eslintrc.js"
   },
-  "jest": {},
+  "jest": {
+    "verbose": true,
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "collectCoverage": true,
+    "testMatch": [
+      "/**/*.test.ts"
+    ],
+    "globals": {
+      "ts-jest": {
+        "packageJson": "package.json"
+      }
+    }
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/fullstack-build/soniq.git"
