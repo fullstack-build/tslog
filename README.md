@@ -1,6 +1,4 @@
-![tslog logo](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_logo.png "tslog logo")
-
-## 📝 tslog: TypeScript and JavaScript Logger for Node.js
+##  tslog: Expressive TypeScript Logger for Node.js
 
 
 ![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)
@@ -10,11 +8,14 @@
 
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
-### Features
-* Small footprint
-* Native support for TypeScript
+### Highlights
+* Small footprint, great performance
+* Native TypeScript support (correct location in *.ts files)
+* Works for TypeScript and JavaScript
 * Log levels
-* Connect as many transports as you want with different min log level
-* Beautiful and _structured_ output or _json_ output
-* Uses native V8 stacktrace (no string parsing!)
-* Pretty Error with stack trace 
+* Attachable transports
+* _Structured_ or _json_ output
+* Uses native V8 stacktrace
+* Pretty Error with stack trace
+* well documented
+* 100% test coverage

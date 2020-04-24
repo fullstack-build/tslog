@@ -1,10 +1,11 @@
 module.exports = {
-    out: './docs/tsdoc/',
-    readme: true,
-    includes: './src',
-    exclude: [],
-    mode: 'file',
-    excludeExternals: true,
-    excludeNotExported: true,
-    excludePrivate: true
+  out: "./docs/tsdoc/",
+  readme: true,
+  includes: "./src",
+  exclude: ["./src/LoggerHelper.ts"],
+  mode: "file",
+  excludeExternals: true,
+  excludeNotExported: true,
+  excludePrivate: true,
+  theme: "minimal",
 };

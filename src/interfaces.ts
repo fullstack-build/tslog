@@ -78,6 +78,10 @@ export interface ILogLevel {
   6: string;
 }
 
+/**
+ * All relevant information about a log message
+ * @public
+ */
 export interface IStackFrame {
   filePath: string;
   fullFilePath: string;
@@ -91,9 +95,11 @@ export interface IStackFrame {
 }
 
 /**
+ * All relevant information about a log message
  * @public
  */
 export interface ILogObject extends IStackFrame {
+  instanceName?: string;
   loggerName: string;
   date: Date;
   logLevel: number;
@@ -127,7 +133,7 @@ export interface ITransportLogger<T> {
 
 export interface ITransportProvider {
   minLevel: TLogLevel;
-  logger: ITransportLogger<(message: ILogObject) => void>;
+  transportLogger: ITransportLogger<(message: ILogObject) => void>;
 }
 
 export interface IJsonHighlightColors {

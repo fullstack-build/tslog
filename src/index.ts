@@ -28,7 +28,7 @@ export {
 };
 
 /**
- * The Logger class
+ * 📝 Expressive TypeScript Logger for Node.js
  * @public
  */
 export class Logger {
@@ -88,46 +88,73 @@ export class Logger {
     }
   }
 
+  /**
+   *  Attaches external Loggers, e.g. external log services, file system, database
+   *
+   * @param transportLogger External logger to be attached. Must implement all log methods.
+   * @param minLevel        Minimum log level to be forwarded to this attached transport logger.
+   */
   public attachTransport(
-    logger: ITransportLogger<(message: ILogObject) => void>,
+    transportLogger: ITransportLogger<(message: ILogObject) => void>,
     minLevel: TLogLevel = 0
   ): void {
     this._attachedTransports.push({
       minLevel,
-      logger,
+      transportLogger,
     });
   }
 
+  /**
+   * Logs a silly message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public silly(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [0, args]);
   }
 
+  /**
+   * Logs a trace message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public trace(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [1, args, true]);
   }
 
+  /**
+   * Logs a debug message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public debug(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [2, args]);
   }
 
+  /**
+   * Logs an info message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public info(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [3, args]);
   }
 
+  /**
+   * Logs a warn message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public warn(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [4, args]);
   }
 
+  /**
+   * Logs an error message.
+   * @param args  Multiple log attributes that should be logged out.
+   */
   public error(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [5, args]);
   }
 
   /**
-   * Returns the average of two numbers.
-   *
-   * @param x - The first input number
-   * @returns LogObject containing all the relevant information about this log
-   *
+   * Logs a fatal message.
+   * @param args  Multiple log attributes that should be logged out.
    */
   public fatal(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [6, args]);
@@ -154,7 +181,7 @@ export class Logger {
 
     this._attachedTransports.forEach((transport: ITransportProvider) => {
       if (logLevel >= transport.minLevel) {
-        transport.logger[this._logLevels[logLevel]](logObject);
+        transport.transportLogger[this._logLevels[logLevel]](logObject);
       }
     });
 
@@ -176,6 +203,7 @@ export class Logger {
     );
 
     const logObject: ILogObject = {
+      instanceName: this.settings.instanceName,
       loggerName: this.settings.name ?? "",
       date: new Date(),
       logLevel: logLevel,
