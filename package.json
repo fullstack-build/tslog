@@ -1,7 +1,7 @@
 {
   "name": "tslog",
   "version": "1.0.0-dev.7",
-  "description": "TypeScript and JavaScript Logger",
+  "description": "Expressive TypeScript Logger for Node.js",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
@@ -66,5 +66,40 @@
   },
   "files": [
     "dist"
-  ]
+  ],
+  "keywords": [
+    "log",
+    "logging",
+    "log4j",
+    "log4js",
+    "log4ts",
+    "print",
+    "pretty",
+    "pretty print",
+    "json",
+    "typescript",
+    "debug",
+    "logging",
+    "loglevel",
+    "bunyan",
+    "winston",
+    "stack",
+    "stacktrace",
+    "trace",
+    "Error.stack",
+    "pretty print",
+    "prettify",
+    "format",
+    "human",
+    "callsites",
+    "callsite",
+    "show error",
+    "handling exceptions",
+    "pretty log",
+    "pretty json",
+    "pretty-error",
+    "sourcemap",
+    "call location"]
 }
+
+
