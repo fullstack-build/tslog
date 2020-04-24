@@ -13,11 +13,11 @@
 
 ### Highlights
 - [x] Small footprint, great performance
-- [x] Native TypeScript support (correct location in *.ts files)
+- [x] Full typed with TypeScript support (correct location in *.ts files)
 - [x] Works for TypeScript and JavaScript
 - [x] Log levels
 - [x] Custom pluggable loggers
-- [x] _Structured_ or _JSON_ output
+- [x] Structured or _JSON_ output
 - [x] Beauty object and error interpolation (with stack trace)
 - [x] Stack trace through native V8 API
 - [x] Stack trace position linked to position in IDE
@@ -25,7 +25,7 @@
 - [x] 100% test coverage
 
 #### Example: 
-```ts
+```typescript
 import { Logger } from "tslog";
 
 const log: Logger = new Logger({ name: "myLogger" });
@@ -39,7 +39,7 @@ npm install tslog
 
 ##### Usage:
 
-```ts
+```typescript
 import { Logger } from "tslog";
 
 const log: Logger = new Logger({ name: "myLogger" });

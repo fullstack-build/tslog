@@ -48,7 +48,7 @@ export class Logger {
 
   /**
    *
-   * @param settings Configuration of the logger instance  (all settings are optional with sane defaults)
+   * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
    */
   public constructor(settings?: ISettingsParam) {
     const displayInstanceName: boolean =
@@ -92,8 +92,8 @@ export class Logger {
   /**
    *  Attaches external Loggers, e.g. external log services, file system, database
    *
-   * @param transportLogger External logger to be attached. Must implement all log methods.
-   * @param minLevel        Minimum log level to be forwarded to this attached transport logger.
+   * @param transportLogger - External logger to be attached. Must implement all log methods.
+   * @param minLevel        - Minimum log level to be forwarded to this attached transport logger.
    */
   public attachTransport(
     transportLogger: ITransportLogger<(message: ILogObject) => void>,
@@ -107,7 +107,7 @@ export class Logger {
 
   /**
    * Logs a silly message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public silly(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [0, args]);
@@ -115,7 +115,7 @@ export class Logger {
 
   /**
    * Logs a trace message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public trace(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [1, args, true]);
@@ -123,7 +123,7 @@ export class Logger {
 
   /**
    * Logs a debug message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public debug(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [2, args]);
@@ -131,7 +131,7 @@ export class Logger {
 
   /**
    * Logs an info message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public info(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [3, args]);
@@ -139,7 +139,7 @@ export class Logger {
 
   /**
    * Logs a warn message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public warn(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [4, args]);
@@ -147,7 +147,7 @@ export class Logger {
 
   /**
    * Logs an error message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public error(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [5, args]);
@@ -155,7 +155,7 @@ export class Logger {
 
   /**
    * Logs a fatal message.
-   * @param args  Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged out.
    */
   public fatal(...args: unknown[]): ILogObject {
     return this._handleLog.apply(this, [6, args]);
