@@ -1,0 +1,8 @@
+#!/bin/sh
+echo --------------------------------------------
+echo Starting docs generation
+
+npm run generate-all-docs;
+
+echo Finished docs generation
+echo --------------------------------------------

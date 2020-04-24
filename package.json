@@ -6,7 +6,7 @@
   "typings": "dist/index",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run api-extractor",
+    "prepublishOnly": "npm run generate-all-docs",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
