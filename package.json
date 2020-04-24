@@ -9,7 +9,9 @@
     "prepublishOnly": "tsc",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
-    "test": "jest"
+    "test": "jest",
+    "generate-doc": "typedoc --out ./docs/tsdoc"
+
   },
   "eslintConfig": {
     "extends": "./eslintrc.js"
@@ -55,11 +57,14 @@
     "prettier": "^2.0.4",
     "ts-jest": "~25.4.0",
     "ts-node": "~8.9.0",
+    "typedoc": "^0.17.4",
     "typescript": "^3.8.3"
   },
   "dependencies": {
     "chalk": "~4.0.0",
     "source-map-support": "~0.5.16"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ]
 }

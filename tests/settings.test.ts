@@ -29,7 +29,7 @@ describe("Logger: settings", () => {
     expect(logger instanceof Logger).toBe(true);
   });
 
-  test("init logger: instanceId ", (): void => {
+  test("init logger: instanceName ", (): void => {
     const logger: Logger = new Logger({ instanceId: "ABC" });
     expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.instanceId).toBe("ABC");

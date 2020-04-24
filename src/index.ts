@@ -2,6 +2,7 @@ import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
 import * as chalk from "chalk";
 import { format, types } from "util";
+import { hostname } from "os";
 
 import {
   IErrorObject,
@@ -23,6 +24,7 @@ export {
   IErrorObject,
   ISettingsParam,
   TLogLevel,
+  IStd,
 };
 
 /**
@@ -44,15 +46,22 @@ export class Logger {
   private readonly _minLevelToStdErr: number = 4;
   public readonly settings: ISettings;
 
+  /**
+   *
+   * @param settings Configuration of the logger instance  (all settings are optional with sane defaults)
+   */
   public constructor(settings?: ISettingsParam) {
+    const displayInstanceName: boolean = settings?.displayInstanceName === true;
     this.settings = {
-      instanceId: settings?.instanceId,
+      instanceName: displayInstanceName
+        ? settings?.instanceName ?? hostname()
+        : undefined,
       name: settings?.name ?? "",
       minLevel: settings?.minLevel ?? 0,
+      logAsJson: settings?.logAsJson ?? false,
       exposeStack: settings?.exposeStack ?? false,
       suppressLogging: settings?.suppressLogging ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
-      logAsJson: settings?.logAsJson ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
         0: "#B0B0B0",
         1: "#FFFFFF",
@@ -124,7 +133,6 @@ export class Logger {
     return this._handleLog.apply(this, [6, args]);
   }
 
-  /** @internal */
   private _handleLog(
     logLevel: TLogLevel,
     logArguments: unknown[],
@@ -153,7 +161,6 @@ export class Logger {
     return logObject;
   }
 
-  /** @internal */
   private _buildLogObject(
     logLevel: TLogLevel,
     logArguments: unknown[],
@@ -207,7 +214,6 @@ export class Logger {
     return logObject;
   }
 
-  /** @internal */
   private _toStackObjectArray(jsStack: NodeJS.CallSite[]): IStackFrame[] {
     const prettyStack: IStackFrame[] = Object.values(jsStack).reduce(
       (iPrettyStack: IStackFrame[], stackFrame: NodeJS.CallSite) => {
@@ -221,7 +227,6 @@ export class Logger {
     return prettyStack;
   }
 
-  /** @internal */
   private _printPrettyLog(logObject: ILogObject): void {
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr
@@ -246,12 +251,14 @@ export class Logger {
       ? ` ${logObject.functionName}`
       : "";
 
-    const optionalInstanceId: string =
-      this.settings.instanceId != null ? `@${this.settings.instanceId}` : "";
+    const instanceName: string =
+      this.settings.instanceName != null
+        ? `@${this.settings.instanceName}`
+        : "";
 
     std.write(
       chalk.gray(
-        `[${logObject.loggerName}${optionalInstanceId} ${logObject.filePath}:${logObject.lineNumber}${functionName}]\t`
+        `[${logObject.loggerName}${instanceName} ${logObject.filePath}:${logObject.lineNumber}${functionName}]\t`
       )
     );
 
@@ -289,7 +296,6 @@ export class Logger {
     }
   }
 
-  /** @internal */
   private _printPrettyStack(std: IStd, stackObjectArray: IStackFrame[]): void {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
@@ -310,7 +316,6 @@ export class Logger {
     });
   }
 
-  /** @internal */
   private _printJsonLog(logObject: ILogObject): void {
     const std: IStd =
       logObject.logLevel < this._minLevelToStdErr

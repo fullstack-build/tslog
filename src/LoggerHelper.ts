@@ -9,6 +9,7 @@ import {
   IStackFrame,
 } from "./interfaces";
 
+/** @internal */
 export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 

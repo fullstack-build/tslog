@@ -4,33 +4,61 @@ import { Chalk } from "chalk";
  * @public
  */
 export interface ISettingsParam {
-  instanceId?: string;
+  /** Name of the instance name, default: host name */
+  instanceName?: string;
+
+  /** Display instanceName or not, default: false */
+  displayInstanceName?: boolean;
+
+  /** Name of the logger instance */
   name?: string;
+
+  /** Minimum output log level (0 - 6) */
   minLevel?: number;
-  exposeStack?: boolean;
-  suppressLogging?: boolean;
-  overwriteConsole?: boolean;
+
+  /** Print log as stringified json instead of pretty */
   logAsJson?: boolean;
+
+  /** Expose stack with EVERY log message */
+  exposeStack?: boolean;
+
+  /** Suppress any log output to std out / std err */
+  suppressLogging?: boolean;
+
+  /** Catch logs going to console (e.g. console.log). Last instantiated Log instance wins */
+  overwriteConsole?: boolean;
+
+  /**  Overwrite colors of log messages of different log levels */
   logLevelsColors?: ILogLevel;
+
+  /**  Overwrite colors json highlighting */
   jsonHighlightColors?: IJsonHighlightColors;
+
+  /**  Overwrite default std out */
   stdOut?: IStd;
+
+  /**  Overwrite default std err */
   stdErr?: IStd;
 }
 
 export interface ISettings extends ISettingsParam {
-  instanceId?: string;
+  instanceName?: string;
+  displayInstanceName?: boolean;
   name: string;
   minLevel: number;
+  logAsJson: boolean;
   exposeStack: boolean;
   suppressLogging: boolean;
   overwriteConsole: boolean;
-  logAsJson: boolean;
   logLevelsColors: ILogLevel;
   jsonHighlightColors: IJsonHighlightColors;
   stdOut: IStd;
   stdErr: IStd;
 }
 
+/**
+ * @public
+ */
 export interface IStd {
   write: Function;
 }
