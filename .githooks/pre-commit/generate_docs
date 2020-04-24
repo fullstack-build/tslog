@@ -4,7 +4,7 @@ echo Starting docs generation
 
 npm run generate-all-docs;
 
-git add /docs
+git add docs
 
 echo Finished docs generation
 echo --------------------------------------------
