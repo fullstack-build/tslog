@@ -7,4 +7,4 @@ install:
   - npm run build
 
 script:
-  - npm run tslint
+  - npm run test
