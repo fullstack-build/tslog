@@ -13,15 +13,15 @@
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
 ### Highlights
-- [x] Small footprint, great performance
-- [x] Full typed with TypeScript support (correct location in *.ts files)
-- [x] Works for TypeScript and JavaScript
+- [x] Small footprint, blazing performance
+- [x] Fully typed with TypeScript support (correct location in *.ts files)
 - [x] Log levels
 - [x] Custom pluggable loggers
 - [x] Structured or _JSON_ output
-- [x] Beauty object and error interpolation (with stack trace)
+- [x] Beauty object and error interpolation (incl. stack trace)
 - [x] Stack trace through native V8 API
-- [x] Stack trace position linked to position in IDE
+- [x] Code path linked to position in IDE
+- [x] Works for both: TypeScript and JavaScript
 - [x] well documented
 - [x] 100% test coverage
 
