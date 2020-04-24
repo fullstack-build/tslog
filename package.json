@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "1.0.0-dev.6",
+  "version": "1.0.0-dev.7",
   "description": "TypeScript and JavaScript Logger",
   "main": "dist/index",
   "typings": "dist/index",
