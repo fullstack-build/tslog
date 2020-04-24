@@ -13,7 +13,7 @@
     // ("enabled" is required)
     "enabled": true,
     "reportFileName": "<unscopedPackageName>.api.md",
-    "reportFolder": "<projectFolder>/etc/",
+    "reportFolder": "<projectFolder>/docs/api_extractor/",
     "reportTempFolder": "<projectFolder>/temp/"
   },
   "docModel": {
