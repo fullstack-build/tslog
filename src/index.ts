@@ -51,7 +51,8 @@ export class Logger {
    * @param settings Configuration of the logger instance  (all settings are optional with sane defaults)
    */
   public constructor(settings?: ISettingsParam) {
-    const displayInstanceName: boolean = settings?.displayInstanceName === true;
+    const displayInstanceName: boolean =
+      !settings?.displayInstanceName !== false;
     this.settings = {
       instanceName: displayInstanceName
         ? settings?.instanceName ?? hostname()

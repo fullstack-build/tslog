@@ -4,6 +4,7 @@
 ![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)
 ![npm version](https://img.shields.io/npm/v/tslog?color=76c800&logoColor=76c800&style=flat-square)
 ![Dependency status](https://img.shields.io/david/fullstack-build/tslog?style=flat-square)
+![Travis (.org)](https://img.shields.io/travis/fullstack-build/tslog?style=flat-square)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 
 > Powerful yet expressive and fast logging for TypeScript and Node.js 

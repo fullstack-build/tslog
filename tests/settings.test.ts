@@ -30,7 +30,9 @@ describe("Logger: settings", () => {
   });
 
   test("init logger: instanceName ", (): void => {
-    const logger: Logger = new Logger({ instanceName: "ABC" });
+    const logger: Logger = new Logger({
+      instanceName: "ABC",
+    });
     expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.instanceName).toBe("ABC");
   });
