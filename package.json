@@ -10,8 +10,10 @@
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
-    "generate-doc": "typedoc --out ./docs/tsdoc",
-    "api-extractor": "tsc && api-extractor run --local --verbose"
+    "docsify": "docsify init ./docs",
+    "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
+    "typedoc": "typedoc",
+    "generate-all-docs": "npm run docsify && npm run api-extractor && typedoc"
   },
   "eslintConfig": {
     "extends": "./eslintrc.js"
@@ -50,6 +52,7 @@
     "@types/lodash": "~4.14.149",
     "@types/node": "^13.11.0",
     "@types/source-map-support": "~0.5.1",
+    "docsify": "^4.11.3",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
