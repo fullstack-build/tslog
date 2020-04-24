@@ -1,7 +1,7 @@
 {
   "name": "tslog",
   "version": "1.0.0-dev.8",
-  "description": "Expressive TypeScript Logger for Node.js",
+  "description": "Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
@@ -10,8 +10,8 @@
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
-    "generate-doc": "typedoc --out ./docs/tsdoc"
-
+    "generate-doc": "typedoc --out ./docs/tsdoc",
+    "api-extractor": "tsc && api-extractor run --local --verbose"
   },
   "eslintConfig": {
     "extends": "./eslintrc.js"
@@ -44,6 +44,7 @@
   },
   "homepage": "https://tslog.js.org",
   "devDependencies": {
+    "@microsoft/api-extractor": "^7.7.13",
     "@rushstack/eslint-config": "^0.5.7",
     "@types/jest": "~25.2.1",
     "@types/lodash": "~4.14.149",
@@ -99,7 +100,6 @@
     "pretty json",
     "pretty-error",
     "sourcemap",
-    "call location"]
+    "call location"
+  ]
 }
-
-

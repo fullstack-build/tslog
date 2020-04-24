@@ -1,6 +1,7 @@
 language: node_js
 node_js:
-  - '8.9.4'
+  - '12'
+
 script:
   - set -e
 
@@ -16,3 +17,7 @@ script:
   - echo 'Building...' && echo -en 'travis_fold:start:build\\r'
   - node common/scripts/install-run-rush.js rebuild --verbose
   - echo -en 'travis_fold:end:build\\r'
+
+  - echo 'Testing...' && echo -en 'travis_fold:start:test\\r'
+  - npm run test
+  - echo -en 'travis_fold:end:test\\r'
