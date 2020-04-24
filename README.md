@@ -16,7 +16,7 @@
 - [x] Native TypeScript support (correct location in *.ts files)
 - [x] Works for TypeScript and JavaScript
 - [x] Log levels
-- [x] Attachable transports
+- [x] Custom pluggable loggers
 - [x] _Structured_ or _JSON_ output
 - [x] Beauty object and error interpolation (with stack trace)
 - [x] Stack trace through native V8 API
@@ -30,4 +30,23 @@ import { Logger } from "tslog";
 
 const log: Logger = new Logger({ name: "myLogger" });
 log.silly("I am a silly log.");
+```
+
+##### Install 
+```
+npm install tslog
+```
+
+##### Usage:
+
+```ts
+import { Logger } from "tslog";
+
+const log: Logger = new Logger({ name: "myLogger" });
+log.silly("I am a silly log.");
+log.debug("I am a debug log.");
+log.info("I am an info log.");
+log.warn("I am a warn log with a json object:", jsonObj);
+log.error("I am an error log.");
+log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
