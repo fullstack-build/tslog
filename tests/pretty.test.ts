@@ -80,4 +80,25 @@ describe("Logger: Pretty print", () => {
     //json indentation discovered
     expect(doesLogContain(stdOut, '\n{\n  "very": "much"\n}'));
   });
+
+  test("Pretty Promise (stdOut)", (): void => {
+    const promise = new Promise((resolve) => {
+      return resolve();
+    });
+    logger.debug(promise);
+    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+    expect(doesLogContain(stdOut, "Promise {")).toBeTruthy();
+  });
+
+  test("Pretty object (stdOut)", (): void => {
+    class ObjClass {
+      constructor() {
+        const foo = "bar";
+      }
+    }
+
+    logger.debug(new ObjClass());
+    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+    expect(doesLogContain(stdOut, "ObjClass {")).toBeTruthy();
+  });
 });

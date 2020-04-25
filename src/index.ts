@@ -222,9 +222,7 @@ export class Logger {
     };
 
     logArguments.forEach((arg: unknown) => {
-      if (typeof arg === "object" && !types.isNativeError(arg)) {
-        logObject.argumentsArray.push(JSON.parse(JSON.stringify(arg)));
-      } else if (typeof arg === "object" && types.isNativeError(arg)) {
+      if (typeof arg === "object" && types.isNativeError(arg)) {
         const errorStack: NodeJS.CallSite[] = LoggerHelper.getCallSites(arg);
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
         errorObject.name = errorObject.name ?? "Error";
@@ -232,7 +230,7 @@ export class Logger {
         errorObject.stack = this._toStackObjectArray(errorStack);
         logObject.argumentsArray.push(errorObject);
       } else {
-        logObject.argumentsArray.push(format(arg));
+        logObject.argumentsArray.push(arg);
       }
     });
 
@@ -314,7 +312,7 @@ export class Logger {
 
         this._printPrettyStack(std, errorArgument.stack);
       } else {
-        std.write(format(argument + " "));
+        std.write(format(argument) + " ");
       }
     });
     std.write("\n");
@@ -338,7 +336,7 @@ export class Logger {
       std.write("\n    ");
       std.write(
         fileNormalize(
-          chalk`{grey ${stackObject.fullFilePath}:${stackObject.lineNumber}:${stackObject.columnNumber}}`
+          chalk`{grey ${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}}`
         )
       );
       std.write("\n\n");

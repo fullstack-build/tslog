@@ -53,6 +53,8 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({ exposeStack: true });
     expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.exposeStack).toBe(true);
+
+    logger.info("huhu haha");
   });
 
   test("init logger: suppressLogging", (): void => {
