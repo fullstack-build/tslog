@@ -284,11 +284,7 @@ export class Logger {
         : "";
 
     std.write(
-      chalk.gray(
-        `[${logObject.loggerName}${instanceName} ${fileNormalize(
-          logObject.filePath + ":" + logObject.lineNumber
-        )}${functionName}]\t`
-      )
+      chalk`{grey [${logObject.loggerName}${instanceName} ${logObject.filePath}:${logObject.lineNumber}${functionName}]}\t`
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
