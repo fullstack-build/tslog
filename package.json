@@ -1,12 +1,12 @@
 {
   "name": "tslog",
-  "version": "1.0.0-dev.12",
+  "version": "1.0.0-dev.13",
   "description": "Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
     "build": "tsc",
-    "prepublishOnly": "npm run generate-all-docs",
+    "prepublishOnly": "npm run build",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",

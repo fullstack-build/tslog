@@ -285,7 +285,9 @@ export class Logger {
 
     std.write(
       chalk.gray(
-        `[${logObject.loggerName}${instanceName} ${logObject.filePath}:${logObject.lineNumber}${functionName}]\t`
+        `[${logObject.loggerName}${instanceName} ${fileNormalize(
+          logObject.filePath + ":" + logObject.lineNumber
+        )}${functionName}]\t`
       )
     );
 
@@ -350,7 +352,7 @@ export class Logger {
         : this.settings.stdErr;
     std.write(
       LoggerHelper.colorizeJson(
-        JSON.stringify(logObject),
+        logObject,
         chalk,
         this.settings.jsonHighlightColors
       ) + "\n"
