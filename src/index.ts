@@ -297,7 +297,7 @@ export class Logger {
         std.write(
           "\n" +
             LoggerHelper.colorizeJson(
-              argument as object,
+              format(argument),
               chalk,
               this.settings.jsonHighlightColors
             ) +
