@@ -31,7 +31,7 @@ logger.attachTransport(
     error: logToTransportErr,
     fatal: logToTransportErr,
   },
-  0
+  "silly"
 );
 
 function logToTransportOut(print: ILogObject) {

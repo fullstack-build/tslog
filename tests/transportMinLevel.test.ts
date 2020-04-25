@@ -9,7 +9,7 @@ const transportErr: ILogObject[] = [];
 
 const logger: Logger = new Logger({
   logAsJson: true,
-  minLevel: 3,
+  minLevel: "debug",
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);
@@ -32,7 +32,7 @@ logger.attachTransport(
     error: logToTransportErr,
     fatal: logToTransportErr,
   },
-  3
+  "debug"
 );
 
 function logToTransportOut(print: ILogObject) {
