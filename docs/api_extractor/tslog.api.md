@@ -4,51 +4,92 @@
 
 ```ts
 
-// @public (undocumented)
+// @public
 export interface IErrorObject {
-    // (undocumented)
     isError: true;
-    // (undocumented)
     message: string;
-    // (undocumented)
     name: string;
-    // Warning: (ae-forgotten-export) The symbol "IStackFrame" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
     stack: IStackFrame[];
 }
 
 // @public
+export interface IJsonHighlightColors {
+    // (undocumented)
+    boolean: string;
+    // (undocumented)
+    key: string;
+    // (undocumented)
+    null: string;
+    // (undocumented)
+    number: string;
+    // (undocumented)
+    string: string;
+}
+
+// @public
+export interface ILogLevel {
+    // (undocumented)
+    0: "silly";
+    // (undocumented)
+    1: "trace";
+    // (undocumented)
+    2: "debug";
+    // (undocumented)
+    3: "info";
+    // (undocumented)
+    4: "warn";
+    // (undocumented)
+    5: "error";
+    // (undocumented)
+    6: "fatal";
+}
+
+// @public
 export interface ILogObject extends IStackFrame {
-    // (undocumented)
     argumentsArray: (IErrorObject | unknown)[];
-    // (undocumented)
     date: Date;
-    // (undocumented)
     instanceName?: string;
-    // (undocumented)
     loggerName: string;
-    // Warning: (ae-forgotten-export) The symbol "TLogLevelName" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
     logLevel: TLogLevelName;
-    // Warning: (ae-forgotten-export) The symbol "TLogLevelId" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
     logLevelId: TLogLevelId;
-    // (undocumented)
     stack?: IStackFrame[];
 }
 
-// @public (undocumented)
+// @public
+export interface ISettings extends ISettingsParam {
+    // (undocumented)
+    displayInstanceName?: boolean;
+    // (undocumented)
+    exposeStack: boolean;
+    // (undocumented)
+    instanceName?: string;
+    // (undocumented)
+    jsonHighlightColors: IJsonHighlightColors;
+    // (undocumented)
+    logAsJson: boolean;
+    // (undocumented)
+    logLevelsColors: TLogLevelColor;
+    // (undocumented)
+    minLevel: TLogLevelName;
+    // (undocumented)
+    name: string;
+    // (undocumented)
+    overwriteConsole: boolean;
+    // (undocumented)
+    stdErr: IStd;
+    // (undocumented)
+    stdOut: IStd;
+    // (undocumented)
+    suppressLogging: boolean;
+}
+
+// @public
 export interface ISettingsParam {
     displayInstanceName?: boolean;
     exposeStack?: boolean;
     instanceName?: string;
-    // Warning: (ae-forgotten-export) The symbol "IJsonHighlightColors" needs to be exported by the entry point index.d.ts
     jsonHighlightColors?: IJsonHighlightColors;
     logAsJson?: boolean;
-    // Warning: (ae-forgotten-export) The symbol "TLogLevelColor" needs to be exported by the entry point index.d.ts
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
     name?: string;
@@ -58,9 +99,21 @@ export interface ISettingsParam {
     suppressLogging?: boolean;
 }
 
-// @public (undocumented)
+// @public
+export interface IStackFrame {
+    columnNumber: number | null;
+    fileName: string;
+    filePath: string;
+    fullFilePath: string;
+    functionName: string | null;
+    isConstructor: boolean | null;
+    lineNumber: number | null;
+    methodName: string | null;
+    typeName: string | null;
+}
+
+// @public
 export interface IStd {
-    // (undocumented)
     write: Function;
 }
 
@@ -72,8 +125,6 @@ export class Logger {
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
     info(...args: unknown[]): ILogObject;
-    // Warning: (ae-forgotten-export) The symbol "ISettings" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     readonly settings: ISettings;
     silly(...args: unknown[]): ILogObject;
@@ -81,7 +132,18 @@ export class Logger {
     warn(...args: unknown[]): ILogObject;
 }
 
-// @public (undocumented)
+// @public
+export type TLogLevelColor = {
+    [key in TLogLevelId]: string;
+};
+
+// @public
+export type TLogLevelId = keyof ILogLevel;
+
+// @public
+export type TLogLevelName = ILogLevel[TLogLevelId];
+
+// @public
 export type TTransportLogger<T> = {
     [key in TLogLevelName]: T;
 };

@@ -1,6 +1,10 @@
 import { Chalk } from "chalk";
 
-interface ILogLevel {
+/**
+ * All possible log levels
+ * @public
+ */
+export interface ILogLevel {
   0: "silly";
   1: "trace";
   2: "debug";
@@ -10,19 +14,29 @@ interface ILogLevel {
   6: "fatal";
 }
 
+/**
+ * Log level IDs (0 - 6)
+ * @public
+ */
 export type TLogLevelId = keyof ILogLevel;
 
+/**
+ * Log level names (sill - fatal)
+ * @public
+ */
 export type TLogLevelName = ILogLevel[TLogLevelId];
 
-export type TLogLevel = {
-  [key in TLogLevelId]: TLogLevelName;
-};
-
+/**
+ * Hex colors of different log levels
+ * @public
+ */
 export type TLogLevelColor = {
   [key in TLogLevelId]: string;
 };
 
 /**
+ * Constructor: logger settings
+ * all values are optional and will be pre-filled with default values
  * @public
  */
 export interface ISettingsParam {
@@ -32,16 +46,16 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: false */
   displayInstanceName?: boolean;
 
-  /** Name of the logger instance */
+  /** Name of the logger instance, default: empty string */
   name?: string;
 
-  /** Minimum output log level (e.g. debug) */
+  /** Minimum output log level (e.g. debug), default: silly */
   minLevel?: TLogLevelName;
 
-  /** Print log as stringified json instead of pretty */
+  /** Print log as stringified json instead of pretty, default: false */
   logAsJson?: boolean;
 
-  /** Expose stack with EVERY log message */
+  /** Expose stack with EVERY log message, default: false  */
   exposeStack?: boolean;
 
   /** Suppress any log output to std out / std err */
@@ -63,6 +77,11 @@ export interface ISettingsParam {
   stdErr?: IStd;
 }
 
+/**
+ * The actual settings object
+ * Based on ISettingsParam, however pre-filled with defaults in case no value was provided.
+ * @public
+ */
 export interface ISettings extends ISettingsParam {
   instanceName?: string;
   displayInstanceName?: boolean;
@@ -79,9 +98,11 @@ export interface ISettings extends ISettingsParam {
 }
 
 /**
+ * StdOut and StdErr have to implement a write function (e.g. Stream)
  * @public
  */
 export interface IStd {
+  /** stream.Writable */
   write: Function;
 }
 
@@ -90,14 +111,23 @@ export interface IStd {
  * @public
  */
 export interface IStackFrame {
+  /** Relative path based on the main folder */
   filePath: string;
+  /** Full path */
   fullFilePath: string;
+  /** Name of the file */
   fileName: string;
+  /** Line number */
   lineNumber: number | null;
+  /** Column Name */
   columnNumber: number | null;
+  /** Called from constructor */
   isConstructor: boolean | null;
+  /** Name of the function */
   functionName: string | null;
+  /** Name of the class */
   typeName: string | null;
+  /** Name of the Method */
   methodName: string | null;
 }
 
@@ -106,26 +136,39 @@ export interface IStackFrame {
  * @public
  */
 export interface ILogObject extends IStackFrame {
+  /**  Optional name of the instance this application is running on. */
   instanceName?: string;
+  /**  Name of the logger or empty string. */
   loggerName: string;
+  /**  Timestamp */
   date: Date;
+  /**  Log level name (e.g. debug) */
   logLevel: TLogLevelName;
+  /**  Log level ID (e.g. 3) */
   logLevelId: TLogLevelId;
+  /**  Log arguments */
   argumentsArray: (IErrorObject | unknown)[];
+  /**  Optional Log stack trace */
   stack?: IStackFrame[];
 }
 
 /**
+ * Object representing an error with a stack trace
  * @public
  */
 export interface IErrorObject {
+  /** Is this object an error? */
   isError: true;
+  /** Name of the error*/
   name: string;
+  /** Error message */
   message: string;
+  /** Stack trace of the error */
   stack: IStackFrame[];
 }
 
 /**
+ * List of attached transport logger with their respective min log level.
  * @public
  */
 export type TTransportLogger<T> = {
@@ -137,6 +180,10 @@ export interface ITransportProvider {
   transportLogger: TTransportLogger<(message: ILogObject) => void>;
 }
 
+/**
+ * Hex color values for JSON highlighting.
+ * @public
+ */
 export interface IJsonHighlightColors {
   number: string;
   key: string;

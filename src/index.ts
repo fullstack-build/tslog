@@ -5,6 +5,7 @@ import { format, types } from "util";
 import { hostname } from "os";
 
 import {
+  ILogLevel,
   IErrorObject,
   ILogObject,
   ISettings,
@@ -15,10 +16,25 @@ import {
   ITransportProvider,
   TLogLevelName,
   TLogLevelId,
+  IJsonHighlightColors,
+  TLogLevelColor,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
-export { TTransportLogger, ILogObject, IErrorObject, ISettingsParam, IStd };
+export {
+  ILogLevel,
+  TTransportLogger,
+  ILogObject,
+  IErrorObject,
+  IStackFrame,
+  ISettingsParam,
+  IStd,
+  TLogLevelName,
+  TLogLevelId,
+  IJsonHighlightColors,
+  TLogLevelColor,
+  ISettings,
+};
 
 /**
  * 📝 Expressive TypeScript Logger for Node.js
