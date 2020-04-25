@@ -132,7 +132,7 @@ export interface IStackFrame {
 }
 
 /**
- * All relevant information about a log message
+ * All relevant information about a log message.
  * @public
  */
 export interface ILogObject extends IStackFrame {

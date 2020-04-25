@@ -278,7 +278,9 @@ export class Logger {
       .toISOString()
       .replace("T", " ")
       .replace("Z", "");
-    const hexColor: string = this.settings.logLevelsColors[logObject.logLevel];
+    const hexColor: string = this.settings.logLevelsColors[
+      logObject.logLevelId
+    ];
 
     std.write(chalk`{grey ${nowStr}}\t`);
     std.write(
