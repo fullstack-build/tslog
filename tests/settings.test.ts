@@ -38,9 +38,9 @@ describe("Logger: settings", () => {
   });
 
   test("init logger: minLevel", (): void => {
-    const logger: Logger = new Logger({ minLevel: 3 });
+    const logger: Logger = new Logger({ minLevel: "debug" });
     expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.minLevel).toBe(3);
+    expect(logger.settings.minLevel).toBe("debug");
   });
 
   test("init logger: name", (): void => {

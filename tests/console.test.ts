@@ -4,7 +4,7 @@ import { Logger } from "../src";
 const stdOut: string[] = [];
 const stdErr: string[] = [];
 
-const logger: Logger = new Logger({
+new Logger({
   suppressLogging: true,
   stdOut: {
     write: (print: string) => {
@@ -28,7 +28,7 @@ describe("Logger: overwrite console", () => {
   });
 
   test("not overwritten console", (): void => {
-    const logger: Logger = new Logger({
+    new Logger({
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -47,7 +47,7 @@ describe("Logger: overwrite console", () => {
   });
 
   test("overwritten console", (): void => {
-    const logger: Logger = new Logger({
+    new Logger({
       overwriteConsole: true,
       stdOut: {
         write: (print: string) => {

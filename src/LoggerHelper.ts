@@ -7,6 +7,7 @@ import {
   IJsonHighlightColorsChalk,
   ILogObject,
   IStackFrame,
+  TLogLevelName,
 } from "./interfaces";
 
 /** @internal */
@@ -80,13 +81,13 @@ export class LoggerHelper {
     ["log", "debug", "info", "warn", "trace", "error"].forEach(
       (name: string) => {
         console[name] = (...args: unknown[]) => {
-          const loglevelMapping: { [key: string]: number } = {
-            log: 0,
-            trace: 1,
-            debug: 2,
-            info: 3,
-            warn: 4,
-            error: 5,
+          const loglevelMapping: { [key: string]: TLogLevelName } = {
+            log: "silly",
+            trace: "trace",
+            debug: "debug",
+            info: "info",
+            warn: "warn",
+            error: "error",
           };
           return handleLog.apply($this, [
             loglevelMapping[name.toLowerCase()],

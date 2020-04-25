@@ -121,7 +121,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L47">index.ts:47</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L40">index.ts:40</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -150,7 +150,7 @@
 					<div class="tsd-signature tsd-kind-icon">settings<span class="tsd-signature-symbol">:</span> <a href="../interfaces/isettings.html" class="tsd-signature-type">ISettings</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L47">index.ts:47</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L40">index.ts:40</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -161,13 +161,13 @@
 					<a name="attachtransport" class="tsd-anchor"></a>
 					<h3>attach<wbr>Transport</h3>
 					<ul class="tsd-signatures tsd-kind-method tsd-parent-kind-class">
-						<li class="tsd-signature tsd-kind-icon">attach<wbr>Transport<span class="tsd-signature-symbol">(</span>transportLogger<span class="tsd-signature-symbol">: </span><a href="../interfaces/itransportlogger.html" class="tsd-signature-type">ITransportLogger</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">(</span>message<span class="tsd-signature-symbol">: </span><a href="../interfaces/ilogobject.html" class="tsd-signature-type">ILogObject</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span>, minLevel<span class="tsd-signature-symbol">?: </span><a href="../globals.html#tloglevel" class="tsd-signature-type">TLogLevel</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
+						<li class="tsd-signature tsd-kind-icon">attach<wbr>Transport<span class="tsd-signature-symbol">(</span>transportLogger<span class="tsd-signature-symbol">: </span><a href="../globals.html#ttransportlogger" class="tsd-signature-type">TTransportLogger</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">(</span>message<span class="tsd-signature-symbol">: </span><a href="../interfaces/ilogobject.html" class="tsd-signature-type">ILogObject</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span>, minLevel<span class="tsd-signature-symbol">?: </span><a href="../globals.html#tloglevelname" class="tsd-signature-type">TLogLevelName</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">: </span><span class="tsd-signature-type">void</span></li>
 					</ul>
 					<ul class="tsd-descriptions">
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L98">index.ts:98</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L91">index.ts:91</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -178,15 +178,15 @@
 							<h4 class="tsd-parameters-title">Parameters</h4>
 							<ul class="tsd-parameters">
 								<li>
-									<h5>transportLogger: <a href="../interfaces/itransportlogger.html" class="tsd-signature-type">ITransportLogger</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">(</span>message<span class="tsd-signature-symbol">: </span><a href="../interfaces/ilogobject.html" class="tsd-signature-type">ILogObject</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h5>
+									<h5>transportLogger: <a href="../globals.html#ttransportlogger" class="tsd-signature-type">TTransportLogger</a><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-symbol">(</span>message<span class="tsd-signature-symbol">: </span><a href="../interfaces/ilogobject.html" class="tsd-signature-type">ILogObject</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol"> =&gt; </span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h5>
 									<div class="tsd-comment tsd-typography">
 										<p>External logger to be attached. Must implement all log methods.</p>
 									</div>
 								</li>
 								<li>
-									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> minLevel: <a href="../globals.html#tloglevel" class="tsd-signature-type">TLogLevel</a><span class="tsd-signature-symbol"> = 0</span></h5>
+									<h5><span class="tsd-flag ts-flagDefault value">Default value</span> minLevel: <a href="../globals.html#tloglevelname" class="tsd-signature-type">TLogLevelName</a><span class="tsd-signature-symbol"> = &quot;silly&quot;</span></h5>
 									<div class="tsd-comment tsd-typography">
-										<p>Minimum log level to be forwarded to this attached transport logger.</p>
+										<p>Minimum log level to be forwarded to this attached transport logger. (e.g. debug)</p>
 									</div>
 								</li>
 							</ul>
@@ -204,7 +204,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L128">index.ts:128</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L121">index.ts:121</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -235,7 +235,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L152">index.ts:152</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L145">index.ts:145</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -266,7 +266,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L160">index.ts:160</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L153">index.ts:153</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -297,7 +297,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L136">index.ts:136</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L129">index.ts:129</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -328,7 +328,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L112">index.ts:112</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L105">index.ts:105</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -359,7 +359,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L120">index.ts:120</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L113">index.ts:113</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -390,7 +390,7 @@
 						<li class="tsd-description">
 							<aside class="tsd-sources">
 								<ul>
-									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/index.ts#L144">index.ts:144</a></li>
+									<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/index.ts#L137">index.ts:137</a></li>
 								</ul>
 							</aside>
 							<div class="tsd-comment tsd-typography">
@@ -489,14 +489,23 @@
 					<li class=" tsd-kind-interface">
 						<a href="../interfaces/istd.html" class="tsd-kind-icon">IStd</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="../interfaces/itransportlogger.html" class="tsd-kind-icon">ITransport<wbr>Logger</a>
-					</li>
 					<li class=" tsd-kind-interface">
 						<a href="../interfaces/itransportprovider.html" class="tsd-kind-icon">ITransport<wbr>Provider</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#tloglevel" class="tsd-kind-icon">TLog<wbr>Level</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#tloglevelcolor" class="tsd-kind-icon">TLog<wbr>Level<wbr>Color</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#tloglevelid" class="tsd-kind-icon">TLog<wbr>Level<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="../globals.html#tloglevelname" class="tsd-kind-icon">TLog<wbr>Level<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="../globals.html#ttransportlogger" class="tsd-kind-icon">TTransport<wbr>Logger</a>
 					</li>
 				</ul>
 			</nav>

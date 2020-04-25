@@ -28,10 +28,14 @@ export interface ILogObject extends IStackFrame {
     instanceName?: string;
     // (undocumented)
     loggerName: string;
+    // Warning: (ae-forgotten-export) The symbol "TLogLevelName" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
-    logLevel: number;
+    logLevel: TLogLevelName;
+    // Warning: (ae-forgotten-export) The symbol "TLogLevelId" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
-    logLevelName: string;
+    logLevelId: TLogLevelId;
     // (undocumented)
     stack?: IStackFrame[];
 }
@@ -44,9 +48,9 @@ export interface ISettingsParam {
     // Warning: (ae-forgotten-export) The symbol "IJsonHighlightColors" needs to be exported by the entry point index.d.ts
     jsonHighlightColors?: IJsonHighlightColors;
     logAsJson?: boolean;
-    // Warning: (ae-forgotten-export) The symbol "ILogLevel" needs to be exported by the entry point index.d.ts
-    logLevelsColors?: ILogLevel;
-    minLevel?: number;
+    // Warning: (ae-forgotten-export) The symbol "TLogLevelColor" needs to be exported by the entry point index.d.ts
+    logLevelsColors?: TLogLevelColor;
+    minLevel?: TLogLevelName;
     name?: string;
     overwriteConsole?: boolean;
     stdErr?: IStd;
@@ -60,28 +64,10 @@ export interface IStd {
     write: Function;
 }
 
-// @public (undocumented)
-export interface ITransportLogger<T> {
-    // (undocumented)
-    debug?: T;
-    // (undocumented)
-    error?: T;
-    // (undocumented)
-    fatal?: T;
-    // (undocumented)
-    info?: T;
-    // (undocumented)
-    silly?: T;
-    // (undocumented)
-    trace?: T;
-    // (undocumented)
-    warn?: T;
-}
-
 // @public
 export class Logger {
     constructor(settings?: ISettingsParam);
-    attachTransport(transportLogger: ITransportLogger<(message: ILogObject) => void>, minLevel?: TLogLevel): void;
+    attachTransport(transportLogger: TTransportLogger<(message: ILogObject) => void>, minLevel?: TLogLevelName): void;
     debug(...args: unknown[]): ILogObject;
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
@@ -96,7 +82,9 @@ export class Logger {
 }
 
 // @public (undocumented)
-export type TLogLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+export type TTransportLogger<T> = {
+    [key in TLogLevelName]: T;
+};
 
 
 // (No @packageDocumentation comment for this package)

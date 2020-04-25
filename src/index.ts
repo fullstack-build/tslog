@@ -6,41 +6,34 @@ import { hostname } from "os";
 
 import {
   IErrorObject,
-  ILogLevel,
   ILogObject,
   ISettings,
   ISettingsParam,
   IStackFrame,
   IStd,
-  ITransportLogger,
+  TTransportLogger,
   ITransportProvider,
-  TLogLevel,
+  TLogLevelName,
+  TLogLevelId,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
-export {
-  ITransportLogger,
-  ILogObject,
-  IErrorObject,
-  ISettingsParam,
-  TLogLevel,
-  IStd,
-};
+export { TTransportLogger, ILogObject, IErrorObject, ISettingsParam, IStd };
 
 /**
  * 📝 Expressive TypeScript Logger for Node.js
  * @public
  */
 export class Logger {
-  private readonly _logLevels: ILogLevel = {
-    0: "silly",
-    1: "trace",
-    2: "debug",
-    3: "info",
-    4: "warn",
-    5: "error",
-    6: "fatal",
-  };
+  private readonly _logLevels: TLogLevelName[] = [
+    "silly",
+    "trace",
+    "debug",
+    "info",
+    "warn",
+    "error",
+    "fatal",
+  ];
   private _ignoreStackLevels: number = 3;
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
@@ -58,7 +51,7 @@ export class Logger {
         ? settings?.instanceName ?? hostname()
         : undefined,
       name: settings?.name ?? "",
-      minLevel: settings?.minLevel ?? 0,
+      minLevel: settings?.minLevel ?? "silly",
       logAsJson: settings?.logAsJson ?? false,
       exposeStack: settings?.exposeStack ?? false,
       suppressLogging: settings?.suppressLogging ?? false,
@@ -93,11 +86,11 @@ export class Logger {
    *  Attaches external Loggers, e.g. external log services, file system, database
    *
    * @param transportLogger - External logger to be attached. Must implement all log methods.
-   * @param minLevel        - Minimum log level to be forwarded to this attached transport logger.
+   * @param minLevel        - Minimum log level to be forwarded to this attached transport logger. (e.g. debug)
    */
   public attachTransport(
-    transportLogger: ITransportLogger<(message: ILogObject) => void>,
-    minLevel: TLogLevel = 0
+    transportLogger: TTransportLogger<(message: ILogObject) => void>,
+    minLevel: TLogLevelName = "silly"
   ): void {
     this._attachedTransports.push({
       minLevel,
@@ -110,7 +103,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public silly(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [0, args]);
+    return this._handleLog.apply(this, ["silly", args]);
   }
 
   /**
@@ -118,7 +111,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public trace(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [1, args, true]);
+    return this._handleLog.apply(this, ["trace", args, true]);
   }
 
   /**
@@ -126,7 +119,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public debug(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [2, args]);
+    return this._handleLog.apply(this, ["debug", args]);
   }
 
   /**
@@ -134,7 +127,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public info(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [3, args]);
+    return this._handleLog.apply(this, ["info", args]);
   }
 
   /**
@@ -142,7 +135,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public warn(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [4, args]);
+    return this._handleLog.apply(this, ["warn", args]);
   }
 
   /**
@@ -150,7 +143,7 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public error(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [5, args]);
+    return this._handleLog.apply(this, ["error", args]);
   }
 
   /**
@@ -158,11 +151,11 @@ export class Logger {
    * @param args  - Multiple log attributes that should be logged out.
    */
   public fatal(...args: unknown[]): ILogObject {
-    return this._handleLog.apply(this, [6, args]);
+    return this._handleLog.apply(this, ["fatal", args]);
   }
 
   private _handleLog(
-    logLevel: TLogLevel,
+    logLevel: TLogLevelName,
     logArguments: unknown[],
     doExposeStack: boolean = this.settings.exposeStack
   ): ILogObject {
@@ -172,7 +165,10 @@ export class Logger {
       doExposeStack
     );
 
-    if (!this.settings.suppressLogging && logLevel >= this.settings.minLevel) {
+    if (
+      !this.settings.suppressLogging &&
+      logObject.logLevelId >= this._logLevels.indexOf(this.settings.minLevel)
+    ) {
       if (!this.settings.logAsJson) {
         this._printPrettyLog(logObject);
       } else {
@@ -181,8 +177,11 @@ export class Logger {
     }
 
     this._attachedTransports.forEach((transport: ITransportProvider) => {
-      if (logLevel >= transport.minLevel) {
-        transport.transportLogger[this._logLevels[logLevel]](logObject);
+      if (
+        logObject.logLevelId >=
+        Object.values(this._logLevels).indexOf(this.settings.minLevel)
+      ) {
+        transport.transportLogger[logLevel](logObject);
       }
     });
 
@@ -190,7 +189,7 @@ export class Logger {
   }
 
   private _buildLogObject(
-    logLevel: TLogLevel,
+    logLevel: TLogLevelName,
     logArguments: unknown[],
     doExposeStack: boolean = true
   ): ILogObject {
@@ -208,7 +207,7 @@ export class Logger {
       loggerName: this.settings.name ?? "",
       date: new Date(),
       logLevel: logLevel,
-      logLevelName: this._logLevels[logLevel],
+      logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
       filePath: stackFrameObject.filePath,
       fullFilePath: stackFrameObject.fullFilePath,
       fileName: stackFrameObject.fileName,
@@ -256,7 +255,7 @@ export class Logger {
 
   private _printPrettyLog(logObject: ILogObject): void {
     const std: IStd =
-      logObject.logLevel < this._minLevelToStdErr
+      logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
     const nowStr: string = logObject.date
@@ -267,7 +266,7 @@ export class Logger {
 
     std.write(chalk`{grey ${nowStr}}\t`);
     std.write(
-      chalk.hex(hexColor).bold(` ${logObject.logLevelName.toUpperCase()}\t`)
+      chalk.hex(hexColor).bold(` ${logObject.logLevel.toUpperCase()}\t`)
     );
 
     const functionName: string = logObject.isConstructor
@@ -343,7 +342,7 @@ export class Logger {
 
   private _printJsonLog(logObject: ILogObject): void {
     const std: IStd =
-      logObject.logLevel < this._minLevelToStdErr
+      logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
     std.write(

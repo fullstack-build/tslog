@@ -1,5 +1,27 @@
 import { Chalk } from "chalk";
 
+interface ILogLevel {
+  0: "silly";
+  1: "trace";
+  2: "debug";
+  3: "info";
+  4: "warn";
+  5: "error";
+  6: "fatal";
+}
+
+export type TLogLevelId = keyof ILogLevel;
+
+export type TLogLevelName = ILogLevel[TLogLevelId];
+
+export type TLogLevel = {
+  [key in TLogLevelId]: TLogLevelName;
+};
+
+export type TLogLevelColor = {
+  [key in TLogLevelId]: string;
+};
+
 /**
  * @public
  */
@@ -13,8 +35,8 @@ export interface ISettingsParam {
   /** Name of the logger instance */
   name?: string;
 
-  /** Minimum output log level (0 - 6) */
-  minLevel?: number;
+  /** Minimum output log level (e.g. debug) */
+  minLevel?: TLogLevelName;
 
   /** Print log as stringified json instead of pretty */
   logAsJson?: boolean;
@@ -29,7 +51,7 @@ export interface ISettingsParam {
   overwriteConsole?: boolean;
 
   /**  Overwrite colors of log messages of different log levels */
-  logLevelsColors?: ILogLevel;
+  logLevelsColors?: TLogLevelColor;
 
   /**  Overwrite colors json highlighting */
   jsonHighlightColors?: IJsonHighlightColors;
@@ -45,12 +67,12 @@ export interface ISettings extends ISettingsParam {
   instanceName?: string;
   displayInstanceName?: boolean;
   name: string;
-  minLevel: number;
+  minLevel: TLogLevelName;
   logAsJson: boolean;
   exposeStack: boolean;
   suppressLogging: boolean;
   overwriteConsole: boolean;
-  logLevelsColors: ILogLevel;
+  logLevelsColors: TLogLevelColor;
   jsonHighlightColors: IJsonHighlightColors;
   stdOut: IStd;
   stdErr: IStd;
@@ -61,21 +83,6 @@ export interface ISettings extends ISettingsParam {
  */
 export interface IStd {
   write: Function;
-}
-
-/**
- * @public
- */
-export type TLogLevel = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-
-export interface ILogLevel {
-  0: string;
-  1: string;
-  2: string;
-  3: string;
-  4: string;
-  5: string;
-  6: string;
 }
 
 /**
@@ -102,8 +109,8 @@ export interface ILogObject extends IStackFrame {
   instanceName?: string;
   loggerName: string;
   date: Date;
-  logLevel: number;
-  logLevelName: string;
+  logLevel: TLogLevelName;
+  logLevelId: TLogLevelId;
   argumentsArray: (IErrorObject | unknown)[];
   stack?: IStackFrame[];
 }
@@ -121,19 +128,13 @@ export interface IErrorObject {
 /**
  * @public
  */
-export interface ITransportLogger<T> {
-  silly?: T;
-  trace?: T;
-  debug?: T;
-  info?: T;
-  warn?: T;
-  error?: T;
-  fatal?: T;
-}
+export type TTransportLogger<T> = {
+  [key in TLogLevelName]: T;
+};
 
 export interface ITransportProvider {
-  minLevel: TLogLevel;
-  transportLogger: ITransportLogger<(message: ILogObject) => void>;
+  minLevel: TLogLevelName;
+  transportLogger: TTransportLogger<(message: ILogObject) => void>;
 }
 
 export interface IJsonHighlightColors {

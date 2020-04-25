@@ -81,7 +81,6 @@
 								<li class="tsd-kind-interface"><a href="interfaces/isettingsparam.html" class="tsd-kind-icon">ISettings<wbr>Param</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/istackframe.html" class="tsd-kind-icon">IStack<wbr>Frame</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/istd.html" class="tsd-kind-icon">IStd</a></li>
-								<li class="tsd-kind-interface tsd-has-type-parameter"><a href="interfaces/itransportlogger.html" class="tsd-kind-icon">ITransport<wbr>Logger</a></li>
 								<li class="tsd-kind-interface"><a href="interfaces/itransportprovider.html" class="tsd-kind-icon">ITransport<wbr>Provider</a></li>
 							</ul>
 						</section>
@@ -89,6 +88,10 @@
 							<h3>Type aliases</h3>
 							<ul class="tsd-index-list">
 								<li class="tsd-kind-type-alias"><a href="globals.html#tloglevel" class="tsd-kind-icon">TLog<wbr>Level</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#tloglevelcolor" class="tsd-kind-icon">TLog<wbr>Level<wbr>Color</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#tloglevelid" class="tsd-kind-icon">TLog<wbr>Level<wbr>Id</a></li>
+								<li class="tsd-kind-type-alias"><a href="globals.html#tloglevelname" class="tsd-kind-icon">TLog<wbr>Level<wbr>Name</a></li>
+								<li class="tsd-kind-type-alias tsd-has-type-parameter"><a href="globals.html#ttransportlogger" class="tsd-kind-icon">TTransport<wbr>Logger</a></li>
 							</ul>
 						</section>
 					</div>
@@ -99,13 +102,74 @@
 				<section class="tsd-panel tsd-member tsd-kind-type-alias">
 					<a name="tloglevel" class="tsd-anchor"></a>
 					<h3>TLog<wbr>Level</h3>
-					<div class="tsd-signature tsd-kind-icon">TLog<wbr>Level<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">0</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">1</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">2</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">3</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">4</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">5</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">6</span></div>
+					<div class="tsd-signature tsd-kind-icon">TLog<wbr>Level<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{}</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/6f34e20/src/interfaces.ts#L69">interfaces.ts:69</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/interfaces.ts#L17">interfaces.ts:17</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+						</ul>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="tloglevelcolor" class="tsd-anchor"></a>
+					<h3>TLog<wbr>Level<wbr>Color</h3>
+					<div class="tsd-signature tsd-kind-icon">TLog<wbr>Level<wbr>Color<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{}</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/interfaces.ts#L21">interfaces.ts:21</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+						</ul>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="tloglevelid" class="tsd-anchor"></a>
+					<h3>TLog<wbr>Level<wbr>Id</h3>
+					<div class="tsd-signature tsd-kind-icon">TLog<wbr>Level<wbr>Id<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">keyof </span><a href="interfaces/iloglevel.html" class="tsd-signature-type">ILogLevel</a></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/interfaces.ts#L13">interfaces.ts:13</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias">
+					<a name="tloglevelname" class="tsd-anchor"></a>
+					<h3>TLog<wbr>Level<wbr>Name</h3>
+					<div class="tsd-signature tsd-kind-icon">TLog<wbr>Level<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ILogLevel</span><span class="tsd-signature-symbol">[</span><span class="tsd-signature-type">TLogLevelId</span><span class="tsd-signature-symbol">]</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/interfaces.ts#L15">interfaces.ts:15</a></li>
+						</ul>
+					</aside>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-type-alias tsd-has-type-parameter">
+					<a name="ttransportlogger" class="tsd-anchor"></a>
+					<h3>TTransport<wbr>Logger</h3>
+					<div class="tsd-signature tsd-kind-icon">TTransport<wbr>Logger&lt;T&gt;<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{}</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/42f1f5d/src/interfaces.ts#L131">interfaces.ts:131</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
+					</div>
+					<h4 class="tsd-type-parameters-title">Type parameters</h4>
+					<ul class="tsd-type-parameters">
+						<li>
+							<h4>T</h4>
+						</li>
+					</ul>
+					<div class="tsd-type-declaration">
+						<h4>Type declaration</h4>
+						<ul class="tsd-parameters">
+						</ul>
 					</div>
 				</section>
 			</section>
@@ -150,14 +214,23 @@
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/istd.html" class="tsd-kind-icon">IStd</a>
 					</li>
-					<li class=" tsd-kind-interface tsd-has-type-parameter">
-						<a href="interfaces/itransportlogger.html" class="tsd-kind-icon">ITransport<wbr>Logger</a>
-					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/itransportprovider.html" class="tsd-kind-icon">ITransport<wbr>Provider</a>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#tloglevel" class="tsd-kind-icon">TLog<wbr>Level</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#tloglevelcolor" class="tsd-kind-icon">TLog<wbr>Level<wbr>Color</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#tloglevelid" class="tsd-kind-icon">TLog<wbr>Level<wbr>Id</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#tloglevelname" class="tsd-kind-icon">TLog<wbr>Level<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#ttransportlogger" class="tsd-kind-icon">TTransport<wbr>Logger</a>
 					</li>
 				</ul>
 			</nav>
