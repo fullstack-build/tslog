@@ -15,9 +15,7 @@ import { format } from "util";
 export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 
-  public static cleanUpFilePath(
-    fileName: string | undefined
-  ): string | undefined {
+  public static cleanUpFilePath(fileName: string | null): string | null {
     if (fileName == null) {
       return fileName;
     }
