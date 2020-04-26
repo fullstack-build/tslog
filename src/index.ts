@@ -61,7 +61,7 @@ export class Logger {
    */
   public constructor(settings?: ISettingsParam) {
     const displayInstanceName: boolean =
-      !settings?.displayInstanceName !== false;
+      settings?.displayInstanceName !== false;
     this.settings = {
       instanceName: displayInstanceName
         ? settings?.instanceName ?? hostname()

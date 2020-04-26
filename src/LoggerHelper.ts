@@ -15,17 +15,21 @@ import { format } from "util";
 export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 
-  public static cleanUpFilePath(fileName: string | null): string | null {
+  public static cleanUpFilePath(
+    fileName: string | undefined
+  ): string | undefined {
     if (fileName == null) {
       return fileName;
     }
-    return Object.entries(fileName.split(pathSeparator)).reduce(
-      (cleanFileName: string, fileNamePart) =>
-        fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
-          ? (cleanFileName += pathSeparator + fileNamePart[1])
-          : cleanFileName,
-      ""
-    );
+    return Object.entries(fileName.split(pathSeparator))
+      .reduce(
+        (cleanFileName: string, fileNamePart) =>
+          fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
+            ? (cleanFileName += pathSeparator + fileNamePart[1])
+            : cleanFileName,
+        ""
+      )
+      .substring(1);
   }
 
   public static getCallSites(error?: Error): NodeJS.CallSite[] {
