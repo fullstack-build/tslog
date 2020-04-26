@@ -395,7 +395,7 @@ export class Logger {
       std.write(
         chalk`{red > ${LoggerHelper.lineNumberTo3Char(
           lineNumber
-        )} | ${lineBeforCol}}{redBright.inverse ${relevantColumn}}{red ${lineAfterCol}}\n`
+        )} | ${lineBeforCol}}{red.inverse ${relevantColumn}}{red ${lineAfterCol}}\n`
       );
     } else {
       std.write(
