@@ -10,10 +10,11 @@
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
-    "docsify": "docsify init ./docs",
+    "docsify-init": "docsify init ./docs",
+    "docsify-serve": "cd docs && docsify serve",
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
     "typedoc": "typedoc",
-    "generate-all-docs": "npm run docsify && npm run api-extractor && typedoc"
+    "generate-all-docs": "npm run api-extractor && typedoc"
   },
   "eslintConfig": {
     "extends": "./eslintrc.js"

@@ -1,4 +1,4 @@
-## 📝 tslog: Expressive TypeScript Logger for Node.js
+## 📝 tslog: Brand new expressive TypeScript Logger for Node.js
 
 
 [![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
@@ -7,8 +7,9 @@
 ![Dependency status](https://img.shields.io/david/fullstack-build/tslog?style=flat-square)
 ![CI: Travis](https://img.shields.io/travis/fullstack-build/tslog?style=flat-square)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
+[![GitHub stars](https://img.shields.io/github/stars/fullstack-build/tslog.svg?style=social&label=Star)](https://github.com/fullstack-build/tslog)
 
-> Powerful yet expressive and fast logging for TypeScript and Node.js 
+> Powerful, fast and expressive logging for Node.js 
 
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 

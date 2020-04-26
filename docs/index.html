@@ -6,6 +6,14 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
   <meta name="description" content="Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.">
   <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+  <style>
+    .github-corner {
+      z-index: 1000;
+    }
+    .cover {
+      background: none !important;
+    }
+  </style>
   <link rel="stylesheet" href="//unpkg.com/docsify/lib/themes/vue.css">
 </head>
 <body>
@@ -13,9 +21,17 @@
   <script>
     window.$docsify = {
       name: 'tslog',
-      repo: 'https://github.com/fullstack-build/tslog'
+      repo: 'https://github.com/fullstack-build/tslog',
+      homepage:
+              'https://raw.githubusercontent.com/fullstack-build/tslog/master/README.md',
+      coverpage: true,
+      themeColor: '#03267e',
+      loadSidebar: false
     }
   </script>
   <script src="//unpkg.com/docsify/lib/docsify.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-bash.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-typescript.min.js"></script>
+  <script src="//cdn.jsdelivr.net/npm/prismjs/components/prism-javascript.min.js"></script>
 </body>
 </html>
