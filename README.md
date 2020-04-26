@@ -42,9 +42,9 @@ npm install tslog
 
 *Enable TypeScript source map support*
 
->This features enables `tslog to reference to the correct line numbers in your TypeScript source code. 
+>This features enables `tslog` to reference to the correct line numbers in your TypeScript source code. 
 
-```jsonc
+```json5
 // tsconfig.json
 {
     // ...

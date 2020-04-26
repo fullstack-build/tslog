@@ -58,6 +58,12 @@ export interface ISettingsParam {
   /** Expose stack with EVERY log message, default: false  */
   exposeStack?: boolean;
 
+  /** Get Code Frame of an Error and expose it, default: true */
+  exposeErrorCodeFrame?: boolean;
+
+  /** Capture lines before and after a code frame, default: 5 */
+  exposeErrorCodeFrameLinesBeforeAndAfter?: number;
+
   /** Suppress any log output to std out / std err */
   suppressLogging?: boolean;
 
@@ -89,6 +95,8 @@ export interface ISettings extends ISettingsParam {
   minLevel: TLogLevelName;
   logAsJson: boolean;
   exposeStack: boolean;
+  exposeErrorCodeFrame: boolean;
+  exposeErrorCodeFrameLinesBeforeAndAfter: number;
   suppressLogging: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
@@ -165,6 +173,8 @@ export interface IErrorObject {
   message: string;
   /** Stack trace of the error */
   stack: IStackFrame[];
+  /** Code frame of the error */
+  codeFrame?: ICodeFrame;
 }
 
 /**
@@ -198,4 +208,13 @@ export interface IJsonHighlightColorsChalk {
   string: Chalk;
   boolean: Chalk;
   null: Chalk;
+}
+
+export interface ICodeFrame {
+  firstLineNumber: number;
+  lineNumber: number;
+  columnNumber: number | null;
+  linesBefore: string[];
+  relevantLine: string;
+  linesAfter: string[];
 }

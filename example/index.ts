@@ -1,4 +1,4 @@
-import { Logger } from "../dist";
+import { Logger } from "../src";
 
 class MyClass {
   private readonly _logger: Logger = new Logger();

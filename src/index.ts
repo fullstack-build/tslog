@@ -18,6 +18,7 @@ import {
   TLogLevelId,
   IJsonHighlightColors,
   TLogLevelColor,
+  ICodeFrame,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -70,6 +71,9 @@ export class Logger {
       minLevel: settings?.minLevel ?? "silly",
       logAsJson: settings?.logAsJson ?? false,
       exposeStack: settings?.exposeStack ?? false,
+      exposeErrorCodeFrame: settings?.exposeErrorCodeFrame ?? true,
+      exposeErrorCodeFrameLinesBeforeAndAfter:
+        settings?.exposeErrorCodeFrameLinesBeforeAndAfter ?? 5,
       suppressLogging: settings?.suppressLogging ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
@@ -243,6 +247,17 @@ export class Logger {
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;
         errorObject.stack = this._toStackObjectArray(errorStack);
+        const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
+          wrapCallSite(errorStack[0])
+        );
+        if (this.settings.exposeErrorCodeFrame) {
+          errorObject.codeFrame = LoggerHelper._getCodeFrame(
+            errorCallSite.fullFilePath,
+            errorCallSite.lineNumber,
+            errorCallSite.columnNumber,
+            this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
+          );
+        }
         logObject.argumentsArray.push(errorObject);
       } else {
         logObject.argumentsArray.push(arg);
@@ -323,6 +338,9 @@ export class Logger {
         );
 
         this._printPrettyStack(std, errorArgument.stack);
+        if (errorArgument.codeFrame != null) {
+          this._printPrettyCodeFrame(std, errorArgument.codeFrame);
+        }
       } else {
         std.write(format(argument) + " ");
       }
@@ -352,6 +370,46 @@ export class Logger {
         )
       );
       std.write("\n\n");
+    });
+  }
+
+  private _printPrettyCodeFrame(std: IStd, codeFrame: ICodeFrame): void {
+    std.write(chalk`{underline.bold code frame:\n}`);
+    let lineNumber: number = codeFrame.firstLineNumber;
+    codeFrame.linesBefore.forEach((line: string) => {
+      std.write(
+        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
+      );
+      lineNumber++;
+    });
+    if (codeFrame.columnNumber != null) {
+      const lineBeforCol: string = codeFrame.relevantLine.substr(
+        0,
+        codeFrame.columnNumber - 1
+      );
+      const relevantColumn: string =
+        codeFrame.relevantLine[codeFrame.columnNumber - 1];
+      const lineAfterCol: string = codeFrame.relevantLine.substr(
+        codeFrame.columnNumber
+      );
+      std.write(
+        chalk`{red > ${LoggerHelper.lineNumberTo3Char(
+          lineNumber
+        )} | ${lineBeforCol}}{redBright.inverse ${relevantColumn}}{red ${lineAfterCol}}\n`
+      );
+    } else {
+      std.write(
+        chalk`{red ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${
+          codeFrame.relevantLine
+        }}\n`
+      );
+    }
+    lineNumber++;
+    codeFrame.linesAfter.forEach((line: string) => {
+      std.write(
+        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
+      );
+      lineNumber++;
     });
   }
 

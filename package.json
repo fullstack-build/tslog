@@ -9,10 +9,11 @@
     "ts-node-dev": "ts-node-dev example/index.ts",
     "start": "node dist/example/index.ts",
     "build": "tsc",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
+    "dev:test": "jest --watch",
     "docsify-init": "docsify init ./docs",
     "docsify-serve": "cd docs && docsify serve",
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
@@ -71,7 +72,7 @@
   },
   "dependencies": {
     "chalk": "~4.0.0",
-    "source-map-support": "~0.5.16"
+    "source-map-support": "^0.5.19"
   },
   "files": [
     "dist"

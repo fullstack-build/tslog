@@ -3,7 +3,7 @@
 <head>
 	<meta charset="utf-8">
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
-	<title>IErrorObject | tslog</title>
+	<title>ICodeFrame | tslog</title>
 	<meta name="description" content="Documentation for tslog">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="stylesheet" href="../assets/css/main.css">
@@ -52,28 +52,21 @@
 					<a href="../globals.html">Globals</a>
 				</li>
 				<li>
-					<a href="ierrorobject.html">IErrorObject</a>
+					<a href="icodeframe.html">ICodeFrame</a>
 				</li>
 			</ul>
-			<h1>Interface IErrorObject</h1>
+			<h1>Interface ICodeFrame</h1>
 		</div>
 	</div>
 </header>
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
-			<section class="tsd-panel tsd-comment">
-				<div class="tsd-comment tsd-typography">
-					<div class="lead">
-						<p>Object representing an error with a stack trace</p>
-					</div>
-				</div>
-			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
 					<li>
-						<span class="target">IErrorObject</span>
+						<span class="target">ICodeFrame</span>
 					</li>
 				</ul>
 			</section>
@@ -84,11 +77,12 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#codeframe" class="tsd-kind-icon">code<wbr>Frame</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#iserror" class="tsd-kind-icon">is<wbr>Error</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#message" class="tsd-kind-icon">message</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#name" class="tsd-kind-icon">name</a></li>
-								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#stack" class="tsd-kind-icon">stack</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#columnnumber" class="tsd-kind-icon">column<wbr>Number</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#firstlinenumber" class="tsd-kind-icon">first<wbr>Line<wbr>Number</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#linenumber" class="tsd-kind-icon">line<wbr>Number</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#linesafter" class="tsd-kind-icon">lines<wbr>After</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#linesbefore" class="tsd-kind-icon">lines<wbr>Before</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="icodeframe.html#relevantline" class="tsd-kind-icon">relevant<wbr>Line</a></li>
 							</ul>
 						</section>
 					</div>
@@ -97,79 +91,64 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="codeframe" class="tsd-anchor"></a>
-					<h3><span class="tsd-flag ts-flagOptional">Optional</span> code<wbr>Frame</h3>
-					<div class="tsd-signature tsd-kind-icon">code<wbr>Frame<span class="tsd-signature-symbol">:</span> <a href="icodeframe.html" class="tsd-signature-type">ICodeFrame</a></div>
+					<a name="columnnumber" class="tsd-anchor"></a>
+					<h3>column<wbr>Number</h3>
+					<div class="tsd-signature tsd-kind-icon">column<wbr>Number<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">null</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L177">interfaces.ts:177</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L216">interfaces.ts:216</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Code frame of the error</p>
-						</div>
-					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="iserror" class="tsd-anchor"></a>
-					<h3>is<wbr>Error</h3>
-					<div class="tsd-signature tsd-kind-icon">is<wbr>Error<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span></div>
+					<a name="firstlinenumber" class="tsd-anchor"></a>
+					<h3>first<wbr>Line<wbr>Number</h3>
+					<div class="tsd-signature tsd-kind-icon">first<wbr>Line<wbr>Number<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L169">interfaces.ts:169</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L214">interfaces.ts:214</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Is this object an error?</p>
-						</div>
-					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="message" class="tsd-anchor"></a>
-					<h3>message</h3>
-					<div class="tsd-signature tsd-kind-icon">message<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<a name="linenumber" class="tsd-anchor"></a>
+					<h3>line<wbr>Number</h3>
+					<div class="tsd-signature tsd-kind-icon">line<wbr>Number<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L173">interfaces.ts:173</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L215">interfaces.ts:215</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Error message</p>
-						</div>
-					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="name" class="tsd-anchor"></a>
-					<h3>name</h3>
-					<div class="tsd-signature tsd-kind-icon">name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<a name="linesafter" class="tsd-anchor"></a>
+					<h3>lines<wbr>After</h3>
+					<div class="tsd-signature tsd-kind-icon">lines<wbr>After<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L171">interfaces.ts:171</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L219">interfaces.ts:219</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Name of the error</p>
-						</div>
-					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
-					<a name="stack" class="tsd-anchor"></a>
-					<h3>stack</h3>
-					<div class="tsd-signature tsd-kind-icon">stack<span class="tsd-signature-symbol">:</span> <a href="istackframe.html" class="tsd-signature-type">IStackFrame</a><span class="tsd-signature-symbol">[]</span></div>
+					<a name="linesbefore" class="tsd-anchor"></a>
+					<h3>lines<wbr>Before</h3>
+					<div class="tsd-signature tsd-kind-icon">lines<wbr>Before<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L175">interfaces.ts:175</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L217">interfaces.ts:217</a></li>
 						</ul>
 					</aside>
-					<div class="tsd-comment tsd-typography">
-						<div class="lead">
-							<p>Stack trace of the error</p>
-						</div>
-					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="relevantline" class="tsd-anchor"></a>
+					<h3>relevant<wbr>Line</h3>
+					<div class="tsd-signature tsd-kind-icon">relevant<wbr>Line<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/2503268/src/interfaces.ts#L218">interfaces.ts:218</a></li>
+						</ul>
+					</aside>
 				</section>
 			</section>
 		</div>
@@ -186,33 +165,36 @@
 					<li class=" tsd-kind-class">
 						<a href="../classes/logger.html" class="tsd-kind-icon">Logger</a>
 					</li>
-					<li class=" tsd-kind-interface">
-						<a href="icodeframe.html" class="tsd-kind-icon">ICode<wbr>Frame</a>
-					</li>
 				</ul>
 				<ul class="current">
 					<li class="current tsd-kind-interface">
-						<a href="ierrorobject.html" class="tsd-kind-icon">IError<wbr>Object</a>
+						<a href="icodeframe.html" class="tsd-kind-icon">ICode<wbr>Frame</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="ierrorobject.html#codeframe" class="tsd-kind-icon">code<wbr>Frame</a>
+								<a href="icodeframe.html#columnnumber" class="tsd-kind-icon">column<wbr>Number</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="ierrorobject.html#iserror" class="tsd-kind-icon">is<wbr>Error</a>
+								<a href="icodeframe.html#firstlinenumber" class="tsd-kind-icon">first<wbr>Line<wbr>Number</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="ierrorobject.html#message" class="tsd-kind-icon">message</a>
+								<a href="icodeframe.html#linenumber" class="tsd-kind-icon">line<wbr>Number</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="ierrorobject.html#name" class="tsd-kind-icon">name</a>
+								<a href="icodeframe.html#linesafter" class="tsd-kind-icon">lines<wbr>After</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
-								<a href="ierrorobject.html#stack" class="tsd-kind-icon">stack</a>
+								<a href="icodeframe.html#linesbefore" class="tsd-kind-icon">lines<wbr>Before</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="icodeframe.html#relevantline" class="tsd-kind-icon">relevant<wbr>Line</a>
 							</li>
 						</ul>
 					</li>
 				</ul>
 				<ul class="after-current">
+					<li class=" tsd-kind-interface">
+						<a href="ierrorobject.html" class="tsd-kind-icon">IError<wbr>Object</a>
+					</li>
 					<li class=" tsd-kind-interface">
 						<a href="ijsonhighlightcolors.html" class="tsd-kind-icon">IJson<wbr>Highlight<wbr>Colors</a>
 					</li>

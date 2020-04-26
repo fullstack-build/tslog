@@ -1,15 +1,18 @@
+import { format } from "util";
+import { createReadStream, readFileSync } from "fs";
+import { createInterface, Interface } from "readline";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
 import { Logger } from "./index";
 import { Chalk } from "chalk";
 import {
+  ICodeFrame,
   IJsonHighlightColors,
   IJsonHighlightColorsChalk,
   ILogObject,
   IStackFrame,
   TLogLevelName,
 } from "./interfaces";
-import { format } from "util";
 
 /** @internal */
 export class LoggerHelper {
@@ -140,5 +143,106 @@ export class LoggerHelper {
         return chalkColors[cls](match);
       }
     );
+  }
+
+  public static async _getCodeFrameAsync(
+    filePath: string,
+    lineNumber: number | null,
+    columnNumber: number | null,
+    linesBeforeAndAfter: number
+  ): Promise<ICodeFrame | undefined> {
+    try {
+      const fileStream: NodeJS.ReadableStream = createReadStream(filePath, {
+        encoding: "utf-8",
+      });
+      const rl: Interface = createInterface({
+        input: fileStream,
+        crlfDelay: Infinity,
+      });
+
+      if (lineNumber != null) {
+        const linesBefore: string[] = [];
+        let relevantLine: string | undefined;
+        const linesAfter: string[] = [];
+        let i: number = 0;
+        rl.on("line", (line) => {
+          if (i < lineNumber && i >= lineNumber - linesBeforeAndAfter) {
+            linesBefore.push(line);
+          } else if (i === lineNumber) {
+            relevantLine = line;
+          } else if (i > lineNumber && i <= lineNumber + linesBeforeAndAfter) {
+            linesAfter.push(line);
+          }
+          i++;
+        });
+        rl.on("close", () => {
+          const firstLineNumber: number =
+            lineNumber - linesBeforeAndAfter < 0
+              ? 0
+              : lineNumber - linesBeforeAndAfter;
+          return {
+            firstLineNumber,
+            lineNumber,
+            columnNumber,
+            linesBefore,
+            relevantLine,
+            linesAfter,
+          };
+        });
+      }
+    } catch {
+      return undefined;
+    }
+  }
+
+  public static _getCodeFrame(
+    filePath: string,
+    lineNumber: number | null,
+    columnNumber: number | null,
+    linesBeforeAndAfter: number
+  ): ICodeFrame | undefined {
+    if (lineNumber == null) {
+      return undefined;
+    }
+
+    const lineNumberMinusOne: number = lineNumber - 1;
+
+    const file: string[] = readFileSync(filePath, { encoding: "utf-8" })?.split(
+      "\n"
+    );
+    const startAt: number =
+      lineNumberMinusOne - linesBeforeAndAfter < 0
+        ? 0
+        : lineNumberMinusOne - linesBeforeAndAfter;
+    const endAt: number =
+      lineNumberMinusOne + linesBeforeAndAfter > file.length
+        ? file.length
+        : lineNumberMinusOne + linesBeforeAndAfter;
+
+    const codeFrame: ICodeFrame = {
+      firstLineNumber: startAt + 1,
+      lineNumber,
+      columnNumber,
+      linesBefore: [],
+      relevantLine: "",
+      linesAfter: [],
+    };
+    for (let i: number = startAt; i < lineNumberMinusOne; i++) {
+      codeFrame.linesBefore.push(file[i]);
+    }
+    codeFrame.relevantLine = file[lineNumberMinusOne];
+    for (let i: number = lineNumberMinusOne + 1; i <= endAt; i++) {
+      codeFrame.linesAfter.push(file[i]);
+    }
+
+    return codeFrame;
+  }
+
+  public static lineNumberTo3Char(lineNumber: number): string {
+    return lineNumber < 10
+      ? `00${lineNumber}`
+      : lineNumber < 100
+      ? `0${lineNumber}`
+      : `${lineNumber}`;
   }
 }

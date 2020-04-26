@@ -6,6 +6,8 @@
 
 // @public
 export interface IErrorObject {
+    // Warning: (ae-forgotten-export) The symbol "ICodeFrame" needs to be exported by the entry point index.d.ts
+    codeFrame?: ICodeFrame;
     isError: true;
     message: string;
     name: string;
@@ -60,6 +62,10 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     displayInstanceName?: boolean;
     // (undocumented)
+    exposeErrorCodeFrame: boolean;
+    // (undocumented)
+    exposeErrorCodeFrameLinesBeforeAndAfter: number;
+    // (undocumented)
     exposeStack: boolean;
     // (undocumented)
     instanceName?: string;
@@ -86,6 +92,8 @@ export interface ISettings extends ISettingsParam {
 // @public
 export interface ISettingsParam {
     displayInstanceName?: boolean;
+    exposeErrorCodeFrame?: boolean;
+    exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
     instanceName?: string;
     jsonHighlightColors?: IJsonHighlightColors;
