@@ -60,9 +60,9 @@ export class Logger {
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
    */
   public constructor(settings?: ISettingsParam) {
-    const displayInstanceName: boolean =
-      settings?.displayInstanceName !== false;
+    const displayInstanceName: boolean = settings?.displayInstanceName === true;
     this.settings = {
+      displayInstanceName: displayInstanceName,
       instanceName: displayInstanceName
         ? settings?.instanceName ?? hostname()
         : undefined,
@@ -76,10 +76,10 @@ export class Logger {
         0: "#B0B0B0",
         1: "#FFFFFF",
         2: "#63C462",
-        3: "#2020C0",
+        3: "#2b98ba",
         4: "#CE8743",
-        5: "#CD444C",
-        6: "#FF0000",
+        5: "#EE444C",
+        6: "#900000",
       },
       jsonHighlightColors: settings?.jsonHighlightColors ?? {
         number: "#FF6188",
@@ -257,16 +257,16 @@ export class Logger {
   }
 
   private _toStackObjectArray(jsStack: NodeJS.CallSite[]): IStackFrame[] {
-    const prettyStack: IStackFrame[] = Object.values(jsStack).reduce(
-      (iPrettyStack: IStackFrame[], stackFrame: NodeJS.CallSite) => {
-        iPrettyStack.push(
-          LoggerHelper.toStackFrameObject(wrapCallSite(stackFrame))
+    const stackFrame: IStackFrame[] = Object.values(jsStack).reduce(
+      (stackFrameObj: IStackFrame[], callsite: NodeJS.CallSite) => {
+        stackFrameObj.push(
+          LoggerHelper.toStackFrameObject(wrapCallSite(callsite))
         );
-        return iPrettyStack;
+        return stackFrameObj;
       },
       []
     );
-    return prettyStack;
+    return stackFrame;
   }
 
   private _printPrettyLog(logObject: ILogObject): void {
@@ -297,11 +297,11 @@ export class Logger {
 
     const instanceName: string =
       this.settings.instanceName != null
-        ? `@${this.settings.instanceName}`
+        ? `@${this.settings.instanceName} `
         : "";
 
     std.write(
-      chalk`{grey [${logObject.loggerName}${instanceName} ${logObject.filePath}:${logObject.lineNumber}${functionName}]}\t`
+      chalk`{grey [${logObject.loggerName}${instanceName}${logObject.filePath}:${logObject.lineNumber}${functionName}]}\t`
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
@@ -318,11 +318,8 @@ export class Logger {
         );
       } else if (typeof argument === "object" && errorArgument.isError) {
         std.write(
-          format(
-            chalk`\n{whiteBright.bgRed.bold ${
-              errorArgument.name
-            }}{grey :} ${format(errorArgument.message)}\n`
-          )
+          chalk.bgHex("AA0A0A").bold(`\n ${errorArgument.name} `) +
+            `  ${format(errorArgument.message)}\n`
         );
 
         this._printPrettyStack(std, errorArgument.stack);

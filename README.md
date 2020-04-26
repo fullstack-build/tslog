@@ -18,11 +18,12 @@
 - [x] Fully typed with TypeScript support (correct location in *.ts files)
 - [x] Log levels
 - [x] Custom pluggable loggers
-- [x] Structured or _JSON_ output
+- [x] Structured or `JSON` output
 - [x] Beauty object and error interpolation (incl. stack trace)
 - [x] Stack trace through native V8 API
 - [x] Code path linked to position in IDE
 - [x] Works for both: TypeScript and JavaScript
+- [x] Optionally catch all `console` logs
 - [x] well documented
 - [x] 100% test coverage
 
@@ -30,7 +31,7 @@
 ```typescript
 import { Logger } from "tslog";
 
-const log: Logger = new Logger({ name: "myLogger" });
+const log: Logger = new Logger();
 log.silly("I am a silly log.");
 ```
 
@@ -41,9 +42,9 @@ npm install tslog
 
 *Enable TypeScript source map support*
 
-This features enables `tslog to reference to the correct line numbers in your TypeScript source code. 
+>This features enables `tslog to reference to the correct line numbers in your TypeScript source code. 
 
-```json
+```jsonc
 // tsconfig.json
 {
     // ...

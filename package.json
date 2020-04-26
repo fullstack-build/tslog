@@ -1,10 +1,13 @@
 {
   "name": "tslog",
-  "version": "1.0.0-dev.17",
+  "version": "1.0.0-dev.18",
   "description": "Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
+    "ts-node": "ts-node example/index.ts",
+    "ts-node-dev": "ts-node-dev example/index.ts",
+    "start": "node dist/example/index.ts",
     "build": "tsc",
     "prepublishOnly": "npm run build",
     "eslint": "eslint . --ext .ts",
@@ -62,6 +65,7 @@
     "prettier": "^2.0.4",
     "ts-jest": "~25.4.0",
     "ts-node": "~8.9.0",
+    "ts-node-dev": "^1.0.0-pre.44",
     "typedoc": "^0.17.4",
     "typescript": "^3.8.3"
   },

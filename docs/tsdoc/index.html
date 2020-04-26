@@ -82,11 +82,12 @@
 					<li><input checked="" disabled="" type="checkbox"> Fully typed with TypeScript support (correct location in *.ts files)</li>
 					<li><input checked="" disabled="" type="checkbox"> Log levels</li>
 					<li><input checked="" disabled="" type="checkbox"> Custom pluggable loggers</li>
-					<li><input checked="" disabled="" type="checkbox"> Structured or <em>JSON</em> output</li>
+					<li><input checked="" disabled="" type="checkbox"> Structured or <code>JSON</code> output</li>
 					<li><input checked="" disabled="" type="checkbox"> Beauty object and error interpolation (incl. stack trace)</li>
 					<li><input checked="" disabled="" type="checkbox"> Stack trace through native V8 API</li>
 					<li><input checked="" disabled="" type="checkbox"> Code path linked to position in IDE</li>
 					<li><input checked="" disabled="" type="checkbox"> Works for both: TypeScript and JavaScript</li>
+					<li><input checked="" disabled="" type="checkbox"> Optionally catch all <code>console</code> logs</li>
 					<li><input checked="" disabled="" type="checkbox"> well documented</li>
 					<li><input checked="" disabled="" type="checkbox"> 100% test coverage</li>
 				</ul>
@@ -95,20 +96,22 @@
 				</a>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
 
-<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger();
 log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
 				<a href="#install" id="install" style="color: inherit; text-decoration: none;">
 					<h3>Install</h3>
 				</a>
 				<pre><code class="language-bash">npm install tslog</code></pre>
 				<p><em>Enable TypeScript source map support</em></p>
-				<p>This features enables `tslog to reference to the correct line numbers in your TypeScript source code. </p>
-				<pre><code class="language-json"><span class="hljs-comment">// tsconfig.json</span>
+				<blockquote>
+					<p>This features enables `tslog to reference to the correct line numbers in your TypeScript source code. </p>
+				</blockquote>
+				<pre><code class="language-jsonc">// tsconfig.json
 {
-    <span class="hljs-comment">// ...</span>
-    <span class="hljs-attr">"compilerOptions"</span>: {
-        <span class="hljs-comment">// ...</span>
-        <span class="hljs-attr">"sourceMap"</span>: <span class="hljs-literal">true</span>
+    // ...
+    &quot;compilerOptions&quot;: {
+        // ...
+        &quot;sourceMap&quot;: true
     }
 }</code></pre>
 				<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
