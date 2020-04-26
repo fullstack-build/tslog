@@ -100,7 +100,17 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
 				<a href="#install" id="install" style="color: inherit; text-decoration: none;">
 					<h3>Install</h3>
 				</a>
-				<pre><code>npm <span class="hljs-keyword">install</span> tslog</code></pre>
+				<pre><code class="language-bash">npm install tslog</code></pre>
+				<p><em>Enable TypeScript source map support</em></p>
+				<p>This features enables `tslog to reference to the correct line numbers in your TypeScript source code. </p>
+				<pre><code class="language-json"><span class="hljs-comment">// tsconfig.json</span>
+{
+    <span class="hljs-comment">// ...</span>
+    <span class="hljs-attr">"compilerOptions"</span>: {
+        <span class="hljs-comment">// ...</span>
+        <span class="hljs-attr">"sourceMap"</span>: <span class="hljs-literal">true</span>
+    }
+}</code></pre>
 				<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
 					<h3>Usage</h3>
 				</a>

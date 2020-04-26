@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "1.0.0-dev.15",
+  "version": "1.0.0-dev.16",
   "description": "Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
@@ -73,25 +73,25 @@
     "dist"
   ],
   "keywords": [
+    "logger",
+    "typescript",
+    "log level",
+    "json",
+    "stacktrace",
+    "Error.stack",
+    "call location",
+    "debug",
+    "pretty",
     "log",
-    "logging",
     "log4j",
     "log4js",
     "log4ts",
     "print",
-    "pretty",
-    "pretty print",
-    "json",
-    "typescript",
-    "debug",
     "logging",
-    "loglevel",
     "bunyan",
     "winston",
     "stack",
-    "stacktrace",
     "trace",
-    "Error.stack",
     "pretty print",
     "prettify",
     "format",
@@ -103,7 +103,6 @@
     "pretty log",
     "pretty json",
     "pretty-error",
-    "sourcemap",
-    "call location"
+    "sourcemap"
   ]
 }

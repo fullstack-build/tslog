@@ -9,6 +9,7 @@ import {
   IStackFrame,
   TLogLevelName,
 } from "./interfaces";
+import { format } from "util";
 
 /** @internal */
 export class LoggerHelper {
@@ -111,10 +112,15 @@ export class LoggerHelper {
       null: chalk.hex(colors.null),
     };
 
+    let stringifiedJson: string = "";
     if (typeof json !== "string") {
-      json = JSON.stringify(json, undefined, 2);
+      stringifiedJson = JSON.stringify(json, undefined, 2);
+      stringifiedJson =
+        stringifiedJson === "{}" ? format(json) : stringifiedJson;
+    } else {
+      stringifiedJson = json;
     }
-    return json.replace(
+    return stringifiedJson.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
       function (match: string) {
         let cls: string = "number";

@@ -35,8 +35,23 @@ log.silly("I am a silly log.");
 ```
 
 ### Install 
-```
+```bash
 npm install tslog
+```
+
+*Enable TypeScript source map support*
+
+This features enables `tslog to reference to the correct line numbers in your TypeScript source code. 
+
+```json
+// tsconfig.json
+{
+    // ...
+    "compilerOptions": {
+        // ...
+        "sourceMap": true
+    }
+}
 ```
 
 ### Usage
