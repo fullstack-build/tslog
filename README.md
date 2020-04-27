@@ -76,7 +76,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Attachable transports:** Send logs to an external log aggregation services, file system, database, or email/slack/sms/you name it...
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLog level can be set individually per transport
-* **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, _TSDoc_ documented
+* **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">__TSDoc_</a> documented
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS ), one click to IDE position. 
 * **Stack trace:** Callsites from the <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a> 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
