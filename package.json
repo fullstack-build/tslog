@@ -40,7 +40,7 @@
   },
   "np": {
     "yarn": false,
-    "contents": "dist"
+    "contents": "."
   },
   "publishConfig": {
     "access": "public"
