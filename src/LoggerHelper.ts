@@ -106,7 +106,8 @@ export class LoggerHelper {
   public static colorizeJson(
     json: string | object,
     chalk: Chalk,
-    colors: IJsonHighlightColors
+    colors: IJsonHighlightColors,
+    indent: boolean = false
   ): string {
     const chalkColors: IJsonHighlightColorsChalk = {
       number: chalk.hex(colors.number),
@@ -118,7 +119,10 @@ export class LoggerHelper {
 
     let stringifiedJson: string = typeof json === "string" ? json : "";
     if (typeof json !== "string") {
-      stringifiedJson = JSON.stringify(json, undefined, 2);
+      stringifiedJson =
+        indent === true
+          ? JSON.stringify(json, undefined, 2)
+          : JSON.stringify(json);
       stringifiedJson =
         stringifiedJson === "{}" ? format(json) : stringifiedJson;
     }

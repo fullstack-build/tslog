@@ -336,7 +336,8 @@ export class Logger {
             LoggerHelper.colorizeJson(
               argument ?? "",
               chalk,
-              this.settings.jsonHighlightColors
+              this.settings.jsonHighlightColors,
+              true
             ) +
             " "
         );
@@ -418,12 +419,6 @@ export class Logger {
       logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
-    std.write(
-      LoggerHelper.colorizeJson(
-        logObject,
-        chalk,
-        this.settings.jsonHighlightColors
-      ) + "\n"
-    );
+    std.write(JSON.stringify(logObject) + "\n");
   }
 }
