@@ -80,15 +80,13 @@
 				<ul>
 					<li>⚡ Small footprint, blazing performance</li>
 					<li>👮‍️ Fully typed with TypeScript support (correct location in *.ts files)</li>
-					<li>🧮 Log levels</li>
-					<li>🗃 Structured or <code>JSON</code> output</li>
+					<li>🗃 <em>Pretty</em> or <code>JSON</code> output</li>
 					<li>🦸 Custom pluggable loggers</li>
 					<li>💅 Object and error interpolation</li>
 					<li>🕵️‍ Error code frame</li>
 					<li>🤓 Stack trace through native V8 API</li>
-					<li>👨‍💻 Code position linked to IDE</li>
 					<li>🏗 Works for both: TypeScript and JavaScript</li>
-					<li>🧲 Optionally catch all <code>console</code> logs</li>
+					<li>🧲 Optionally catch-all <code>console</code> logs</li>
 					<li>✍ well documented</li>
 					<li>😎 100% test coverage</li>
 				</ul>
@@ -105,7 +103,7 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
 				<pre><code class="language-bash">npm install tslog</code></pre>
 				<p><em>Enable TypeScript source map support</em></p>
 				<blockquote>
-					<p>This features enables <code>tslog</code> to reference to the correct line numbers in your TypeScript source code. </p>
+					<p>This feature enables <code>tslog</code> to reference a correct line number in your TypeScript source code. </p>
 				</blockquote>
 				<pre><code class="language-json5">// tsconfig.json
 {
@@ -146,11 +144,41 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><em>Named Logger:</em> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
 					<li><em>Highly configurable:</em> All settings can be changed through a typed settings object</li>
 					<li><em>Short paths:</em> Paths are relative to the root of the application folder</li>
+					<li><em>Optionally overwrite <code>console</code>:</em> Optionally catch <code>console.log</code> etc. that would be hard to find otherwise</li>
 					<li><em>Tested:</em> 100% Code coverage, CI</li>
 				</ul>
-				<a href="#api-documentation--tsdoc" id="api-documentation--tsdoc" style="color: inherit; text-decoration: none;">
-					<h3>API documentation:  <a href="https://fullstack-build.github.io/tslog/tsdoc/">TSDoc</a></h3>
+				<a href="#api-documentation-tsdoc" id="api-documentation-tsdoc" style="color: inherit; text-decoration: none;">
+					<h3><a href="https://fullstack-build.github.io/tslog/tsdoc/">API documentation: TSDoc</a></h3>
 				</a>
+				<a href="#log-level" id="log-level" style="color: inherit; text-decoration: none;">
+					<h4>Log level:</h4>
+				</a>
+				<p><code>tslog</code> is highly customizable, however, sticks to convention over configuration when it comes to <em>log levels</em>.
+					Internally a log level is represented by a numeric number. Supported log levels are: <code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code>
+					Per default log level 0 - 3 are written to <code>stdout</code> and 4 - 6 are written to <code>stderr</code>.
+				Each log level is printed in a different color, that is completely customizable through the settings object.</p>
+				<blockquote>
+					<p><em>Hint:</em> Log level <code>trace</code> behaves a bit differently compared to all the other log levels.
+						While it is possible to activate a stack trace for every log level, it is already activated for <code>trace</code> by default.
+					That means, every <code>trace</code> log will also automatically capture and print its entire stack trace. </p>
+				</blockquote>
+				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
+
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
+log.silly(<span class="hljs-string">"I am a silly log."</span>);
+log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
+log.debug(<span class="hljs-string">"I am a debug log."</span>);
+log.info(<span class="hljs-string">"I am an info log."</span>);
+log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, {foo: <span class="hljs-string">"bar"</span>});
+log.error(<span class="hljs-string">"I am an error log."</span>);
+log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"I am a pretty Error with a stacktrace."</span>));</code></pre>
+				<p>Btw. a log method has a return type, which is a <em>JSON</em> representation of the entire log message (<code>ILogObject</code>).
+				You can use this object to access its stack trace etc. </p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger, ILogObject } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
+
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
+
+<span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);</code></pre>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">

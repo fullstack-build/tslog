@@ -16,15 +16,13 @@
 ### Highlights
 - ⚡ Small footprint, blazing performance
 - 👮‍️ Fully typed with TypeScript support (correct location in *.ts files)
-- 🧮 Log levels
-- 🗃 Structured or `JSON` output
+- 🗃 _Pretty_ or `JSON` output
 - 🦸 Custom pluggable loggers
 - 💅 Object and error interpolation
 - 🕵️‍ Error code frame
 - 🤓 Stack trace through native V8 API
-- 👨‍💻 Code position linked to IDE
 - 🏗 Works for both: TypeScript and JavaScript
-- 🧲 Optionally catch all `console` logs
+- 🧲 Optionally catch-all `console` logs
 - ✍ well documented
 - 😎 100% test coverage
 
@@ -43,7 +41,7 @@ npm install tslog
 
 *Enable TypeScript source map support*
 
->This features enables `tslog` to reference to the correct line numbers in your TypeScript source code. 
+>This feature enables `tslog` to reference a correct line number in your TypeScript source code. 
 
 ```json5
 // tsconfig.json
@@ -87,6 +85,41 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * *Named Logger:* Logger can be named (e.g. useful for packages/modules and monorepos)
 * *Highly configurable:* All settings can be changed through a typed settings object
 * *Short paths:* Paths are relative to the root of the application folder
+* *Optionally overwrite `console`:* Optionally catch `console.log` etc. that would be hard to find otherwise
 * *Tested:* 100% Code coverage, CI
 
-### API documentation:  [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
+### [API documentation: TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
+
+#### Log level: 
+
+`tslog` is highly customizable, however, sticks to convention over configuration when it comes to *log levels*. 
+Internally a log level is represented by a numeric number. Supported log levels are: `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
+Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
+Each log level is printed in a different color, that is completely customizable through the settings object.
+
+> *Hint:* Log level `trace` behaves a bit differently compared to all the other log levels. 
+> While it is possible to activate a stack trace for every log level, it is already activated for `trace` by default. 
+> That means, every `trace` log will also automatically capture and print its entire stack trace. 
+
+```typescript
+import { Logger } from "tslog";
+
+const log: Logger = new Logger({ name: "myLogger" });
+log.silly("I am a silly log.");
+log.trace("I am a trace log with a stack trace.");
+log.debug("I am a debug log.");
+log.info("I am an info log.");
+log.warn("I am a warn log with a json object:", {foo: "bar"});
+log.error("I am an error log.");
+log.fatal(new Error("I am a pretty Error with a stacktrace."));
+```
+Btw. a log method has a return type, which is a _JSON_ representation of the entire log message (`ILogObject`).
+You can use this object to access its stack trace etc. 
+
+```typescript
+import { Logger, ILogObject } from "tslog";
+
+const log: Logger = new Logger({ name: "myLogger" });
+
+const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.");
+```
