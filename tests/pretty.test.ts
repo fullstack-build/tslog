@@ -84,7 +84,7 @@ describe("Logger: Pretty print", () => {
   });
 
   test("Pretty object (stdOut)", (): void => {
-    logger.info({ very: "much" });
+    logger.info({ very: "much", a: null, b: true, c: 1, d: null });
     //json indentation discovered
     expect(doesLogContain(stdOut, '\n{\n  "very": "much"\n}'));
   });
