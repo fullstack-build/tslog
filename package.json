@@ -18,7 +18,8 @@
     "docsify-serve": "cd docs && docsify serve",
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
     "typedoc": "typedoc",
-    "generate-all-docs": "npm run api-extractor && typedoc"
+    "generate-all-docs": "npm run api-extractor && typedoc",
+    "release": "np"
   },
   "eslintConfig": {
     "extends": "./eslintrc.js"
@@ -36,6 +37,13 @@
         "packageJson": "package.json"
       }
     }
+  },
+  "np": {
+    "yarn": false,
+    "contents": "dist"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",
@@ -63,6 +71,7 @@
     "eslint-plugin-prettier": "^3.1.2",
     "git-hooks": "^1.1.10",
     "jest": "^25.4.0",
+    "np": "^6.2.2",
     "prettier": "^2.0.4",
     "ts-jest": "~25.4.0",
     "ts-node": "^8.9.1",
