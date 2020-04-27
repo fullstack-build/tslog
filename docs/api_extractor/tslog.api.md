@@ -5,8 +5,23 @@
 ```ts
 
 // @public
+export interface ICodeFrame {
+    // (undocumented)
+    columnNumber: number | null;
+    // (undocumented)
+    firstLineNumber: number;
+    // (undocumented)
+    lineNumber: number;
+    // (undocumented)
+    linesAfter: string[];
+    // (undocumented)
+    linesBefore: string[];
+    // (undocumented)
+    relevantLine: string;
+}
+
+// @public
 export interface IErrorObject {
-    // Warning: (ae-forgotten-export) The symbol "ICodeFrame" needs to be exported by the entry point index.d.ts
     codeFrame?: ICodeFrame;
     isError: true;
     message: string;
@@ -133,7 +148,6 @@ export class Logger {
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
     info(...args: unknown[]): ILogObject;
-    // (undocumented)
     readonly settings: ISettings;
     silly(...args: unknown[]): ILogObject;
     trace(...args: unknown[]): ILogObject;
@@ -156,7 +170,5 @@ export type TTransportLogger<T> = {
     [key in TLogLevelName]: T;
 };
 
-
-// (No @packageDocumentation comment for this package)
 
 ```

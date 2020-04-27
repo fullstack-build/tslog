@@ -17,11 +17,12 @@
 - [x] Small footprint, blazing performance
 - [x] Fully typed with TypeScript support (correct location in *.ts files)
 - [x] Log levels
-- [x] Custom pluggable loggers
 - [x] Structured or `JSON` output
-- [x] Beauty object and error interpolation (incl. stack trace)
+- [x] Custom pluggable loggers
+- [x] Object and error interpolation
+- [x] Error code frame
 - [x] Stack trace through native V8 API
-- [x] Code path linked to position in IDE
+- [x] Code position linked to IDE
 - [x] Works for both: TypeScript and JavaScript
 - [x] Optionally catch all `console` logs
 - [x] well documented
@@ -68,4 +69,4 @@ log.warn("I am a warn log with a json object:", jsonObj);
 log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
-### [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
+### API documentation: [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)

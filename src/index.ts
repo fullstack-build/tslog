@@ -1,3 +1,8 @@
+/**
+ * Expressive TypeScript Logger for Node.js
+ * @packageDocumentation
+ */
+
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
 import * as chalk from "chalk";
@@ -35,6 +40,7 @@ export {
   IJsonHighlightColors,
   TLogLevelColor,
   ISettings,
+  ICodeFrame,
 };
 
 /**
@@ -54,10 +60,10 @@ export class Logger {
   private _ignoreStackLevels: number = 3;
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
+  /** Readonly settings of the current logger instance. Used for testing. */
   public readonly settings: ISettings;
 
   /**
-   *
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
    */
   public constructor(settings?: ISettingsParam) {

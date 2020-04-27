@@ -210,6 +210,10 @@ export interface IJsonHighlightColorsChalk {
   null: Chalk;
 }
 
+/**
+ * Code frame of an error
+ * @public
+ * */
 export interface ICodeFrame {
   firstLineNumber: number;
   lineNumber: number;
