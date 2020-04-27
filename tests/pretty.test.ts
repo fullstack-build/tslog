@@ -80,7 +80,7 @@ describe("Logger: Pretty print", () => {
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, "code frame:")).toBeTruthy();
     // red >
-    expect(doesLogContain(stdErr, "\u001b[31m>\u001b")).toBeTruthy();
+    expect(doesLogContain(stdErr, ">")).toBeTruthy();
   });
 
   test("Pretty object (stdOut)", (): void => {
