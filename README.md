@@ -69,4 +69,4 @@ log.warn("I am a warn log with a json object:", jsonObj);
 log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
-### API documentation: [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
+### API documentation:  [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
