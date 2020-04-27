@@ -75,6 +75,14 @@ describe("Logger: Pretty print", () => {
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
   });
 
+  test("Pretty Error with code frame (stdErr)", (): void => {
+    logger.warn(new Error("TestError"));
+    expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
+    expect(doesLogContain(stdErr, "code frame:")).toBeTruthy();
+    // red >
+    expect(doesLogContain(stdErr, "\u001b[31m>\u001b")).toBeTruthy();
+  });
+
   test("Pretty object (stdOut)", (): void => {
     logger.info({ very: "much" });
     //json indentation discovered

@@ -1,7 +1,7 @@
 {
   "name": "tslog",
   "version": "1.0.0-dev.19",
-  "description": "Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
+  "description": "📝 Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {
@@ -55,19 +55,19 @@
     "@rushstack/eslint-config": "^0.5.7",
     "@types/jest": "~25.2.1",
     "@types/lodash": "~4.14.149",
-    "@types/node": "^13.11.0",
+    "@types/node": "^13.13.4",
     "@types/source-map-support": "~0.5.1",
     "docsify": "^4.11.3",
     "eslint": "^6.8.0",
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
     "git-hooks": "^1.1.10",
-    "jest": "~25.4.0",
+    "jest": "^25.4.0",
     "prettier": "^2.0.4",
     "ts-jest": "~25.4.0",
-    "ts-node": "~8.9.0",
+    "ts-node": "^8.9.1",
     "ts-node-dev": "^1.0.0-pre.44",
-    "typedoc": "^0.17.4",
+    "typedoc": "^0.17.6",
     "typescript": "^3.8.3"
   },
   "dependencies": {

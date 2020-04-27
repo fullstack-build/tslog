@@ -104,7 +104,7 @@ describe("Logger: JSON", () => {
     } catch {}
   });
 
-  test("Pretty Error with stack (stdErr)", (): void => {
+  test("Error with stack (stdErr)", (): void => {
     logger.warn(new Error("TestError"));
     try {
       const logJson: ILogObject = JSON.parse(stdErr[0]);
@@ -112,6 +112,17 @@ describe("Logger: JSON", () => {
         .argumentsArray[0] as IErrorObject;
       expect(errorObject.message).toBe("TestError");
       expect(errorObject.stack).toEqual(null);
+    } catch {}
+  });
+
+  test("Error with code Frame (stdErr)", (): void => {
+    logger.warn(new Error("TestError"));
+    try {
+      const logJson: ILogObject = JSON.parse(stdErr[0]);
+      const errorObject: IErrorObject = logJson
+        .argumentsArray[0] as IErrorObject;
+      expect(errorObject.message).toBe("TestError");
+      expect(errorObject.codeFrame).toEqual(null);
     } catch {}
   });
 });

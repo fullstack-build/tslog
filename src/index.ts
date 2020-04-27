@@ -250,7 +250,10 @@ export class Logger {
         const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
           wrapCallSite(errorStack[0])
         );
-        if (this.settings.exposeErrorCodeFrame) {
+        if (
+          this.settings.exposeErrorCodeFrame &&
+          errorCallSite.lineNumber != null
+        ) {
           errorObject.codeFrame = LoggerHelper._getCodeFrame(
             errorCallSite.fullFilePath,
             errorCallSite.lineNumber,
@@ -382,29 +385,20 @@ export class Logger {
       );
       lineNumber++;
     });
-    if (codeFrame.columnNumber != null) {
-      const lineBeforCol: string = codeFrame.relevantLine.substr(
-        0,
-        codeFrame.columnNumber - 1
-      );
-      const relevantColumn: string =
-        codeFrame.relevantLine[codeFrame.columnNumber - 1];
-      const lineAfterCol: string = codeFrame.relevantLine.substr(
-        codeFrame.columnNumber
-      );
-      std.write(
-        chalk`{red > ${LoggerHelper.lineNumberTo3Char(
-          lineNumber
-        )} | ${lineBeforCol}}{red.inverse ${relevantColumn}}{red ${lineAfterCol}}\n`
-      );
-    } else {
-      std.write(
-        chalk`{red ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${
-          codeFrame.relevantLine
-        }}\n`
-      );
-    }
+
+    std.write(
+      chalk`{red >} {bgRed.whiteBright ${LoggerHelper.lineNumberTo3Char(
+        lineNumber
+      )}} | {yellow ${codeFrame.relevantLine}}\n`
+    );
     lineNumber++;
+
+    if (codeFrame.columnNumber != null) {
+      const positionMarker: string =
+        new Array(codeFrame.columnNumber + 8).join(" ") + chalk`{red ^}`;
+      std.write(`${positionMarker}\n`);
+    }
+
     codeFrame.linesAfter.forEach((line: string) => {
       std.write(
         chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`

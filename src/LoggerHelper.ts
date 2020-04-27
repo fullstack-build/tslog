@@ -1,6 +1,5 @@
 import { format } from "util";
-import { createReadStream, readFileSync } from "fs";
-import { createInterface, Interface } from "readline";
+import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
 import { Logger } from "./index";
@@ -117,14 +116,13 @@ export class LoggerHelper {
       null: chalk.hex(colors.null),
     };
 
-    let stringifiedJson: string = "";
+    let stringifiedJson: string = typeof json === "string" ? json : "";
     if (typeof json !== "string") {
       stringifiedJson = JSON.stringify(json, undefined, 2);
       stringifiedJson =
         stringifiedJson === "{}" ? format(json) : stringifiedJson;
-    } else {
-      stringifiedJson = json;
     }
+
     return stringifiedJson.replace(
       /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
       function (match: string) {
@@ -145,6 +143,9 @@ export class LoggerHelper {
     );
   }
 
+  /*
+  import { createReadStream, readFileSync } from "fs";
+  import { createInterface, Interface } from "readline";
   public static async _getCodeFrameAsync(
     filePath: string,
     lineNumber: number | null,
@@ -194,17 +195,14 @@ export class LoggerHelper {
       return undefined;
     }
   }
+  */
 
   public static _getCodeFrame(
     filePath: string,
-    lineNumber: number | null,
+    lineNumber: number,
     columnNumber: number | null,
     linesBeforeAndAfter: number
-  ): ICodeFrame | undefined {
-    if (lineNumber == null) {
-      return undefined;
-    }
-
+  ): ICodeFrame {
     const lineNumberMinusOne: number = lineNumber - 1;
 
     const file: string[] = readFileSync(filePath, { encoding: "utf-8" })?.split(
