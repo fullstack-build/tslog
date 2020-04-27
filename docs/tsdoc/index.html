@@ -153,8 +153,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h4>Log level:</h4>
 				</a>
 				<p><code>tslog</code> is highly customizable, however, it follows <em>convention over configuration</em> when it comes to <strong>log levels</strong>.
-					Internally a log level is represented by a numeric number. Supported log levels are:
-				<code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
+					Internally a log level is represented by a numeric number.
+				Supported log levels are: </p>
+				<p><code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
 				<p>Per default log level 0 - 3 are written to <code>stdout</code> and 4 - 6 are written to <code>stderr</code>.
 				Each log level is printed in a different color, that is completely customizable through the settings object.</p>
 				<blockquote>
@@ -184,7 +185,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 <span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
 
 <span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">JSON</span>.stringify(logWithTrace, <span class="hljs-literal">null</span>, <span class="hljs-number">2</span>));</code></pre>
-				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_structured.png" alt="tslog log level structured" title="tslog log level structured"></p>
+				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png" alt="tslog log level structured" title="tslog log level structured"></p>
 				<a href="#settings" id="settings" style="color: inherit; text-decoration: none;">
 					<h4>Settings:</h4>
 				</a>
@@ -237,7 +238,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				</a>
 				<p>Usually, only <em>Errors</em> and log level <code>trace</code> logs would capture the entire stack trace.<br>By enabling this option <strong>every</strong> stack trace of every log message is going to be captured.</p>
 				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ exposeStack: <span class="hljs-literal">true</span> });</code></pre>
-				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog with a stack trace"></p>
+				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png" alt="tslog with a stack trace"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> When working in an IDE like <em>WebStorm</em> or an editor like <em>VSCode</em> you can click on the path leading you directly to the position in your source code. </p>
 				</blockquote>

@@ -95,7 +95,9 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 #### Log level: 
 
 `tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
-Internally a log level is represented by a numeric number. Supported log levels are: 
+Internally a log level is represented by a numeric number. 
+Supported log levels are: 
+
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
 
 Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
@@ -132,7 +134,7 @@ const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.
 
 console.log(JSON.stringify(logWithTrace, null, 2));
 ```
-![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_structured.png "tslog log level structured")
+![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png "tslog log level structured")
 
 #### Settings:
  
@@ -197,7 +199,7 @@ By enabling this option **every** stack trace of every log message is going to b
     new Logger({ exposeStack: true });
 ```
 
-![tslog with a stack trace](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
+![tslog with a stack trace](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png)
 
 >**Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code. 
 
