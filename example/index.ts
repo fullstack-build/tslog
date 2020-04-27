@@ -1,5 +1,5 @@
 import { Logger } from "../src";
-
+/*
 class MyClass {
   private readonly _logger: Logger = new Logger();
 
@@ -27,4 +27,13 @@ class MyClass {
 }
 
 const myClass: MyClass = new MyClass();
-myClass.myMethod();
+myClass.myMethod();*/
+
+const log: Logger = new Logger({ logAsJson: true });
+log.silly("I am a silly log.");
+log.trace("I am a trace log with a stack trace.");
+log.debug("I am a debug log.");
+log.info("I am an info log.");
+log.warn("I am a warn log with a json object:", { foo: "bar" });
+log.error("I am an error log.");
+log.fatal(new Error("I am a pretty Error with a stacktrace."));

@@ -86,9 +86,10 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * *Highly configurable:* All settings can be changed through a typed settings object
 * *Short paths:* Paths are relative to the root of the application folder
 * *Optionally overwrite `console`:* Optionally catch `console.log` etc. that would be hard to find otherwise
-* *Tested:* 100% Code coverage, CI
+* *Tested:* 100% code coverage, CI
 
-### [API documentation: TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
+### API documentation
+#### [📘 TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
 
 #### Log level: 
 
@@ -104,7 +105,7 @@ Each log level is printed in a different color, that is completely customizable 
 ```typescript
 import { Logger } from "tslog";
 
-const log: Logger = new Logger({ name: "myLogger" });
+const log: Logger = new Logger();
 log.silly("I am a silly log.");
 log.trace("I am a trace log with a stack trace.");
 log.debug("I am a debug log.");
@@ -113,13 +114,28 @@ log.warn("I am a warn log with a json object:", {foo: "bar"});
 log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
-Btw. a log method has a return type, which is a _JSON_ representation of the entire log message (`ILogObject`).
-You can use this object to access its stack trace etc. 
 
+The structured (_pretty_) log level output would look like this: 
+
+
+> *Hint:* A log method has a return type, which is a _JSON_ representation of the entire log message (`ILogObject`).
+> You can use this object to access its stack trace etc. 
 ```typescript
 import { Logger, ILogObject } from "tslog";
 
 const log: Logger = new Logger({ name: "myLogger" });
 
 const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.");
+
+console.log(JSON.stringify(logWithTrace, null, 2));
 ```
+![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_structured.png "tslog log level structured")
+
+Alternatively you can also print the raw `JSON` output:
+```typescript
+
+const log: Logger = new Logger({{ logAsJson: true }});
+// ...
+```
+Resulting in the following output: 
+![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png "tslog log level json")

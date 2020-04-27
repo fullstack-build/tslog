@@ -32,7 +32,10 @@ export class LoggerHelper {
       .substring(1);
   }
 
-  public static getCallSites(error?: Error): NodeJS.CallSite[] {
+  public static getCallSites(
+    error?: Error,
+    cleanUp: boolean = true
+  ): NodeJS.CallSite[] {
     const _prepareStackTrace:
       | ((err: Error, stackTraces: NodeJS.CallSite[]) => unknown)
       | undefined = Error.prepareStackTrace;
@@ -42,6 +45,18 @@ export class LoggerHelper {
         ? ((new Error().stack as unknown) as NodeJS.CallSite[]).slice(1)
         : ((error.stack as unknown) as NodeJS.CallSite[]);
     Error.prepareStackTrace = _prepareStackTrace;
+
+    if (cleanUp === true) {
+      return stack.reduce(
+        (cleanedUpCallsites: NodeJS.CallSite[], callsite: NodeJS.CallSite) => {
+          if (callsite.getFileName()?.indexOf("internal/") !== 0) {
+            cleanedUpCallsites.push(callsite);
+          }
+          return cleanedUpCallsites;
+        },
+        []
+      );
+    }
     return stack;
   }
 
@@ -230,11 +245,15 @@ export class LoggerHelper {
       linesAfter: [],
     };
     for (let i: number = startAt; i < lineNumberMinusOne; i++) {
-      codeFrame.linesBefore.push(file[i]);
+      if (file[i] != null) {
+        codeFrame.linesBefore.push(file[i]);
+      }
     }
     codeFrame.relevantLine = file[lineNumberMinusOne];
     for (let i: number = lineNumberMinusOne + 1; i <= endAt; i++) {
-      codeFrame.linesAfter.push(file[i]);
+      if (file[i] != null) {
+        codeFrame.linesAfter.push(file[i]);
+      }
     }
 
     return codeFrame;

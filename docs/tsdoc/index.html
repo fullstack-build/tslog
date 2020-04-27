@@ -145,10 +145,13 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><em>Highly configurable:</em> All settings can be changed through a typed settings object</li>
 					<li><em>Short paths:</em> Paths are relative to the root of the application folder</li>
 					<li><em>Optionally overwrite <code>console</code>:</em> Optionally catch <code>console.log</code> etc. that would be hard to find otherwise</li>
-					<li><em>Tested:</em> 100% Code coverage, CI</li>
+					<li><em>Tested:</em> 100% code coverage, CI</li>
 				</ul>
-				<a href="#api-documentation-tsdoc" id="api-documentation-tsdoc" style="color: inherit; text-decoration: none;">
-					<h3><a href="https://fullstack-build.github.io/tslog/tsdoc/">API documentation: TSDoc</a></h3>
+				<a href="#api-documentation" id="api-documentation" style="color: inherit; text-decoration: none;">
+					<h3>API documentation</h3>
+				</a>
+				<a href="#📘-tsdoc" id="📘-tsdoc" style="color: inherit; text-decoration: none;">
+					<h4><a href="https://fullstack-build.github.io/tslog/tsdoc/">📘 TSDoc</a></h4>
 				</a>
 				<a href="#log-level" id="log-level" style="color: inherit; text-decoration: none;">
 					<h4>Log level:</h4>
@@ -164,7 +167,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				</blockquote>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
 
-<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger();
 log.silly(<span class="hljs-string">"I am a silly log."</span>);
 log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
 log.debug(<span class="hljs-string">"I am a debug log."</span>);
@@ -172,13 +175,25 @@ log.info(<span class="hljs-string">"I am an info log."</span>);
 log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, {foo: <span class="hljs-string">"bar"</span>});
 log.error(<span class="hljs-string">"I am an error log."</span>);
 log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"I am a pretty Error with a stacktrace."</span>));</code></pre>
-				<p>Btw. a log method has a return type, which is a <em>JSON</em> representation of the entire log message (<code>ILogObject</code>).
-				You can use this object to access its stack trace etc. </p>
+				<p>The structured (<em>pretty</em>) log level output would look like this: </p>
+				<blockquote>
+					<p><em>Hint:</em> A log method has a return type, which is a <em>JSON</em> representation of the entire log message (<code>ILogObject</code>).
+					You can use this object to access its stack trace etc. </p>
+				</blockquote>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger, ILogObject } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
 
 <span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
 
-<span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);</code></pre>
+<span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
+
+<span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">JSON</span>.stringify(logWithTrace, <span class="hljs-literal">null</span>, <span class="hljs-number">2</span>));</code></pre>
+				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_structured.png" alt="tslog log level structured" title="tslog log level structured"></p>
+				<p>Alternatively you can also print the raw <code>JSON</code> output:</p>
+				<pre><code class="language-typescript">
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({{ logAsJson: <span class="hljs-literal">true</span> }});
+<span class="hljs-comment">// ...</span></code></pre>
+				<p>Resulting in the following output:
+				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json" title="tslog log level json"></p>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
