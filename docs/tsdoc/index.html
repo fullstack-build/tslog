@@ -150,7 +150,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h4><a href="https://fullstack-build.github.io/tslog/tsdoc/">📘 TSDoc</a></h4>
 				</a>
 				<a href="#log-level" id="log-level" style="color: inherit; text-decoration: none;">
-					<h4>Log level:</h4>
+					<h4>Log level</h4>
 				</a>
 				<p><code>tslog</code> is highly customizable, however, it follows <em>convention over configuration</em> when it comes to <strong>log levels</strong>.
 					Internally a log level is represented by a numeric number.
@@ -173,7 +173,8 @@ log.info(<span class="hljs-string">"I am an info log."</span>);
 log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, {foo: <span class="hljs-string">"bar"</span>});
 log.error(<span class="hljs-string">"I am an error log."</span>);
 log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"I am a pretty Error with a stacktrace."</span>));</code></pre>
-				<p>The structured (<em>pretty</em>) log level output would look like this: </p>
+				<p>The structured (<em>pretty</em>) log level output would look like this:
+				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png" alt="tslog log level structured" title="tslog log level structured"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> Each logging method has a return type, which is a <em>JSON</em> representation of the log message (<code>ILogObject</code>).
 					You can use this object to access its stack trace etc. </p>
@@ -185,17 +186,17 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 <span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
 
 <span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">JSON</span>.stringify(logWithTrace, <span class="hljs-literal">null</span>, <span class="hljs-number">2</span>));</code></pre>
-				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png" alt="tslog log level structured" title="tslog log level structured"></p>
 				<a href="#settings" id="settings" style="color: inherit; text-decoration: none;">
-					<h4>Settings:</h4>
+					<h4>Settings</h4>
 				</a>
 				<p>As <code>tslog</code> follows the <em>convention over configuration</em> approach, it already comes with reasonable default settings.
 				Nevertheless, it can be flexibly adapted to your own needs. </p>
 				<p>All possible settings are defined in the <code>ISettingsPram</code> interface and modern IDE will offer autocompletion accordingly.
 				And of course, all of them are optional and can also be combined with your needs. </p>
-				<a href="#instancename-default-hostname-and-displayinstancename-default-false" id="instancename-default-hostname-and-displayinstancename-default-false" style="color: inherit; text-decoration: none;">
-					<h5><code>instanceName</code> <em>(default: hostname)</em> and <code>displayInstanceName</code> <em>(default: false)</em>:</h5>
+				<a href="#instancename-and-displayinstancename" id="instancename-and-displayinstancename" style="color: inherit; text-decoration: none;">
+					<h5><code>instanceName</code> and <code>displayInstanceName</code>:</h5>
 				</a>
+				<p><code>default: os.hostname</code> and <code>default: false</code></p>
 				<p>You can provide each logger with the name of the instance, making it easy to distinguish logs from different machines.<br>This approach works well in the serverless environment as well, allowing you to filter all logs coming from a certain instance. </p>
 				<p>Per default <code>instanceName</code> is pre-filled with the <code>hostname</code> of your environment, which can be overwritten.
 					However, this value is hidden by default in order to keep the log clean and tidy.
@@ -207,16 +208,18 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 <span class="hljs-keyword">const</span> logger: Logger = <span class="hljs-keyword">new</span> Logger({ displayInstanceName: <span class="hljs-literal">true</span>, instanceName: <span class="hljs-string">"ABC"</span> });
 <span class="hljs-comment">// Would print out ABC as the name of this instance</span>
 </code></pre>
-				<a href="#name-default-quotquot" id="name-default-quotquot" style="color: inherit; text-decoration: none;">
-					<h5><code>name</code> <em>(default: &quot;&quot;)</em>:</h5>
+				<a href="#name" id="name" style="color: inherit; text-decoration: none;">
+					<h5><code>name</code>:</h5>
 				</a>
+				<p><code>default: &quot;&quot;</code></p>
 				<p>Each logger has an optional name, that is hidden by default.
 					This setting is particularly interesting when working in a <code>monorepo</code>,
 				giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   </p>
-				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });</code></pre>
-				<a href="#minlevel-default-quotsillyquot" id="minlevel-default-quotsillyquot" style="color: inherit; text-decoration: none;">
-					<h5><code>minLevel</code> <em>(default: &quot;silly&quot;)</em>:</h5>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });</code></pre>
+				<a href="#minlevel" id="minlevel" style="color: inherit; text-decoration: none;">
+					<h5><code>minLevel</code>:</h5>
 				</a>
+				<p><code>default: &quot;silly&quot;</code></p>
 				<p>What should be the minimum log level that should be captured by this logger?
 				Possible values are: <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>, <code>fatal</code></p>
 				<a href="#logasjson-default-false" id="logasjson-default-false" style="color: inherit; text-decoration: none;">
@@ -227,42 +230,78 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<blockquote>
 					<p>This gives you direct access to all the information captured by <code>tslog</code>, like <em>stack trace</em> and <em>code frame</em> information.</p>
 				</blockquote>
-				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ logAsJson: <span class="hljs-literal">true</span> });</code></pre>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ logAsJson: <span class="hljs-literal">true</span> });</code></pre>
 				<p>Resulting in the following output: </p>
 				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> Each <em>JSON</em> log is printed in one line, making it easily parsable by external services.</p>
 				</blockquote>
-				<a href="#exposestack-default-false" id="exposestack-default-false" style="color: inherit; text-decoration: none;">
-					<h5><code>exposeStack</code> <em>(default: false)</em>:</h5>
+				<a href="#exposestack" id="exposestack" style="color: inherit; text-decoration: none;">
+					<h5><code>exposeStack</code>:</h5>
 				</a>
+				<p> <code>default: false</code></p>
 				<p>Usually, only <em>Errors</em> and log level <code>trace</code> logs would capture the entire stack trace.<br>By enabling this option <strong>every</strong> stack trace of every log message is going to be captured.</p>
 				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ exposeStack: <span class="hljs-literal">true</span> });</code></pre>
 				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png" alt="tslog with a stack trace"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> When working in an IDE like <em>WebStorm</em> or an editor like <em>VSCode</em> you can click on the path leading you directly to the position in your source code. </p>
 				</blockquote>
-				<a href="#exposeerrorcodeframe-default-true" id="exposeerrorcodeframe-default-true" style="color: inherit; text-decoration: none;">
-					<h5><code>exposeErrorCodeFrame</code> <em>(default: true)</em>:</h5>
+				<a href="#exposeerrorcodeframe" id="exposeerrorcodeframe" style="color: inherit; text-decoration: none;">
+					<h5><code>exposeErrorCodeFrame</code>:</h5>
 				</a>
+				<p><code>default: true</code></p>
 				<p>A nice feature of <code>tslog</code> is to capture the <em>code frame</em> around the error caught, showing the <em>exact</em> location of the error.<br>While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
 					When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time,
 				you may want to disable this feature.  </p>
-				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ exposeErrorCodeFrame: <span class="hljs-literal">false</span> });</code></pre>
-				<p>  /** Capture lines before and after a code frame, default: 5 */
-				exposeErrorCodeFrameLinesBeforeAndAfter?: number;</p>
-				<p>  /** Suppress any log output to std out / std err */
-				suppressLogging?: boolean;</p>
-				<p>  /** Catch logs going to console (e.g. console.log). Last instantiated Log instance wins */
-				overwriteConsole?: boolean;</p>
-				<p>  /**  Overwrite colors of log messages of different log levels */
-				logLevelsColors?: TLogLevelColor;</p>
-				<p>  /**  Overwrite colors json highlighting */
-				jsonHighlightColors?: IJsonHighlightColors;</p>
-				<p>  /**  Overwrite default std out */
-				stdOut?: IStd;</p>
-				<p>  /**  Overwrite default std err */
-				stdErr?: IStd;</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ exposeErrorCodeFrame: <span class="hljs-literal">false</span> });</code></pre>
+				<blockquote>
+					<p><strong>Hint:</strong> By default 5 lines before and after the line with the error will be displayed.<br>You can adjust this setting with <code>exposeErrorCodeFrameLinesBeforeAndAfter</code>.</p>
+				</blockquote>
+				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png" alt="tslog with a code frame"></p>
+				<a href="#suppresslogging" id="suppresslogging" style="color: inherit; text-decoration: none;">
+					<h5><code>suppressLogging</code>:</h5>
+				</a>
+				<p><code>default: false</code></p>
+				<p>It is possible to connect multiple <em>transports</em> (external loggers) to <code>tslog</code> (see below).
+				In this case it might be useful to suppress all output.   </p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ suppressLogging: <span class="hljs-literal">true</span> });</code></pre>
+				<a href="#overwriteconsole" id="overwriteconsole" style="color: inherit; text-decoration: none;">
+					<h5><code>overwriteConsole</code>:</h5>
+				</a>
+				<p><code>default: false</code></p>
+				<p><code>tslog</code> is designed to be used directly through it&#39;s API.
+					However, there might be use cases, where you want to make sure to capture all logs,
+					even-though they might occur in a library or somebody else&#39;s code.
+				Or maybe you prefer or used to work with <code>console</code>, like <code>console.log</code>, <code>console.warn</code> and so on. </p>
+				<p>In this case you can advise <code>tslog</code> to overwrite the default behavior of <code>console</code>.</p>
+				<blockquote>
+					<p><strong>Hint:</strong> It is only possible to overwrite <code>console</code> once, so the last attempt wins.
+					If you wish to do so, I would recommend to have a designated logger for this purpose. </p>
+				</blockquote>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"console"</span>, overwriteConsole: <span class="hljs-literal">true</span> });</code></pre>
+				<p><code>tslog</code> applies the following mapping:</p>
+				<ul>
+					<li><code>console.log</code>: <code>silly</code></li>
+					<li><code>console.trace</code>: <code>trace</code></li>
+					<li><code>console.info</code>: <code>info</code></li>
+					<li><code>console.warn</code>: <code>warn</code></li>
+					<li><code>console.error</code>: <code>error</code></li>
+				</ul>
+				<p><em>There is not <code>fatal</code>.</em></p>
+				<a href="#loglevelscolors" id="loglevelscolors" style="color: inherit; text-decoration: none;">
+					<h5><code>logLevelsColors</code>:</h5>
+				</a>
+				<p>This setting allows you to overwrite the default log level colors of <code>tslog</code>.</p>
+				<a href="#jsonhighlightcolors" id="jsonhighlightcolors" style="color: inherit; text-decoration: none;">
+					<h5><code>jsonHighlightColors</code>:</h5>
+				</a>
+				<p>This setting allows you to overwrite the default colors of <em>JSON</em> interpolation.</p>
+				<a href="#stdout-and-stderr" id="stdout-and-stderr" style="color: inherit; text-decoration: none;">
+					<h5><code>stdOut</code> and <code>stdErr</code>:</h5>
+				</a>
+				<p>This wo settings allow you to replace the default <code>stdOut</code> and <code>stdErr</code> <em>WriteStreams</em>.
+					However, this would lead to a colorized output. We use this setting mostly for testing purposes.
+				If you want to redirect the output or directly access any logged object, we advise you to <strong>attach a transport</strong> (see below).</p>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">

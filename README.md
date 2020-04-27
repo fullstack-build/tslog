@@ -92,7 +92,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ### API documentation
 #### [📘 TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
 
-#### Log level: 
+#### Log level
 
 `tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
 Internally a log level is represented by a numeric number. 
@@ -121,6 +121,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
 
 The structured (_pretty_) log level output would look like this: 
+![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png "tslog log level structured")
 
 
 > **Hint:** Each logging method has a return type, which is a _JSON_ representation of the log message (`ILogObject`).
@@ -134,9 +135,8 @@ const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.
 
 console.log(JSON.stringify(logWithTrace, null, 2));
 ```
-![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png "tslog log level structured")
 
-#### Settings:
+#### Settings
  
 As `tslog` follows the _convention over configuration_ approach, it already comes with reasonable default settings.
 Nevertheless, it can be flexibly adapted to your own needs. 
@@ -144,7 +144,9 @@ Nevertheless, it can be flexibly adapted to your own needs.
 All possible settings are defined in the `ISettingsPram` interface and modern IDE will offer autocompletion accordingly.
 And of course, all of them are optional and can also be combined with your needs. 
 
-##### `instanceName` _(default: hostname)_ and `displayInstanceName` _(default: false)_:
+##### `instanceName` and `displayInstanceName`:
+```default: os.hostname``` and ```default: false```
+
 You can provide each logger with the name of the instance, making it easy to distinguish logs from different machines.  
 This approach works well in the serverless environment as well, allowing you to filter all logs coming from a certain instance. 
 
@@ -162,17 +164,19 @@ const logger: Logger = new Logger({ displayInstanceName: true, instanceName: "AB
  
 ```
 
-##### `name` _(default: "")_:
+##### `name`:
+```default: ""```
 
 Each logger has an optional name, that is hidden by default. 
 This setting is particularly interesting when working in a `monorepo`, 
 giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
 
 ```typescript
-    new Logger({ name: "myLogger" });
+new Logger({ name: "myLogger" });
 ```
 
-##### `minLevel` _(default: "silly")_:
+##### `minLevel`: 
+```default: "silly"```
 
 What should be the minimum log level that should be captured by this logger? 
 Possible values are: `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`
@@ -183,7 +187,7 @@ Instead of parsing the _pretty_ output, most log services can easily parse a _JS
 
 >This gives you direct access to all the information captured by `tslog`, like _stack trace_ and _code frame_ information.
 ```typescript
-    new Logger({ logAsJson: true });
+new Logger({ logAsJson: true });
 ```
 Resulting in the following output: 
 
@@ -191,7 +195,9 @@ Resulting in the following output:
 
 > **Hint:** Each _JSON_ log is printed in one line, making it easily parsable by external services.
 
-##### `exposeStack` _(default: false)_:
+##### `exposeStack`:
+ ```default: false```
+ 
 Usually, only _Errors_ and log level `trace` logs would capture the entire stack trace.  
 By enabling this option **every** stack trace of every log message is going to be captured.
 
@@ -203,7 +209,8 @@ By enabling this option **every** stack trace of every log message is going to b
 
 >**Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code. 
 
-##### `exposeErrorCodeFrame` _(default: true)_:
+##### `exposeErrorCodeFrame`:
+```default: true```
 
 A nice feature of `tslog` is to capture the _code frame_ around the error caught, showing the _exact_ location of the error.   
 While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
@@ -211,26 +218,61 @@ When running in production, you probably want as much performance as possible an
 you may want to disable this feature.  
 
 ```typescript
-    new Logger({ exposeErrorCodeFrame: false });
+new Logger({ exposeErrorCodeFrame: false });
 ```
 
-  /** Capture lines before and after a code frame, default: 5 */
-  exposeErrorCodeFrameLinesBeforeAndAfter?: number;
+>**Hint:** By default 5 lines before and after the line with the error will be displayed.  
+> You can adjust this setting with `exposeErrorCodeFrameLinesBeforeAndAfter`.
 
-  /** Suppress any log output to std out / std err */
-  suppressLogging?: boolean;
+![tslog with a code frame](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png)
 
-  /** Catch logs going to console (e.g. console.log). Last instantiated Log instance wins */
-  overwriteConsole?: boolean;
 
-  /**  Overwrite colors of log messages of different log levels */
-  logLevelsColors?: TLogLevelColor;
+##### `suppressLogging`:
+```default: false```
 
-  /**  Overwrite colors json highlighting */
-  jsonHighlightColors?: IJsonHighlightColors;
+It is possible to connect multiple _transports_ (external loggers) to `tslog` (see below). 
+In this case it might be useful to suppress all output.   
 
-  /**  Overwrite default std out */
-  stdOut?: IStd;
+```typescript
+new Logger({ suppressLogging: true });
+```
 
-  /**  Overwrite default std err */
-  stdErr?: IStd;
+##### `overwriteConsole`:
+```default: false```
+
+`tslog` is designed to be used directly through it's API. 
+However, there might be use cases, where you want to make sure to capture all logs, 
+even-though they might occur in a library or somebody else's code. 
+Or maybe you prefer or used to work with `console`, like `console.log`, `console.warn` and so on. 
+
+In this case you can advise `tslog` to overwrite the default behavior of `console`.
+
+> **Hint:** It is only possible to overwrite `console` once, so the last attempt wins. 
+> If you wish to do so, I would recommend to have a designated logger for this purpose. 
+
+```typescript
+new Logger({ name: "console", overwriteConsole: true });
+```
+
+`tslog` applies the following mapping:
+* `console.log`: `silly`
+* `console.trace`: `trace`
+* `console.info`: `info`
+* `console.warn`: `warn`
+* `console.error`: `error`
+
+_There is not `fatal`._
+
+##### `logLevelsColors`:
+
+This setting allows you to overwrite the default log level colors of `tslog`.
+  
+##### `jsonHighlightColors`:
+
+This setting allows you to overwrite the default colors of _JSON_ interpolation.
+
+##### `stdOut` and `stdErr`:
+
+This wo settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_. 
+However, this would lead to a colorized output. We use this setting mostly for testing purposes. 
+If you want to redirect the output or directly access any logged object, we advise you to **attach a transport** (see below).
