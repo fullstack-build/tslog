@@ -5,7 +5,7 @@ const stdOut: string[] = [];
 const stdErr: string[] = [];
 
 new Logger({
-  suppressLogging: true,
+  suppressStdOutput: true,
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);

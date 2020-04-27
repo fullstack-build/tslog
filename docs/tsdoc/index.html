@@ -259,13 +259,13 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<p><strong>Hint:</strong> By default 5 lines before and after the line with the error will be displayed.<br>You can adjust this setting with <code>exposeErrorCodeFrameLinesBeforeAndAfter</code>.</p>
 				</blockquote>
 				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png" alt="tslog with a code frame"></p>
-				<a href="#suppresslogging" id="suppresslogging" style="color: inherit; text-decoration: none;">
-					<h5><code>suppressLogging</code></h5>
+				<a href="#suppressstdoutput" id="suppressstdoutput" style="color: inherit; text-decoration: none;">
+					<h5><code>suppressStdOutput</code></h5>
 				</a>
 				<p><code>default: false</code></p>
 				<p>It is possible to connect multiple <em>transports</em> (external loggers) to <code>tslog</code> (see below).
 				In this case it might be useful to suppress all output.   </p>
-				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ suppressLogging: <span class="hljs-literal">true</span> });</code></pre>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ suppressStdOutput: <span class="hljs-literal">true</span> });</code></pre>
 				<a href="#overwriteconsole" id="overwriteconsole" style="color: inherit; text-decoration: none;">
 					<h5><code>overwriteConsole</code></h5>
 				</a>

@@ -5,7 +5,7 @@ const stdOut = [];
 const stdErr = [];
 
 const logger: Logger = new Logger({
-  suppressLogging: true,
+  suppressStdOutput: true,
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);

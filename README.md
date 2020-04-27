@@ -228,14 +228,14 @@ new Logger({ exposeErrorCodeFrame: false });
 ![tslog with a code frame](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png)
 
 
-##### `suppressLogging`
+##### `suppressStdOutput`
 ```default: false```
 
 It is possible to connect multiple _transports_ (external loggers) to `tslog` (see below). 
 In this case it might be useful to suppress all output.   
 
 ```typescript
-new Logger({ suppressLogging: true });
+new Logger({ suppressStdOutput: true });
 ```
 
 ##### `overwriteConsole`

@@ -65,7 +65,7 @@ export interface ISettingsParam {
   exposeErrorCodeFrameLinesBeforeAndAfter?: number;
 
   /** Suppress any log output to std out / std err */
-  suppressLogging?: boolean;
+  suppressStdOutput?: boolean;
 
   /** Catch logs going to console (e.g. console.log). Last instantiated Log instance wins */
   overwriteConsole?: boolean;
@@ -97,7 +97,7 @@ export interface ISettings extends ISettingsParam {
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
   exposeErrorCodeFrameLinesBeforeAndAfter: number;
-  suppressLogging: boolean;
+  suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
   jsonHighlightColors: IJsonHighlightColors;
@@ -125,6 +125,7 @@ export interface IStackFrame {
   fullFilePath: string;
   /** Name of the file */
   fileName: string;
+  /** Line number */
   /** Line number */
   lineNumber: number | null;
   /** Column Name */

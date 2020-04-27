@@ -80,7 +80,7 @@ export class Logger {
       exposeErrorCodeFrame: settings?.exposeErrorCodeFrame ?? true,
       exposeErrorCodeFrameLinesBeforeAndAfter:
         settings?.exposeErrorCodeFrameLinesBeforeAndAfter ?? 5,
-      suppressLogging: settings?.suppressLogging ?? false,
+      suppressStdOutput: settings?.suppressStdOutput ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
         0: "#B0B0B0",
@@ -192,7 +192,7 @@ export class Logger {
     );
 
     if (
-      !this.settings.suppressLogging &&
+      !this.settings.suppressStdOutput &&
       logObject.logLevelId >= this._logLevels.indexOf(this.settings.minLevel)
     ) {
       if (!this.settings.logAsJson) {

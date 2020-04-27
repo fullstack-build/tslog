@@ -5,7 +5,7 @@ const stdOut = [];
 const stdErr = [];
 
 const logger: Logger = new Logger({
-  suppressLogging: true,
+  suppressStdOutput: true,
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);
@@ -56,10 +56,10 @@ describe("Logger: settings", () => {
     expect(logger.settings.exposeStack).toBe(true);
   });
 
-  test("init logger: suppressLogging", (): void => {
-    const logger: Logger = new Logger({ suppressLogging: true });
+  test("init logger: suppressStdOutput", (): void => {
+    const logger: Logger = new Logger({ suppressStdOutput: true });
     expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.suppressLogging).toBe(true);
+    expect(logger.settings.suppressStdOutput).toBe(true);
   });
 
   test("init logger: overwriteConsole", (): void => {

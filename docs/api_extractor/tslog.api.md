@@ -101,7 +101,7 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     stdOut: IStd;
     // (undocumented)
-    suppressLogging: boolean;
+    suppressStdOutput: boolean;
 }
 
 // @public
@@ -119,7 +119,7 @@ export interface ISettingsParam {
     overwriteConsole?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;
-    suppressLogging?: boolean;
+    suppressStdOutput?: boolean;
 }
 
 // @public
