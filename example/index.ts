@@ -1,7 +1,7 @@
 import { Logger } from "../src";
-/*
+
 class MyClass {
-  private readonly _logger: Logger = new Logger();
+  private readonly _logger: Logger = new Logger({ exposeStack: true });
 
   public constructor() {
     this._logger.silly("I am a silly log.");
@@ -27,9 +27,9 @@ class MyClass {
 }
 
 const myClass: MyClass = new MyClass();
-myClass.myMethod();*/
+myClass.myMethod();
 
-const log: Logger = new Logger({ logAsJson: true });
+const log: Logger = new Logger({ exposeStack: true });
 log.silly("I am a silly log.");
 log.trace("I am a trace log with a stack trace.");
 log.debug("I am a debug log.");
