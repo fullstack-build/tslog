@@ -2,7 +2,7 @@
   <img src="assets/tslog_logo.png" style="width: 300px;margin: 50px auto 25px;">
 </div>
 <div align="center">
-  <img src="assets/tslog_pretty_output.png" style="width: 100%;max-width: 900px;">
+  <img src="assets/tslog_pretty_output.png" style="width: 90%;max-width: 900px;">
 </div>
 
 > Powerful, fast and expressive logging for Node.js 

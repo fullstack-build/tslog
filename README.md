@@ -15,13 +15,13 @@
 
 ### Highlights
 ⚡ **Small footprint, blazing performance**<br>
-👮‍️ **Fully typed with TypeScript support (correct location in \*.ts files)**<br>
+👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
 🕵️‍ **Error code frame**<br>
 🤓 **Stack trace through native V8 API**<br>
-🏗 **Works for both: TypeScript and JavaScript**<br>
+🏗 **Works for TypeScript and JavaScript**<br>
 🧲 **Optionally catch-all `console` logs**<br>
 ✍️ **well documented**<br>
 😎 **100% test coverage**<br>
@@ -76,26 +76,27 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Attachable transports:** Send logs to an external log aggregation services, file system, database, or email/slack/sms/you name it...
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLog level can be set individually per transport
-* **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">__TSDoc_</a> documented
-* **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS ), one click to IDE position. 
-* **Stack trace:** Callsites from the <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a> 
+* **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
+* **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
+* **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a> 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
 * **Stack frame:** tslog captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object 
 * **Instance Name:** Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
-* **Highly configurable:** All settings can be changed through a typed settings object
+* **Highly configurable:** All settings can be changed through a typed object
 * **Short paths:** Paths are relative to the root of the application folder
-* **Optionally overwrite `console`:** Optionally catch `console.log` etc. that would be hard to find otherwise
+* **Optionally overwrite `console`:** Catch `console.log` etc. that would otherwise be hard to find
 * **Tested:** 100% code coverage, CI
 
 ### API documentation
 #### [📘 TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
 
+
 #### Log level
 
 `tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
-Internally a log level is represented by a numeric number. 
+Internally a log level is represented by a numeric IDs. 
 Supported log levels are: 
 
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
@@ -141,7 +142,7 @@ console.log(JSON.stringify(logWithTrace, null, 2));
 As `tslog` follows the _convention over configuration_ approach, it already comes with reasonable default settings.
 Nevertheless, it can be flexibly adapted to your own needs. 
 
-All possible settings are defined in the `ISettingsPram` interface and modern IDE will offer autocompletion accordingly.
+All possible settings are defined in the `ISettingsParam` interface and modern IDE will offer autocompletion accordingly.
 And of course, all of them are optional and can also be combined with your needs. 
 
 ##### `instanceName`
