@@ -1,7 +1,7 @@
 {
   "name": "tslog",
   "version": "1.0.0-dev.21",
-  "description": "📝 Expressive TypeScript Logger for Node.js. Shows call locations, pretty prints objects and Errors. JSON output and transports.",
+  "description": "📝 Expressive TypeScript Logger for Node.js: Call locations, pretty Errors, stack traces code frames. JSON output and transports.",
   "main": "dist/index",
   "typings": "dist/index",
   "scripts": {

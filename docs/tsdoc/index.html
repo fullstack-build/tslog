@@ -115,8 +115,8 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
         &quot;sourceMap&quot;: true
     }
 }</code></pre>
-				<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
-					<h3>Usage</h3>
+				<a href="#simple-usage" id="simple-usage" style="color: inherit; text-decoration: none;">
+					<h3>Simple usage</h3>
 				</a>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
 
@@ -124,9 +124,30 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
 log.silly(<span class="hljs-string">"I am a silly log."</span>);
 log.debug(<span class="hljs-string">"I am a debug log."</span>);
 log.info(<span class="hljs-string">"I am an info log."</span>);
-log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, jsonObj);
+log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, {foo: <span class="hljs-string">"bar"</span>});
 log.error(<span class="hljs-string">"I am an error log."</span>);
 log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"I am a pretty Error with a stacktrace."</span>));</code></pre>
+				<a href="#all-features" id="all-features" style="color: inherit; text-decoration: none;">
+					<h3>All Features</h3>
+				</a>
+				<ul>
+					<li><em>Log level:</em> <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>, <code>fatal</code> (different colors)</li>
+					<li><em>Output to std:</em> Structured/<em>pretty</em> (easy parsable <code>tab</code> delimiters), <code>JSON</code> or suppressed</li>
+					<li><em>Attachable transports:</em> Send logs to an external log aggregation services, file system, database or email/slack/sms/you name it...</li>
+					<li><em>Correct std per log level:</em> <code>stdout</code> for <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code> and <code>stderr</code> for <code>warn</code>, <code>error</code>, <code>fatal</code> </li>
+					<li><em>Minimum log level per output:</em> Min log level can be set individually per transport</li>
+					<li><em>Fully typed:</em> Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank"><code>api-extractor</code></a>, <em>TSDoc</em> documented .</li>
+					<li><em>Source maps lookup:</em> Shows exact position also in TypeScript code (compile-to-JS ), one click to IDE position. </li>
+					<li><em>Stack trace:</em> Callsites from the <a href="https://v8.dev/docs/stack-trace-api" target="_blank">V8 stack trace API</a> </li>
+					<li><em>Pretty Error:</em> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
+					<li><em>Stack frame:</em> tslog captures and displays the source code that lead to an error, making it easier to debug.</li>
+					<li><em>Object/JSON highlighting:</em> Nicely printed out objects. </li>
+					<li><em>Instance Name:</em> Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless). </li>
+					<li><em>Named Logger:</em> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
+					<li><em>Highly configurable:</em> All settings can be changed through a typed settings object</li>
+					<li><em>Short paths:</em> Paths are relative to the root of the application folder</li>
+					<li><em>Tested:</em> 100% Code coverage, CI</li>
+				</ul>
 				<a href="#api-documentation--tsdoc" id="api-documentation--tsdoc" style="color: inherit; text-decoration: none;">
 					<h3>API documentation:  <a href="https://fullstack-build.github.io/tslog/tsdoc/">TSDoc</a></h3>
 				</a>

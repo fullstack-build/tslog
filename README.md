@@ -56,7 +56,7 @@ npm install tslog
 }
 ```
 
-### Usage
+### Simple usage
 
 ```typescript
 import { Logger } from "tslog";
@@ -65,8 +65,28 @@ const log: Logger = new Logger({ name: "myLogger" });
 log.silly("I am a silly log.");
 log.debug("I am a debug log.");
 log.info("I am an info log.");
-log.warn("I am a warn log with a json object:", jsonObj);
+log.warn("I am a warn log with a json object:", {foo: "bar"});
 log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
+
+### All Features
+
+* *Log level:* `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` (different colors)
+* *Output to std:* Structured/_pretty_ (easy parsable `tab` delimiters), `JSON` or suppressed
+* *Attachable transports:* Send logs to an external log aggregation services, file system, database or email/slack/sms/you name it...
+* *Correct std per log level:* `stdout` for `silly`, `trace`, `debug`, `info` and `stderr` for `warn`, `error`, `fatal` 
+* *Minimum log level per output:* Min log level can be set individually per transport
+* *Fully typed:* Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">`api-extractor`</a>, _TSDoc_ documented .
+* *Source maps lookup:* Shows exact position also in TypeScript code (compile-to-JS ), one click to IDE position. 
+* *Stack trace:* Callsites from the <a href="https://v8.dev/docs/stack-trace-api" target="_blank">V8 stack trace API</a> 
+* *Pretty Error:* Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
+* *Stack frame:* tslog captures and displays the source code that lead to an error, making it easier to debug.
+* *Object/JSON highlighting:* Nicely printed out objects. 
+* *Instance Name:* Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless). 
+* *Named Logger:* Logger can be named (e.g. useful for packages/modules and monorepos)
+* *Highly configurable:* All settings can be changed through a typed settings object
+* *Short paths:* Paths are relative to the root of the application folder
+* *Tested:* 100% Code coverage, CI
+
 ### API documentation:  [TSDoc](https://fullstack-build.github.io/tslog/tsdoc/)
