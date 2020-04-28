@@ -116,6 +116,7 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
 
 <span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });
 log.silly(<span class="hljs-string">"I am a silly log."</span>);
+log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
 log.debug(<span class="hljs-string">"I am a debug log."</span>);
 log.info(<span class="hljs-string">"I am an info log."</span>);
 log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>, {foo: <span class="hljs-string">"bar"</span>});
