@@ -96,7 +96,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 #### Log level
 
 `tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
-Internally a log level is represented by a numeric IDs. 
+Internally a log level is represented by a numeric ID. 
 Supported log levels are: 
 
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
