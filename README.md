@@ -75,10 +75,10 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Output to std:** Structured/_pretty_ output (easy parsable `tab` delimiters), `JSON` or suppressed
 * **Attachable transports:** Send logs to an external log aggregation services, file system, database, or email/slack/sms/you name it...
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
-* **Minimum log level per output:** `minLog level can be set individually per transport
+* **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
-* **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a> 
+* **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
 * **Stack frame:** tslog captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object 

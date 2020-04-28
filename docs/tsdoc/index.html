@@ -129,10 +129,10 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Output to std:</strong> Structured/<em>pretty</em> output (easy parsable <code>tab</code> delimiters), <code>JSON</code> or suppressed</li>
 					<li><strong>Attachable transports:</strong> Send logs to an external log aggregation services, file system, database, or email/slack/sms/you name it...</li>
 					<li><strong>Correct std per log level:</strong> <strong><em>stdout</em></strong> for <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code> and <strong><em>stderr</em></strong> for <code>warn</code>, <code>error</code>, <code>fatal</code> </li>
-					<li><strong>Minimum log level per output:</strong> `minLog level can be set individually per transport</li>
+					<li><strong>Minimum log level per output:</strong> <code>minLevel</code> level can be set individually per transport</li>
 					<li><strong>Fully typed:</strong> Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank"><em>api-extractor</em></a>, <a href="https://github.com/microsoft/tsdoc" target="_blank"><em>TSDoc</em></a> documented</li>
 					<li><strong>Source maps lookup:</strong> Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. </li>
-					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a> </li>
+					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a>, excludes internal entries </li>
 					<li><strong>Pretty Error:</strong> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
 					<li><strong>Stack frame:</strong> tslog captures and displays the source code that lead to an error, making it easier to debug</li>
 					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object </li>
