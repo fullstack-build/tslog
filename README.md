@@ -81,7 +81,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
-* **Stack frame:** tslog captures and displays the source code that lead to an error, making it easier to debug
+* **Stack frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object 
 * **Instance Name:** Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)

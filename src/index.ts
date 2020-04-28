@@ -3,11 +3,11 @@
  * @packageDocumentation
  */
 
+import { format, types } from "util";
+import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
 import * as chalk from "chalk";
-import { format, types } from "util";
-import { hostname } from "os";
 
 import {
   ILogLevel,
