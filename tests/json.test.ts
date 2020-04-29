@@ -1,4 +1,4 @@
-import "jest";
+import "ts-jest";
 import { IErrorObject, ILogObject, Logger } from "../src";
 
 const stdOut: string[] = [];
