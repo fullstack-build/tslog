@@ -370,7 +370,7 @@ export class Logger {
         chalk`    {grey •} {yellowBright ${
           stackObject.fileName
         }}{grey :}{yellow ${stackObject.lineNumber}} {white ${
-          stackObject.functionName ?? "<anonumous>"
+          stackObject.functionName ?? "<anonymous>"
         }}`
       );
       std.write("\n    ");

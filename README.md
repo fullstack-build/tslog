@@ -19,10 +19,10 @@
 🗃 **_Pretty_ or `JSON` output**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
-🕵️‍ **Error code frame**<br>
+🕵️‍ **Code surrounding error position (_code frame_)**<br>
 🤓 **Stack trace through native V8 API**<br>
 🏗 **Works for TypeScript and JavaScript**<br>
-🧲 **Optionally catch-all `console` logs**<br>
+🧲 **Optionally catch all `console` logs**<br>
 ✍️ **well documented**<br>
 😎 **100% test coverage**<br>
 
@@ -81,9 +81,9 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
-* **Stack frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
+* **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object 
-* **Instance Name:** Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless)
+* **Instance Name:** Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 * **Highly configurable:** All settings can be changed through a typed object
 * **Short paths:** Paths are relative to the root of the application folder
@@ -204,7 +204,7 @@ Usually, only _Errors_ and log level `trace` logs would capture the entire stack
 By enabling this option **every** stack trace of every log message is going to be captured.
 
 ```typescript
-    new Logger({ exposeStack: true });
+new Logger({ exposeStack: true });
 ```
 
 ![tslog with a stack trace](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png)
@@ -290,7 +290,7 @@ like sending a message to _Slack_ or _Telegram_ in case of an urgent error.
 When attaching a transport, you _must_ implement every log level. 
 All of them could be potentially handled by the same function, though.
 
-Each _transport_ can hav its own `minLevel`.  
+Each _transport_ can have its own `minLevel`.  
 
 ##### Simple transport example
 

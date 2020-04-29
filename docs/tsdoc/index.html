@@ -82,10 +82,10 @@
 					🗃 <strong><em>Pretty</em> or <code>JSON</code> output</strong><br>
 					🦸 <strong>Custom pluggable loggers</strong><br>
 					💅 <strong>Object and error interpolation</strong><br>
-					🕵️‍ <strong>Error code frame</strong><br>
+					🕵️‍ <strong>Code surrounding error position (<em>code frame</em>)</strong><br>
 					🤓 <strong>Stack trace through native V8 API</strong><br>
 					🏗 <strong>Works for TypeScript and JavaScript</strong><br>
-					🧲 <strong>Optionally catch-all <code>console</code> logs</strong><br>
+					🧲 <strong>Optionally catch all <code>console</code> logs</strong><br>
 					✍️ <strong>well documented</strong><br>
 				😎 <strong>100% test coverage</strong><br></p>
 				<a href="#example" id="example" style="color: inherit; text-decoration: none;">
@@ -135,9 +135,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Source maps lookup:</strong> Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. </li>
 					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a>, excludes internal entries </li>
 					<li><strong>Pretty Error:</strong> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
-					<li><strong>Stack frame:</strong> <code>tslog</code> captures and displays the source code that lead to an error, making it easier to debug</li>
+					<li><strong>Code frame:</strong> <code>tslog</code> captures and displays the source code that lead to an error, making it easier to debug</li>
 					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object </li>
-					<li><strong>Instance Name:</strong> Logs capture instance name (default hos name) making it easy to distinguish logs coming from different instances (e.g. serverless)</li>
+					<li><strong>Instance Name:</strong> Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)</li>
 					<li><strong>Named Logger:</strong> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
 					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object</li>
 					<li><strong>Short paths:</strong> Paths are relative to the root of the application folder</li>
@@ -243,7 +243,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				</a>
 				<p> <code>default: false</code></p>
 				<p>Usually, only <em>Errors</em> and log level <code>trace</code> logs would capture the entire stack trace.<br>By enabling this option <strong>every</strong> stack trace of every log message is going to be captured.</p>
-				<pre><code class="language-typescript">    <span class="hljs-keyword">new</span> Logger({ exposeStack: <span class="hljs-literal">true</span> });</code></pre>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ exposeStack: <span class="hljs-literal">true</span> });</code></pre>
 				<p><img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png" alt="tslog with a stack trace"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> When working in an IDE like <em>WebStorm</em> or an editor like <em>VSCode</em> you can click on the path leading you directly to the position in your source code. </p>
@@ -314,7 +314,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				like sending a message to <em>Slack</em> or <em>Telegram</em> in case of an urgent error. </p>
 				<p>When attaching a transport, you <em>must</em> implement every log level.
 				All of them could be potentially handled by the same function, though.</p>
-				<p>Each <em>transport</em> can hav its own <code>minLevel</code>.  </p>
+				<p>Each <em>transport</em> can have its own <code>minLevel</code>.  </p>
 				<a href="#simple-transport-example" id="simple-transport-example" style="color: inherit; text-decoration: none;">
 					<h5>Simple transport example</h5>
 				</a>
