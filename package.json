@@ -7,7 +7,7 @@
   "scripts": {
     "ts-node": "ts-node example/index.ts",
     "ts-node-dev": "ts-node-dev example/index.ts",
-    "start": "node dist/example/index.ts",
+    "start": "npm run ts-node",
     "build": "tsc",
     "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
