@@ -1,4 +1,4 @@
-import { format } from "util";
+import { format, types } from "util";
 import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
@@ -30,6 +30,15 @@ export class LoggerHelper {
         ""
       )
       .substring(1);
+  }
+
+  public static isError(e: Error | unknown): boolean {
+    // An error could be an instance of Error while not being a native error
+    // or could be from a different realm and not be instance of Error but still
+    // be a native error.
+    return types?.isNativeError != null
+      ? types.isNativeError(e)
+      : e instanceof Error;
   }
 
   public static getCallSites(
