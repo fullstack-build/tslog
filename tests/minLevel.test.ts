@@ -1,4 +1,4 @@
-import "jest";
+import "ts-jest";
 import { Logger } from "../src";
 
 describe("Logger: minLevel", () => {

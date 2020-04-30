@@ -87,6 +87,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 * **Highly configurable:** All settings can be changed through a typed object
 * **Short paths:** Paths are relative to the root of the application folder
+* **Runtime-agnostic:** Works with `ts-node`, `ts-node-dev`, as well as compiled down to JavaScript
 * **Optionally overwrite `console`:** Catch `console.log` etc. that would otherwise be hard to find
 * **Tested:** 100% code coverage, CI
 

@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { format, types } from "util";
+import { format } from "util";
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
@@ -247,8 +247,10 @@ export class Logger {
     };
 
     logArguments.forEach((arg: unknown) => {
-      if (typeof arg === "object" && types.isNativeError(arg)) {
-        const errorStack: NodeJS.CallSite[] = LoggerHelper.getCallSites(arg);
+      if (arg != null && typeof arg === "object" && LoggerHelper.isError(arg)) {
+        const errorStack: NodeJS.CallSite[] = LoggerHelper.getCallSites(
+          arg as Error
+        );
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;

@@ -1,9 +1,12 @@
 {
   "name": "tslog",
   "version": "1.0.1",
-  "description": "📝 Expressive TypeScript Logger for Node.js: Call locations, pretty Errors, stack traces code frames. JSON output and transports.",
+  "description": "📝 Expressive TypeScript Logger for Node.js: Pretty errors, stack traces, code frames, and JSON output to attachable transports.",
   "main": "dist/index",
   "typings": "dist/index",
+  "engines": {
+    "node": ">=8"
+  },
   "scripts": {
     "ts-node": "ts-node example/index.ts",
     "ts-node-dev": "ts-node-dev example/index.ts",
@@ -13,7 +16,6 @@
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
-    "dev:test": "jest --watch",
     "docsify-init": "docsify init ./docs",
     "docsify-serve": "cd docs && docsify serve",
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
@@ -61,8 +63,7 @@
   "devDependencies": {
     "@microsoft/api-extractor": "^7.7.13",
     "@rushstack/eslint-config": "^0.5.7",
-    "@types/jest": "~25.2.1",
-    "@types/lodash": "~4.14.149",
+    "@types/jest": "^25.2.1",
     "@types/node": "^13.13.4",
     "@types/source-map-support": "~0.5.1",
     "docsify": "^4.11.3",
@@ -70,10 +71,10 @@
     "eslint-config-prettier": "^6.10.1",
     "eslint-plugin-prettier": "^3.1.2",
     "git-hooks": "^1.1.10",
-    "jest": "^25.4.0",
+    "jest": "^25.5.0",
     "np": "^6.2.2",
     "prettier": "^2.0.4",
-    "ts-jest": "~25.4.0",
+    "ts-jest": "^25.4.0",
     "ts-node": "^8.9.1",
     "ts-node-dev": "^1.0.0-pre.44",
     "typedoc": "^0.17.6",

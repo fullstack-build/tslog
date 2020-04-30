@@ -1,4 +1,4 @@
-import "jest";
+import "ts-jest";
 import { IErrorObject, ILogObject, Logger } from "../src";
 
 const stdOut: string[] = [];
@@ -33,7 +33,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevelId).toBe(0);
       expect(logJson.logLevel).toBe("silly");
       expect(logJson.argumentsArray[0]).toBe("test message");
-    } catch {}
+    } catch (err) {}
   });
 
   test("debug log (stdOut)", (): void => {
@@ -44,7 +44,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevelId).toBe(2);
       expect(logJson.logLevel).toBe("debug");
       expect(logJson.argumentsArray[0]).toBe("test message");
-    } catch {}
+    } catch (err) {}
   });
 
   test("info log (stdOut)", (): void => {
@@ -55,7 +55,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevelId).toBe(3);
       expect(logJson.logLevel).toBe("info");
       expect(logJson.argumentsArray[0]).toBe("test message");
-    } catch {}
+    } catch (err) {}
   });
 
   test("warn log (stdErr)", (): void => {
@@ -66,7 +66,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevelId).toBe(4);
       expect(logJson.logLevel).toBe("warn");
       expect(logJson.argumentsArray[0]).toBe("test message");
-    } catch {}
+    } catch (err) {}
   });
 
   test("error log (stdErr)", (): void => {
@@ -77,7 +77,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevelId).toBe(5);
       expect(logJson.logLevel).toBe("error");
       expect(logJson.argumentsArray[0]).toBe("test message");
-    } catch {}
+    } catch (err) {}
   });
 
   test("fatal log (stdErr and not stdOut)", (): void => {
@@ -89,7 +89,7 @@ describe("Logger: JSON", () => {
       expect(logJsonErr.argumentsArray[0]).toBe("test message");
       const logJsonOut: ILogObject = JSON.parse(stdOut[0]);
       expect(logJsonOut).toBe(null);
-    } catch {}
+    } catch (err) {}
   });
 
   test("trace log has a trace (stdOut)", (): void => {
@@ -101,7 +101,7 @@ describe("Logger: JSON", () => {
       expect(logJson.logLevel).toBe("trace");
       expect(logJson.argumentsArray[0]).toBe("test message");
       expect(logJson.stack).toEqual(null);
-    } catch {}
+    } catch (err) {}
   });
 
   test("Error with stack (stdErr)", (): void => {
@@ -112,7 +112,7 @@ describe("Logger: JSON", () => {
         .argumentsArray[0] as IErrorObject;
       expect(errorObject.message).toBe("TestError");
       expect(errorObject.stack).toEqual(null);
-    } catch {}
+    } catch (err) {}
   });
 
   test("Error with code Frame (stdErr)", (): void => {
@@ -123,6 +123,6 @@ describe("Logger: JSON", () => {
         .argumentsArray[0] as IErrorObject;
       expect(errorObject.message).toBe("TestError");
       expect(errorObject.codeFrame).toEqual(null);
-    } catch {}
+    } catch (err) {}
   });
 });
