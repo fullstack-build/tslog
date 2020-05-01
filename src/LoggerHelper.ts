@@ -18,18 +18,17 @@ export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 
   public static cleanUpFilePath(fileName: string | null): string | null {
-    if (fileName == null) {
-      return fileName;
-    }
-    return Object.entries(fileName.split(pathSeparator))
-      .reduce(
-        (cleanFileName: string, fileNamePart) =>
-          fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
-            ? (cleanFileName += pathSeparator + fileNamePart[1])
-            : cleanFileName,
-        ""
-      )
-      .substring(1);
+    return fileName == null
+      ? fileName
+      : Object.entries(fileName.split(pathSeparator))
+          .reduce(
+            (cleanFileName: string, fileNamePart) =>
+              fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
+                ? (cleanFileName += pathSeparator + fileNamePart[1])
+                : cleanFileName,
+            ""
+          )
+          .substring(1);
   }
 
   public static isError(e: Error | unknown): boolean {
@@ -55,18 +54,26 @@ export class LoggerHelper {
         : ((error.stack as unknown) as NodeJS.CallSite[]);
     Error.prepareStackTrace = _prepareStackTrace;
 
-    if (cleanUp === true) {
-      return stack.reduce(
-        (cleanedUpCallsites: NodeJS.CallSite[], callsite: NodeJS.CallSite) => {
-          if (callsite.getFileName()?.indexOf("internal/") !== 0) {
-            cleanedUpCallsites.push(callsite);
-          }
-          return cleanedUpCallsites;
-        },
-        []
-      );
-    }
-    return stack;
+    return cleanUp === true
+      ? stack.reduce(
+          (
+            cleanedUpCallsites: NodeJS.CallSite[],
+            callsite: NodeJS.CallSite
+          ) => {
+            if (
+              callsite?.getFileName() != null &&
+              callsite?.getFileName() !== "" &&
+              callsite?.getFileName()?.indexOf("internal/") !== 0 &&
+              callsite?.getFileName()?.indexOf("module.js") !== 0 &&
+              callsite?.getFileName()?.indexOf("bootstrap_node.js") !== 0
+            ) {
+              cleanedUpCallsites.push(callsite);
+            }
+            return cleanedUpCallsites;
+          },
+          []
+        )
+      : stack;
   }
 
   public static toStackFrameObject(stackFrame: NodeJS.CallSite): IStackFrame {
