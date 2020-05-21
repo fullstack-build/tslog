@@ -97,6 +97,8 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     overwriteConsole: boolean;
     // (undocumented)
+    setCallerAsLoggerName: boolean;
+    // (undocumented)
     stdErr: IStd;
     // (undocumented)
     stdOut: IStd;
@@ -117,6 +119,7 @@ export interface ISettingsParam {
     minLevel?: TLogLevelName;
     name?: string;
     overwriteConsole?: boolean;
+    setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
