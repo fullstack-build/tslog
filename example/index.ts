@@ -1,4 +1,5 @@
 import { Logger } from "../src";
+import { inspect } from "util";
 
 class MyClass {
   private readonly _logger: Logger = new Logger({
@@ -40,3 +41,16 @@ log.info("I am an info log.");
 log.warn("I am a warn log with a json object:", { foo: "bar" });
 log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
+
+/*
+ * Circular example
+ * */
+function Foo() {
+  /* @ts-ignore */
+  this.abc = "Hello";
+  /* @ts-ignore */
+  this.circular = this;
+}
+/* @ts-ignore */
+const foo = new Foo();
+log.debug(foo);

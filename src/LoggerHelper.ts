@@ -1,4 +1,4 @@
-import { format, types } from "util";
+import { format, inspect, types } from "util";
 import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
@@ -150,10 +150,24 @@ export class LoggerHelper {
 
     let stringifiedJson: string = typeof json === "string" ? json : "";
     if (typeof json !== "string") {
-      stringifiedJson =
-        indent === true
-          ? JSON.stringify(json, undefined, 2)
-          : JSON.stringify(json);
+      try {
+        stringifiedJson =
+          indent === true
+            ? JSON.stringify(json, undefined, 2)
+            : JSON.stringify(json);
+      } catch {
+        stringifiedJson =
+          indent === true
+            ? inspect(json, {
+                depth: 0,
+                colors: true,
+                showHidden: true,
+                compact: false,
+              })
+            : format(json);
+        return stringifiedJson;
+      }
+
       stringifiedJson =
         stringifiedJson === "{}" ? format(json) : stringifiedJson;
     }

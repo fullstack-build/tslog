@@ -80,6 +80,7 @@
 				<p>⚡ <strong>Small footprint, blazing performance</strong><br>
 					👮‍️ <strong>Fully typed with TypeScript support (exact code position)</strong><br>
 					🗃 <strong><em>Pretty</em> or <code>JSON</code> output</strong><br>
+					🔄 <strong>Supports <em>circular</em> structures</strong><br>
 					🦸 <strong>Custom pluggable loggers</strong><br>
 					💅 <strong>Object and error interpolation</strong><br>
 					🕵️‍ <strong>Code surrounding error position (<em>code frame</em>)</strong><br>
@@ -218,6 +219,10 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					This setting is particularly interesting when working in a <code>monorepo</code>,
 				giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   </p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });</code></pre>
+				<p><em>Additional Setting:</em></p>
+				<p><code>setCallerAsLoggerName: false</code></p>
+				<p>When setting to <code>true</code> <code>tslog</code> will use caller name as the default name of the logger.</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ setCallerAsLoggerName: <span class="hljs-literal">true</span> });</code></pre>
 				<a href="#minlevel" id="minlevel" style="color: inherit; text-decoration: none;">
 					<h5><code>minLevel</code></h5>
 				</a>

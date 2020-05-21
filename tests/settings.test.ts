@@ -50,6 +50,12 @@ describe("Logger: settings", () => {
     expect(logger.settings.name).toBe("Test");
   });
 
+  test("init logger: caller as logger name", (): void => {
+    const logger: Logger = new Logger({ setCallerAsLoggerName: true });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.name).toBe("Logger");
+  });
+
   test("init logger: exposeStack", (): void => {
     const logger: Logger = new Logger({ exposeStack: true });
     expect(logger instanceof Logger).toBe(true);
