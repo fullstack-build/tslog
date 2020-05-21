@@ -49,6 +49,9 @@ export interface ISettingsParam {
   /** Name of the logger instance, default: empty string */
   name?: string;
 
+  /** Use the name of the caller type as the name of the logger, default: false */
+  setCallerAsLoggerName?: boolean;
+
   /** Minimum output log level (e.g. debug), default: silly */
   minLevel?: TLogLevelName;
 
@@ -92,6 +95,7 @@ export interface ISettings extends ISettingsParam {
   instanceName?: string;
   displayInstanceName?: boolean;
   name: string;
+  setCallerAsLoggerName: boolean;
   minLevel: TLogLevelName;
   logAsJson: boolean;
   exposeStack: boolean;

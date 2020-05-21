@@ -2,6 +2,7 @@
  * Expressive TypeScript Logger for Node.js
  * @packageDocumentation
  */
+// --> json circular object
 
 import { format } from "util";
 import { hostname } from "os";
@@ -68,12 +69,22 @@ export class Logger {
    */
   public constructor(settings?: ISettingsParam) {
     const displayInstanceName: boolean = settings?.displayInstanceName === true;
+    const setCallerAsLoggerName: boolean =
+      settings?.setCallerAsLoggerName === true;
+
     this.settings = {
       displayInstanceName: displayInstanceName,
       instanceName: displayInstanceName
         ? settings?.instanceName ?? hostname()
         : undefined,
-      name: settings?.name ?? "",
+      name:
+        settings?.name ??
+        (setCallerAsLoggerName
+          ? LoggerHelper.getCallSites()[0].getTypeName() ??
+            LoggerHelper.getCallSites()[0].getFunctionName() ??
+            ""
+          : ""),
+      setCallerAsLoggerName: setCallerAsLoggerName,
       minLevel: settings?.minLevel ?? "silly",
       logAsJson: settings?.logAsJson ?? false,
       exposeStack: settings?.exposeStack ?? false,
@@ -327,7 +338,11 @@ export class Logger {
         : "";
 
     std.write(
-      chalk`{grey [${logObject.loggerName}${instanceName}${logObject.filePath}:${logObject.lineNumber}${functionName}]}\t`
+      chalk`{grey [${
+        logObject.loggerName !== "" ? logObject.loggerName + " " : ""
+      }${instanceName}${logObject.filePath}:${
+        logObject.lineNumber
+      }${functionName}]}\t`
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
@@ -421,6 +436,6 @@ export class Logger {
       logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
-    std.write(JSON.stringify(logObject) + "\n");
+    std.write(format(logObject) + "\n");
   }
 }

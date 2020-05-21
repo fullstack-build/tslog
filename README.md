@@ -17,6 +17,7 @@
 ⚡ **Small footprint, blazing performance**<br>
 👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
+🔄 **Supports _circular_ objects**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
 🕵️‍ **Code surrounding error position (_code frame_)**<br>
@@ -176,6 +177,16 @@ giving you the chance to provide each module/package with its own logger and bei
 
 ```typescript
 new Logger({ name: "myLogger" });
+```
+
+*Additional Setting:*
+
+```setCallerAsLoggerName: false```
+
+When setting to `true` `tslog` will use caller name as the default name of the logger.
+
+```typescript
+new Logger({ setCallerAsLoggerName: true });
 ```
 
 ##### `minLevel`

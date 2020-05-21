@@ -110,3 +110,19 @@ describe("Logger: Pretty print", () => {
     expect(doesLogContain(stdOut, "ObjClass {")).toBeTruthy();
   });
 });
+
+test("Pretty circular JSON (stdOut)", (): void => {
+  function Foo() {
+    /* @ts-ignore */
+    this.abc = "Hello";
+    /* @ts-ignore */
+    this.circular = this;
+  }
+
+  /* @ts-ignore */
+  const foo = new Foo();
+
+  logger.debug(foo);
+  expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+  expect(doesLogContain(stdOut, "[Circular]")).toBeTruthy();
+});
