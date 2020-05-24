@@ -8,7 +8,7 @@ const transportOut: ILogObject[] = [];
 const transportErr: ILogObject[] = [];
 
 const logger: Logger = new Logger({
-  logAsJson: true,
+  type: "json",
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);

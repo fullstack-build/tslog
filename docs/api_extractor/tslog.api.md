@@ -25,7 +25,7 @@ export interface ICodeFrame {
 // @public
 export interface IErrorObject {
     codeFrame?: ICodeFrame;
-    details: string[];
+    details: object;
     isError: true;
     message: string;
     name: string;
@@ -107,8 +107,6 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     jsonInspectOptions: InspectOptions;
     // (undocumented)
-    logAsJson: boolean;
-    // (undocumented)
     logLevelsColors: TLogLevelColor;
     // (undocumented)
     minLevel: TLogLevelName;
@@ -128,6 +126,8 @@ export interface ISettings extends ISettingsParam {
     stdOut: IStd;
     // (undocumented)
     suppressStdOutput: boolean;
+    // (undocumented)
+    type: "json" | "pretty";
 }
 
 // @public
@@ -138,7 +138,6 @@ export interface ISettingsParam {
     exposeStack?: boolean;
     instanceName?: string;
     jsonInspectOptions?: InspectOptions;
-    logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
     name?: string;
@@ -149,6 +148,7 @@ export interface ISettingsParam {
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
+    type?: "json" | "pretty";
 }
 
 // @public

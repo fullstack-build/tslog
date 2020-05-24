@@ -25,6 +25,7 @@ import {
   ICodeFrame,
   ILogObjectStringifiable,
   TUtilsInspectColors,
+  IErrorObjectStringified,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -73,6 +74,7 @@ export class Logger {
       settings?.setCallerAsLoggerName === true;
 
     this.settings = {
+      type: settings?.type ?? "pretty",
       displayInstanceName: displayInstanceName,
       instanceName: displayInstanceName
         ? settings?.instanceName ?? hostname()
@@ -86,7 +88,6 @@ export class Logger {
           : undefined),
       setCallerAsLoggerName: setCallerAsLoggerName,
       minLevel: settings?.minLevel ?? "silly",
-      logAsJson: settings?.logAsJson ?? false,
       exposeStack: settings?.exposeStack ?? false,
       exposeErrorCodeFrame: settings?.exposeErrorCodeFrame ?? true,
       exposeErrorCodeFrameLinesBeforeAndAfter:
@@ -220,7 +221,7 @@ export class Logger {
       !this.settings.suppressStdOutput &&
       logObject.logLevelId >= this._logLevels.indexOf(this.settings.minLevel)
     ) {
-      if (!this.settings.logAsJson) {
+      if (this.settings.type === "pretty") {
         this._printPrettyLog(logObject);
       } else {
         this._printJsonLog(logObject);
@@ -278,7 +279,7 @@ export class Logger {
         );
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
         errorObject.nativeError = arg as Error;
-        errorObject.details = Object.values(arg as Error);
+        errorObject.details = { ...arg };
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;
         errorObject.stack = this._toStackObjectArray(errorStack);
@@ -382,9 +383,9 @@ export class Logger {
             `\t${format(errorArgument.message)}`
         );
 
-        if (errorArgument.details?.length > 0) {
+        if (Object.values(errorArgument.details).length > 0) {
           std.write(
-            LoggerHelper.styleString(["underline", "bold"], "˜\ndetails:")
+            LoggerHelper.styleString(["underline", "bold"], "\ndetails:")
           );
           std.write(
             "\n" +
@@ -488,10 +489,11 @@ export class Logger {
         (argument: unknown | IErrorObject) => {
           const errorArgument: IErrorObject = argument as IErrorObject;
           if (typeof argument === "object" && errorArgument.isError) {
-            return JSON.stringify({
+            return {
               ...errorArgument,
-              nativeError: format(errorArgument.nativeError),
-            });
+              nativeError: undefined,
+              errorString: format(errorArgument.nativeError),
+            } as IErrorObjectStringified;
           } else {
             return inspect(argument, this.settings.jsonInspectOptions);
           }

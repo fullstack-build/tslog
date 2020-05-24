@@ -6,7 +6,7 @@ describe("Logger: minLevel", () => {
     const stdOut: string[] = [];
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -35,7 +35,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "silly",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -64,7 +64,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "trace",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -93,7 +93,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "debug",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -122,7 +122,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "info",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -151,7 +151,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "warn",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -180,7 +180,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "error",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);
@@ -209,7 +209,7 @@ describe("Logger: minLevel", () => {
     const stdErr: string[] = [];
     const logger: Logger = new Logger({
       minLevel: "fatal",
-      logAsJson: true,
+      type: "json",
       stdOut: {
         write: (print: string) => {
           stdOut.push(print);

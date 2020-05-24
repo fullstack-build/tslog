@@ -6,7 +6,7 @@ const stdErr: string[] = [];
 
 const logger: Logger = new Logger({
   name: "Test",
-  logAsJson: true,
+  type: "pretty",
   stdOut: {
     write: (print: string) => {
       stdOut.push(print);

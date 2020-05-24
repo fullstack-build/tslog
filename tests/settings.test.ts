@@ -30,6 +30,12 @@ describe("Logger: settings", () => {
     expect(logger instanceof Logger).toBe(true);
   });
 
+  test("init logger: type", (): void => {
+    const logger: Logger = new Logger({ type: "json" });
+    expect(logger instanceof Logger).toBe(true);
+    expect(logger.settings.type).toBe("json");
+  });
+
   test("init logger: instanceName ", (): void => {
     const logger: Logger = new Logger({
       instanceName: "ABC",
@@ -73,12 +79,6 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({ overwriteConsole: true });
     expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.overwriteConsole).toBe(true);
-  });
-
-  test("init logger: logAsJson", (): void => {
-    const logger: Logger = new Logger({ logAsJson: true });
-    expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.logAsJson).toBe(true);
   });
 
   test("init logger: logLevelsColors", (): void => {

@@ -260,7 +260,6 @@ export class LoggerHelper {
       return codeFrame;
     } catch {
       // fail silently
-      return undefined;
     }
   }
 

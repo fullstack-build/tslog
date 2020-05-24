@@ -197,6 +197,22 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				Nevertheless, it can be flexibly adapted to your own needs. </p>
 				<p>All possible settings are defined in the <code>ISettingsParam</code> interface and modern IDE will offer autocompletion accordingly.
 				And of course, all of them are optional and can also be combined with your needs. </p>
+				<a href="#type" id="type" style="color: inherit; text-decoration: none;">
+					<h5><code>type</code></h5>
+				</a>
+				<p><code>default: &quot;pretty&quot;</code></p>
+				<p>You can either pretty print the logs, or print them as <code>json</code>.
+					Having <code>json</code> as an output format is particularly useful, if you want to forward your logs directly from your <code>std</code> to another log service.
+				Instead of parsing the <em>pretty</em> output, most log services can easily parse a <em>JSON</em> object. </p>
+				<blockquote>
+					<p>This gives you direct access to all the information captured by <code>tslog</code>, like <em>stack trace</em> and <em>code frame</em> information.</p>
+				</blockquote>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ <span class="hljs-keyword">type</span>: <span class="hljs-string">"json"</span> });</code></pre>
+				<p>Resulting in the following output:
+				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json"></p>
+				<blockquote>
+					<p><strong>Hint:</strong> Each <em>JSON</em> log is printed in one line, making it easily parsable by external services.</p>
+				</blockquote>
 				<a href="#instancename" id="instancename" style="color: inherit; text-decoration: none;">
 					<h5><code>instanceName</code></h5>
 				</a>
@@ -230,21 +246,6 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<p><code>default: &quot;silly&quot;</code></p>
 				<p>What should be the minimum log level that should be captured by this logger?
 				Possible values are: <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code>, <code>warn</code>, <code>error</code>, <code>fatal</code></p>
-				<a href="#logasjson" id="logasjson" style="color: inherit; text-decoration: none;">
-					<h5><code>logAsJson</code></h5>
-				</a>
-				<p><code>default: false</code></p>
-				<p>Sometimes you want to forward your logs directly from your <code>std</code> to another log service.
-				Instead of parsing the <em>pretty</em> output, most log services can easily parse a <em>JSON</em> object. </p>
-				<blockquote>
-					<p>This gives you direct access to all the information captured by <code>tslog</code>, like <em>stack trace</em> and <em>code frame</em> information.</p>
-				</blockquote>
-				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ logAsJson: <span class="hljs-literal">true</span> });</code></pre>
-				<p>Resulting in the following output:
-				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json"></p>
-				<blockquote>
-					<p><strong>Hint:</strong> Each <em>JSON</em> log is printed in one line, making it easily parsable by external services.</p>
-				</blockquote>
 				<a href="#exposestack" id="exposestack" style="color: inherit; text-decoration: none;">
 					<h5><code>exposeStack</code></h5>
 				</a>
@@ -408,6 +409,9 @@ log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>,
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/ierrorobject.html" class="tsd-kind-icon">IError<wbr>Object</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ierrorobjectstringified.html" class="tsd-kind-icon">IError<wbr>Object<wbr>Stringified</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/ihighlightstyles.html" class="tsd-kind-icon">IHighlight<wbr>Styles</a>

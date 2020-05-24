@@ -149,6 +149,22 @@ Nevertheless, it can be flexibly adapted to your own needs.
 All possible settings are defined in the `ISettingsParam` interface and modern IDE will offer autocompletion accordingly.
 And of course, all of them are optional and can also be combined with your needs. 
 
+##### `type` 
+```default: "pretty"```
+
+You can either pretty print the logs, or print them as `json`. 
+Having `json` as an output format is particularly useful, if you want to forward your logs directly from your `std` to another log service.
+Instead of parsing the _pretty_ output, most log services can easily parse a _JSON_ object. 
+
+>This gives you direct access to all the information captured by `tslog`, like _stack trace_ and _code frame_ information.
+```typescript
+new Logger({ type: "json" });
+```
+Resulting in the following output: 
+![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
+> **Hint:** Each _JSON_ log is printed in one line, making it easily parsable by external services.
+
+
 ##### `instanceName`
 ```default: os.hostname``` _(hidden by default)_
 
@@ -195,20 +211,6 @@ new Logger({ setCallerAsLoggerName: true });
 
 What should be the minimum log level that should be captured by this logger? 
 Possible values are: `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`
-
-##### `logAsJson` 
-```default: false```
-
-Sometimes you want to forward your logs directly from your `std` to another log service.
-Instead of parsing the _pretty_ output, most log services can easily parse a _JSON_ object. 
-
->This gives you direct access to all the information captured by `tslog`, like _stack trace_ and _code frame_ information.
-```typescript
-new Logger({ logAsJson: true });
-```
-Resulting in the following output: 
-![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
-> **Hint:** Each _JSON_ log is printed in one line, making it easily parsable by external services.
 
 ##### `exposeStack`
  ```default: false```

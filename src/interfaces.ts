@@ -40,6 +40,9 @@ export type TLogLevelColor = {
  * @public
  */
 export interface ISettingsParam {
+  /** Print log pretty or as a stringified json, default: pretty */
+  type?: "json" | "pretty";
+
   /** Name of the instance name, default: host name */
   instanceName?: string;
 
@@ -54,9 +57,6 @@ export interface ISettingsParam {
 
   /** Minimum output log level (e.g. debug), default: silly */
   minLevel?: TLogLevelName;
-
-  /** Print log as stringified json instead of pretty, default: false */
-  logAsJson?: boolean;
 
   /** Expose stack with EVERY log message, default: false  */
   exposeStack?: boolean;
@@ -82,7 +82,7 @@ export interface ISettingsParam {
   /**  Options to be set for utils.inspect when output is set to pretty (default setting) */
   prettyInspectOptions?: InspectOptions;
 
-  /**  Options to be set for utils.inspect when output is set to json (\{ logAsJson: true \}) */
+  /**  Options to be set for utils.inspect when output is set to json (\{ type: "json" \}) */
   jsonInspectOptions?: InspectOptions;
 
   /**  Overwrite default std out */
@@ -98,12 +98,12 @@ export interface ISettingsParam {
  * @public
  */
 export interface ISettings extends ISettingsParam {
+  type: "json" | "pretty";
   instanceName?: string;
   displayInstanceName?: boolean;
   name?: string;
   setCallerAsLoggerName: boolean;
   minLevel: TLogLevelName;
-  logAsJson: boolean;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
   exposeErrorCodeFrameLinesBeforeAndAfter: number;
@@ -174,7 +174,7 @@ export interface ILogObject extends IStackFrame {
 }
 
 export interface ILogObjectStringifiable extends ILogObject {
-  argumentsArray: string[];
+  argumentsArray: (IErrorObjectStringified | string)[];
 }
 
 /**
@@ -189,13 +189,18 @@ export interface IErrorObject {
   /** Error message */
   message: string;
   /** additional Error details */
-  details: string[];
+  details: object;
   /** native Error object */
   nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
   /** Code frame of the error */
   codeFrame?: ICodeFrame;
+}
+
+export interface IErrorObjectStringified extends IErrorObject {
+  nativeError: never;
+  errorString: string;
 }
 
 /**
