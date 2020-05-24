@@ -77,7 +77,7 @@ export interface ISettingsParam {
   logLevelsColors?: TLogLevelColor;
 
   /**  Overwrite colors json highlighting */
-  jsonHighlightColors?: IJsonHighlightColors;
+  jsonHighlightColors?: IUtilsInspectStyles;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -104,7 +104,7 @@ export interface ISettings extends ISettingsParam {
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
-  jsonHighlightColors: IJsonHighlightColors;
+  jsonHighlightColors: IUtilsInspectStyles;
   stdOut: IStd;
   stdErr: IStd;
 }
@@ -196,15 +196,73 @@ export interface ITransportProvider {
 }
 
 /**
- * Hex color values for JSON highlighting.
+ * Style and color options for utils.inspect.style
  * @public
  */
-export interface IJsonHighlightColors {
-  number: string;
-  key: string;
-  string: string;
-  boolean: string;
-  null: string;
+export type TUtilsInspectColors =
+  | "reset"
+  | "bold"
+  | "dim"
+  | "italic"
+  | "underline"
+  | "blink"
+  | "inverse"
+  | "hidden"
+  | "strikethrough"
+  | "doubleunderline"
+  | "black"
+  | "red"
+  | "green"
+  | "yellow"
+  | "blue"
+  | "magenta"
+  | "cyan"
+  | "white"
+  | "bgBlack"
+  | "bgRed"
+  | "bgGreen"
+  | "bgYellow"
+  | "bgBlue"
+  | "bgMagenta"
+  | "bgCyan"
+  | "bgWhite"
+  | "framed"
+  | "overlined"
+  | "gray"
+  | "redBright"
+  | "greenBright"
+  | "yellowBright"
+  | "blueBright"
+  | "magentaBright"
+  | "cyanBright"
+  | "whiteBright"
+  | "bgGray"
+  | "bgRedBright"
+  | "bgGreenBright"
+  | "bgYellowBright"
+  | "bgBlueBright"
+  | "bgMagentaBright"
+  | "bgCyanBright"
+  | "bgWhiteBright";
+
+/**
+ * Possible style settings of utils.inspect.styles
+ * Official Node.js typedefs are missing this interface.
+ * @public
+ */
+export interface IUtilsInspectStyles {
+  name?: TUtilsInspectColors;
+  special?: TUtilsInspectColors;
+  number?: TUtilsInspectColors;
+  bigint?: TUtilsInspectColors;
+  boolean?: TUtilsInspectColors;
+  undefined?: TUtilsInspectColors;
+  null?: TUtilsInspectColors;
+  string?: TUtilsInspectColors;
+  symbol?: TUtilsInspectColors;
+  date?: TUtilsInspectColors;
+  regexp?: TUtilsInspectColors;
+  module?: TUtilsInspectColors;
 }
 
 export interface IJsonHighlightColorsChalk {

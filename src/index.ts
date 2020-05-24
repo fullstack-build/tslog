@@ -4,7 +4,7 @@
  */
 // --> json circular object
 
-import { format } from "util";
+import { format, inspect } from "util";
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
@@ -22,7 +22,7 @@ import {
   ITransportProvider,
   TLogLevelName,
   TLogLevelId,
-  IJsonHighlightColors,
+  IUtilsInspectStyles,
   TLogLevelColor,
   ICodeFrame,
 } from "./interfaces";
@@ -38,7 +38,7 @@ export {
   IStd,
   TLogLevelName,
   TLogLevelId,
-  IJsonHighlightColors,
+  IUtilsInspectStyles,
   TLogLevelColor,
   ISettings,
   ICodeFrame,
@@ -103,17 +103,19 @@ export class Logger {
         6: "#900000",
       },
       jsonHighlightColors: settings?.jsonHighlightColors ?? {
-        number: "#FF6188",
-        key: "#A9DC76",
-        string: "#FFD866",
-        boolean: "#FC9867",
-        null: "#AB9DF2",
+        name: "greenBright",
+        string: "redBright",
+        number: "blueBright",
+        null: "red",
+        undefined: "red",
       },
       stdOut: settings?.stdOut ?? process.stdout,
       stdErr: settings?.stdErr ?? process.stderr,
     };
 
-    LoggerHelper.errorToJsonHelper();
+    LoggerHelper.setUtilsInspectStyles(this.settings.jsonHighlightColors);
+
+    LoggerHelper.initErrorToJsonHelper();
     if (this.settings.overwriteConsole) {
       LoggerHelper.overwriteConsole(this, this._handleLog);
     }
@@ -348,16 +350,7 @@ export class Logger {
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorArgument: IErrorObject = argument as IErrorObject;
       if (typeof argument === "object" && !errorArgument.isError) {
-        std.write(
-          "\n" +
-            LoggerHelper.colorizeJson(
-              argument ?? "",
-              chalk,
-              this.settings.jsonHighlightColors,
-              true
-            ) +
-            " "
-        );
+        std.write("\n" + inspect(argument, { colors: true, compact: false }));
       } else if (typeof argument === "object" && errorArgument.isError) {
         std.write(
           chalk.bgHex("AA0A0A").bold(`\n ${errorArgument.name} `) +

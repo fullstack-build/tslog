@@ -17,7 +17,7 @@
 ⚡ **Small footprint, blazing performance**<br>
 👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
-🔄 **Supports _circular_ structures**<br>
+⭕️ **Supports _circular_ structures**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
 🕵️‍ **Code surrounding error position (_code frame_)**<br>

@@ -30,20 +30,6 @@ export interface IErrorObject {
 }
 
 // @public
-export interface IJsonHighlightColors {
-    // (undocumented)
-    boolean: string;
-    // (undocumented)
-    key: string;
-    // (undocumented)
-    null: string;
-    // (undocumented)
-    number: string;
-    // (undocumented)
-    string: string;
-}
-
-// @public
 export interface ILogLevel {
     // (undocumented)
     0: "silly";
@@ -85,7 +71,7 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     instanceName?: string;
     // (undocumented)
-    jsonHighlightColors: IJsonHighlightColors;
+    jsonHighlightColors: IUtilsInspectStyles;
     // (undocumented)
     logAsJson: boolean;
     // (undocumented)
@@ -113,7 +99,7 @@ export interface ISettingsParam {
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
     instanceName?: string;
-    jsonHighlightColors?: IJsonHighlightColors;
+    jsonHighlightColors?: IUtilsInspectStyles;
     logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
@@ -141,6 +127,36 @@ export interface IStackFrame {
 // @public
 export interface IStd {
     write: Function;
+}
+
+// @public
+export interface IUtilsInspectStyles {
+    // (undocumented)
+    bigint?: TUtilsInspectColors;
+    // (undocumented)
+    boolean?: TUtilsInspectColors;
+    // (undocumented)
+    date?: TUtilsInspectColors;
+    // (undocumented)
+    module?: TUtilsInspectColors;
+    // Warning: (ae-forgotten-export) The symbol "TUtilsInspectColors" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    name?: TUtilsInspectColors;
+    // (undocumented)
+    null?: TUtilsInspectColors;
+    // (undocumented)
+    number?: TUtilsInspectColors;
+    // (undocumented)
+    regexp?: TUtilsInspectColors;
+    // (undocumented)
+    special?: TUtilsInspectColors;
+    // (undocumented)
+    string?: TUtilsInspectColors;
+    // (undocumented)
+    symbol?: TUtilsInspectColors;
+    // (undocumented)
+    undefined?: TUtilsInspectColors;
 }
 
 // @public
