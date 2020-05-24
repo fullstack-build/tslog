@@ -1,16 +1,15 @@
-import { format, inspect, types } from "util";
+import { inspect, types } from "util";
 import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
 import { Logger } from "./index";
-import { Chalk } from "chalk";
 import {
   ICodeFrame,
-  IJsonHighlightColors,
-  IJsonHighlightColorsChalk,
+  IHighlightStyles,
   ILogObject,
   IStackFrame,
   TLogLevelName,
+  TUtilsInspectColors,
 } from "./interfaces";
 
 /** @internal */
@@ -91,7 +90,7 @@ export class LoggerHelper {
     };
   }
 
-  public static errorToJsonHelper(): void {
+  public static initErrorToJsonHelper(): void {
     if (!("toJSON" in Error.prototype))
       /* eslint-disable */
       Object.defineProperty(Error.prototype, "toJSON", {
@@ -134,62 +133,34 @@ export class LoggerHelper {
     );
   }
 
-  public static colorizeJson(
-    json: string | object,
-    chalk: Chalk,
-    colors: IJsonHighlightColors,
-    indent: boolean = false
-  ): string {
-    const chalkColors: IJsonHighlightColorsChalk = {
-      number: chalk.hex(colors.number),
-      key: chalk.hex(colors.key),
-      string: chalk.hex(colors.string),
-      boolean: chalk.hex(colors.boolean),
-      null: chalk.hex(colors.null),
-    };
-
-    let stringifiedJson: string = typeof json === "string" ? json : "";
-    if (typeof json !== "string") {
-      try {
-        stringifiedJson =
-          indent === true
-            ? JSON.stringify(json, undefined, 2)
-            : JSON.stringify(json);
-      } catch {
-        stringifiedJson =
-          indent === true
-            ? inspect(json, {
-                depth: 0,
-                colors: true,
-                showHidden: true,
-                compact: false,
-              })
-            : format(json);
-        return stringifiedJson;
-      }
-
-      stringifiedJson =
-        stringifiedJson === "{}" ? format(json) : stringifiedJson;
-    }
-
-    return stringifiedJson.replace(
-      /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-      function (match: string) {
-        let cls: string = "number";
-        if (/^"/.test(match)) {
-          if (/:$/.test(match)) {
-            cls = "key";
-          } else {
-            cls = "string";
-          }
-        } else if (/true|false/.test(match)) {
-          cls = "boolean";
-        } else if (/null/.test(match)) {
-          cls = "null";
-        }
-        return chalkColors[cls](match);
+  public static setUtilsInspectStyles(
+    utilsInspectStyles: IHighlightStyles
+  ): void {
+    Object.entries(utilsInspectStyles).forEach(
+      ([symbol, color]: [string, TUtilsInspectColors]) => {
+        inspect.styles[symbol] = color;
       }
     );
+  }
+
+  public static styleString<T, S>(
+    styleTypes: T | TUtilsInspectColors[],
+    str: S | string
+  ): string {
+    return Object.values(styleTypes).reduce((resultStr: S, styleType: T) => {
+      return LoggerHelper._stylizeWithColor(
+        (styleType as unknown) as TUtilsInspectColors,
+        resultStr
+      );
+    }, str);
+  }
+
+  private static _stylizeWithColor<T>(
+    styleType: TUtilsInspectColors,
+    str: T
+  ): string {
+    const color: [number, number] = inspect.colors[styleType] ?? [0, 0];
+    return `\u001b[${color[0]}m${str}\u001b[${color[1]}m`;
   }
 
   /*

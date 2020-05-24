@@ -4,6 +4,8 @@
 
 ```ts
 
+import { InspectOptions } from 'util';
+
 // @public
 export interface ICodeFrame {
     // (undocumented)
@@ -26,21 +28,38 @@ export interface IErrorObject {
     isError: true;
     message: string;
     name: string;
+    nativeError: Error;
     stack: IStackFrame[];
 }
 
 // @public
-export interface IJsonHighlightColors {
+export interface IHighlightStyles {
     // (undocumented)
-    boolean: string;
+    bigint?: TUtilsInspectColors;
     // (undocumented)
-    key: string;
+    boolean?: TUtilsInspectColors;
     // (undocumented)
-    null: string;
+    date?: TUtilsInspectColors;
     // (undocumented)
-    number: string;
+    module?: TUtilsInspectColors;
+    // Warning: (ae-forgotten-export) The symbol "TUtilsInspectColors" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
-    string: string;
+    name?: TUtilsInspectColors;
+    // (undocumented)
+    null?: TUtilsInspectColors;
+    // (undocumented)
+    number?: TUtilsInspectColors;
+    // (undocumented)
+    regexp?: TUtilsInspectColors;
+    // (undocumented)
+    special?: TUtilsInspectColors;
+    // (undocumented)
+    string?: TUtilsInspectColors;
+    // (undocumented)
+    symbol?: TUtilsInspectColors;
+    // (undocumented)
+    undefined?: TUtilsInspectColors;
 }
 
 // @public
@@ -66,7 +85,7 @@ export interface ILogObject extends IStackFrame {
     argumentsArray: (IErrorObject | unknown)[];
     date: Date;
     instanceName?: string;
-    loggerName: string;
+    loggerName?: string;
     logLevel: TLogLevelName;
     logLevelId: TLogLevelId;
     stack?: IStackFrame[];
@@ -85,7 +104,7 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     instanceName?: string;
     // (undocumented)
-    jsonHighlightColors: IJsonHighlightColors;
+    jsonInspectOptions: InspectOptions;
     // (undocumented)
     logAsJson: boolean;
     // (undocumented)
@@ -93,9 +112,13 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     minLevel: TLogLevelName;
     // (undocumented)
-    name: string;
+    name?: string;
     // (undocumented)
     overwriteConsole: boolean;
+    // (undocumented)
+    prettyInspectHighlightStyles: IHighlightStyles;
+    // (undocumented)
+    prettyInspectOptions: InspectOptions;
     // (undocumented)
     setCallerAsLoggerName: boolean;
     // (undocumented)
@@ -113,12 +136,14 @@ export interface ISettingsParam {
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
     instanceName?: string;
-    jsonHighlightColors?: IJsonHighlightColors;
+    jsonInspectOptions?: InspectOptions;
     logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
     name?: string;
     overwriteConsole?: boolean;
+    prettyInspectHighlightStyles?: IHighlightStyles;
+    prettyInspectOptions?: InspectOptions;
     setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;
@@ -159,7 +184,7 @@ export class Logger {
 
 // @public
 export type TLogLevelColor = {
-    [key in TLogLevelId]: string;
+    [key in TLogLevelId]: TUtilsInspectColors;
 };
 
 // @public

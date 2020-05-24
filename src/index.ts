@@ -2,13 +2,11 @@
  * Expressive TypeScript Logger for Node.js
  * @packageDocumentation
  */
-// --> json circular object
 
-import { format } from "util";
+import { format, inspect } from "util";
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
-import * as chalk from "chalk";
 
 import {
   ILogLevel,
@@ -22,9 +20,11 @@ import {
   ITransportProvider,
   TLogLevelName,
   TLogLevelId,
-  IJsonHighlightColors,
+  IHighlightStyles,
   TLogLevelColor,
   ICodeFrame,
+  ILogObjectStringifiable,
+  TUtilsInspectColors,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -38,7 +38,7 @@ export {
   IStd,
   TLogLevelName,
   TLogLevelId,
-  IJsonHighlightColors,
+  IHighlightStyles,
   TLogLevelColor,
   ISettings,
   ICodeFrame,
@@ -82,8 +82,8 @@ export class Logger {
         (setCallerAsLoggerName
           ? LoggerHelper.getCallSites()[0].getTypeName() ??
             LoggerHelper.getCallSites()[0].getFunctionName() ??
-            ""
-          : ""),
+            undefined
+          : undefined),
       setCallerAsLoggerName: setCallerAsLoggerName,
       minLevel: settings?.minLevel ?? "silly",
       logAsJson: settings?.logAsJson ?? false,
@@ -94,26 +94,40 @@ export class Logger {
       suppressStdOutput: settings?.suppressStdOutput ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
-        0: "#B0B0B0",
-        1: "#FFFFFF",
-        2: "#63C462",
-        3: "#2b98ba",
-        4: "#CE8743",
-        5: "#EE444C",
-        6: "#900000",
+        0: "gray",
+        1: "whiteBright",
+        2: "greenBright",
+        3: "blueBright",
+        4: "yellowBright",
+        5: "redBright",
+        6: "red",
       },
-      jsonHighlightColors: settings?.jsonHighlightColors ?? {
-        number: "#FF6188",
-        key: "#A9DC76",
-        string: "#FFD866",
-        boolean: "#FC9867",
-        null: "#AB9DF2",
+      prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
+        name: "greenBright",
+        string: "redBright",
+        number: "blueBright",
+        null: "red",
+        undefined: "red",
+      },
+      prettyInspectOptions: settings?.prettyInspectOptions ?? {
+        colors: true,
+        compact: false,
+        depth: Infinity,
+      },
+      jsonInspectOptions: settings?.jsonInspectOptions ?? {
+        colors: false,
+        compact: true,
+        depth: Infinity,
       },
       stdOut: settings?.stdOut ?? process.stdout,
       stdErr: settings?.stdErr ?? process.stderr,
     };
 
-    LoggerHelper.errorToJsonHelper();
+    LoggerHelper.setUtilsInspectStyles(
+      this.settings.prettyInspectHighlightStyles
+    );
+
+    LoggerHelper.initErrorToJsonHelper();
     if (this.settings.overwriteConsole) {
       LoggerHelper.overwriteConsole(this, this._handleLog);
     }
@@ -241,7 +255,7 @@ export class Logger {
 
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
-      loggerName: this.settings.name ?? "",
+      loggerName: this.settings.name,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
@@ -263,6 +277,7 @@ export class Logger {
           arg as Error
         );
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
+        errorObject.nativeError = arg as Error;
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;
         errorObject.stack = this._toStackObjectArray(errorStack);
@@ -273,12 +288,14 @@ export class Logger {
           this.settings.exposeErrorCodeFrame &&
           errorCallSite.lineNumber != null
         ) {
-          errorObject.codeFrame = LoggerHelper._getCodeFrame(
-            errorCallSite.fullFilePath,
-            errorCallSite.lineNumber,
-            errorCallSite.columnNumber,
-            this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
-          );
+          if (errorCallSite.fullFilePath.indexOf("node_modules") < 0) {
+            errorObject.codeFrame = LoggerHelper._getCodeFrame(
+              errorCallSite.fullFilePath,
+              errorCallSite.lineNumber,
+              errorCallSite.columnNumber,
+              this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
+            );
+          }
         }
         logObject.argumentsArray.push(errorObject);
       } else {
@@ -315,13 +332,17 @@ export class Logger {
       .toISOString()
       .replace("T", " ")
       .replace("Z", "");
-    const hexColor: string = this.settings.logLevelsColors[
+    const colorName: TUtilsInspectColors = this.settings.logLevelsColors[
       logObject.logLevelId
     ];
 
-    std.write(chalk`{grey ${nowStr}}\t`);
+    std.write(LoggerHelper.styleString(["gray"], `${nowStr}\t`));
+
     std.write(
-      chalk.hex(hexColor).bold(` ${logObject.logLevel.toUpperCase()}\t`)
+      LoggerHelper.styleString(
+        [colorName, "bold"],
+        ` ${logObject.logLevel.toUpperCase()} `
+      ) + "\t"
     );
 
     const functionName: string = logObject.isConstructor
@@ -338,36 +359,34 @@ export class Logger {
         : "";
 
     std.write(
-      chalk`{grey [${
-        logObject.loggerName !== "" ? logObject.loggerName + " " : ""
-      }${instanceName}${logObject.filePath}:${
-        logObject.lineNumber
-      }${functionName}]}\t`
+      LoggerHelper.styleString(
+        ["gray"],
+        `[${
+          logObject.loggerName != null ? logObject.loggerName + " " : ""
+        }${instanceName}${logObject.filePath}:${
+          logObject.lineNumber
+        }${functionName}]}`
+      ) + "\t"
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorArgument: IErrorObject = argument as IErrorObject;
-      if (typeof argument === "object" && !errorArgument.isError) {
+      if (typeof argument === "object" && errorArgument.isError) {
         std.write(
           "\n" +
-            LoggerHelper.colorizeJson(
-              argument ?? "",
-              chalk,
-              this.settings.jsonHighlightColors,
-              true
+            LoggerHelper.styleString(
+              ["bgRed", "whiteBright", "bold"],
+              ` ${errorArgument.name} `
             ) +
-            " "
-        );
-      } else if (typeof argument === "object" && errorArgument.isError) {
-        std.write(
-          chalk.bgHex("AA0A0A").bold(`\n ${errorArgument.name} `) +
-            `  ${format(errorArgument.message)}\n`
+            `\t${format(errorArgument.message)}`
         );
 
         this._printPrettyStack(std, errorArgument.stack);
         if (errorArgument.codeFrame != null) {
           this._printPrettyCodeFrame(std, errorArgument.codeFrame);
         }
+      } else if (typeof argument === "object" && !errorArgument.isError) {
+        std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
       } else {
         std.write(format(argument) + " ");
       }
@@ -375,7 +394,10 @@ export class Logger {
     std.write("\n");
 
     if (logObject.stack != null) {
-      std.write(chalk`{underline.bold log stack:\n}`);
+      std.write(
+        LoggerHelper.styleString(["underline", "bold"], "log stack:\n")
+      );
+
       this._printPrettyStack(std, logObject.stack);
     }
   }
@@ -384,16 +406,22 @@ export class Logger {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
       std.write(
-        chalk`    {grey •} {yellowBright ${
-          stackObject.fileName
-        }}{grey :}{yellow ${stackObject.lineNumber}} {white ${
-          stackObject.functionName ?? "<anonymous>"
-        }}`
+        LoggerHelper.styleString(["gray"], "• ") +
+          LoggerHelper.styleString(["yellowBright"], stackObject.fileName) +
+          LoggerHelper.styleString(["gray"], ":") +
+          LoggerHelper.styleString(["yellow"], stackObject.lineNumber) +
+          LoggerHelper.styleString(
+            ["white"],
+            " " + (stackObject.functionName ?? "<anonymous>")
+          )
       );
       std.write("\n    ");
       std.write(
         fileNormalize(
-          chalk`{grey ${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}}`
+          LoggerHelper.styleString(
+            ["gray"],
+            `${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}`
+          )
         )
       );
       std.write("\n\n");
@@ -401,32 +429,35 @@ export class Logger {
   }
 
   private _printPrettyCodeFrame(std: IStd, codeFrame: ICodeFrame): void {
-    std.write(chalk`{underline.bold code frame:\n}`);
+    std.write(LoggerHelper.styleString(["underline", "bold"], "code frame:\n"));
+
     let lineNumber: number = codeFrame.firstLineNumber;
     codeFrame.linesBefore.forEach((line: string) => {
-      std.write(
-        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
-      );
+      std.write(`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`);
       lineNumber++;
     });
 
     std.write(
-      chalk`{red >} {bgRed.whiteBright ${LoggerHelper.lineNumberTo3Char(
-        lineNumber
-      )}} | {yellow ${codeFrame.relevantLine}}\n`
+      LoggerHelper.styleString(["red"], ">") +
+        " " +
+        LoggerHelper.styleString(
+          ["bgRed", "whiteBright"],
+          LoggerHelper.lineNumberTo3Char(lineNumber)
+        ) +
+        " | " +
+        LoggerHelper.styleString(["yellow"], codeFrame.relevantLine) +
+        "\n"
     );
     lineNumber++;
 
     if (codeFrame.columnNumber != null) {
       const positionMarker: string =
-        new Array(codeFrame.columnNumber + 8).join(" ") + chalk`{red ^}`;
-      std.write(`${positionMarker}\n`);
+        new Array(codeFrame.columnNumber + 8).join(" ") + `^`;
+      std.write(LoggerHelper.styleString(["red"], positionMarker) + "\n");
     }
 
     codeFrame.linesAfter.forEach((line: string) => {
-      std.write(
-        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
-      );
+      std.write(`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`);
       lineNumber++;
     });
   }
@@ -436,6 +467,24 @@ export class Logger {
       logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
-    std.write(format(logObject) + "\n");
+
+    const logObjectStringifiable: ILogObjectStringifiable = {
+      ...logObject,
+      argumentsArray: logObject.argumentsArray.map(
+        (argument: unknown | IErrorObject) => {
+          const errorArgument: IErrorObject = argument as IErrorObject;
+          if (typeof argument === "object" && errorArgument.isError) {
+            return JSON.stringify({
+              ...errorArgument,
+              nativeError: format(errorArgument.nativeError),
+            });
+          } else {
+            return inspect(argument, this.settings.jsonInspectOptions);
+          }
+        }
+      ),
+    };
+
+    std.write(JSON.stringify(logObjectStringifiable) + "\n");
   }
 }

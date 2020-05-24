@@ -78,7 +78,6 @@
     "typescript": "^3.9.3"
   },
   "dependencies": {
-    "chalk": "~4.0.0",
     "source-map-support": "^0.5.19"
   },
   "files": [

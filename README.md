@@ -1,4 +1,4 @@
-## 📝 tslog: Brand new expressive TypeScript Logger for Node.js
+## 📝 tslog: Expressive TypeScript Logger for Node.js
 
 
 [![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
@@ -14,10 +14,10 @@
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
 ### Highlights
-⚡ **Small footprint, blazing performance**<br>
+⚡ **Small footprint, blazing performance (native V8 features)**<br>
 👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
-🔄 **Supports _circular_ structures**<br>
+⭕️ **Supports _circular_ structures**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
 🕵️‍ **Code surrounding error position (_code frame_)**<br>
@@ -79,11 +79,12 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
+* **Log date in UTC:** It is a good practice to keep all dates in UTC
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
 * **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
-* **Object/JSON highlighting:** Nicely prints out an object 
+* **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
 * **Instance Name:** Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 * **Highly configurable:** All settings can be changed through a typed object
@@ -105,7 +106,7 @@ Supported log levels are:
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
 
 Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
-Each log level is printed in a different color, that is completely customizable through the settings object.
+Each log level is printed in a different color, that is customizable through the settings object.
 
 > **Hint:** Log level `trace` behaves a bit differently compared to all the other log levels. 
 > While it is possible to activate a stack trace for every log level, it is already activated for `trace` by default. 
@@ -169,11 +170,11 @@ const logger: Logger = new Logger({ displayInstanceName: true, instanceName: "AB
 ```
 
 ##### `name`
-```default: ""```
+```default: undefined```
 
 Each logger has an optional name, that is hidden by default. 
 This setting is particularly interesting when working in a `monorepo`, 
-giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
+giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
 
 ```typescript
 new Logger({ name: "myLogger" });
@@ -229,7 +230,8 @@ new Logger({ exposeStack: true });
 A nice feature of `tslog` is to capture the _code frame_ around the error caught, showing the _exact_ location of the error.   
 While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
 When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time, 
-you may want to disable this feature.  
+you may want to disable this feature. 
+In order to keep the output clean and tidy, code frame does not follow into `node_modules`.
 
 ```typescript
 new Logger({ exposeErrorCodeFrame: false });
@@ -280,10 +282,27 @@ _There is no `console.fatal`._
 ##### `logLevelsColors`
 
 This setting allows you to overwrite the default log level colors of `tslog`.
-  
-##### `jsonHighlightColors`
 
-This setting allows you to overwrite the default colors of _JSON_ interpolation.
+Possible styles are: 
+* <a href="https://nodejs.org/api/util.html#util_foreground_colors" target="_blank">Foreground colors</a>
+* <a href="https://nodejs.org/api/util.html#util_background_colors" target="_blank">Background colors</a>
+* <a href="https://nodejs.org/api/util.html#util_modifiers" target="_blank">Modifiers</a>
+  
+##### `prettyInspectHighlightStyles`
+This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
+More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
+
+_Default colors set by `tslog` are:_
+```js
+{
+    name: "greenBright",
+    string: "redBright",
+    number: "blueBright",
+    null: "red",
+    undefined: "red"
+}
+```
+
 
 ##### `stdOut` and `stdErr`
 

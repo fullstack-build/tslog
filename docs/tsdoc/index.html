@@ -60,8 +60,8 @@
 	<div class="row">
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
-				<a href="#📝-tslog-brand-new-expressive-typescript-logger-for-nodejs" id="📝-tslog-brand-new-expressive-typescript-logger-for-nodejs" style="color: inherit; text-decoration: none;">
-					<h2>📝 tslog: Brand new expressive TypeScript Logger for Node.js</h2>
+				<a href="#📝-tslog-expressive-typescript-logger-for-nodejs" id="📝-tslog-expressive-typescript-logger-for-nodejs" style="color: inherit; text-decoration: none;">
+					<h2>📝 tslog: Expressive TypeScript Logger for Node.js</h2>
 				</a>
 				<p><a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square" alt="lang: Typescript"></a>
 					<img src="https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square" alt="License: MIT">
@@ -77,10 +77,10 @@
 				<a href="#highlights" id="highlights" style="color: inherit; text-decoration: none;">
 					<h3>Highlights</h3>
 				</a>
-				<p>⚡ <strong>Small footprint, blazing performance</strong><br>
+				<p>⚡ <strong>Small footprint, blazing performance (native V8 features)</strong><br>
 					👮‍️ <strong>Fully typed with TypeScript support (exact code position)</strong><br>
 					🗃 <strong><em>Pretty</em> or <code>JSON</code> output</strong><br>
-					🔄 <strong>Supports <em>circular</em> structures</strong><br>
+					⭕️ <strong>Supports <em>circular</em> structures</strong><br>
 					🦸 <strong>Custom pluggable loggers</strong><br>
 					💅 <strong>Object and error interpolation</strong><br>
 					🕵️‍ <strong>Code surrounding error position (<em>code frame</em>)</strong><br>
@@ -133,11 +133,12 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Correct std per log level:</strong> <strong><em>stdout</em></strong> for <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code> and <strong><em>stderr</em></strong> for <code>warn</code>, <code>error</code>, <code>fatal</code> </li>
 					<li><strong>Minimum log level per output:</strong> <code>minLevel</code> level can be set individually per transport</li>
 					<li><strong>Fully typed:</strong> Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank"><em>api-extractor</em></a>, <a href="https://github.com/microsoft/tsdoc" target="_blank"><em>TSDoc</em></a> documented</li>
+					<li><strong>Log date in UTC:</strong> It is a good practice to keep all dates in UTC</li>
 					<li><strong>Source maps lookup:</strong> Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. </li>
 					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a>, excludes internal entries </li>
 					<li><strong>Pretty Error:</strong> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
 					<li><strong>Code frame:</strong> <code>tslog</code> captures and displays the source code that lead to an error, making it easier to debug</li>
-					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object </li>
+					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object using native Node.js <code>utils.inspect</code> method</li>
 					<li><strong>Instance Name:</strong> Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)</li>
 					<li><strong>Named Logger:</strong> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
 					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object</li>
@@ -160,7 +161,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				Supported log levels are: </p>
 				<p><code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
 				<p>Per default log level 0 - 3 are written to <code>stdout</code> and 4 - 6 are written to <code>stderr</code>.
-				Each log level is printed in a different color, that is completely customizable through the settings object.</p>
+				Each log level is printed in a different color, that is customizable through the settings object.</p>
 				<blockquote>
 					<p><strong>Hint:</strong> Log level <code>trace</code> behaves a bit differently compared to all the other log levels.
 						While it is possible to activate a stack trace for every log level, it is already activated for <code>trace</code> by default.
@@ -214,10 +215,10 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<a href="#name" id="name" style="color: inherit; text-decoration: none;">
 					<h5><code>name</code></h5>
 				</a>
-				<p><code>default: &quot;&quot;</code></p>
+				<p><code>default: undefined</code></p>
 				<p>Each logger has an optional name, that is hidden by default.
 					This setting is particularly interesting when working in a <code>monorepo</code>,
-				giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   </p>
+				giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   </p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });</code></pre>
 				<p><em>Additional Setting:</em></p>
 				<p><code>setCallerAsLoggerName: false</code></p>
@@ -260,7 +261,8 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<p><code>default: true</code></p>
 				<p>A nice feature of <code>tslog</code> is to capture the <em>code frame</em> around the error caught, showing the <em>exact</em> location of the error.<br>While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
 					When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time,
-				you may want to disable this feature.  </p>
+					you may want to disable this feature.
+				In order to keep the output clean and tidy, code frame does not follow into <code>node_modules</code>.</p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ exposeErrorCodeFrame: <span class="hljs-literal">false</span> });</code></pre>
 				<blockquote>
 					<p><strong>Hint:</strong> By default 5 lines before and after the line with the error will be displayed.<br>You can adjust this setting with <code>exposeErrorCodeFrameLinesBeforeAndAfter</code>.</p>
@@ -300,10 +302,25 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>logLevelsColors</code></h5>
 				</a>
 				<p>This setting allows you to overwrite the default log level colors of <code>tslog</code>.</p>
-				<a href="#jsonhighlightcolors" id="jsonhighlightcolors" style="color: inherit; text-decoration: none;">
-					<h5><code>jsonHighlightColors</code></h5>
+				<p>Possible styles are: </p>
+				<ul>
+					<li><a href="https://nodejs.org/api/util.html#util_foreground_colors" target="_blank">Foreground colors</a></li>
+					<li><a href="https://nodejs.org/api/util.html#util_background_colors" target="_blank">Background colors</a></li>
+					<li><a href="https://nodejs.org/api/util.html#util_modifiers" target="_blank">Modifiers</a></li>
+				</ul>
+				<a href="#prettyinspecthighlightstyles" id="prettyinspecthighlightstyles" style="color: inherit; text-decoration: none;">
+					<h5><code>prettyInspectHighlightStyles</code></h5>
 				</a>
-				<p>This setting allows you to overwrite the default colors of <em>JSON</em> interpolation.</p>
+				<p>This setting allows you to overwrite the default colors of <code>tslog</code> used for the native Node.js <code>utils.inspect</code> interpolation.
+				More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a></p>
+				<p><em>Default colors set by <code>tslog</code> are:</em></p>
+				<pre><code class="language-js">{
+    <span class="hljs-attr">name</span>: <span class="hljs-string">"greenBright"</span>,
+    <span class="hljs-attr">string</span>: <span class="hljs-string">"redBright"</span>,
+    <span class="hljs-attr">number</span>: <span class="hljs-string">"blueBright"</span>,
+    <span class="hljs-attr">null</span>: <span class="hljs-string">"red"</span>,
+    <span class="hljs-attr">undefined</span>: <span class="hljs-string">"red"</span>
+}</code></pre>
 				<a href="#stdout-and-stderr" id="stdout-and-stderr" style="color: inherit; text-decoration: none;">
 					<h5><code>stdOut</code> and <code>stdErr</code></h5>
 				</a>
@@ -401,16 +418,16 @@ log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>,
 						<a href="interfaces/ierrorobject.html" class="tsd-kind-icon">IError<wbr>Object</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="interfaces/ijsonhighlightcolors.html" class="tsd-kind-icon">IJson<wbr>Highlight<wbr>Colors</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ijsonhighlightcolorschalk.html" class="tsd-kind-icon">IJson<wbr>Highlight<wbr>Colors<wbr>Chalk</a>
+						<a href="interfaces/ihighlightstyles.html" class="tsd-kind-icon">IHighlight<wbr>Styles</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/iloglevel.html" class="tsd-kind-icon">ILog<wbr>Level</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/ilogobject.html" class="tsd-kind-icon">ILog<wbr>Object</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="interfaces/ilogobjectstringifiable.html" class="tsd-kind-icon">ILog<wbr>Object<wbr>Stringifiable</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/isettings.html" class="tsd-kind-icon">ISettings</a>
@@ -438,6 +455,9 @@ log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>,
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#ttransportlogger" class="tsd-kind-icon">TTransport<wbr>Logger</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#tutilsinspectcolors" class="tsd-kind-icon">TUtils<wbr>Inspect<wbr>Colors</a>
 					</li>
 				</ul>
 			</nav>
