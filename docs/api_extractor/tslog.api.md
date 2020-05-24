@@ -25,7 +25,6 @@ export interface ICodeFrame {
 // @public
 export interface IErrorObject {
     codeFrame?: ICodeFrame;
-    // (undocumented)
     details: string[];
     isError: true;
     message: string;

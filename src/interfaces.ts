@@ -188,7 +188,7 @@ export interface IErrorObject {
   name: string;
   /** Error message */
   message: string;
-
+  /** additional Error details */
   details: string[];
   /** native Error object */
   nativeError: Error;
