@@ -77,7 +77,7 @@ export interface ISettingsParam {
   logLevelsColors?: TLogLevelColor;
 
   /**  Overwrite colors json highlighting */
-  highlightStyles?: IUtilsInspectStyles;
+  highlightStyles?: IHighlightStyles;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -104,7 +104,7 @@ export interface ISettings extends ISettingsParam {
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
-  highlightStyles: IUtilsInspectStyles;
+  highlightStyles: IHighlightStyles;
   stdOut: IStd;
   stdErr: IStd;
 }
@@ -250,7 +250,7 @@ export type TUtilsInspectColors =
  * Official Node.js typedefs are missing this interface.
  * @public
  */
-export interface IUtilsInspectStyles {
+export interface IHighlightStyles {
   name?: TUtilsInspectColors;
   special?: TUtilsInspectColors;
   number?: TUtilsInspectColors;

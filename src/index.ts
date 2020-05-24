@@ -21,7 +21,7 @@ import {
   ITransportProvider,
   TLogLevelName,
   TLogLevelId,
-  IUtilsInspectStyles,
+  IHighlightStyles,
   TLogLevelColor,
   ICodeFrame,
 } from "./interfaces";
@@ -37,7 +37,7 @@ export {
   IStd,
   TLogLevelName,
   TLogLevelId,
-  IUtilsInspectStyles,
+  IHighlightStyles,
   TLogLevelColor,
   ISettings,
   ICodeFrame,

@@ -5,7 +5,7 @@ import { basename as fileBasename, sep as pathSeparator } from "path";
 import { Logger } from "./index";
 import {
   ICodeFrame,
-  IUtilsInspectStyles,
+  IHighlightStyles,
   ILogObject,
   IStackFrame,
   TLogLevelName,
@@ -134,7 +134,7 @@ export class LoggerHelper {
   }
 
   public static setUtilsInspectStyles(
-    utilsInspectStyles: IUtilsInspectStyles
+    utilsInspectStyles: IHighlightStyles
   ): void {
     Object.entries(utilsInspectStyles).forEach(
       ([symbol, color]: [string, TUtilsInspectColors]) => {

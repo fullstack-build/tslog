@@ -30,6 +30,36 @@ export interface IErrorObject {
 }
 
 // @public
+export interface IHighlightStyles {
+    // (undocumented)
+    bigint?: TUtilsInspectColors;
+    // (undocumented)
+    boolean?: TUtilsInspectColors;
+    // (undocumented)
+    date?: TUtilsInspectColors;
+    // (undocumented)
+    module?: TUtilsInspectColors;
+    // Warning: (ae-forgotten-export) The symbol "TUtilsInspectColors" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    name?: TUtilsInspectColors;
+    // (undocumented)
+    null?: TUtilsInspectColors;
+    // (undocumented)
+    number?: TUtilsInspectColors;
+    // (undocumented)
+    regexp?: TUtilsInspectColors;
+    // (undocumented)
+    special?: TUtilsInspectColors;
+    // (undocumented)
+    string?: TUtilsInspectColors;
+    // (undocumented)
+    symbol?: TUtilsInspectColors;
+    // (undocumented)
+    undefined?: TUtilsInspectColors;
+}
+
+// @public
 export interface ILogLevel {
     // (undocumented)
     0: "silly";
@@ -69,7 +99,7 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     exposeStack: boolean;
     // (undocumented)
-    highlightStyles: IUtilsInspectStyles;
+    highlightStyles: IHighlightStyles;
     // (undocumented)
     instanceName?: string;
     // (undocumented)
@@ -98,7 +128,7 @@ export interface ISettingsParam {
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
-    highlightStyles?: IUtilsInspectStyles;
+    highlightStyles?: IHighlightStyles;
     instanceName?: string;
     logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
@@ -127,36 +157,6 @@ export interface IStackFrame {
 // @public
 export interface IStd {
     write: Function;
-}
-
-// @public
-export interface IUtilsInspectStyles {
-    // (undocumented)
-    bigint?: TUtilsInspectColors;
-    // (undocumented)
-    boolean?: TUtilsInspectColors;
-    // (undocumented)
-    date?: TUtilsInspectColors;
-    // (undocumented)
-    module?: TUtilsInspectColors;
-    // Warning: (ae-forgotten-export) The symbol "TUtilsInspectColors" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
-    name?: TUtilsInspectColors;
-    // (undocumented)
-    null?: TUtilsInspectColors;
-    // (undocumented)
-    number?: TUtilsInspectColors;
-    // (undocumented)
-    regexp?: TUtilsInspectColors;
-    // (undocumented)
-    special?: TUtilsInspectColors;
-    // (undocumented)
-    string?: TUtilsInspectColors;
-    // (undocumented)
-    symbol?: TUtilsInspectColors;
-    // (undocumented)
-    undefined?: TUtilsInspectColors;
 }
 
 // @public
