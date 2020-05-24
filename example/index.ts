@@ -2,8 +2,7 @@ import { Logger } from "../src";
 
 class MyClass {
   private readonly _logger: Logger = new Logger({
-    displayInstanceName: true,
-    name: "myLogger",
+    displayInstanceName: false,
   });
 
   public constructor() {
@@ -24,8 +23,12 @@ class MyClass {
     this._logger.info("I am an info log.");
     this._logger.warn("I am a warn log with a json object:", jsonObj);
     this._logger.error("I am an error log.");
-    this._logger.fatal(new Error("I am a pretty Error with a stacktrace."));
-    this._logger.debug(new Promise((): void => {}));
+    try {
+      /* @ts-ignore */
+      null.foo();
+    } catch (err) {
+      this._logger.fatal(err);
+    }
   }
 }
 
@@ -33,9 +36,8 @@ const myClass: MyClass = new MyClass();
 myClass.myMethod();
 
 const log: Logger = new Logger();
-// { logAsJson: true }
 log.silly("I am a silly log.");
-log.trace("I am a trace log with a stack trace.");
+// log.trace("I am a trace log with a stack trace.");
 log.debug("I am a debug log.");
 log.info("I am an info log.");
 log.warn("I am a warn log with a json object:", { foo: "bar" });

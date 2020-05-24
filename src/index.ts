@@ -95,12 +95,12 @@ export class Logger {
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
         0: "gray",
-        1: "whiteBright",
-        2: "greenBright",
-        3: "blueBright",
-        4: "yellowBright",
-        5: "redBright",
-        6: "red",
+        1: "white",
+        2: "whiteBright",
+        3: "greenBright",
+        4: "blueBright",
+        5: "yellowBright",
+        6: "redBright",
       },
       prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
         name: "greenBright",
@@ -362,11 +362,11 @@ export class Logger {
       LoggerHelper.styleString(
         ["gray"],
         `[${
-          logObject.loggerName != null ? logObject.loggerName + " " : ""
-        }${instanceName}${logObject.filePath}:${
+          logObject.loggerName != null ? logObject.loggerName : ""
+        }${instanceName} ${logObject.filePath}:${
           logObject.lineNumber
-        }${functionName}]}`
-      ) + "\t"
+        }${functionName}]`
+      ) + " \t "
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {

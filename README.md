@@ -293,18 +293,6 @@ This setting allows you to overwrite the default colors of `tslog` used for the 
 
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
-_Default colors set by `tslog` are:_
-```js
-{
-    name: "greenBright",
-    string: "redBright",
-    number: "blueBright",
-    null: "red",
-    undefined: "red"
-}
-```
-
-
 ##### `stdOut` and `stdErr`
 
 This both settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_. 
