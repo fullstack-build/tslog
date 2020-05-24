@@ -260,7 +260,8 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<p><code>default: true</code></p>
 				<p>A nice feature of <code>tslog</code> is to capture the <em>code frame</em> around the error caught, showing the <em>exact</em> location of the error.<br>While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
 					When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time,
-				you may want to disable this feature.  </p>
+					you may want to disable this feature.
+				In order to keep the output clean and tidy, code frame does not follow into <code>node_modules</code>.</p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ exposeErrorCodeFrame: <span class="hljs-literal">false</span> });</code></pre>
 				<blockquote>
 					<p><strong>Hint:</strong> By default 5 lines before and after the line with the error will be displayed.<br>You can adjust this setting with <code>exposeErrorCodeFrameLinesBeforeAndAfter</code>.</p>

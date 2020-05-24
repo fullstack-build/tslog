@@ -274,12 +274,14 @@ export class Logger {
           this.settings.exposeErrorCodeFrame &&
           errorCallSite.lineNumber != null
         ) {
-          errorObject.codeFrame = LoggerHelper._getCodeFrame(
-            errorCallSite.fullFilePath,
-            errorCallSite.lineNumber,
-            errorCallSite.columnNumber,
-            this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
-          );
+          if (errorCallSite.fullFilePath.indexOf("node_modules") >= 0) {
+            errorObject.codeFrame = LoggerHelper._getCodeFrame(
+              errorCallSite.fullFilePath,
+              errorCallSite.lineNumber,
+              errorCallSite.columnNumber,
+              this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
+            );
+          }
         }
         logObject.argumentsArray.push(errorObject);
       } else {

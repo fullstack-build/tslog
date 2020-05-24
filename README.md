@@ -229,7 +229,8 @@ new Logger({ exposeStack: true });
 A nice feature of `tslog` is to capture the _code frame_ around the error caught, showing the _exact_ location of the error.   
 While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
 When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time, 
-you may want to disable this feature.  
+you may want to disable this feature. 
+In order to keep the output clean and tidy, code frame does not follow into `node_modules`.
 
 ```typescript
 new Logger({ exposeErrorCodeFrame: false });
