@@ -2,7 +2,6 @@
  * Expressive TypeScript Logger for Node.js
  * @packageDocumentation
  */
-// --> json circular object
 
 import { format, inspect } from "util";
 import { hostname } from "os";
@@ -102,7 +101,7 @@ export class Logger {
         5: "#EE444C",
         6: "#900000",
       },
-      jsonHighlightColors: settings?.jsonHighlightColors ?? {
+      highlightStyles: settings?.highlightStyles ?? {
         name: "greenBright",
         string: "redBright",
         number: "blueBright",
@@ -113,7 +112,7 @@ export class Logger {
       stdErr: settings?.stdErr ?? process.stderr,
     };
 
-    LoggerHelper.setUtilsInspectStyles(this.settings.jsonHighlightColors);
+    LoggerHelper.setUtilsInspectStyles(this.settings.highlightStyles);
 
     LoggerHelper.initErrorToJsonHelper();
     if (this.settings.overwriteConsole) {

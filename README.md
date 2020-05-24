@@ -281,9 +281,21 @@ _There is no `console.fatal`._
 
 This setting allows you to overwrite the default log level colors of `tslog`.
   
-##### `jsonHighlightColors`
+##### `utilInspectStyles`
+This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
+More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
-This setting allows you to overwrite the default colors of _JSON_ interpolation.
+_Default colors set by `tslog` are:_
+```js
+{
+    name: "greenBright",
+    string: "redBright",
+    number: "blueBright",
+    null: "red",
+    undefined: "red"
+}
+```
+
 
 ##### `stdOut` and `stdErr`
 

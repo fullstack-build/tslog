@@ -300,10 +300,19 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>logLevelsColors</code></h5>
 				</a>
 				<p>This setting allows you to overwrite the default log level colors of <code>tslog</code>.</p>
-				<a href="#jsonhighlightcolors" id="jsonhighlightcolors" style="color: inherit; text-decoration: none;">
-					<h5><code>jsonHighlightColors</code></h5>
+				<a href="#utilinspectstyles" id="utilinspectstyles" style="color: inherit; text-decoration: none;">
+					<h5><code>utilInspectStyles</code></h5>
 				</a>
-				<p>This setting allows you to overwrite the default colors of <em>JSON</em> interpolation.</p>
+				<p>This setting allows you to overwrite the default colors of <code>tslog</code> used for the native Node.js <code>utils.inspect</code> interpolation.
+				More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a></p>
+				<p><em>Default colors set by <code>tslog</code> are:</em></p>
+				<pre><code class="language-js">{
+    <span class="hljs-attr">name</span>: <span class="hljs-string">"greenBright"</span>,
+    <span class="hljs-attr">string</span>: <span class="hljs-string">"redBright"</span>,
+    <span class="hljs-attr">number</span>: <span class="hljs-string">"blueBright"</span>,
+    <span class="hljs-attr">null</span>: <span class="hljs-string">"red"</span>,
+    <span class="hljs-attr">undefined</span>: <span class="hljs-string">"red"</span>
+}</code></pre>
 				<a href="#stdout-and-stderr" id="stdout-and-stderr" style="color: inherit; text-decoration: none;">
 					<h5><code>stdOut</code> and <code>stdErr</code></h5>
 				</a>

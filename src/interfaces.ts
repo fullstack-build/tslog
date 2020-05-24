@@ -77,7 +77,7 @@ export interface ISettingsParam {
   logLevelsColors?: TLogLevelColor;
 
   /**  Overwrite colors json highlighting */
-  jsonHighlightColors?: IUtilsInspectStyles;
+  highlightStyles?: IUtilsInspectStyles;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -104,7 +104,7 @@ export interface ISettings extends ISettingsParam {
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
-  jsonHighlightColors: IUtilsInspectStyles;
+  highlightStyles: IUtilsInspectStyles;
   stdOut: IStd;
   stdErr: IStd;
 }

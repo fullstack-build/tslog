@@ -102,9 +102,9 @@ describe("Logger: settings", () => {
     expect(logger.settings.logLevelsColors[6]).toBe("#00000F");
   });
 
-  test("init logger: jsonHighlightColors", (): void => {
+  test("init logger: highlightStyles", (): void => {
     const logger: Logger = new Logger({
-      jsonHighlightColors: {
+      highlightStyles: {
         number: "#000000",
         key: "#F00000",
         string: "#0F0000",
@@ -113,11 +113,11 @@ describe("Logger: settings", () => {
       },
     });
     expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.jsonHighlightColors.number).toBe("#000000");
-    expect(logger.settings.jsonHighlightColors.key).toBe("#F00000");
-    expect(logger.settings.jsonHighlightColors.string).toBe("#0F0000");
-    expect(logger.settings.jsonHighlightColors.boolean).toBe("#00F000");
-    expect(logger.settings.jsonHighlightColors.null).toBe("#000F00");
+    expect(logger.settings.highlightStyles.number).toBe("#000000");
+    expect(logger.settings.highlightStyles.key).toBe("#F00000");
+    expect(logger.settings.highlightStyles.string).toBe("#0F0000");
+    expect(logger.settings.highlightStyles.boolean).toBe("#00F000");
+    expect(logger.settings.highlightStyles.null).toBe("#000F00");
   });
 
   test("init logger: stdOut", (): void => {

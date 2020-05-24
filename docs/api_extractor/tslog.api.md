@@ -69,9 +69,9 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     exposeStack: boolean;
     // (undocumented)
-    instanceName?: string;
+    highlightStyles: IUtilsInspectStyles;
     // (undocumented)
-    jsonHighlightColors: IUtilsInspectStyles;
+    instanceName?: string;
     // (undocumented)
     logAsJson: boolean;
     // (undocumented)
@@ -98,8 +98,8 @@ export interface ISettingsParam {
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
+    highlightStyles?: IUtilsInspectStyles;
     instanceName?: string;
-    jsonHighlightColors?: IUtilsInspectStyles;
     logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
