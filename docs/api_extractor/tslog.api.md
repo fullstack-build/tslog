@@ -184,7 +184,7 @@ export class Logger {
 
 // @public
 export type TLogLevelColor = {
-    [key in TLogLevelId]: string;
+    [key in TLogLevelId]: TUtilsInspectColors;
 };
 
 // @public

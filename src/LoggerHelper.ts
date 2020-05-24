@@ -143,6 +143,26 @@ export class LoggerHelper {
     );
   }
 
+  public static styleString<T, S>(
+    styleTypes: T | TUtilsInspectColors[],
+    str: S | string
+  ): string {
+    return Object.values(styleTypes).reduce((resultStr: S, styleType: T) => {
+      return LoggerHelper._stylizeWithColor(
+        (styleType as unknown) as TUtilsInspectColors,
+        resultStr
+      );
+    }, str);
+  }
+
+  private static _stylizeWithColor<T>(
+    styleType: TUtilsInspectColors,
+    str: T
+  ): string {
+    const color: [number, number] = inspect.colors[styleType] ?? [0, 0];
+    return `\u001b[${color[0]}m${str}\u001b[${color[1]}m`;
+  }
+
   /*
   import { createReadStream, readFileSync } from "fs";
   import { createInterface, Interface } from "readline";

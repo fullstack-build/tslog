@@ -106,7 +106,7 @@ Supported log levels are:
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
 
 Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
-Each log level is printed in a different color, that is completely customizable through the settings object.
+Each log level is printed in a different color, that is customizable through the settings object.
 
 > **Hint:** Log level `trace` behaves a bit differently compared to all the other log levels. 
 > While it is possible to activate a stack trace for every log level, it is already activated for `trace` by default. 
@@ -282,6 +282,11 @@ _There is no `console.fatal`._
 ##### `logLevelsColors`
 
 This setting allows you to overwrite the default log level colors of `tslog`.
+
+Possible styles are: 
+* <a href="https://nodejs.org/api/util.html#util_foreground_colors" target="_blank">Foreground colors</a>
+* <a href="https://nodejs.org/api/util.html#util_background_colors" target="_blank">Background colors</a>
+* <a href="https://nodejs.org/api/util.html#util_modifiers" target="_blank">Modifiers</a>
   
 ##### `prettyInspectHighlightStyles`
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.

@@ -7,7 +7,6 @@ import { format, inspect } from "util";
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { wrapCallSite } from "source-map-support";
-import * as chalk from "chalk";
 
 import {
   ILogLevel,
@@ -25,6 +24,7 @@ import {
   TLogLevelColor,
   ICodeFrame,
   ILogObjectStringifiable,
+  TUtilsInspectColors,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -94,13 +94,13 @@ export class Logger {
       suppressStdOutput: settings?.suppressStdOutput ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
-        0: "#B0B0B0",
-        1: "#FFFFFF",
-        2: "#63C462",
-        3: "#2b98ba",
-        4: "#CE8743",
-        5: "#EE444C",
-        6: "#900000",
+        0: "gray",
+        1: "whiteBright",
+        2: "greenBright",
+        3: "blueBright",
+        4: "yellowBright",
+        5: "redBright",
+        6: "red",
       },
       prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
         name: "greenBright",
@@ -332,13 +332,17 @@ export class Logger {
       .toISOString()
       .replace("T", " ")
       .replace("Z", "");
-    const hexColor: string = this.settings.logLevelsColors[
+    const colorName: TUtilsInspectColors = this.settings.logLevelsColors[
       logObject.logLevelId
     ];
 
-    std.write(chalk`{grey ${nowStr}}\t`);
+    std.write(LoggerHelper.styleString(["gray"], `${nowStr}\t`));
+
     std.write(
-      chalk.hex(hexColor).bold(` ${logObject.logLevel.toUpperCase()}\t`)
+      LoggerHelper.styleString(
+        [colorName, "bold"],
+        ` ${logObject.logLevel.toUpperCase()} `
+      ) + "\t"
     );
 
     const functionName: string = logObject.isConstructor
@@ -355,19 +359,26 @@ export class Logger {
         : "";
 
     std.write(
-      chalk`{grey [${
-        logObject.loggerName !== "" ? logObject.loggerName + " " : ""
-      }${instanceName}${logObject.filePath}:${
-        logObject.lineNumber
-      }${functionName}]}\t`
+      LoggerHelper.styleString(
+        ["gray"],
+        `[${
+          logObject.loggerName != null ? logObject.loggerName + " " : ""
+        }${instanceName}${logObject.filePath}:${
+          logObject.lineNumber
+        }${functionName}]}`
+      ) + "\t"
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorArgument: IErrorObject = argument as IErrorObject;
       if (typeof argument === "object" && errorArgument.isError) {
         std.write(
-          chalk.bgHex("AA0A0A").bold(`\n ${errorArgument.name} `) +
-            `  ${format(errorArgument.message)}\n`
+          "\n" +
+            LoggerHelper.styleString(
+              ["bgRed", "whiteBright", "bold"],
+              ` ${errorArgument.name} `
+            ) +
+            `\t${format(errorArgument.message)}`
         );
 
         this._printPrettyStack(std, errorArgument.stack);
@@ -383,7 +394,10 @@ export class Logger {
     std.write("\n");
 
     if (logObject.stack != null) {
-      std.write(chalk`{underline.bold log stack:\n}`);
+      std.write(
+        LoggerHelper.styleString(["underline", "bold"], "log stack:\n")
+      );
+
       this._printPrettyStack(std, logObject.stack);
     }
   }
@@ -392,16 +406,22 @@ export class Logger {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
       std.write(
-        chalk`    {grey •} {yellowBright ${
-          stackObject.fileName
-        }}{grey :}{yellow ${stackObject.lineNumber}} {white ${
-          stackObject.functionName ?? "<anonymous>"
-        }}`
+        LoggerHelper.styleString(["gray"], "• ") +
+          LoggerHelper.styleString(["yellowBright"], stackObject.fileName) +
+          LoggerHelper.styleString(["gray"], ":") +
+          LoggerHelper.styleString(["yellow"], stackObject.lineNumber) +
+          LoggerHelper.styleString(
+            ["white"],
+            " " + (stackObject.functionName ?? "<anonymous>")
+          )
       );
       std.write("\n    ");
       std.write(
         fileNormalize(
-          chalk`{grey ${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}}`
+          LoggerHelper.styleString(
+            ["gray"],
+            `${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}`
+          )
         )
       );
       std.write("\n\n");
@@ -409,32 +429,35 @@ export class Logger {
   }
 
   private _printPrettyCodeFrame(std: IStd, codeFrame: ICodeFrame): void {
-    std.write(chalk`{underline.bold code frame:\n}`);
+    std.write(LoggerHelper.styleString(["underline", "bold"], "code frame:\n"));
+
     let lineNumber: number = codeFrame.firstLineNumber;
     codeFrame.linesBefore.forEach((line: string) => {
-      std.write(
-        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
-      );
+      std.write(`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`);
       lineNumber++;
     });
 
     std.write(
-      chalk`{red >} {bgRed.whiteBright ${LoggerHelper.lineNumberTo3Char(
-        lineNumber
-      )}} | {yellow ${codeFrame.relevantLine}}\n`
+      LoggerHelper.styleString(["red"], ">") +
+        " " +
+        LoggerHelper.styleString(
+          ["bgRed", "whiteBright"],
+          LoggerHelper.lineNumberTo3Char(lineNumber)
+        ) +
+        " | " +
+        LoggerHelper.styleString(["yellow"], codeFrame.relevantLine) +
+        "\n"
     );
     lineNumber++;
 
     if (codeFrame.columnNumber != null) {
       const positionMarker: string =
-        new Array(codeFrame.columnNumber + 8).join(" ") + chalk`{red ^}`;
-      std.write(`${positionMarker}\n`);
+        new Array(codeFrame.columnNumber + 8).join(" ") + `^`;
+      std.write(LoggerHelper.styleString(["red"], positionMarker) + "\n");
     }
 
     codeFrame.linesAfter.forEach((line: string) => {
-      std.write(
-        chalk`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`
-      );
+      std.write(`  ${LoggerHelper.lineNumberTo3Char(lineNumber)} | ${line}\n`);
       lineNumber++;
     });
   }

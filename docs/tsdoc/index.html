@@ -161,7 +161,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				Supported log levels are: </p>
 				<p><code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
 				<p>Per default log level 0 - 3 are written to <code>stdout</code> and 4 - 6 are written to <code>stderr</code>.
-				Each log level is printed in a different color, that is completely customizable through the settings object.</p>
+				Each log level is printed in a different color, that is customizable through the settings object.</p>
 				<blockquote>
 					<p><strong>Hint:</strong> Log level <code>trace</code> behaves a bit differently compared to all the other log levels.
 						While it is possible to activate a stack trace for every log level, it is already activated for <code>trace</code> by default.
@@ -302,6 +302,12 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>logLevelsColors</code></h5>
 				</a>
 				<p>This setting allows you to overwrite the default log level colors of <code>tslog</code>.</p>
+				<p>Possible styles are: </p>
+				<ul>
+					<li><a href="https://nodejs.org/api/util.html#util_foreground_colors" target="_blank">Foreground colors</a></li>
+					<li><a href="https://nodejs.org/api/util.html#util_background_colors" target="_blank">Background colors</a></li>
+					<li><a href="https://nodejs.org/api/util.html#util_modifiers" target="_blank">Modifiers</a></li>
+				</ul>
 				<a href="#prettyinspecthighlightstyles" id="prettyinspecthighlightstyles" style="color: inherit; text-decoration: none;">
 					<h5><code>prettyInspectHighlightStyles</code></h5>
 				</a>
@@ -413,9 +419,6 @@ log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>,
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/ihighlightstyles.html" class="tsd-kind-icon">IHighlight<wbr>Styles</a>
-					</li>
-					<li class=" tsd-kind-interface">
-						<a href="interfaces/ijsonhighlightcolorschalk.html" class="tsd-kind-icon">IJson<wbr>Highlight<wbr>Colors<wbr>Chalk</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="interfaces/iloglevel.html" class="tsd-kind-icon">ILog<wbr>Level</a>

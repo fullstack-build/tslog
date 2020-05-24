@@ -1,4 +1,3 @@
-import { Chalk } from "chalk";
 import { InspectOptions } from "util";
 
 /**
@@ -32,7 +31,7 @@ export type TLogLevelName = ILogLevel[TLogLevelId];
  * @public
  */
 export type TLogLevelColor = {
-  [key in TLogLevelId]: string;
+  [key in TLogLevelId]: TUtilsInspectColors;
 };
 
 /**
@@ -278,14 +277,6 @@ export interface IHighlightStyles {
   date?: TUtilsInspectColors;
   regexp?: TUtilsInspectColors;
   module?: TUtilsInspectColors;
-}
-
-export interface IJsonHighlightColorsChalk {
-  number: Chalk;
-  key: Chalk;
-  string: Chalk;
-  boolean: Chalk;
-  null: Chalk;
 }
 
 /**
