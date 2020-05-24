@@ -290,6 +290,7 @@ Possible styles are:
   
 ##### `prettyInspectHighlightStyles`
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
+
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
 _Default colors set by `tslog` are:_
