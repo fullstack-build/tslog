@@ -137,7 +137,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a>, excludes internal entries </li>
 					<li><strong>Pretty Error:</strong> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
 					<li><strong>Code frame:</strong> <code>tslog</code> captures and displays the source code that lead to an error, making it easier to debug</li>
-					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object </li>
+					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object using native Node.js <code>utils.inspect</code> method</li>
 					<li><strong>Instance Name:</strong> Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)</li>
 					<li><strong>Named Logger:</strong> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
 					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object</li>
@@ -300,8 +300,8 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>logLevelsColors</code></h5>
 				</a>
 				<p>This setting allows you to overwrite the default log level colors of <code>tslog</code>.</p>
-				<a href="#utilinspectstyles" id="utilinspectstyles" style="color: inherit; text-decoration: none;">
-					<h5><code>utilInspectStyles</code></h5>
+				<a href="#highlightstyles" id="highlightstyles" style="color: inherit; text-decoration: none;">
+					<h5><code>highlightStyles</code></h5>
 				</a>
 				<p>This setting allows you to overwrite the default colors of <code>tslog</code> used for the native Node.js <code>utils.inspect</code> interpolation.
 				More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a></p>

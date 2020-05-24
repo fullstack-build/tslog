@@ -1,5 +1,6 @@
 import "ts-jest";
-import { Logger } from "../src";
+import { IHighlightStyles, Logger } from "../src";
+import { TUtilsInspectColors } from "../src/interfaces";
 
 const stdOut = [];
 const stdErr = [];
@@ -103,21 +104,43 @@ describe("Logger: settings", () => {
   });
 
   test("init logger: highlightStyles", (): void => {
+    const highlightStyles: IHighlightStyles = {
+      name: "blueBright",
+      special: "redBright",
+      number: "greenBright",
+      bigint: "bgBlueBright",
+      boolean: "bgBlue",
+      undefined: "bgBlack",
+      null: "bgMagentaBright",
+      string: "bgRed",
+      symbol: "black",
+      date: "bgGreenBright",
+      regexp: "reset",
+      module: "hidden",
+    };
+
     const logger: Logger = new Logger({
-      highlightStyles: {
-        number: "#000000",
-        key: "#F00000",
-        string: "#0F0000",
-        boolean: "#00F000",
-        null: "#000F00",
-      },
+      highlightStyles,
     });
     expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.highlightStyles.number).toBe("#000000");
-    expect(logger.settings.highlightStyles.key).toBe("#F00000");
-    expect(logger.settings.highlightStyles.string).toBe("#0F0000");
-    expect(logger.settings.highlightStyles.boolean).toBe("#00F000");
-    expect(logger.settings.highlightStyles.null).toBe("#000F00");
+    expect(logger.settings.highlightStyles.name).toBe(highlightStyles.name);
+    expect(logger.settings.highlightStyles.special).toBe(
+      highlightStyles.special
+    );
+    expect(logger.settings.highlightStyles.number).toBe(highlightStyles.number);
+    expect(logger.settings.highlightStyles.bigint).toBe(highlightStyles.bigint);
+    expect(logger.settings.highlightStyles.boolean).toBe(
+      highlightStyles.boolean
+    );
+    expect(logger.settings.highlightStyles.undefined).toBe(
+      highlightStyles.undefined
+    );
+    expect(logger.settings.highlightStyles.null).toBe(highlightStyles.null);
+    expect(logger.settings.highlightStyles.string).toBe(highlightStyles.string);
+    expect(logger.settings.highlightStyles.symbol).toBe(highlightStyles.symbol);
+    expect(logger.settings.highlightStyles.date).toBe(highlightStyles.date);
+    expect(logger.settings.highlightStyles.regexp).toBe(highlightStyles.regexp);
+    expect(logger.settings.highlightStyles.module).toBe(highlightStyles.module);
   });
 
   test("init logger: stdOut", (): void => {

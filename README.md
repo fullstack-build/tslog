@@ -83,7 +83,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
 * **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
-* **Object/JSON highlighting:** Nicely prints out an object 
+* **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
 * **Instance Name:** Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 * **Highly configurable:** All settings can be changed through a typed object
@@ -281,7 +281,7 @@ _There is no `console.fatal`._
 
 This setting allows you to overwrite the default log level colors of `tslog`.
   
-##### `utilInspectStyles`
+##### `highlightStyles`
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
