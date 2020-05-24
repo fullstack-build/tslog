@@ -1,5 +1,4 @@
 import { Logger } from "../src";
-import { inspect } from "util";
 
 class MyClass {
   private readonly _logger: Logger = new Logger({

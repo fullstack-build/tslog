@@ -1,4 +1,5 @@
 import { Chalk } from "chalk";
+import { InspectOptions } from "util";
 
 /**
  * All possible log levels
@@ -46,7 +47,7 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: false */
   displayInstanceName?: boolean;
 
-  /** Name of the logger instance, default: empty string */
+  /** Optional name of the logger instance, default: undefined */
   name?: string;
 
   /** Use the name of the caller type as the name of the logger, default: false */
@@ -77,7 +78,13 @@ export interface ISettingsParam {
   logLevelsColors?: TLogLevelColor;
 
   /**  Overwrite colors json highlighting */
-  highlightStyles?: IHighlightStyles;
+  prettyInspectHighlightStyles?: IHighlightStyles;
+
+  /**  Options to be set for utils.inspect when output is set to pretty (default setting) */
+  prettyInspectOptions?: InspectOptions;
+
+  /**  Options to be set for utils.inspect when output is set to json (\{ logAsJson: true \}) */
+  jsonInspectOptions?: InspectOptions;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -94,7 +101,7 @@ export interface ISettingsParam {
 export interface ISettings extends ISettingsParam {
   instanceName?: string;
   displayInstanceName?: boolean;
-  name: string;
+  name?: string;
   setCallerAsLoggerName: boolean;
   minLevel: TLogLevelName;
   logAsJson: boolean;
@@ -104,7 +111,9 @@ export interface ISettings extends ISettingsParam {
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
-  highlightStyles: IHighlightStyles;
+  prettyInspectHighlightStyles: IHighlightStyles;
+  prettyInspectOptions: InspectOptions;
+  jsonInspectOptions: InspectOptions;
   stdOut: IStd;
   stdErr: IStd;
 }
@@ -151,8 +160,8 @@ export interface IStackFrame {
 export interface ILogObject extends IStackFrame {
   /**  Optional name of the instance this application is running on. */
   instanceName?: string;
-  /**  Name of the logger or empty string. */
-  loggerName: string;
+  /**  Optional name of the logger or empty string. */
+  loggerName?: string;
   /**  Timestamp */
   date: Date;
   /**  Log level name (e.g. debug) */
@@ -165,11 +174,17 @@ export interface ILogObject extends IStackFrame {
   stack?: IStackFrame[];
 }
 
+export interface ILogObjectStringifiable extends ILogObject {
+  argumentsArray: string[];
+}
+
 /**
  * Object representing an error with a stack trace
  * @public
  */
 export interface IErrorObject {
+  /** native Error object */
+  nativeError: Error;
   /** Is this object an error? */
   isError: true;
   /** Name of the error*/

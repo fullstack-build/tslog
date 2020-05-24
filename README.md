@@ -1,4 +1,4 @@
-## 📝 tslog: Brand new expressive TypeScript Logger for Node.js
+## 📝 tslog: Expressive TypeScript Logger for Node.js
 
 
 [![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
@@ -14,7 +14,7 @@
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
 ### Highlights
-⚡ **Small footprint, blazing performance**<br>
+⚡ **Small footprint, blazing performance (native V8 features)**<br>
 👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
 ⭕️ **Supports _circular_ structures**<br>
@@ -79,6 +79,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
+* **Log date in UTC:** It is a good practice to keep all dates in UTC
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
@@ -169,11 +170,11 @@ const logger: Logger = new Logger({ displayInstanceName: true, instanceName: "AB
 ```
 
 ##### `name`
-```default: ""```
+```default: undefined```
 
 Each logger has an optional name, that is hidden by default. 
 This setting is particularly interesting when working in a `monorepo`, 
-giving you the chance to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
+giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
 
 ```typescript
 new Logger({ name: "myLogger" });
@@ -282,7 +283,7 @@ _There is no `console.fatal`._
 
 This setting allows you to overwrite the default log level colors of `tslog`.
   
-##### `highlightStyles`
+##### `prettyInspectHighlightStyles`
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 

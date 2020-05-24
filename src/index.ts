@@ -24,6 +24,7 @@ import {
   IHighlightStyles,
   TLogLevelColor,
   ICodeFrame,
+  ILogObjectStringifiable,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -81,8 +82,8 @@ export class Logger {
         (setCallerAsLoggerName
           ? LoggerHelper.getCallSites()[0].getTypeName() ??
             LoggerHelper.getCallSites()[0].getFunctionName() ??
-            ""
-          : ""),
+            undefined
+          : undefined),
       setCallerAsLoggerName: setCallerAsLoggerName,
       minLevel: settings?.minLevel ?? "silly",
       logAsJson: settings?.logAsJson ?? false,
@@ -101,18 +102,30 @@ export class Logger {
         5: "#EE444C",
         6: "#900000",
       },
-      highlightStyles: settings?.highlightStyles ?? {
+      prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
         name: "greenBright",
         string: "redBright",
         number: "blueBright",
         null: "red",
         undefined: "red",
       },
+      prettyInspectOptions: settings?.prettyInspectOptions ?? {
+        colors: true,
+        compact: false,
+        depth: Infinity,
+      },
+      jsonInspectOptions: settings?.jsonInspectOptions ?? {
+        colors: false,
+        compact: true,
+        depth: Infinity,
+      },
       stdOut: settings?.stdOut ?? process.stdout,
       stdErr: settings?.stdErr ?? process.stderr,
     };
 
-    LoggerHelper.setUtilsInspectStyles(this.settings.highlightStyles);
+    LoggerHelper.setUtilsInspectStyles(
+      this.settings.prettyInspectHighlightStyles
+    );
 
     LoggerHelper.initErrorToJsonHelper();
     if (this.settings.overwriteConsole) {
@@ -242,7 +255,7 @@ export class Logger {
 
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
-      loggerName: this.settings.name ?? "",
+      loggerName: this.settings.name,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
@@ -264,6 +277,7 @@ export class Logger {
           arg as Error
         );
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
+        errorObject.nativeError = arg as Error;
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;
         errorObject.stack = this._toStackObjectArray(errorStack);
@@ -274,7 +288,7 @@ export class Logger {
           this.settings.exposeErrorCodeFrame &&
           errorCallSite.lineNumber != null
         ) {
-          if (errorCallSite.fullFilePath.indexOf("node_modules") >= 0) {
+          if (errorCallSite.fullFilePath.indexOf("node_modules") < 0) {
             errorObject.codeFrame = LoggerHelper._getCodeFrame(
               errorCallSite.fullFilePath,
               errorCallSite.lineNumber,
@@ -350,9 +364,7 @@ export class Logger {
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorArgument: IErrorObject = argument as IErrorObject;
-      if (typeof argument === "object" && !errorArgument.isError) {
-        std.write("\n" + inspect(argument, { colors: true, compact: false }));
-      } else if (typeof argument === "object" && errorArgument.isError) {
+      if (typeof argument === "object" && errorArgument.isError) {
         std.write(
           chalk.bgHex("AA0A0A").bold(`\n ${errorArgument.name} `) +
             `  ${format(errorArgument.message)}\n`
@@ -362,6 +374,8 @@ export class Logger {
         if (errorArgument.codeFrame != null) {
           this._printPrettyCodeFrame(std, errorArgument.codeFrame);
         }
+      } else if (typeof argument === "object" && !errorArgument.isError) {
+        std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
       } else {
         std.write(format(argument) + " ");
       }
@@ -430,6 +444,24 @@ export class Logger {
       logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
-    std.write(format(logObject) + "\n");
+
+    const logObjectStringifiable: ILogObjectStringifiable = {
+      ...logObject,
+      argumentsArray: logObject.argumentsArray.map(
+        (argument: unknown | IErrorObject) => {
+          const errorArgument: IErrorObject = argument as IErrorObject;
+          if (typeof argument === "object" && errorArgument.isError) {
+            return JSON.stringify({
+              ...errorArgument,
+              nativeError: format(errorArgument.nativeError),
+            });
+          } else {
+            return inspect(argument, this.settings.jsonInspectOptions);
+          }
+        }
+      ),
+    };
+
+    std.write(JSON.stringify(logObjectStringifiable) + "\n");
   }
 }

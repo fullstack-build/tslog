@@ -4,6 +4,8 @@
 
 ```ts
 
+import { InspectOptions } from 'util';
+
 // @public
 export interface ICodeFrame {
     // (undocumented)
@@ -26,6 +28,7 @@ export interface IErrorObject {
     isError: true;
     message: string;
     name: string;
+    nativeError: Error;
     stack: IStackFrame[];
 }
 
@@ -82,7 +85,7 @@ export interface ILogObject extends IStackFrame {
     argumentsArray: (IErrorObject | unknown)[];
     date: Date;
     instanceName?: string;
-    loggerName: string;
+    loggerName?: string;
     logLevel: TLogLevelName;
     logLevelId: TLogLevelId;
     stack?: IStackFrame[];
@@ -99,9 +102,9 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     exposeStack: boolean;
     // (undocumented)
-    highlightStyles: IHighlightStyles;
-    // (undocumented)
     instanceName?: string;
+    // (undocumented)
+    jsonInspectOptions: InspectOptions;
     // (undocumented)
     logAsJson: boolean;
     // (undocumented)
@@ -109,9 +112,13 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     minLevel: TLogLevelName;
     // (undocumented)
-    name: string;
+    name?: string;
     // (undocumented)
     overwriteConsole: boolean;
+    // (undocumented)
+    prettyInspectHighlightStyles: IHighlightStyles;
+    // (undocumented)
+    prettyInspectOptions: InspectOptions;
     // (undocumented)
     setCallerAsLoggerName: boolean;
     // (undocumented)
@@ -128,13 +135,15 @@ export interface ISettingsParam {
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
-    highlightStyles?: IHighlightStyles;
     instanceName?: string;
+    jsonInspectOptions?: InspectOptions;
     logAsJson?: boolean;
     logLevelsColors?: TLogLevelColor;
     minLevel?: TLogLevelName;
     name?: string;
     overwriteConsole?: boolean;
+    prettyInspectHighlightStyles?: IHighlightStyles;
+    prettyInspectOptions?: InspectOptions;
     setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;

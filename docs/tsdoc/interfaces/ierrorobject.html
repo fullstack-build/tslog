@@ -88,6 +88,7 @@
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#iserror" class="tsd-kind-icon">is<wbr>Error</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#message" class="tsd-kind-icon">message</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#name" class="tsd-kind-icon">name</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#nativeerror" class="tsd-kind-icon">native<wbr>Error</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="ierrorobject.html#stack" class="tsd-kind-icon">stack</a></li>
 							</ul>
 						</section>
@@ -102,7 +103,7 @@
 					<div class="tsd-signature tsd-kind-icon">code<wbr>Frame<span class="tsd-signature-symbol">:</span> <a href="icodeframe.html" class="tsd-signature-type">ICodeFrame</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f4c6ac3/src/interfaces.ts#L182">interfaces.ts:182</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L197">interfaces.ts:197</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -117,7 +118,7 @@
 					<div class="tsd-signature tsd-kind-icon">is<wbr>Error<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f4c6ac3/src/interfaces.ts#L174">interfaces.ts:174</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L189">interfaces.ts:189</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -132,7 +133,7 @@
 					<div class="tsd-signature tsd-kind-icon">message<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f4c6ac3/src/interfaces.ts#L178">interfaces.ts:178</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L193">interfaces.ts:193</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -147,7 +148,7 @@
 					<div class="tsd-signature tsd-kind-icon">name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f4c6ac3/src/interfaces.ts#L176">interfaces.ts:176</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L191">interfaces.ts:191</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -157,12 +158,27 @@
 					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="nativeerror" class="tsd-anchor"></a>
+					<h3>native<wbr>Error</h3>
+					<div class="tsd-signature tsd-kind-icon">native<wbr>Error<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Error</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L187">interfaces.ts:187</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>native Error object</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="stack" class="tsd-anchor"></a>
 					<h3>stack</h3>
 					<div class="tsd-signature tsd-kind-icon">stack<span class="tsd-signature-symbol">:</span> <a href="istackframe.html" class="tsd-signature-type">IStackFrame</a><span class="tsd-signature-symbol">[]</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f4c6ac3/src/interfaces.ts#L180">interfaces.ts:180</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/9418f63/src/interfaces.ts#L195">interfaces.ts:195</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -207,6 +223,9 @@
 								<a href="ierrorobject.html#name" class="tsd-kind-icon">name</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="ierrorobject.html#nativeerror" class="tsd-kind-icon">native<wbr>Error</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="ierrorobject.html#stack" class="tsd-kind-icon">stack</a>
 							</li>
 						</ul>
@@ -224,6 +243,9 @@
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="ilogobject.html" class="tsd-kind-icon">ILog<wbr>Object</a>
+					</li>
+					<li class=" tsd-kind-interface">
+						<a href="ilogobjectstringifiable.html" class="tsd-kind-icon">ILog<wbr>Object<wbr>Stringifiable</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="isettings.html" class="tsd-kind-icon">ISettings</a>

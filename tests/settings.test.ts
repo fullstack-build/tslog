@@ -103,7 +103,7 @@ describe("Logger: settings", () => {
     expect(logger.settings.logLevelsColors[6]).toBe("#00000F");
   });
 
-  test("init logger: highlightStyles", (): void => {
+  test("init logger: prettyInspectHighlightStyles", (): void => {
     const highlightStyles: IHighlightStyles = {
       name: "blueBright",
       special: "redBright",
@@ -120,27 +120,45 @@ describe("Logger: settings", () => {
     };
 
     const logger: Logger = new Logger({
-      highlightStyles,
+      prettyInspectHighlightStyles: highlightStyles,
     });
     expect(logger instanceof Logger).toBe(true);
-    expect(logger.settings.highlightStyles.name).toBe(highlightStyles.name);
-    expect(logger.settings.highlightStyles.special).toBe(
+    expect(logger.settings.prettyInspectHighlightStyles.name).toBe(
+      highlightStyles.name
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.special).toBe(
       highlightStyles.special
     );
-    expect(logger.settings.highlightStyles.number).toBe(highlightStyles.number);
-    expect(logger.settings.highlightStyles.bigint).toBe(highlightStyles.bigint);
-    expect(logger.settings.highlightStyles.boolean).toBe(
+    expect(logger.settings.prettyInspectHighlightStyles.number).toBe(
+      highlightStyles.number
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.bigint).toBe(
+      highlightStyles.bigint
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.boolean).toBe(
       highlightStyles.boolean
     );
-    expect(logger.settings.highlightStyles.undefined).toBe(
+    expect(logger.settings.prettyInspectHighlightStyles.undefined).toBe(
       highlightStyles.undefined
     );
-    expect(logger.settings.highlightStyles.null).toBe(highlightStyles.null);
-    expect(logger.settings.highlightStyles.string).toBe(highlightStyles.string);
-    expect(logger.settings.highlightStyles.symbol).toBe(highlightStyles.symbol);
-    expect(logger.settings.highlightStyles.date).toBe(highlightStyles.date);
-    expect(logger.settings.highlightStyles.regexp).toBe(highlightStyles.regexp);
-    expect(logger.settings.highlightStyles.module).toBe(highlightStyles.module);
+    expect(logger.settings.prettyInspectHighlightStyles.null).toBe(
+      highlightStyles.null
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.string).toBe(
+      highlightStyles.string
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.symbol).toBe(
+      highlightStyles.symbol
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.date).toBe(
+      highlightStyles.date
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.regexp).toBe(
+      highlightStyles.regexp
+    );
+    expect(logger.settings.prettyInspectHighlightStyles.module).toBe(
+      highlightStyles.module
+    );
   });
 
   test("init logger: stdOut", (): void => {
