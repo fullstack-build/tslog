@@ -182,14 +182,16 @@ export interface ILogObjectStringifiable extends ILogObject {
  * @public
  */
 export interface IErrorObject {
-  /** native Error object */
-  nativeError: Error;
   /** Is this object an error? */
   isError: true;
   /** Name of the error*/
   name: string;
   /** Error message */
   message: string;
+
+  details: string[];
+  /** native Error object */
+  nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
   /** Code frame of the error */

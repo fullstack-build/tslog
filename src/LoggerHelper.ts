@@ -163,7 +163,7 @@ export class LoggerHelper {
     return `\u001b[${color[0]}m${str}\u001b[${color[1]}m`;
   }
 
-  /*
+  /* Async
   import { createReadStream, readFileSync } from "fs";
   import { createInterface, Interface } from "readline";
   public static async _getCodeFrameAsync(
@@ -222,42 +222,46 @@ export class LoggerHelper {
     lineNumber: number,
     columnNumber: number | null,
     linesBeforeAndAfter: number
-  ): ICodeFrame {
+  ): ICodeFrame | undefined {
     const lineNumberMinusOne: number = lineNumber - 1;
+    try {
+      const file: string[] = readFileSync(filePath, {
+        encoding: "utf-8",
+      })?.split("\n");
+      const startAt: number =
+        lineNumberMinusOne - linesBeforeAndAfter < 0
+          ? 0
+          : lineNumberMinusOne - linesBeforeAndAfter;
+      const endAt: number =
+        lineNumberMinusOne + linesBeforeAndAfter > file.length
+          ? file.length
+          : lineNumberMinusOne + linesBeforeAndAfter;
 
-    const file: string[] = readFileSync(filePath, { encoding: "utf-8" })?.split(
-      "\n"
-    );
-    const startAt: number =
-      lineNumberMinusOne - linesBeforeAndAfter < 0
-        ? 0
-        : lineNumberMinusOne - linesBeforeAndAfter;
-    const endAt: number =
-      lineNumberMinusOne + linesBeforeAndAfter > file.length
-        ? file.length
-        : lineNumberMinusOne + linesBeforeAndAfter;
-
-    const codeFrame: ICodeFrame = {
-      firstLineNumber: startAt + 1,
-      lineNumber,
-      columnNumber,
-      linesBefore: [],
-      relevantLine: "",
-      linesAfter: [],
-    };
-    for (let i: number = startAt; i < lineNumberMinusOne; i++) {
-      if (file[i] != null) {
-        codeFrame.linesBefore.push(file[i]);
+      const codeFrame: ICodeFrame = {
+        firstLineNumber: startAt + 1,
+        lineNumber,
+        columnNumber,
+        linesBefore: [],
+        relevantLine: "",
+        linesAfter: [],
+      };
+      for (let i: number = startAt; i < lineNumberMinusOne; i++) {
+        if (file[i] != null) {
+          codeFrame.linesBefore.push(file[i]);
+        }
       }
-    }
-    codeFrame.relevantLine = file[lineNumberMinusOne];
-    for (let i: number = lineNumberMinusOne + 1; i <= endAt; i++) {
-      if (file[i] != null) {
-        codeFrame.linesAfter.push(file[i]);
+      codeFrame.relevantLine = file[lineNumberMinusOne];
+      for (let i: number = lineNumberMinusOne + 1; i <= endAt; i++) {
+        if (file[i] != null) {
+          codeFrame.linesAfter.push(file[i]);
+        }
       }
-    }
 
-    return codeFrame;
+      return codeFrame;
+    } catch {
+      // fail silently
+      return undefined;
+    }
   }
 
   public static lineNumberTo3Char(lineNumber: number): string {

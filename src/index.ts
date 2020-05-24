@@ -278,6 +278,7 @@ export class Logger {
         );
         const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
         errorObject.nativeError = arg as Error;
+        errorObject.details = Object.values(arg as Error);
         errorObject.name = errorObject.name ?? "Error";
         errorObject.isError = true;
         errorObject.stack = this._toStackObjectArray(errorStack);
@@ -381,6 +382,19 @@ export class Logger {
             `\t${format(errorArgument.message)}`
         );
 
+        if (errorArgument.details?.length > 0) {
+          std.write(
+            LoggerHelper.styleString(["underline", "bold"], "˜\ndetails:")
+          );
+          std.write(
+            "\n" +
+              inspect(errorArgument.details, this.settings.prettyInspectOptions)
+          );
+        }
+
+        std.write(
+          LoggerHelper.styleString(["underline", "bold"], "\nerror stack:")
+        );
         this._printPrettyStack(std, errorArgument.stack);
         if (errorArgument.codeFrame != null) {
           this._printPrettyCodeFrame(std, errorArgument.codeFrame);
