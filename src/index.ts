@@ -357,17 +357,20 @@ export class Logger {
 
     const instanceName: string =
       this.settings.instanceName != null
-        ? `@${this.settings.instanceName} `
+        ? `@${this.settings.instanceName}`
+        : "";
+    const loggerName: string =
+      logObject.loggerName != null ? logObject.loggerName : "";
+
+    const name: string =
+      (loggerName + instanceName).length > 0
+        ? `${loggerName}${instanceName} `
         : "";
 
     std.write(
       LoggerHelper.styleString(
         ["gray"],
-        `[${
-          logObject.loggerName != null ? logObject.loggerName : ""
-        }${instanceName} ${logObject.filePath}:${
-          logObject.lineNumber
-        }${functionName}]`
+        `[${name}${logObject.filePath}:${logObject.lineNumber}${functionName}]`
       ) + " \t "
     );
 
