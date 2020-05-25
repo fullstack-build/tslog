@@ -1,4 +1,4 @@
-## 📝 tslog: Expressive TypeScript Logger for Node.js
+## 📝 tslog: Beautiful logging experience for Node.js with TypeScript support
 
 
 [![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
