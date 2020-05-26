@@ -2,7 +2,7 @@
 
 ## 2.1.0: 
 Sun, 26 Mai 2020 21:50:19 GMT
-- Exposed helper method `prettyError` that helps pretty printing an error without logging with various options 
+- Exposed helper method `prettyError` that helps pretty-printing an error without logging with various options 
 - Adjust default error colors
 
 ## 2.0.0: 
