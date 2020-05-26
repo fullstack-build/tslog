@@ -95,13 +95,13 @@ export class Logger {
       suppressStdOutput: settings?.suppressStdOutput ?? false,
       overwriteConsole: settings?.overwriteConsole ?? false,
       logLevelsColors: settings?.logLevelsColors ?? {
-        0: "gray",
+        0: "whiteBright",
         1: "white",
-        2: "whiteBright",
-        3: "greenBright",
-        4: "blueBright",
-        5: "yellowBright",
-        6: "redBright",
+        2: "greenBright",
+        3: "blueBright",
+        4: "yellowBright",
+        5: "redBright",
+        6: "magentaBright",
       },
       prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
         name: "greenBright",
@@ -206,15 +206,46 @@ export class Logger {
     return this._handleLog.apply(this, ["fatal", args]);
   }
 
+  /**
+   * Helper: Pretty print error without logging it
+   * @param error - Error object
+   * @param print - Print the error or return only? (default: true)
+   * @param exposeErrorCodeFrame  - Should the code frame be exposed? (default: true)
+   * @param exposeStackTrace  - Should the stack trace be exposed? (default: true)
+   * @param stackOffset - Offset lines of the stack trace (default: 0)
+   * @param stackLimit  - Limit number of lines of the stack trace (default: Infinity)
+   * @param std - Which std should the output be printed to? (default: stdErr)
+   */
+  public prettyError(
+    error: Error,
+    print: boolean = true,
+    exposeErrorCodeFrame: boolean = true,
+    exposeStackTrace: boolean = true,
+    stackOffset: number = 0,
+    stackLimit: number = Infinity,
+    std: IStd = this.settings.stdErr
+  ): IErrorObject {
+    const errorObject: IErrorObject = this._buildErrorObject(
+      error,
+      exposeErrorCodeFrame,
+      stackOffset,
+      stackLimit
+    );
+    if (print) {
+      this._printPrettyError(std, errorObject, exposeStackTrace);
+    }
+    return errorObject;
+  }
+
   private _handleLog(
     logLevel: TLogLevelName,
     logArguments: unknown[],
-    doExposeStack: boolean = this.settings.exposeStack
+    exposeStack: boolean = this.settings.exposeStack
   ): ILogObject {
     const logObject: ILogObject = this._buildLogObject(
       logLevel,
       logArguments,
-      doExposeStack
+      exposeStack
     );
 
     if (
@@ -243,7 +274,7 @@ export class Logger {
   private _buildLogObject(
     logLevel: TLogLevelName,
     logArguments: unknown[],
-    doExposeStack: boolean = true
+    exposeStack: boolean = true
   ): ILogObject {
     const callSites: NodeJS.CallSite[] = LoggerHelper.getCallSites();
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
@@ -274,42 +305,64 @@ export class Logger {
 
     logArguments.forEach((arg: unknown) => {
       if (arg != null && typeof arg === "object" && LoggerHelper.isError(arg)) {
-        const errorStack: NodeJS.CallSite[] = LoggerHelper.getCallSites(
-          arg as Error
+        logObject.argumentsArray.push(
+          this._buildErrorObject(
+            arg as Error,
+            this.settings.exposeErrorCodeFrame
+          )
         );
-        const errorObject: IErrorObject = JSON.parse(JSON.stringify(arg));
-        errorObject.nativeError = arg as Error;
-        errorObject.details = { ...arg };
-        errorObject.name = errorObject.name ?? "Error";
-        errorObject.isError = true;
-        errorObject.stack = this._toStackObjectArray(errorStack);
-        const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
-          wrapCallSite(errorStack[0])
-        );
-        if (
-          this.settings.exposeErrorCodeFrame &&
-          errorCallSite.lineNumber != null
-        ) {
-          if (errorCallSite.fullFilePath.indexOf("node_modules") < 0) {
-            errorObject.codeFrame = LoggerHelper._getCodeFrame(
-              errorCallSite.fullFilePath,
-              errorCallSite.lineNumber,
-              errorCallSite.columnNumber,
-              this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
-            );
-          }
-        }
-        logObject.argumentsArray.push(errorObject);
       } else {
         logObject.argumentsArray.push(arg);
       }
     });
 
-    if (doExposeStack) {
+    if (exposeStack) {
       logObject.stack = this._toStackObjectArray(relevantCallSites);
     }
 
     return logObject;
+  }
+
+  private _buildErrorObject(
+    error: Error,
+    exposeErrorCodeFrame: boolean = true,
+    stackOffset: number = 0,
+    stackLimit: number = Infinity
+  ): IErrorObject {
+    const errorCallSites: NodeJS.CallSite[] = LoggerHelper.getCallSites(error);
+    stackOffset = stackOffset > -1 ? stackOffset : 0;
+    const relevantCallSites: NodeJS.CallSite[] = errorCallSites.splice(
+      stackOffset
+    );
+
+    stackLimit = stackLimit > -1 ? stackLimit : 0;
+    if (stackLimit < Infinity) {
+      relevantCallSites.length = stackLimit;
+    }
+
+    const errorObject: IErrorObject = JSON.parse(JSON.stringify(error));
+    errorObject.nativeError = error;
+    errorObject.details = { ...error };
+    errorObject.name = errorObject.name ?? "Error";
+    errorObject.isError = true;
+    errorObject.stack = this._toStackObjectArray(relevantCallSites);
+    if (errorObject.stack.length > 0) {
+      const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
+        wrapCallSite(relevantCallSites[0])
+      );
+      if (exposeErrorCodeFrame && errorCallSite.lineNumber != null) {
+        if (errorCallSite.fullFilePath.indexOf("node_modules") < 0) {
+          errorObject.codeFrame = LoggerHelper._getCodeFrame(
+            errorCallSite.fullFilePath,
+            errorCallSite.lineNumber,
+            errorCallSite.columnNumber,
+            this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
+          );
+        }
+      }
+    }
+
+    return errorObject;
   }
 
   private _toStackObjectArray(jsStack: NodeJS.CallSite[]): IStackFrame[] {
@@ -371,39 +424,14 @@ export class Logger {
       LoggerHelper.styleString(
         ["gray"],
         `[${name}${logObject.filePath}:${logObject.lineNumber}${functionName}]`
-      ) + " \t "
+      ) + "  \t"
     );
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
-      const errorArgument: IErrorObject = argument as IErrorObject;
-      if (typeof argument === "object" && errorArgument.isError) {
-        std.write(
-          "\n" +
-            LoggerHelper.styleString(
-              ["bgRed", "whiteBright", "bold"],
-              ` ${errorArgument.name} `
-            ) +
-            `\t${format(errorArgument.message)}`
-        );
-
-        if (Object.values(errorArgument.details).length > 0) {
-          std.write(
-            LoggerHelper.styleString(["underline", "bold"], "\ndetails:")
-          );
-          std.write(
-            "\n" +
-              inspect(errorArgument.details, this.settings.prettyInspectOptions)
-          );
-        }
-
-        std.write(
-          LoggerHelper.styleString(["underline", "bold"], "\nerror stack:")
-        );
-        this._printPrettyStack(std, errorArgument.stack);
-        if (errorArgument.codeFrame != null) {
-          this._printPrettyCodeFrame(std, errorArgument.codeFrame);
-        }
-      } else if (typeof argument === "object" && !errorArgument.isError) {
+      const errorObject: IErrorObject = argument as IErrorObject;
+      if (typeof argument === "object" && errorObject.isError) {
+        this._printPrettyError(std, errorObject);
+      } else if (typeof argument === "object" && !errorObject.isError) {
         std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
       } else {
         std.write(format(argument) + " ");
@@ -417,6 +445,39 @@ export class Logger {
       );
 
       this._printPrettyStack(std, logObject.stack);
+    }
+  }
+
+  private _printPrettyError(
+    std: IStd,
+    errorObject: IErrorObject,
+    printStackTrace: boolean = true
+  ): void {
+    std.write(
+      "\n" +
+        LoggerHelper.styleString(
+          ["bgRed", "whiteBright", "bold"],
+          ` ${errorObject.name} `
+        ) +
+        `\t${format(errorObject.message)}`
+    );
+
+    if (Object.values(errorObject.details).length > 0) {
+      std.write(LoggerHelper.styleString(["underline", "bold"], "\ndetails:"));
+      std.write(
+        "\n" + inspect(errorObject.details, this.settings.prettyInspectOptions)
+      );
+    }
+
+    if (printStackTrace === true) {
+      std.write(
+        LoggerHelper.styleString(["underline", "bold"], "\nerror stack:")
+      );
+
+      this._printPrettyStack(std, errorObject.stack);
+    }
+    if (errorObject.codeFrame != null) {
+      this._printPrettyCodeFrame(std, errorObject.codeFrame);
     }
   }
 
@@ -490,12 +551,12 @@ export class Logger {
       ...logObject,
       argumentsArray: logObject.argumentsArray.map(
         (argument: unknown | IErrorObject) => {
-          const errorArgument: IErrorObject = argument as IErrorObject;
-          if (typeof argument === "object" && errorArgument.isError) {
+          const errorObject: IErrorObject = argument as IErrorObject;
+          if (typeof argument === "object" && errorObject.isError) {
             return {
-              ...errorArgument,
+              ...errorObject,
               nativeError: undefined,
-              errorString: format(errorArgument.nativeError),
+              errorString: format(errorObject.nativeError),
             } as IErrorObjectStringified;
           } else {
             return inspect(argument, this.settings.jsonInspectOptions);

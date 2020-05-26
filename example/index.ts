@@ -10,7 +10,7 @@ class MyClass {
   }
 
   public myMethod(): void {
-    const jsonObj: object = {
+    const jsonObj: any = {
       name: "John Doe",
       age: 30,
       cars: {
@@ -18,7 +18,10 @@ class MyClass {
         car2: "BMW",
         car3: "Tesla",
       },
+      obj: undefined,
     };
+    jsonObj.obj = jsonObj;
+
     this._logger.debug("I am a debug log.");
     this._logger.info("I am an info log.");
     this._logger.warn("I am a warn log with a json object:", jsonObj);
@@ -56,3 +59,8 @@ function Foo() {
 /* @ts-ignore */
 const foo = new Foo();
 log.debug(foo);
+
+/* Helper Examples */
+console.log("*******************");
+const err: Error = new Error("Test Error");
+log.prettyError(err, true, true, true, 0, 1);
