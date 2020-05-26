@@ -177,6 +177,7 @@ export class Logger {
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
     info(...args: unknown[]): ILogObject;
+    prettyError(error: Error, print?: boolean, exposeErrorCodeFrame?: boolean, exposeStackTrace?: boolean, stackOffset?: number, stackLimit?: number, std?: IStd): IErrorObject;
     readonly settings: ISettings;
     silly(...args: unknown[]): ILogObject;
     trace(...args: unknown[]): ILogObject;

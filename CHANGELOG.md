@@ -1,6 +1,9 @@
 # Change Log - tslog
 
-This log was last generated on Sat, 18 Apr 2020 07:01:19 GMT and should not be manually modified.
+## 2.1.0: 
+Sun, 26 Mai 2020 21:50:19 GMT
+- Exposed helper method `prettyError` that helps pretty printing an error without logging with various options 
+- Adjust default error colors
 
 ## 2.0.0: 
 Sun, 24 Mai 2020 23:35:19 GMT

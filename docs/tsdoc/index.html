@@ -60,8 +60,8 @@
 	<div class="row">
 		<div class="col-8 col-content">
 			<div class="tsd-panel tsd-typography">
-				<a href="#📝-tslog-expressive-typescript-logger-for-nodejs" id="📝-tslog-expressive-typescript-logger-for-nodejs" style="color: inherit; text-decoration: none;">
-					<h2>📝 tslog: Expressive TypeScript Logger for Node.js</h2>
+				<a href="#📝-tslog-beautiful-logging-experience-for-nodejs-with-typescript-support" id="📝-tslog-beautiful-logging-experience-for-nodejs-with-typescript-support" style="color: inherit; text-decoration: none;">
+					<h2>📝 tslog: Beautiful logging experience for Node.js with TypeScript support</h2>
 				</a>
 				<p><a href="https://www.typescriptlang.org"><img src="https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square" alt="lang: Typescript"></a>
 					<img src="https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square" alt="License: MIT">
@@ -389,6 +389,27 @@ log.warn(<span class="hljs-string">"I am a warn log with a json object:"</span>,
 				<pre><code class="language-json">{<span class="hljs-attr">"loggerName"</span>:<span class="hljs-string">""</span>,<span class="hljs-attr">"date"</span>:<span class="hljs-string">"2020-04-27T15:24:04.334Z"</span>,<span class="hljs-attr">"logLevel"</span>:<span class="hljs-string">"debug"</span>,<span class="hljs-attr">"logLevelId"</span>:<span class="hljs-number">2</span>,<span class="hljs-attr">"filePath"</span>:<span class="hljs-string">"example/index.ts"</span>,<span class="hljs-attr">"fullFilePath"</span>:<span class="hljs-string">"/Users/eugene/Development/workspace/tslog/example/index.ts"</span>,<span class="hljs-attr">"fileName"</span>:<span class="hljs-string">"index.ts"</span>,<span class="hljs-attr">"lineNumber"</span>:<span class="hljs-number">56</span>,<span class="hljs-attr">"columnNumber"</span>:<span class="hljs-number">5</span>,<span class="hljs-attr">"isConstructor"</span>:<span class="hljs-literal">false</span>,<span class="hljs-attr">"functionName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"typeName"</span>:<span class="hljs-string">"Object"</span>,<span class="hljs-attr">"methodName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"argumentsArray"</span>:[<span class="hljs-string">"I am a debug log."</span>]}
 {<span class="hljs-attr">"loggerName"</span>:<span class="hljs-string">""</span>,<span class="hljs-attr">"date"</span>:<span class="hljs-string">"2020-04-27T15:24:04.334Z"</span>,<span class="hljs-attr">"logLevel"</span>:<span class="hljs-string">"info"</span>,<span class="hljs-attr">"logLevelId"</span>:<span class="hljs-number">3</span>,<span class="hljs-attr">"filePath"</span>:<span class="hljs-string">"example/index.ts"</span>,<span class="hljs-attr">"fullFilePath"</span>:<span class="hljs-string">"/Users/eugene/Development/workspace/tslog/example/index.ts"</span>,<span class="hljs-attr">"fileName"</span>:<span class="hljs-string">"index.ts"</span>,<span class="hljs-attr">"lineNumber"</span>:<span class="hljs-number">57</span>,<span class="hljs-attr">"columnNumber"</span>:<span class="hljs-number">5</span>,<span class="hljs-attr">"isConstructor"</span>:<span class="hljs-literal">false</span>,<span class="hljs-attr">"functionName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"typeName"</span>:<span class="hljs-string">"Object"</span>,<span class="hljs-attr">"methodName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"argumentsArray"</span>:[<span class="hljs-string">"I am an info log."</span>]}
 {<span class="hljs-attr">"loggerName"</span>:<span class="hljs-string">""</span>,<span class="hljs-attr">"date"</span>:<span class="hljs-string">"2020-04-27T15:24:04.335Z"</span>,<span class="hljs-attr">"logLevel"</span>:<span class="hljs-string">"warn"</span>,<span class="hljs-attr">"logLevelId"</span>:<span class="hljs-number">4</span>,<span class="hljs-attr">"filePath"</span>:<span class="hljs-string">"example/index.ts"</span>,<span class="hljs-attr">"fullFilePath"</span>:<span class="hljs-string">"/Users/eugene/Development/workspace/tslog/example/index.ts"</span>,<span class="hljs-attr">"fileName"</span>:<span class="hljs-string">"index.ts"</span>,<span class="hljs-attr">"lineNumber"</span>:<span class="hljs-number">58</span>,<span class="hljs-attr">"columnNumber"</span>:<span class="hljs-number">5</span>,<span class="hljs-attr">"isConstructor"</span>:<span class="hljs-literal">false</span>,<span class="hljs-attr">"functionName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"typeName"</span>:<span class="hljs-string">"Object"</span>,<span class="hljs-attr">"methodName"</span>:<span class="hljs-literal">null</span>,<span class="hljs-attr">"argumentsArray"</span>:[<span class="hljs-string">"I am a warn log with a json object:"</span>,{<span class="hljs-attr">"foo"</span>:<span class="hljs-string">"bar"</span>}]}</code></pre>
+				<a href="#helper" id="helper" style="color: inherit; text-decoration: none;">
+					<h4>Helper</h4>
+				</a>
+				<a href="#prettyerror" id="prettyerror" style="color: inherit; text-decoration: none;">
+					<h5>prettyError</h5>
+				</a>
+				<p>Sometimes you just want to <em>pretty print</em> an error without having to log it, or maybe just catch its call sites, or it&#39;s stack frame? If so, this helper is for you.<br><code>prettyError</code> exposes all the awesomeness of <code>tslog</code> without the actual logging. A possible use case could be in a CLI, or other internal helper tools. </p>
+				<p>Example: </p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> logger: Logger = <span class="hljs-keyword">new</span> Logger();
+<span class="hljs-keyword">const</span> err: <span class="hljs-built_in">Error</span> = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Error</span>(<span class="hljs-string">"Test Error"</span>);
+logger.prettyError(err);</code></pre>
+				<p><em>Additional Parameters:</em></p>
+				<ul>
+					<li><code>error</code> - Error object</li>
+					<li><code>print</code> - Print the error or return only? <em>(default: true)</em></li>
+					<li><code>exposeErrorCodeFrame</code>  - Should the code frame be exposed? <em>(default: true)</em></li>
+					<li><code>exposeStackTrace</code>  - Should the stack trace be exposed? <em>(default: true)</em></li>
+					<li><code>stackOffset</code> - Offset lines of the stack trace <em>(default: 0)</em></li>
+					<li><code>stackLimit</code>  - Limit number of lines of the stack trace <em>(default: Infinity)</em></li>
+					<li><code>std</code> - Which std should the output be printed to? <em>(default: stdErr)</em></li>
+				</ul>
 			</div>
 		</div>
 		<div class="col-4 col-menu menu-sticky-wrap menu-highlight">
