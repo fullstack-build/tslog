@@ -379,3 +379,26 @@ log.warn("I am a warn log with a json object:", { foo: "bar" });
 {"loggerName":"","date":"2020-04-27T15:24:04.334Z","logLevel":"info","logLevelId":3,"filePath":"example/index.ts","fullFilePath":"/Users/eugene/Development/workspace/tslog/example/index.ts","fileName":"index.ts","lineNumber":57,"columnNumber":5,"isConstructor":false,"functionName":null,"typeName":"Object","methodName":null,"argumentsArray":["I am an info log."]}
 {"loggerName":"","date":"2020-04-27T15:24:04.335Z","logLevel":"warn","logLevelId":4,"filePath":"example/index.ts","fullFilePath":"/Users/eugene/Development/workspace/tslog/example/index.ts","fileName":"index.ts","lineNumber":58,"columnNumber":5,"isConstructor":false,"functionName":null,"typeName":"Object","methodName":null,"argumentsArray":["I am a warn log with a json object:",{"foo":"bar"}]}
 ```
+
+#### Helper
+
+##### prettyError
+Sometimes you just want to _pretty print_ an error without having to log it, or maybe just catch its call sites, or it's stack frame? If so, this helper is for you.  
+`prettyError` exposes all the awesomeness of `tslog` without the actual logging. A possible use case could be in a CLI, or other internal helper tools. 
+
+Example: 
+```typescript
+const logger: Logger = new Logger();
+const err: Error = new Error("Test Error");
+logger.prettyError(err);
+```
+
+*Additional Parameters:*
+
+* `error` - Error object
+* `print` - Print the error or return only? _(default: true)_
+* `exposeErrorCodeFrame`  - Should the code frame be exposed? _(default: true)_
+* `exposeStackTrace`  - Should the stack trace be exposed? _(default: true)_
+* `stackOffset` - Offset lines of the stack trace _(default: 0)_
+* `stackLimit`  - Limit number of lines of the stack trace _(default: Infinity)_
+* `std` - Which std should the output be printed to? _(default: stdErr)_

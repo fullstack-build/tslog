@@ -206,4 +206,24 @@ describe("Logger: Error with details", () => {
     expect(errorObject).not.toBeNull();
     expect(errorObject.stack.length).toBe(0);
   });
+
+  test("Helper: Replace stdErr with stdOut", (): void => {
+    const error = new TestError("TestError");
+    const errorObject = loggerJson.prettyError(
+      error,
+      true,
+      false,
+      false,
+      0,
+      Infinity,
+      {
+        write: (print: string) => {
+          stdOut.push(print);
+        },
+      }
+    );
+    expect(errorObject).not.toBeNull();
+    expect(stdOut.length).toBeGreaterThan(0);
+    expect(stdErr).toHaveLength(0);
+  });
 });
