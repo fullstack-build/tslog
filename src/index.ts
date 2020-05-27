@@ -288,6 +288,7 @@ export class Logger {
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
+      hostname: hostname(),
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
