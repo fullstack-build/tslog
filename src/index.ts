@@ -430,7 +430,7 @@ export class Logger {
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorObject: IErrorObject = argument as IErrorObject;
-      if (typeof argument === "object" && errorObject.isError) {
+      if (typeof argument === "object" && errorObject?.isError === true) {
         this._printPrettyError(std, errorObject);
       } else if (typeof argument === "object" && !errorObject.isError) {
         std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
