@@ -85,6 +85,8 @@ export interface ILogLevel {
 export interface ILogObject extends IStackFrame {
     argumentsArray: (IErrorObject | unknown)[];
     date: Date;
+    // (undocumented)
+    hostname: string;
     instanceName?: string;
     loggerName?: string;
     logLevel: TLogLevelName;

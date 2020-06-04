@@ -161,6 +161,8 @@ export interface ILogObject extends IStackFrame {
   instanceName?: string;
   /**  Optional name of the logger or empty string. */
   loggerName?: string;
+  /* Name of the host */
+  hostname: string;
   /**  Timestamp */
   date: Date;
   /**  Log level name (e.g. debug) */
@@ -250,6 +252,7 @@ export type TUtilsInspectColors =
   | "framed"
   | "overlined"
   | "gray"
+  | "grey"
   | "redBright"
   | "greenBright"
   | "yellowBright"
