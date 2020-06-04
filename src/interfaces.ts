@@ -252,6 +252,7 @@ export type TUtilsInspectColors =
   | "framed"
   | "overlined"
   | "gray"
+  | "grey"
   | "redBright"
   | "greenBright"
   | "yellowBright"

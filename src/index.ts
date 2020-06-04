@@ -103,12 +103,20 @@ export class Logger {
         5: "redBright",
         6: "magentaBright",
       },
-      prettyInspectHighlightStyles: settings?.prettyInspectHighlightStyles ?? {
-        name: "greenBright",
-        string: "redBright",
+      prettyInspectHighlightStyles: {
+        special: "cyan",
         number: "blueBright",
-        null: "red",
+        bigint: "greenBright",
+        boolean: "yellow",
         undefined: "red",
+        null: "red",
+        string: "redBright",
+        symbol: "green",
+        date: "magenta",
+        name: "white",
+        regexp: "red",
+        module: "underline",
+        ...settings?.prettyInspectHighlightStyles,
       },
       prettyInspectOptions: settings?.prettyInspectOptions ?? {
         colors: true,
@@ -432,7 +440,10 @@ export class Logger {
       const errorObject: IErrorObject = argument as IErrorObject;
       if (typeof argument === "object" && errorObject?.isError === true) {
         this._printPrettyError(std, errorObject);
-      } else if (typeof argument === "object" && !errorObject.isError) {
+      } else if (
+        typeof argument === "object" &&
+        errorObject?.isError !== true
+      ) {
         std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
       } else {
         std.write(format(argument) + " ");
