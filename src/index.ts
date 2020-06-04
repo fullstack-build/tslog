@@ -105,12 +105,12 @@ export class Logger {
       },
       prettyInspectHighlightStyles: {
         special: "cyan",
-        number: "blueBright",
-        bigint: "greenBright",
+        number: "green",
+        bigint: "green",
         boolean: "yellow",
         undefined: "red",
         null: "red",
-        string: "redBright",
+        string: "red",
         symbol: "green",
         date: "magenta",
         name: "white",
@@ -118,11 +118,12 @@ export class Logger {
         module: "underline",
         ...settings?.prettyInspectHighlightStyles,
       },
-      prettyInspectOptions: settings?.prettyInspectOptions ?? {
-        colors: true,
-        compact: false,
-        depth: Infinity,
-      },
+      prettyInspectOptions: { compact: false, depth: Infinity, colors: true } ??
+        settings?.prettyInspectOptions ?? {
+          colors: true,
+          compact: false,
+          depth: Infinity,
+        },
       jsonInspectOptions: settings?.jsonInspectOptions ?? {
         colors: false,
         compact: true,
@@ -565,10 +566,16 @@ export class Logger {
         (argument: unknown | IErrorObject) => {
           const errorObject: IErrorObject = argument as IErrorObject;
           if (typeof argument === "object" && errorObject.isError) {
+            let errorString: string;
+            try {
+              errorString = format(errorObject.nativeError);
+            } catch (err) {
+              errorString = errorObject.nativeError.toString();
+            }
             return {
               ...errorObject,
               nativeError: undefined,
-              errorString: format(errorObject.nativeError),
+              errorString,
             } as IErrorObjectStringified;
           } else {
             return inspect(argument, this.settings.jsonInspectOptions);

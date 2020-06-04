@@ -258,7 +258,8 @@ export class LoggerHelper {
       }
 
       return codeFrame;
-    } catch {
+    } catch (err) {
+      // (err) is needed for Node v8 support, remove later
       // fail silently
     }
   }
