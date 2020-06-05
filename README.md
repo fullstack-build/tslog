@@ -131,15 +131,7 @@ Structured (aka. _pretty_) log level output would look like this:
 
 > **Hint:** Each logging method has a return type, which is a _JSON_ representation of the log message (`ILogObject`).
 > You can use this object to access its stack trace etc. 
-```typescript
-import { Logger, ILogObject } from "tslog";
-
-const log: Logger = new Logger();
-
-const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.");
-
-console.log(JSON.stringify(logWithTrace, null, 2));
-```
+> <a href="#logObject">More details</a>  
 
 #### Settings
  
@@ -188,7 +180,7 @@ const logger: Logger = new Logger({ displayInstanceName: true, instanceName: "AB
 ##### `name`
 ```default: undefined```
 
-Each logger has an optional name, that is hidden by default. 
+Each logger has an optional name, that is hidden by default. You can change this behavior by setting `displayLoggerName` to `true`. 
 This setting is particularly interesting when working in a `monorepo`, 
 giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
 
@@ -295,6 +287,64 @@ This setting allows you to overwrite the default colors of `tslog` used for the 
 
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
+##### `dateTimePattern` 
+```default: "year-month-day hour:minute:second.millisecond"```
+
+Change the way `tslog` prints out the date. 
+Based on Intl.DateTimeFormat.formatToParts with additional milliseconds, you can use type as a placeholder. 
+Available placeholders are: `day`,  `dayPeriod`, `era`, `hour`,  `literal`,  `minute`,  `month`, `second`, `millisecond`, `timeZoneName`, `weekday` and `year`.
+
+##### `dateTimeTimezone` 
+```default: "utc" ```
+
+Define in which timezone the date should be printed in.
+Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. `Europe/Berlin`, `Europe/Moscow` and so on. 
+
+> *Hint:* If you want to use your local time zone, you can set: 
+> `dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone`
+
+##### `printLogMessageInNewLine` 
+```default: false ```
+
+By default `tslog` uses `tab` delimiters for separation of the meta information (date, log level, etc.) and the log parameters.  
+Since the meta information can become quite long, you may want to prefer to print the log attributes in a new line. 
+
+##### `displayDateTime` 
+```default: false ```
+
+Defines whether the date time should be displayed.  
+
+##### `displayLogLevel` 
+```default: true ```
+
+Defines whether the log level should be displayed.  
+
+##### `displayInstanceName` 
+```default: false ```
+
+Defines whether the instance name (e.g. host name) should be displayed. 
+
+##### `displayLoggerName` 
+```default: true ```
+
+Defines whether the optional logger name should be displayed.  
+
+##### `displayFunctionName` 
+```default: true ```
+
+Defines whether the class and method or function name should be displayed.  
+
+
+##### `displayFilePath` 
+```default: hideNodeModulesOnly ```
+
+Defines whether file path and line should be displayed or not. 
+There are 3 possible settgins:  
+* `hidden`
+* `displayAll`
+* `hideNodeModulesOnly` (default): This setting will hide all file paths containing `node_modules`.
+
+
 ##### `stdOut` and `stdErr`
 
 This both settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_. 
@@ -314,7 +364,103 @@ All of them could be potentially handled by the same function, though.
 
 Each _transport_ can have its own `minLevel`.  
 
-##### Simple transport example
+#### <a name="logObject"></a>Log object
+
+<a href="https://tslog.js.org/tsdoc/interfaces/ilogobject.html" target="_blank">TSDoc: `interface: ILogObject`</a>
+
+Internally `tslog` creates an object representing every available information around a particular log message, including errors, stack trace etc.
+This information can become quite handy in case you want to work with this data or forward it to an external log service.
+
+```typescript
+interface ILogObject {
+  /**  Optional name of the instance this application is running on. */
+  instanceName?: string;
+  /**  Optional name of the logger or empty string. */
+  loggerName?: string;
+  /* Name of the host */
+  hostname: string;
+  /**  Timestamp */
+  date: Date;
+  /**  Log level name (e.g. debug) */
+  logLevel: silly | trace | debug | info | warn | error | fatal;
+  /**  Log level ID (e.g. 3) */
+  logLevelId: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  /**  Log arguments */
+  argumentsArray: (unknown | {
+        /** Is this object an error? */
+        isError: true;
+        /** Name of the error*/
+        name: string;
+        /** Error message */
+        message: string;
+        /** additional Error details */
+        details: object;
+        /** native Error object */
+        nativeError: Error;
+        /** Stack trace of the error */
+        stack: IStackFrame[];
+        /** Code frame of the error */
+        codeFrame?: {
+             firstLineNumber: number;
+             lineNumber: number;
+             columnNumber: number | null;
+             linesBefore: string[];
+             relevantLine: string;
+             linesAfter: string[];
+        };
+    })[];
+  /**  Optional Log stack trace */
+  stack?: {
+        /** Relative path based on the main folder */
+        filePath: string;
+        /** Full path */
+        fullFilePath: string;
+        /** Name of the file */
+        fileName: string;
+        /** Line number */
+        lineNumber: number | null;
+        /** Column Name */
+        columnNumber: number | null;
+        /** Called from constructor */
+        isConstructor: boolean | null;
+        /** Name of the function */
+        functionName: string | null;
+        /** Name of the class */
+        typeName: string | null;
+        /** Name of the Method */
+        methodName: string | null;
+  }[];
+}
+```
+
+There are three ways to access this object: 
+
+##### Returned by each log method
+
+```typescript
+import { Logger, ILogObject } from "tslog";
+
+const log: Logger = new Logger();
+
+const logWithTrace: ILogObject = log.trace("I am a trace log with a stack trace.");
+
+console.log(JSON.stringify(logWithTrace, null, 2));
+```
+
+##### Printed out in _JSON_ mode
+
+```typescript
+new Logger({ type: "json" });
+```
+Resulting in the following output: 
+![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
+
+
+##### Forwarded to an attached transport
+
+<a href="#transport">More details below</a>
+
+##### <a name="transport"></a>Simple transport example
 
 Here is a very simple implementation used in our _jest_ tests: 
 ```typescript

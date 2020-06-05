@@ -171,7 +171,6 @@ export interface IStackFrame {
   /** Name of the file */
   fileName: string;
   /** Line number */
-  /** Line number */
   lineNumber: number | null;
   /** Column Name */
   columnNumber: number | null;
