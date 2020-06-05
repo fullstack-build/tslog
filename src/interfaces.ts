@@ -1,4 +1,5 @@
 import { InspectOptions } from "util";
+import DateTimeFormatPartTypes = Intl.DateTimeFormatPartTypes;
 
 /**
  * All possible log levels
@@ -40,31 +41,28 @@ export type TLogLevelColor = {
  * @public
  */
 export interface ISettingsParam {
-  /** Print log pretty or as a stringified json, default: pretty */
+  /** Print log pretty or as a stringified json, default: `pretty` */
   type?: "json" | "pretty";
 
-  /** Name of the instance name, default: host name */
+  /** Name of the instance name, default: _host name_ */
   instanceName?: string;
 
-  /** Display instanceName or not, default: false */
-  displayInstanceName?: boolean;
-
-  /** Optional name of the logger instance, default: undefined */
+  /** Optional name of the logger instance, default: `undefined` */
   name?: string;
 
-  /** Use the name of the caller type as the name of the logger, default: false */
+  /** Use the name of the caller type as the name of the logger, default: `false` */
   setCallerAsLoggerName?: boolean;
 
-  /** Minimum output log level (e.g. debug), default: silly */
+  /** Minimum output log level (e.g. debug), default: "silly" */
   minLevel?: TLogLevelName;
 
-  /** Expose stack with EVERY log message, default: false  */
+  /** Expose stack with EVERY log message, default: `false`  */
   exposeStack?: boolean;
 
-  /** Get Code Frame of an Error and expose it, default: true */
+  /** Get Code Frame of an Error and expose it, default: `true` */
   exposeErrorCodeFrame?: boolean;
 
-  /** Capture lines before and after a code frame, default: 5 */
+  /** Capture lines before and after a code frame, default: `5` */
   exposeErrorCodeFrameLinesBeforeAndAfter?: number;
 
   /** Suppress any log output to std out / std err */
@@ -79,11 +77,38 @@ export interface ISettingsParam {
   /**  Overwrite colors json highlighting */
   prettyInspectHighlightStyles?: IHighlightStyles;
 
-  /**  Options to be set for utils.inspect when output is set to pretty (default setting) */
+  /**  Options to be set for utils.inspect when output is set to pretty, default: `setting` */
   prettyInspectOptions?: InspectOptions;
 
   /**  Options to be set for utils.inspect when output is set to json (\{ type: "json" \}) */
   jsonInspectOptions?: InspectOptions;
+
+  /**  DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: `year-month-day hour:minute:second.millisecond` */
+  dateTimePattern?: string;
+
+  /** DateTime timezone, e.g. `utc`, or `Europe/Berlin`, `Europe/Moscow`. You can use `Intl.DateTimeFormat().resolvedOptions().timeZone` for local timezone, default: "utc" */
+  dateTimeTimezone?: string;
+
+  /** Print log message in a new line below meta information, default: `false` */
+  printLogMessageInNewLine?: boolean;
+
+  /** Display date time at the beginning of a log message, default: `true` */
+  displayDateTime?: boolean;
+
+  /** Display log level, default: `true` */
+  displayLogLevel?: boolean;
+
+  /** Display instanceName or not, default: `false` */
+  displayInstanceName?: boolean;
+
+  /** Display name of the logger. Will only be visible if `name` was set, default: `true` */
+  displayLoggerName?: boolean;
+
+  /** Display file path, default "hideNodeModulesOnly" */
+  displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
+
+  /** Display function name, default: `true`*/
+  displayFunctionName?: boolean;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -100,7 +125,6 @@ export interface ISettingsParam {
 export interface ISettings extends ISettingsParam {
   type: "json" | "pretty";
   instanceName?: string;
-  displayInstanceName?: boolean;
   name?: string;
   setCallerAsLoggerName: boolean;
   minLevel: TLogLevelName;
@@ -113,6 +137,15 @@ export interface ISettings extends ISettingsParam {
   prettyInspectHighlightStyles: IHighlightStyles;
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
+  dateTimePattern: string;
+  dateTimeTimezone: string;
+  printLogMessageInNewLine: boolean;
+  displayDateTime: boolean;
+  displayLogLevel: boolean;
+  displayInstanceName: boolean;
+  displayLoggerName?: boolean;
+  displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
+  displayFunctionName?: boolean;
   stdOut: IStd;
   stdErr: IStd;
 }
@@ -300,4 +333,11 @@ export interface ICodeFrame {
   linesBefore: string[];
   relevantLine: string;
   linesAfter: string[];
+}
+
+type WithMillisecond<T> = T & "millisecond";
+/* Extend Intl.DateTimeFormatPart with milliseconds */
+export interface IFullDateTimeFormatPart {
+  type: WithMillisecond<DateTimeFormatPartTypes>;
+  value: string;
 }

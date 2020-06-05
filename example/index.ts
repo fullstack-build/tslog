@@ -38,7 +38,9 @@ class MyClass {
 const myClass: MyClass = new MyClass();
 myClass.myMethod();
 
-const log: Logger = new Logger();
+const log: Logger = new Logger({
+  name: "Test",
+});
 log.silly("I am a silly log.");
 // log.trace("I am a trace log with a stack trace.");
 log.debug("I am a debug log.");

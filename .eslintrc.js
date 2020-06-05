@@ -8,7 +8,7 @@ module.exports = {
     eqeqeq: [2, "smart"],
   },
   extends: ["@rushstack/eslint-config", "plugin:prettier/recommended"],
-  ignorePatterns: ["node_modules/", "dist/", "tests", "*.test.ts", "example/"],
+  ignorePatterns: ["node_modules/", "dist/", "tests/", "*.test.ts", "example/"],
   env: {
     node: true,
   },

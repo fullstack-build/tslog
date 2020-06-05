@@ -97,7 +97,21 @@ export interface ILogObject extends IStackFrame {
 // @public
 export interface ISettings extends ISettingsParam {
     // (undocumented)
-    displayInstanceName?: boolean;
+    dateTimePattern: string;
+    // (undocumented)
+    dateTimeTimezone: string;
+    // (undocumented)
+    displayDateTime: boolean;
+    // (undocumented)
+    displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
+    // (undocumented)
+    displayFunctionName?: boolean;
+    // (undocumented)
+    displayInstanceName: boolean;
+    // (undocumented)
+    displayLoggerName?: boolean;
+    // (undocumented)
+    displayLogLevel: boolean;
     // (undocumented)
     exposeErrorCodeFrame: boolean;
     // (undocumented)
@@ -121,6 +135,8 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     prettyInspectOptions: InspectOptions;
     // (undocumented)
+    printLogMessageInNewLine: boolean;
+    // (undocumented)
     setCallerAsLoggerName: boolean;
     // (undocumented)
     stdErr: IStd;
@@ -134,7 +150,14 @@ export interface ISettings extends ISettingsParam {
 
 // @public
 export interface ISettingsParam {
+    dateTimePattern?: string;
+    dateTimeTimezone?: string;
+    displayDateTime?: boolean;
+    displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
+    displayFunctionName?: boolean;
     displayInstanceName?: boolean;
+    displayLoggerName?: boolean;
+    displayLogLevel?: boolean;
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
@@ -146,6 +169,7 @@ export interface ISettingsParam {
     overwriteConsole?: boolean;
     prettyInspectHighlightStyles?: IHighlightStyles;
     prettyInspectOptions?: InspectOptions;
+    printLogMessageInNewLine?: boolean;
     setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;

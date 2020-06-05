@@ -25,7 +25,6 @@ describe("Logger: surpress logs to std", () => {
   });
   test("Check literal value", () => {
     logger.silly("test message");
-    logger.silly("test message");
     logger.trace("test message");
     logger.debug("test message");
     logger.info("test message");
