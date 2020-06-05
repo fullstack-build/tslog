@@ -26,6 +26,7 @@ import {
   ILogObjectStringifiable,
   TUtilsInspectColors,
   IErrorObjectStringified,
+  IFullDateTimeFormatPart,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -69,16 +70,12 @@ export class Logger {
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
    */
   public constructor(settings?: ISettingsParam) {
-    const displayInstanceName: boolean = settings?.displayInstanceName === true;
     const setCallerAsLoggerName: boolean =
       settings?.setCallerAsLoggerName === true;
 
     this.settings = {
       type: settings?.type ?? "pretty",
-      displayInstanceName: displayInstanceName,
-      instanceName: displayInstanceName
-        ? settings?.instanceName ?? hostname()
-        : undefined,
+      instanceName: settings?.instanceName ?? hostname(),
       name:
         settings?.name ??
         (setCallerAsLoggerName
@@ -129,6 +126,21 @@ export class Logger {
         compact: true,
         depth: Infinity,
       },
+      dateTimePattern:
+        settings?.dateTimePattern ??
+        "year-month-day hour:minute:second.millisecond",
+      // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      dateTimeTimezone: settings?.dateTimeTimezone ?? "utc",
+      printLogMessageInNewLine: settings?.printLogMessageInNewLine === true,
+
+      // display settings
+      displayDateTime: settings?.displayDateTime !== false,
+      displayLogLevel: settings?.displayLogLevel !== false,
+      displayInstanceName: settings?.displayInstanceName === true,
+      displayLoggerName: settings?.displayLoggerName !== false,
+      displayFilePath: settings?.displayFilePath ?? "hideNodeModulesOnly",
+      displayFunctionName: settings?.displayFunctionName !== false,
+
       stdOut: settings?.stdOut ?? process.stdout,
       stdErr: settings?.stdErr ?? process.stderr,
     };
@@ -393,49 +405,96 @@ export class Logger {
       logObject.logLevelId < this._minLevelToStdErr
         ? this.settings.stdOut
         : this.settings.stdErr;
-    const nowStr: string = logObject.date
-      .toISOString()
-      .replace("T", " ")
-      .replace("Z", "");
-    const colorName: TUtilsInspectColors = this.settings.logLevelsColors[
-      logObject.logLevelId
-    ];
 
-    std.write(LoggerHelper.styleString(["gray"], `${nowStr}\t`));
+    if (this.settings.displayDateTime === true) {
+      const dateTimeParts: IFullDateTimeFormatPart[] = [
+        ...(new Intl.DateTimeFormat("en", {
+          weekday: undefined,
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+          hour12: false,
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZone: this.settings.dateTimeTimezone,
+        }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
+        {
+          type: "millisecond",
+          value: logObject.date.getMilliseconds().toString(),
+        } as IFullDateTimeFormatPart,
+      ];
 
-    std.write(
-      LoggerHelper.styleString(
-        [colorName, "bold"],
-        ` ${logObject.logLevel.toUpperCase()} `
-      ) + "\t"
-    );
+      const nowStr: string = dateTimeParts.reduce(
+        (prevStr, thisStr) => prevStr.replace(thisStr.type, thisStr.value),
+        this.settings.dateTimePattern
+      );
+      std.write(LoggerHelper.styleString(["gray"], `${nowStr}\t`));
+    }
 
-    const functionName: string = logObject.isConstructor
-      ? ` ${logObject.typeName}.constructor`
-      : logObject.methodName != null
-      ? ` ${logObject.typeName}.${logObject.methodName}`
-      : logObject.functionName != null
-      ? ` ${logObject.functionName}`
-      : "";
+    if (this.settings.displayLogLevel) {
+      const colorName: TUtilsInspectColors = this.settings.logLevelsColors[
+        logObject.logLevelId
+      ];
+
+      std.write(
+        LoggerHelper.styleString(
+          [colorName, "bold"],
+          ` ${logObject.logLevel.toUpperCase()} `
+        ) + "\t"
+      );
+    }
 
     const instanceName: string =
+      this.settings.displayInstanceName === true &&
       this.settings.instanceName != null
         ? `@${this.settings.instanceName}`
         : "";
+
     const loggerName: string =
-      logObject.loggerName != null ? logObject.loggerName : "";
+      this.settings.displayLoggerName === true && logObject.loggerName != null
+        ? logObject.loggerName
+        : "";
 
     const name: string =
       (loggerName + instanceName).length > 0
-        ? `${loggerName}${instanceName} `
+        ? `${loggerName}${instanceName}`
         : "";
 
-    std.write(
-      LoggerHelper.styleString(
-        ["gray"],
-        `[${name}${logObject.filePath}:${logObject.lineNumber}${functionName}]`
-      ) + "  \t"
-    );
+    const functionName: string =
+      this.settings.displayFunctionName === true
+        ? logObject.isConstructor
+          ? ` ${logObject.typeName}.constructor`
+          : logObject.methodName != null
+          ? ` ${logObject.typeName}.${logObject.methodName}`
+          : logObject.functionName != null
+          ? ` ${logObject.functionName}`
+          : ""
+        : "";
+
+    let fileLocation: string = "";
+    if (
+      this.settings.displayFilePath === "displayAll" ||
+      (this.settings.displayFilePath === "hideNodeModulesOnly" &&
+        logObject.filePath.indexOf("node_modules") < 0)
+    ) {
+      fileLocation = `${logObject.filePath}:${logObject.lineNumber}`;
+    }
+    const concatenatedMetaLine: string = [name, fileLocation, functionName]
+      .join(" ")
+      .replace(/\s\s+/g, " ")
+      .trim();
+    if (concatenatedMetaLine.length > 0) {
+      std.write(
+        LoggerHelper.styleString(["gray"], `[${concatenatedMetaLine}]`) + "  \t"
+      );
+
+      if (this.settings.printLogMessageInNewLine === false) {
+        std.write("  \t");
+      } else {
+        std.write("\n");
+      }
+    }
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const errorObject: IErrorObject = argument as IErrorObject;
@@ -566,16 +625,10 @@ export class Logger {
         (argument: unknown | IErrorObject) => {
           const errorObject: IErrorObject = argument as IErrorObject;
           if (typeof argument === "object" && errorObject.isError) {
-            let errorString: string;
-            try {
-              errorString = format(errorObject.nativeError);
-            } catch (err) {
-              errorString = errorObject.nativeError.toString();
-            }
             return {
               ...errorObject,
               nativeError: undefined,
-              errorString,
+              errorString: format(errorObject.nativeError),
             } as IErrorObjectStringified;
           } else {
             return inspect(argument, this.settings.jsonInspectOptions);

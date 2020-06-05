@@ -181,15 +181,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png" alt="tslog log level structured" title="tslog log level structured"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> Each logging method has a return type, which is a <em>JSON</em> representation of the log message (<code>ILogObject</code>).
-					You can use this object to access its stack trace etc. </p>
+						You can use this object to access its stack trace etc.
+					<a href="#logObject">More details</a>  </p>
 				</blockquote>
-				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger, ILogObject } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
-
-<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger();
-
-<span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
-
-<span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">JSON</span>.stringify(logWithTrace, <span class="hljs-literal">null</span>, <span class="hljs-number">2</span>));</code></pre>
 				<a href="#settings" id="settings" style="color: inherit; text-decoration: none;">
 					<h4>Settings</h4>
 				</a>
@@ -232,7 +226,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>name</code></h5>
 				</a>
 				<p><code>default: undefined</code></p>
-				<p>Each logger has an optional name, that is hidden by default.
+				<p>Each logger has an optional name, that is hidden by default. You can change this behavior by setting <code>displayLoggerName</code> to <code>true</code>.
 					This setting is particularly interesting when working in a <code>monorepo</code>,
 				giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   </p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"myLogger"</span> });</code></pre>
@@ -314,6 +308,64 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				</a>
 				<p>This setting allows you to overwrite the default colors of <code>tslog</code> used for the native Node.js <code>utils.inspect</code> interpolation.</p>
 				<p>More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a></p>
+				<a href="#datetimepattern" id="datetimepattern" style="color: inherit; text-decoration: none;">
+					<h5><code>dateTimePattern</code></h5>
+				</a>
+				<p><code>default: &quot;year-month-day hour:minute:second.millisecond&quot;</code></p>
+				<p>Change the way <code>tslog</code> prints out the date.
+					Based on Intl.DateTimeFormat.formatToParts with additional milliseconds, you can use type as a placeholder.
+				Available placeholders are: <code>day</code>,  <code>dayPeriod</code>, <code>era</code>, <code>hour</code>,  <code>literal</code>,  <code>minute</code>,  <code>month</code>, <code>second</code>, <code>millisecond</code>, <code>timeZoneName</code>, <code>weekday</code> and <code>year</code>.</p>
+				<a href="#datetimetimezone" id="datetimetimezone" style="color: inherit; text-decoration: none;">
+					<h5><code>dateTimeTimezone</code></h5>
+				</a>
+				<p><code>default: &quot;utc&quot;</code></p>
+				<p>Define in which timezone the date should be printed in.
+				Possible values are <code>utc</code> and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. <code>Europe/Berlin</code>, <code>Europe/Moscow</code> and so on. </p>
+				<blockquote>
+					<p><em>Hint:</em> If you want to use your local time zone, you can set:
+					<code>dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone</code></p>
+				</blockquote>
+				<a href="#printlogmessageinnewline" id="printlogmessageinnewline" style="color: inherit; text-decoration: none;">
+					<h5><code>printLogMessageInNewLine</code></h5>
+				</a>
+				<p><code>default: false</code></p>
+				<p>By default <code>tslog</code> uses <code>tab</code> delimiters for separation of the meta information (date, log level, etc.) and the log parameters.<br>Since the meta information can become quite long, you may want to prefer to print the log attributes in a new line. </p>
+				<a href="#displaydatetime" id="displaydatetime" style="color: inherit; text-decoration: none;">
+					<h5><code>displayDateTime</code></h5>
+				</a>
+				<p><code>default: false</code></p>
+				<p>Defines whether the date time should be displayed.  </p>
+				<a href="#displayloglevel" id="displayloglevel" style="color: inherit; text-decoration: none;">
+					<h5><code>displayLogLevel</code></h5>
+				</a>
+				<p><code>default: true</code></p>
+				<p>Defines whether the log level should be displayed.  </p>
+				<a href="#displayinstancename" id="displayinstancename" style="color: inherit; text-decoration: none;">
+					<h5><code>displayInstanceName</code></h5>
+				</a>
+				<p><code>default: false</code></p>
+				<p>Defines whether the instance name (e.g. host name) should be displayed. </p>
+				<a href="#displayloggername" id="displayloggername" style="color: inherit; text-decoration: none;">
+					<h5><code>displayLoggerName</code></h5>
+				</a>
+				<p><code>default: true</code></p>
+				<p>Defines whether the optional logger name should be displayed.  </p>
+				<a href="#displayfunctionname" id="displayfunctionname" style="color: inherit; text-decoration: none;">
+					<h5><code>displayFunctionName</code></h5>
+				</a>
+				<p><code>default: true</code></p>
+				<p>Defines whether the class and method or function name should be displayed.  </p>
+				<a href="#displayfilepath" id="displayfilepath" style="color: inherit; text-decoration: none;">
+					<h5><code>displayFilePath</code></h5>
+				</a>
+				<p><code>default: hideNodeModulesOnly</code></p>
+				<p>Defines whether file path and line should be displayed or not.
+				There are 3 possible settgins:  </p>
+				<ul>
+					<li><code>hidden</code></li>
+					<li><code>displayAll</code></li>
+					<li><code>hideNodeModulesOnly</code> (default): This setting will hide all file paths containing <code>node_modules</code>.</li>
+				</ul>
 				<a href="#stdout-and-stderr" id="stdout-and-stderr" style="color: inherit; text-decoration: none;">
 					<h5><code>stdOut</code> and <code>stdErr</code></h5>
 				</a>
@@ -331,8 +383,94 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<p>When attaching a transport, you <em>must</em> implement every log level.
 				All of them could be potentially handled by the same function, though.</p>
 				<p>Each <em>transport</em> can have its own <code>minLevel</code>.  </p>
+				<a href="#log-object" id="log-object" style="color: inherit; text-decoration: none;">
+					<h4><a name="logObject"></a>Log object</h4>
+				</a>
+				<p><a href="https://tslog.js.org/tsdoc/interfaces/ilogobject.html" target="_blank">TSDoc: <code>interface: ILogObject</code></a></p>
+				<p>Internally <code>tslog</code> creates an object representing every available information around a particular log message, including errors, stack trace etc.
+				This information can become quite handy in case you want to work with this data or forward it to an external log service.</p>
+				<pre><code class="language-typescript"><span class="hljs-keyword">interface</span> ILogObject {
+  <span class="hljs-comment">/**  Optional name of the instance this application is running on. */</span>
+  instanceName?: <span class="hljs-built_in">string</span>;
+  <span class="hljs-comment">/**  Optional name of the logger or empty string. */</span>
+  loggerName?: <span class="hljs-built_in">string</span>;
+  <span class="hljs-comment">/* Name of the host */</span>
+  hostname: <span class="hljs-built_in">string</span>;
+  <span class="hljs-comment">/**  Timestamp */</span>
+  date: <span class="hljs-built_in">Date</span>;
+  <span class="hljs-comment">/**  Log level name (e.g. debug) */</span>
+  logLevel: silly | trace | debug | info | warn | error | fatal;
+  <span class="hljs-comment">/**  Log level ID (e.g. 3) */</span>
+  logLevelId: <span class="hljs-number">0</span> | <span class="hljs-number">1</span> | <span class="hljs-number">2</span> | <span class="hljs-number">3</span> | <span class="hljs-number">4</span> | <span class="hljs-number">5</span> | <span class="hljs-number">6</span>;
+  <span class="hljs-comment">/**  Log arguments */</span>
+  argumentsArray: (unknown | {
+        <span class="hljs-comment">/** Is this object an error? */</span>
+        isError: <span class="hljs-literal">true</span>;
+        <span class="hljs-comment">/** Name of the error*/</span>
+        name: <span class="hljs-built_in">string</span>;
+        <span class="hljs-comment">/** Error message */</span>
+        message: <span class="hljs-built_in">string</span>;
+        <span class="hljs-comment">/** additional Error details */</span>
+        details: object;
+        <span class="hljs-comment">/** native Error object */</span>
+        nativeError: <span class="hljs-built_in">Error</span>;
+        <span class="hljs-comment">/** Stack trace of the error */</span>
+        stack: IStackFrame[];
+        <span class="hljs-comment">/** Code frame of the error */</span>
+        codeFrame?: {
+             firstLineNumber: <span class="hljs-built_in">number</span>;
+             lineNumber: <span class="hljs-built_in">number</span>;
+             columnNumber: <span class="hljs-built_in">number</span> | <span class="hljs-literal">null</span>;
+             linesBefore: <span class="hljs-built_in">string</span>[];
+             relevantLine: <span class="hljs-built_in">string</span>;
+             linesAfter: <span class="hljs-built_in">string</span>[];
+        };
+    })[];
+  <span class="hljs-comment">/**  Optional Log stack trace */</span>
+  stack?: {
+        <span class="hljs-comment">/** Relative path based on the main folder */</span>
+        filePath: <span class="hljs-built_in">string</span>;
+        <span class="hljs-comment">/** Full path */</span>
+        fullFilePath: <span class="hljs-built_in">string</span>;
+        <span class="hljs-comment">/** Name of the file */</span>
+        fileName: <span class="hljs-built_in">string</span>;
+        <span class="hljs-comment">/** Line number */</span>
+        lineNumber: <span class="hljs-built_in">number</span> | <span class="hljs-literal">null</span>;
+        <span class="hljs-comment">/** Column Name */</span>
+        columnNumber: <span class="hljs-built_in">number</span> | <span class="hljs-literal">null</span>;
+        <span class="hljs-comment">/** Called from constructor */</span>
+        isConstructor: <span class="hljs-built_in">boolean</span> | <span class="hljs-literal">null</span>;
+        <span class="hljs-comment">/** Name of the function */</span>
+        functionName: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>;
+        <span class="hljs-comment">/** Name of the class */</span>
+        typeName: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>;
+        <span class="hljs-comment">/** Name of the Method */</span>
+        methodName: <span class="hljs-built_in">string</span> | <span class="hljs-literal">null</span>;
+  }[];
+}</code></pre>
+				<p>There are three ways to access this object: </p>
+				<a href="#returned-by-each-log-method" id="returned-by-each-log-method" style="color: inherit; text-decoration: none;">
+					<h5>Returned by each log method</h5>
+				</a>
+				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger, ILogObject } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
+
+<span class="hljs-keyword">const</span> log: Logger = <span class="hljs-keyword">new</span> Logger();
+
+<span class="hljs-keyword">const</span> logWithTrace: ILogObject = log.trace(<span class="hljs-string">"I am a trace log with a stack trace."</span>);
+
+<span class="hljs-built_in">console</span>.log(<span class="hljs-built_in">JSON</span>.stringify(logWithTrace, <span class="hljs-literal">null</span>, <span class="hljs-number">2</span>));</code></pre>
+				<a href="#printed-out-in-json-mode" id="printed-out-in-json-mode" style="color: inherit; text-decoration: none;">
+					<h5>Printed out in <em>JSON</em> mode</h5>
+				</a>
+				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ <span class="hljs-keyword">type</span>: <span class="hljs-string">"json"</span> });</code></pre>
+				<p>Resulting in the following output:
+				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json"></p>
+				<a href="#forwarded-to-an-attached-transport" id="forwarded-to-an-attached-transport" style="color: inherit; text-decoration: none;">
+					<h5>Forwarded to an attached transport</h5>
+				</a>
+				<p><a href="#transport">More details below</a></p>
 				<a href="#simple-transport-example" id="simple-transport-example" style="color: inherit; text-decoration: none;">
-					<h5>Simple transport example</h5>
+					<h5><a name="transport"></a>Simple transport example</h5>
 				</a>
 				<p>Here is a very simple implementation used in our <em>jest</em> tests: </p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { ILogObject, Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
@@ -435,6 +573,9 @@ logger.prettyError(err);</code></pre>
 						<a href="interfaces/ierrorobjectstringified.html" class="tsd-kind-icon">IError<wbr>Object<wbr>Stringified</a>
 					</li>
 					<li class=" tsd-kind-interface">
+						<a href="interfaces/ifulldatetimeformatpart.html" class="tsd-kind-icon">IFull<wbr>Date<wbr>Time<wbr>Format<wbr>Part</a>
+					</li>
+					<li class=" tsd-kind-interface">
 						<a href="interfaces/ihighlightstyles.html" class="tsd-kind-icon">IHighlight<wbr>Styles</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -475,6 +616,12 @@ logger.prettyError(err);</code></pre>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#tutilsinspectcolors" class="tsd-kind-icon">TUtils<wbr>Inspect<wbr>Colors</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="globals.html#withmillisecond" class="tsd-kind-icon">With<wbr>Millisecond</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="globals.html#datetimeformatparttypes" class="tsd-kind-icon">Date<wbr>Time<wbr>Format<wbr>Part<wbr>Types</a>
 					</li>
 				</ul>
 			</nav>

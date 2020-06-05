@@ -10,7 +10,7 @@ FILES=$(git diff --cached --name-only --diff-filter=ACMR "*.ts" | sed 's| |\\ |g
 echo "$FILES" | xargs ./node_modules/.bin/prettier --write
 
 # ESLint
-echo "$FILES" | xargs ./node_modules/.bin/eslint --ext .ts --ignore-pattern tests/*
+echo "$FILES" | xargs ./node_modules/.bin/eslint --ext .ts --ignore-pattern 'tests/*' --ignore-pattern 'tests/**/*'
 eslint_exit=$?
 
 # Add back the modified/prettified files to staging

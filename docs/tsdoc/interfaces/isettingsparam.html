@@ -90,7 +90,14 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#datetimepattern" class="tsd-kind-icon">date<wbr>Time<wbr>Pattern</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#datetimetimezone" class="tsd-kind-icon">date<wbr>Time<wbr>Timezone</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displaydatetime" class="tsd-kind-icon">display<wbr>Date<wbr>Time</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displayfilepath" class="tsd-kind-icon">display<wbr>File<wbr>Path</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displayfunctionname" class="tsd-kind-icon">display<wbr>Function<wbr>Name</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displayinstancename" class="tsd-kind-icon">display<wbr>Instance<wbr>Name</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displayloglevel" class="tsd-kind-icon">display<wbr>Log<wbr>Level</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#displayloggername" class="tsd-kind-icon">display<wbr>Logger<wbr>Name</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#exposeerrorcodeframe" class="tsd-kind-icon">expose<wbr>Error<wbr>Code<wbr>Frame</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#exposeerrorcodeframelinesbeforeandafter" class="tsd-kind-icon">expose<wbr>Error<wbr>Code<wbr>Frame<wbr>Lines<wbr>Before<wbr>And<wbr>After</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#exposestack" class="tsd-kind-icon">expose<wbr>Stack</a></li>
@@ -102,6 +109,7 @@
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#overwriteconsole" class="tsd-kind-icon">overwrite<wbr>Console</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#prettyinspecthighlightstyles" class="tsd-kind-icon">pretty<wbr>Inspect<wbr>Highlight<wbr>Styles</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#prettyinspectoptions" class="tsd-kind-icon">pretty<wbr>Inspect<wbr>Options</a></li>
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#printlogmessageinnewline" class="tsd-kind-icon">print<wbr>Log<wbr>Message<wbr>InNew<wbr>Line</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#setcallerasloggername" class="tsd-kind-icon">set<wbr>Caller<wbr>AsLogger<wbr>Name</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#stderr" class="tsd-kind-icon">std<wbr>Err</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="isettingsparam.html#stdout" class="tsd-kind-icon">std<wbr>Out</a></li>
@@ -115,17 +123,122 @@
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="datetimepattern" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> date<wbr>Time<wbr>Pattern</h3>
+					<div class="tsd-signature tsd-kind-icon">date<wbr>Time<wbr>Pattern<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L87">interfaces.ts:87</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: <code>year-month-day hour:minute:second.millisecond</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="datetimetimezone" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> date<wbr>Time<wbr>Timezone</h3>
+					<div class="tsd-signature tsd-kind-icon">date<wbr>Time<wbr>Timezone<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L90">interfaces.ts:90</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>DateTime timezone, e.g. <code>utc</code>, or <code>Europe/Berlin</code>, <code>Europe/Moscow</code>. You can use <code>Intl.DateTimeFormat().resolvedOptions().timeZone</code> for local timezone, default: &quot;utc&quot;</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="displaydatetime" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>Date<wbr>Time</h3>
+					<div class="tsd-signature tsd-kind-icon">display<wbr>Date<wbr>Time<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L96">interfaces.ts:96</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Display date time at the beginning of a log message, default: <code>true</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="displayfilepath" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>File<wbr>Path</h3>
+					<div class="tsd-signature tsd-kind-icon">display<wbr>File<wbr>Path<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">"hidden"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"displayAll"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"hideNodeModulesOnly"</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L108">interfaces.ts:108</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Display file path, default &quot;hideNodeModulesOnly&quot;</p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="displayfunctionname" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>Function<wbr>Name</h3>
+					<div class="tsd-signature tsd-kind-icon">display<wbr>Function<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L111">interfaces.ts:111</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Display function name, default: <code>true</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="displayinstancename" class="tsd-anchor"></a>
 					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>Instance<wbr>Name</h3>
 					<div class="tsd-signature tsd-kind-icon">display<wbr>Instance<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L50">interfaces.ts:50</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L102">interfaces.ts:102</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Display instanceName or not, default: false</p>
+							<p>Display instanceName or not, default: <code>false</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="displayloglevel" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>Log<wbr>Level</h3>
+					<div class="tsd-signature tsd-kind-icon">display<wbr>Log<wbr>Level<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L99">interfaces.ts:99</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Display log level, default: <code>true</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="displayloggername" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> display<wbr>Logger<wbr>Name</h3>
+					<div class="tsd-signature tsd-kind-icon">display<wbr>Logger<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L105">interfaces.ts:105</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Display name of the logger. Will only be visible if <code>name</code> was set, default: <code>true</code></p>
 						</div>
 					</div>
 				</section>
@@ -135,12 +248,12 @@
 					<div class="tsd-signature tsd-kind-icon">expose<wbr>Error<wbr>Code<wbr>Frame<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L65">interfaces.ts:65</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L63">interfaces.ts:63</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Get Code Frame of an Error and expose it, default: true</p>
+							<p>Get Code Frame of an Error and expose it, default: <code>true</code></p>
 						</div>
 					</div>
 				</section>
@@ -150,12 +263,12 @@
 					<div class="tsd-signature tsd-kind-icon">expose<wbr>Error<wbr>Code<wbr>Frame<wbr>Lines<wbr>Before<wbr>And<wbr>After<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">number</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L68">interfaces.ts:68</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L66">interfaces.ts:66</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Capture lines before and after a code frame, default: 5</p>
+							<p>Capture lines before and after a code frame, default: <code>5</code></p>
 						</div>
 					</div>
 				</section>
@@ -165,12 +278,12 @@
 					<div class="tsd-signature tsd-kind-icon">expose<wbr>Stack<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L62">interfaces.ts:62</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L60">interfaces.ts:60</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Expose stack with EVERY log message, default: false</p>
+							<p>Expose stack with EVERY log message, default: <code>false</code></p>
 						</div>
 					</div>
 				</section>
@@ -180,12 +293,12 @@
 					<div class="tsd-signature tsd-kind-icon">instance<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L47">interfaces.ts:47</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L48">interfaces.ts:48</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Name of the instance name, default: host name</p>
+							<p>Name of the instance name, default: <em>host name</em></p>
 						</div>
 					</div>
 				</section>
@@ -195,7 +308,7 @@
 					<div class="tsd-signature tsd-kind-icon">json<wbr>Inspect<wbr>Options<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">InspectOptions</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L86">interfaces.ts:86</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L84">interfaces.ts:84</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -210,7 +323,7 @@
 					<div class="tsd-signature tsd-kind-icon">log<wbr>Levels<wbr>Colors<span class="tsd-signature-symbol">:</span> <a href="../globals.html#tloglevelcolor" class="tsd-signature-type">TLogLevelColor</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L77">interfaces.ts:77</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L75">interfaces.ts:75</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -225,12 +338,12 @@
 					<div class="tsd-signature tsd-kind-icon">min<wbr>Level<span class="tsd-signature-symbol">:</span> <a href="../globals.html#tloglevelname" class="tsd-signature-type">TLogLevelName</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L59">interfaces.ts:59</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L57">interfaces.ts:57</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Minimum output log level (e.g. debug), default: silly</p>
+							<p>Minimum output log level (e.g. debug), default: &quot;silly&quot;</p>
 						</div>
 					</div>
 				</section>
@@ -240,12 +353,12 @@
 					<div class="tsd-signature tsd-kind-icon">name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">string</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L53">interfaces.ts:53</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L51">interfaces.ts:51</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Optional name of the logger instance, default: undefined</p>
+							<p>Optional name of the logger instance, default: <code>undefined</code></p>
 						</div>
 					</div>
 				</section>
@@ -255,7 +368,7 @@
 					<div class="tsd-signature tsd-kind-icon">overwrite<wbr>Console<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L74">interfaces.ts:74</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L72">interfaces.ts:72</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -270,7 +383,7 @@
 					<div class="tsd-signature tsd-kind-icon">pretty<wbr>Inspect<wbr>Highlight<wbr>Styles<span class="tsd-signature-symbol">:</span> <a href="ihighlightstyles.html" class="tsd-signature-type">IHighlightStyles</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L80">interfaces.ts:80</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L78">interfaces.ts:78</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -285,12 +398,27 @@
 					<div class="tsd-signature tsd-kind-icon">pretty<wbr>Inspect<wbr>Options<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">InspectOptions</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L83">interfaces.ts:83</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L81">interfaces.ts:81</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Options to be set for utils.inspect when output is set to pretty (default setting)</p>
+							<p>Options to be set for utils.inspect when output is set to pretty, default: <code>setting</code></p>
+						</div>
+					</div>
+				</section>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="printlogmessageinnewline" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> print<wbr>Log<wbr>Message<wbr>InNew<wbr>Line</h3>
+					<div class="tsd-signature tsd-kind-icon">print<wbr>Log<wbr>Message<wbr>InNew<wbr>Line<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
+					<aside class="tsd-sources">
+						<ul>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L93">interfaces.ts:93</a></li>
+						</ul>
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Print log message in a new line below meta information, default: <code>false</code></p>
 						</div>
 					</div>
 				</section>
@@ -300,12 +428,12 @@
 					<div class="tsd-signature tsd-kind-icon">set<wbr>Caller<wbr>AsLogger<wbr>Name<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L56">interfaces.ts:56</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L54">interfaces.ts:54</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Use the name of the caller type as the name of the logger, default: false</p>
+							<p>Use the name of the caller type as the name of the logger, default: <code>false</code></p>
 						</div>
 					</div>
 				</section>
@@ -315,7 +443,7 @@
 					<div class="tsd-signature tsd-kind-icon">std<wbr>Err<span class="tsd-signature-symbol">:</span> <a href="istd.html" class="tsd-signature-type">IStd</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L92">interfaces.ts:92</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L117">interfaces.ts:117</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -330,7 +458,7 @@
 					<div class="tsd-signature tsd-kind-icon">std<wbr>Out<span class="tsd-signature-symbol">:</span> <a href="istd.html" class="tsd-signature-type">IStd</a></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L89">interfaces.ts:89</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L114">interfaces.ts:114</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -345,7 +473,7 @@
 					<div class="tsd-signature tsd-kind-icon">suppress<wbr>Std<wbr>Output<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">false</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">true</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L71">interfaces.ts:71</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L69">interfaces.ts:69</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -360,12 +488,12 @@
 					<div class="tsd-signature tsd-kind-icon">type<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">"json"</span><span class="tsd-signature-symbol"> | </span><span class="tsd-signature-type">"pretty"</span></div>
 					<aside class="tsd-sources">
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/df039f9/src/interfaces.ts#L44">interfaces.ts:44</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/f53e159/src/interfaces.ts#L45">interfaces.ts:45</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
 						<div class="lead">
-							<p>Print log pretty or as a stringified json, default: pretty</p>
+							<p>Print log pretty or as a stringified json, default: <code>pretty</code></p>
 						</div>
 					</div>
 				</section>
@@ -394,6 +522,9 @@
 						<a href="ierrorobjectstringified.html" class="tsd-kind-icon">IError<wbr>Object<wbr>Stringified</a>
 					</li>
 					<li class=" tsd-kind-interface">
+						<a href="ifulldatetimeformatpart.html" class="tsd-kind-icon">IFull<wbr>Date<wbr>Time<wbr>Format<wbr>Part</a>
+					</li>
+					<li class=" tsd-kind-interface">
 						<a href="ihighlightstyles.html" class="tsd-kind-icon">IHighlight<wbr>Styles</a>
 					</li>
 					<li class=" tsd-kind-interface">
@@ -414,7 +545,28 @@
 						<a href="isettingsparam.html" class="tsd-kind-icon">ISettings<wbr>Param</a>
 						<ul>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#datetimepattern" class="tsd-kind-icon">date<wbr>Time<wbr>Pattern</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#datetimetimezone" class="tsd-kind-icon">date<wbr>Time<wbr>Timezone</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#displaydatetime" class="tsd-kind-icon">display<wbr>Date<wbr>Time</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#displayfilepath" class="tsd-kind-icon">display<wbr>File<wbr>Path</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#displayfunctionname" class="tsd-kind-icon">display<wbr>Function<wbr>Name</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="isettingsparam.html#displayinstancename" class="tsd-kind-icon">display<wbr>Instance<wbr>Name</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#displayloglevel" class="tsd-kind-icon">display<wbr>Log<wbr>Level</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#displayloggername" class="tsd-kind-icon">display<wbr>Logger<wbr>Name</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="isettingsparam.html#exposeerrorcodeframe" class="tsd-kind-icon">expose<wbr>Error<wbr>Code<wbr>Frame</a>
@@ -448,6 +600,9 @@
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="isettingsparam.html#prettyinspectoptions" class="tsd-kind-icon">pretty<wbr>Inspect<wbr>Options</a>
+							</li>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="isettingsparam.html#printlogmessageinnewline" class="tsd-kind-icon">print<wbr>Log<wbr>Message<wbr>InNew<wbr>Line</a>
 							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="isettingsparam.html#setcallerasloggername" class="tsd-kind-icon">set<wbr>Caller<wbr>AsLogger<wbr>Name</a>
@@ -491,6 +646,12 @@
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="../globals.html#tutilsinspectcolors" class="tsd-kind-icon">TUtils<wbr>Inspect<wbr>Colors</a>
+					</li>
+					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
+						<a href="../globals.html#withmillisecond" class="tsd-kind-icon">With<wbr>Millisecond</a>
+					</li>
+					<li class=" tsd-kind-variable">
+						<a href="../globals.html#datetimeformatparttypes" class="tsd-kind-icon">Date<wbr>Time<wbr>Format<wbr>Part<wbr>Types</a>
 					</li>
 				</ul>
 			</nav>

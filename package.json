@@ -29,7 +29,8 @@
     "testEnvironment": "node",
     "collectCoverage": true,
     "testMatch": [
-      "/**/*.test.ts"
+      "/**/*.test.ts",
+      "/**/node_modules_test/*.test.ts"
     ],
     "globals": {
       "ts-jest": {
