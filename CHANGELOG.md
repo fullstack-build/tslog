@@ -1,7 +1,7 @@
 # Change Log - tslog
 
 ## 2.2.0: 
-Sun, 05 Jun 2020
+Fri, 05 Jun 2020
 Added additional output settings: 
 * dateTimePattern: DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: `year-month-day hour:minute:second.millisecond`
 * dateTimeTimezone: DateTime timezone, e.g. `utc`, or `Europe/Berlin`, `Europe/Moscow`. You can use `Intl.DateTimeFormat().resolvedOptions().timeZone` for local timezone, default: "utc"
