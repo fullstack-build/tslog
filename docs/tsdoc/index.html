@@ -371,18 +371,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				</a>
 				<p>This both settings allow you to replace the default <code>stdOut</code> and <code>stdErr</code> <em>WriteStreams</em>.
 					However, this would lead to a colorized output. We use this setting mostly for testing purposes.
-				If you want to redirect the output or directly access any logged object, we advise you to <strong>attach a transport</strong> (see below).</p>
-				<a href="#transports" id="transports" style="color: inherit; text-decoration: none;">
-					<h4>Transports</h4>
-				</a>
-				<p><code>tslog</code> focuses on the one thing it does well: capturing logs.
-					Therefor there is no build-in <em>file system</em> logging, _log rotation_, or similar.
-				Per default all logs go to <code>stdOut</code> and <code>stdErr</code> respectively. </p>
-				<p>However, you can easily attach as many <em>transports</em> as you wish, enabling you to do fancy stuff
-				like sending a message to <em>Slack</em> or <em>Telegram</em> in case of an urgent error. </p>
-				<p>When attaching a transport, you <em>must</em> implement every log level.
-				All of them could be potentially handled by the same function, though.</p>
-				<p>Each <em>transport</em> can have its own <code>minLevel</code>.  </p>
+				If you want to redirect the output or directly access any logged object, we advise you to <strong>attach a transport</strong> (see below).  </p>
 				<a href="#log-object" id="log-object" style="color: inherit; text-decoration: none;">
 					<h4><a name="logObject"></a>Log object</h4>
 				</a>
@@ -469,8 +458,19 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5>Forwarded to an attached transport</h5>
 				</a>
 				<p><a href="#transport">More details below</a></p>
+				<a href="#transports" id="transports" style="color: inherit; text-decoration: none;">
+					<h4><a name="transport"></a>Transports</h4>
+				</a>
+				<p><code>tslog</code> focuses on the one thing it does well: capturing logs.
+					Therefor there is no build-in <em>file system</em> logging, _log rotation_, or similar.
+				Per default all logs go to <code>stdOut</code> and <code>stdErr</code> respectively. </p>
+				<p>However, you can easily attach as many <em>transports</em> as you wish, enabling you to do fancy stuff
+				like sending a message to <em>Slack</em> or <em>Telegram</em> in case of an urgent error. </p>
+				<p>When attaching a transport, you <em>must</em> implement every log level.
+				All of them could be potentially handled by the same function, though.</p>
+				<p>Each <em>transport</em> can have its own <code>minLevel</code>.</p>
 				<a href="#simple-transport-example" id="simple-transport-example" style="color: inherit; text-decoration: none;">
-					<h5><a name="transport"></a>Simple transport example</h5>
+					<h5>Simple transport example</h5>
 				</a>
 				<p>Here is a very simple implementation used in our <em>jest</em> tests: </p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { ILogObject, Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
