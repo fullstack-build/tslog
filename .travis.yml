@@ -1,10 +1,12 @@
 language: node_js
 node_js:
-  - '12'
+  - "12"
+  - "10"
+  - "8"
 
 install:
   - npm install
   - npm run build
 
 script:
-  - npm run test
+  - npm run coveralls
