@@ -124,5 +124,5 @@ test("Pretty circular JSON (stdOut)", (): void => {
 
   logger.debug(foo);
   expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
-  expect(doesLogContain(stdOut, "[Circular]")).toBeTruthy();
+  expect(doesLogContain(stdOut, "[Circular")).toBeTruthy();
 });
