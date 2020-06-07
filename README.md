@@ -349,20 +349,7 @@ There are 3 possible settgins:
 
 This both settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_. 
 However, this would lead to a colorized output. We use this setting mostly for testing purposes. 
-If you want to redirect the output or directly access any logged object, we advise you to **attach a transport** (see below).
-
-#### Transports
-`tslog` focuses on the one thing it does well: capturing logs. 
-Therefor there is no build-in _file system_ logging, _log rotation_, or similar. 
-Per default all logs go to `stdOut` and `stdErr` respectively. 
-
-However, you can easily attach as many _transports_ as you wish, enabling you to do fancy stuff
-like sending a message to _Slack_ or _Telegram_ in case of an urgent error. 
-
-When attaching a transport, you _must_ implement every log level. 
-All of them could be potentially handled by the same function, though.
-
-Each _transport_ can have its own `minLevel`.  
+If you want to redirect the output or directly access any logged object, we advise you to **attach a transport** (see below).  
 
 #### <a name="logObject"></a>Log object
 
@@ -460,7 +447,20 @@ Resulting in the following output:
 
 <a href="#transport">More details below</a>
 
-##### <a name="transport"></a>Simple transport example
+#### <a name="transport"></a>Transports
+`tslog` focuses on the one thing it does well: capturing logs. 
+Therefor there is no build-in _file system_ logging, _log rotation_, or similar. 
+Per default all logs go to `stdOut` and `stdErr` respectively. 
+
+However, you can easily attach as many _transports_ as you wish, enabling you to do fancy stuff
+like sending a message to _Slack_ or _Telegram_ in case of an urgent error. 
+
+When attaching a transport, you _must_ implement every log level. 
+All of them could be potentially handled by the same function, though.
+
+Each _transport_ can have its own `minLevel`.
+
+##### Simple transport example
 
 Here is a very simple implementation used in our _jest_ tests: 
 ```typescript
