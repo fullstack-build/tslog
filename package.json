@@ -5,7 +5,7 @@
   "main": "dist/index",
   "typings": "dist/index",
   "engines": {
-    "node": ">=8"
+    "node": ">=10"
   },
   "scripts": {
     "ts-node": "ts-node example/index.ts",
