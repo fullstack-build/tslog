@@ -16,7 +16,7 @@
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
     "test": "jest",
-    "coveralls": "jest --coverage && coveralls < coverage/lcov.info\",",
+    "coveralls": "jest --coverage && coveralls < coverage/lcov.info",
     "docsify-init": "docsify init ./docs",
     "docsify-serve": "cd docs && docsify serve",
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
