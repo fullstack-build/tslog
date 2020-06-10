@@ -134,7 +134,7 @@ export class Logger {
       printLogMessageInNewLine: settings?.printLogMessageInNewLine === true,
 
       // display settings
-      displayDateTime: settings?.displayDateTime !== false,
+      displayDateTime: Boolean(settings?.displayDateTime),
       displayLogLevel: settings?.displayLogLevel !== false,
       displayInstanceName: settings?.displayInstanceName === true,
       displayLoggerName: settings?.displayLoggerName !== false,
