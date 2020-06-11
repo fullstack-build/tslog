@@ -80,7 +80,6 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Correct std per log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
-* **Log date in UTC:** It is a good practice to keep all dates in UTC
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position. 
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
@@ -311,7 +310,7 @@ By default `tslog` uses `tab` delimiters for separation of the meta information 
 Since the meta information can become quite long, you may want to prefer to print the log attributes in a new line. 
 
 ##### `displayDateTime` 
-```default: false ```
+```default: true ```
 
 Defines whether the date time should be displayed.  
 
