@@ -124,6 +124,7 @@ export class Logger {
       displayDateTime: true,
       displayLogLevel: true,
       displayInstanceName: false,
+      displayTraceId: false,
       displayLoggerName: true,
       displayFilePath: "hideNodeModulesOnly",
       displayFunctionName: true,
@@ -346,10 +347,16 @@ export class Logger {
       stackFrame
     );
 
+    const traceId: undefined | string =
+      this.settings.traceId instanceof Function
+        ? this.settings.traceId()
+        : this.settings.traceId;
+
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
       hostname: hostname(),
+      traceId,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
@@ -491,20 +498,25 @@ export class Logger {
       );
     }
 
+    const loggerName: string =
+      this.settings.displayLoggerName === true && logObject.loggerName != null
+        ? logObject.loggerName
+        : "";
+
     const instanceName: string =
       this.settings.displayInstanceName === true &&
       this.settings.instanceName != null
         ? `@${this.settings.instanceName}`
         : "";
 
-    const loggerName: string =
-      this.settings.displayLoggerName === true && logObject.loggerName != null
-        ? logObject.loggerName
+    const traceId: string =
+      this.settings.displayTraceId === true && logObject.traceId != null
+        ? `:${logObject.traceId}`
         : "";
 
     const name: string =
-      (loggerName + instanceName).length > 0
-        ? `${loggerName}${instanceName}`
+      (loggerName + instanceName + traceId).length > 0
+        ? loggerName + instanceName + traceId
         : "";
 
     const functionName: string =

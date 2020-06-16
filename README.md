@@ -87,7 +87,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
 * **Instance Name:** Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
-* **Highly configurable:** All settings can be changed through a typed object
+* **Highly configurable:** All settings can be changed through a typed object, also during run time (e.g. log level)
 * **Short paths:** Paths are relative to the root of the application folder
 * **Runtime-agnostic:** Works with `ts-node`, `ts-node-dev`, as well as compiled down to JavaScript
 * **Optionally overwrite `console`:** Catch `console.log` etc. that would otherwise be hard to find
