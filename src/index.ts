@@ -63,35 +63,26 @@ export class Logger {
   private _ignoreStackLevels: number = 3;
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
-  /** Readonly settings of the current logger instance. Used for testing. */
-  public readonly settings: ISettings;
+  private _parentOrDefaultSettings: ISettings;
+  private _mySettings: ISettingsParam = {};
+  private _childLogger: Logger[] = [];
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
    */
-  public constructor(settings?: ISettingsParam) {
-    const setCallerAsLoggerName: boolean =
-      settings?.setCallerAsLoggerName === true;
-
-    this.settings = {
-      type: settings?.type ?? "pretty",
-      instanceName: settings?.instanceName ?? hostname(),
-      name:
-        settings?.name ??
-        (setCallerAsLoggerName
-          ? LoggerHelper.getCallSites()[0].getTypeName() ??
-            LoggerHelper.getCallSites()[0].getFunctionName() ??
-            undefined
-          : undefined),
-      setCallerAsLoggerName: setCallerAsLoggerName,
-      minLevel: settings?.minLevel ?? "silly",
-      exposeStack: settings?.exposeStack ?? false,
-      exposeErrorCodeFrame: settings?.exposeErrorCodeFrame ?? true,
-      exposeErrorCodeFrameLinesBeforeAndAfter:
-        settings?.exposeErrorCodeFrameLinesBeforeAndAfter ?? 5,
-      suppressStdOutput: settings?.suppressStdOutput ?? false,
-      overwriteConsole: settings?.overwriteConsole ?? false,
-      logLevelsColors: settings?.logLevelsColors ?? {
+  public constructor(settings?: ISettingsParam, parentSettings?: ISettings) {
+    this._parentOrDefaultSettings = {
+      type: "pretty",
+      instanceName: hostname(),
+      name: undefined,
+      setCallerAsLoggerName: false,
+      minLevel: "silly",
+      exposeStack: false,
+      exposeErrorCodeFrame: true,
+      exposeErrorCodeFrameLinesBeforeAndAfter: 5,
+      suppressStdOutput: false,
+      overwriteConsole: false,
+      logLevelsColors: {
         0: "whiteBright",
         1: "white",
         2: "greenBright",
@@ -113,46 +104,95 @@ export class Logger {
         name: "white",
         regexp: "red",
         module: "underline",
-        ...settings?.prettyInspectHighlightStyles,
       },
-      prettyInspectOptions: { compact: false, depth: Infinity, colors: true } ??
-        settings?.prettyInspectOptions ?? {
-          colors: true,
-          compact: false,
-          depth: Infinity,
-        },
-      jsonInspectOptions: settings?.jsonInspectOptions ?? {
+      prettyInspectOptions: {
+        colors: true,
+        compact: false,
+        depth: Infinity,
+      },
+      jsonInspectOptions: {
         colors: false,
         compact: true,
         depth: Infinity,
       },
-      dateTimePattern:
-        settings?.dateTimePattern ??
-        "year-month-day hour:minute:second.millisecond",
+      dateTimePattern: "year-month-day hour:minute:second.millisecond",
       // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      dateTimeTimezone: settings?.dateTimeTimezone ?? "utc",
-      printLogMessageInNewLine: settings?.printLogMessageInNewLine === true,
+      dateTimeTimezone: "utc",
+      printLogMessageInNewLine: false,
 
       // display settings
-      displayDateTime: settings?.displayDateTime !== false,
-      displayLogLevel: settings?.displayLogLevel !== false,
-      displayInstanceName: settings?.displayInstanceName === true,
-      displayLoggerName: settings?.displayLoggerName !== false,
-      displayFilePath: settings?.displayFilePath ?? "hideNodeModulesOnly",
-      displayFunctionName: settings?.displayFunctionName !== false,
+      displayDateTime: true,
+      displayLogLevel: true,
+      displayInstanceName: false,
+      displayLoggerName: true,
+      displayFilePath: "hideNodeModulesOnly",
+      displayFunctionName: true,
+      displayAttributeType: false,
 
-      stdOut: settings?.stdOut ?? process.stdout,
-      stdErr: settings?.stdErr ?? process.stderr,
+      stdOut: process.stdout,
+      stdErr: process.stderr,
+      prefix: [],
     };
+    const mySettings: ISettingsParam = settings != null ? settings : {};
+    this.setSettings(mySettings, parentSettings);
+
+    LoggerHelper.initErrorToJsonHelper();
+  }
+
+  /** Readonly settings of the current logger instance. Used for testing. */
+  public get settings(): ISettings {
+    const myPrefix: unknown[] =
+      this._mySettings.prefix != null ? this._mySettings.prefix : [];
+    return {
+      ...this._parentOrDefaultSettings,
+      ...this._mySettings,
+      prefix: [...this._parentOrDefaultSettings.prefix, ...myPrefix],
+    };
+  }
+
+  public setSettings(
+    settings: ISettingsParam,
+    parentSettings?: ISettings
+  ): ISettings {
+    this._mySettings = { ...this._mySettings, ...settings };
+
+    this._mySettings.name =
+      this._mySettings.name ??
+      (this._mySettings.setCallerAsLoggerName
+        ? LoggerHelper.getCallSites()[0].getTypeName() ??
+          LoggerHelper.getCallSites()[0].getFunctionName() ??
+          undefined
+        : undefined);
+
+    if (parentSettings != null) {
+      this._parentOrDefaultSettings = {
+        ...this._parentOrDefaultSettings,
+        ...parentSettings,
+      };
+    }
 
     LoggerHelper.setUtilsInspectStyles(
       this.settings.prettyInspectHighlightStyles
     );
 
-    LoggerHelper.initErrorToJsonHelper();
     if (this.settings.overwriteConsole) {
       LoggerHelper.overwriteConsole(this, this._handleLog);
     }
+
+    this._childLogger.forEach((childLogger: Logger) => {
+      childLogger.setSettings({}, this.settings);
+    });
+
+    return this.settings;
+  }
+
+  public getChildLogger(settings?: ISettingsParam): Logger {
+    const childSettings: ISettings = {
+      ...this.settings,
+    };
+    const childLogger: Logger = new Logger(settings, childSettings);
+    this._childLogger.push(childLogger);
+    return childLogger;
   }
 
   /**
@@ -323,9 +363,15 @@ export class Logger {
       typeName: stackFrameObject.typeName,
       methodName: stackFrameObject.methodName,
       argumentsArray: [],
+      toJSON: () => this._logObjectToJson(logObject),
     };
 
-    logArguments.forEach((arg: unknown) => {
+    const logArgumentsWithPrefix: unknown[] = [
+      ...this.settings.prefix,
+      ...logArguments,
+    ];
+
+    logArgumentsWithPrefix.forEach((arg: unknown) => {
       if (arg != null && typeof arg === "object" && LoggerHelper.isError(arg)) {
         logObject.argumentsArray.push(
           this._buildErrorObject(
@@ -497,6 +543,14 @@ export class Logger {
     }
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
+      const typeStr: string =
+        this.settings.displayAttributeType === true
+          ? LoggerHelper.styleString(
+              ["grey", "underline"],
+              typeof argument + ":"
+            ) + " "
+          : "";
+
       const errorObject: IErrorObject = argument as IErrorObject;
       if (typeof argument === "object" && errorObject?.isError === true) {
         this._printPrettyError(std, errorObject);
@@ -504,9 +558,11 @@ export class Logger {
         typeof argument === "object" &&
         errorObject?.isError !== true
       ) {
-        std.write("\n" + inspect(argument, this.settings.prettyInspectOptions));
+        std.write(
+          "\n" + typeStr + inspect(argument, this.settings.prettyInspectOptions)
+        );
       } else {
-        std.write(format(argument) + " ");
+        std.write(typeStr + format(argument) + " ");
       }
     });
     std.write("\n");
@@ -613,13 +669,8 @@ export class Logger {
     });
   }
 
-  private _printJsonLog(logObject: ILogObject): void {
-    const std: IStd =
-      logObject.logLevelId < this._minLevelToStdErr
-        ? this.settings.stdOut
-        : this.settings.stdErr;
-
-    const logObjectStringifiable: ILogObjectStringifiable = {
+  private _logObjectToJson(logObject: ILogObject): ILogObjectStringifiable {
+    return {
       ...logObject,
       argumentsArray: logObject.argumentsArray.map(
         (argument: unknown | IErrorObject) => {
@@ -636,7 +687,14 @@ export class Logger {
         }
       ),
     };
+  }
 
-    std.write(JSON.stringify(logObjectStringifiable) + "\n");
+  private _printJsonLog(logObject: ILogObject): void {
+    const std: IStd =
+      logObject.logLevelId < this._minLevelToStdErr
+        ? this.settings.stdOut
+        : this.settings.stdErr;
+
+    std.write(JSON.stringify(this._logObjectToJson(logObject)) + "\n");
   }
 }

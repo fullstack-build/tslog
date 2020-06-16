@@ -3,6 +3,9 @@ import { Logger } from "../src";
 class MyClass {
   private readonly _logger: Logger = new Logger({
     displayInstanceName: false,
+    printLogMessageInNewLine: true,
+    prefix: [1, 2],
+    displayAttributeType: true,
   });
 
   public constructor() {
@@ -60,9 +63,45 @@ function Foo() {
 }
 /* @ts-ignore */
 const foo = new Foo();
-log.debug(foo);
+const logMessage = log.debug(foo);
+console.log("JSON.stringify circular log message", JSON.stringify(logMessage));
 
 /* Helper Examples */
 console.log("*******************");
 const err: Error = new Error("Test Error");
 log.prettyError(err, true, true, true, 0, 1);
+
+/* Child Logger Example */
+
+const mainLogger: Logger = new Logger({
+  name: "MainLogger",
+  printLogMessageInNewLine: true,
+  prefix: ["main"],
+});
+mainLogger.info("MainLogger initiated");
+
+const childLogger1 = mainLogger.getChildLogger({
+  name: "ChildLogger1",
+  prefix: ["child1"],
+});
+childLogger1.info("ChildLogger1 initiated");
+
+const childLogger1_1 = childLogger1.getChildLogger({
+  name: "ChildLogger1-1",
+  prefix: ["child1-1"],
+});
+childLogger1_1.info("ChildLogger1-1 initiated");
+childLogger1_1.silly("ChildLogger1-1 silly 1");
+childLogger1_1.silly("ChildLogger1-1 silly 2");
+childLogger1_1.silly("ChildLogger1-1 silly 3");
+mainLogger.setSettings({ minLevel: "debug" });
+childLogger1_1.silly("ChildLogger1-1 silly 4");
+childLogger1_1.silly("ChildLogger1-1 silly 5");
+mainLogger.setSettings({
+  minLevel: "silly",
+  prefix: ["mainRenamed"],
+  displayAttributeType: true,
+});
+childLogger1_1.silly("ChildLogger1-1 silly 6");
+childLogger1.setSettings({ prefix: ["child1Renamed"] });
+childLogger1_1.debug("ChildLogger1-1 debug finish");

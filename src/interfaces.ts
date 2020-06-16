@@ -110,11 +110,17 @@ export interface ISettingsParam {
   /** Display function name, default: `true`*/
   displayFunctionName?: boolean;
 
+  /** Display type information for each attribute passed. */
+  displayAttributeType?: boolean;
+
   /**  Overwrite default std out */
   stdOut?: IStd;
 
   /**  Overwrite default std err */
   stdErr?: IStd;
+
+  /**  Prefix every log message of this logger. */
+  prefix?: unknown[];
 }
 
 /**
@@ -144,10 +150,12 @@ export interface ISettings extends ISettingsParam {
   displayLogLevel: boolean;
   displayInstanceName: boolean;
   displayLoggerName?: boolean;
-  displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
-  displayFunctionName?: boolean;
+  displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
+  displayFunctionName: boolean;
+  displayAttributeType: boolean;
   stdOut: IStd;
   stdErr: IStd;
+  prefix: unknown[];
 }
 
 /**
@@ -205,6 +213,8 @@ export interface ILogObject extends IStackFrame {
   argumentsArray: (IErrorObject | unknown)[];
   /**  Optional Log stack trace */
   stack?: IStackFrame[];
+  /** Convert a LogObject into a JSON, is used by JSON.stringify() */
+  toJSON: () => ILogObjectStringifiable;
 }
 
 export interface ILogObjectStringifiable extends ILogObject {
