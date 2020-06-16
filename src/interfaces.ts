@@ -35,6 +35,8 @@ export type TLogLevelColor = {
   [key in TLogLevelId]: TUtilsInspectColors;
 };
 
+type TTraceIdFunction = () => string;
+
 /**
  * Constructor: logger settings
  * all values are optional and will be pre-filled with default values
@@ -47,14 +49,16 @@ export interface ISettingsParam {
   /** Name of the instance name, default: _host name_ */
   instanceName?: string;
 
-  /** Optional name of the logger instance, default: `undefined` */
-  name?: string;
-
   /** Use the name of the caller type as the name of the logger, default: `false` */
   setCallerAsLoggerName?: boolean;
 
+  /** Optional name of the logger instance, default: `undefined` */
+  name?: string;
+
   /** Minimum output log level (e.g. debug), default: "silly" */
   minLevel?: TLogLevelName;
+
+  traceId?: string | TTraceIdFunction;
 
   /** Expose stack with EVERY log message, default: `false`  */
   exposeStack?: boolean;
@@ -101,6 +105,9 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: `false` */
   displayInstanceName?: boolean;
 
+  /** Display traceId or not, default: `false` */
+  displayTraceId?: boolean;
+
   /** Display name of the logger. Will only be visible if `name` was set, default: `true` */
   displayLoggerName?: boolean;
 
@@ -131,8 +138,9 @@ export interface ISettingsParam {
 export interface ISettings extends ISettingsParam {
   type: "json" | "pretty";
   instanceName?: string;
-  name?: string;
   setCallerAsLoggerName: boolean;
+  name?: string;
+  traceId?: string | TTraceIdFunction;
   minLevel: TLogLevelName;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
@@ -149,6 +157,7 @@ export interface ISettings extends ISettingsParam {
   displayDateTime: boolean;
   displayLogLevel: boolean;
   displayInstanceName: boolean;
+  displayTraceId: boolean;
   displayLoggerName?: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
@@ -203,6 +212,8 @@ export interface ILogObject extends IStackFrame {
   loggerName?: string;
   /* Name of the host */
   hostname: string;
+  /* Optional unique trace Id */
+  traceId?: string;
   /**  Timestamp */
   date: Date;
   /**  Log level name (e.g. debug) */

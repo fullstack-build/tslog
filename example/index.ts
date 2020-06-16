@@ -100,8 +100,13 @@ childLogger1_1.silly("ChildLogger1-1 silly 5");
 mainLogger.setSettings({
   minLevel: "silly",
   prefix: ["mainRenamed"],
-  displayAttributeType: true,
 });
 childLogger1_1.silly("ChildLogger1-1 silly 6");
 childLogger1.setSettings({ prefix: ["child1Renamed"] });
 childLogger1_1.debug("ChildLogger1-1 debug finish");
+const yetAnotherLogger = childLogger1_1.getChildLogger({
+  name: "YetAnotherLogger",
+  displayTraceId: true,
+  traceId: () => (Math.random() * 12345).toFixed(0).toString(),
+});
+yetAnotherLogger.info("Yet another Logger with a name function");

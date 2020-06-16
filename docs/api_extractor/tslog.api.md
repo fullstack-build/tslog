@@ -94,6 +94,8 @@ export interface ILogObject extends IStackFrame {
     stack?: IStackFrame[];
     // Warning: (ae-forgotten-export) The symbol "ILogObjectStringifiable" needs to be exported by the entry point index.d.ts
     toJSON: () => ILogObjectStringifiable;
+    // (undocumented)
+    traceId?: string;
 }
 
 // @public
@@ -116,6 +118,8 @@ export interface ISettings extends ISettingsParam {
     displayLoggerName?: boolean;
     // (undocumented)
     displayLogLevel: boolean;
+    // (undocumented)
+    displayTraceId: boolean;
     // (undocumented)
     exposeErrorCodeFrame: boolean;
     // (undocumented)
@@ -150,6 +154,10 @@ export interface ISettings extends ISettingsParam {
     stdOut: IStd;
     // (undocumented)
     suppressStdOutput: boolean;
+    // Warning: (ae-forgotten-export) The symbol "TTraceIdFunction" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    traceId?: string | TTraceIdFunction;
     // (undocumented)
     type: "json" | "pretty";
 }
@@ -165,6 +173,7 @@ export interface ISettingsParam {
     displayInstanceName?: boolean;
     displayLoggerName?: boolean;
     displayLogLevel?: boolean;
+    displayTraceId?: boolean;
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
@@ -182,6 +191,8 @@ export interface ISettingsParam {
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
+    // (undocumented)
+    traceId?: string | TTraceIdFunction;
     type?: "json" | "pretty";
 }
 

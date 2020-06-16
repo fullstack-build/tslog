@@ -141,7 +141,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Object/JSON highlighting:</strong> Nicely prints out an object using native Node.js <code>utils.inspect</code> method</li>
 					<li><strong>Instance Name:</strong> Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)</li>
 					<li><strong>Named Logger:</strong> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
-					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object</li>
+					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object, also during run time (e.g. log level)</li>
 					<li><strong>Short paths:</strong> Paths are relative to the root of the application folder</li>
 					<li><strong>Runtime-agnostic:</strong> Works with <code>ts-node</code>, <code>ts-node-dev</code>, as well as compiled down to JavaScript</li>
 					<li><strong>Optionally overwrite <code>console</code>:</strong> Catch <code>console.log</code> etc. that would otherwise be hard to find</li>
@@ -610,6 +610,9 @@ logger.prettyError(err);</code></pre>
 					</li>
 					<li class=" tsd-kind-type-alias">
 						<a href="globals.html#tloglevelname" class="tsd-kind-icon">TLog<wbr>Level<wbr>Name</a>
+					</li>
+					<li class=" tsd-kind-type-alias">
+						<a href="globals.html#ttraceidfunction" class="tsd-kind-icon">TTrace<wbr>IdFunction</a>
 					</li>
 					<li class=" tsd-kind-type-alias tsd-has-type-parameter">
 						<a href="globals.html#ttransportlogger" class="tsd-kind-icon">TTransport<wbr>Logger</a>
