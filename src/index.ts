@@ -27,6 +27,7 @@ import {
   TUtilsInspectColors,
   IErrorObjectStringified,
   IFullDateTimeFormatPart,
+  ISettingsParamWithTraceId,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 
@@ -34,6 +35,7 @@ export {
   ILogLevel,
   TTransportLogger,
   ILogObject,
+  ILogObjectStringifiable,
   IErrorObject,
   IStackFrame,
   ISettingsParam,
@@ -64,7 +66,7 @@ export class Logger {
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
   private _parentOrDefaultSettings: ISettings;
-  private _mySettings: ISettingsParam = {};
+  private _mySettings: ISettingsParamWithTraceId = {};
   private _childLogger: Logger[] = [];
 
   /**
@@ -155,7 +157,14 @@ export class Logger {
     settings: ISettingsParam,
     parentSettings?: ISettings
   ): ISettings {
-    this._mySettings = { ...this._mySettings, ...settings };
+    this._mySettings = {
+      ...this._mySettings,
+      ...settings,
+      traceId:
+        settings.traceId instanceof Function
+          ? settings.traceId()
+          : settings.traceId,
+    };
 
     this._mySettings.name =
       this._mySettings.name ??
@@ -347,16 +356,11 @@ export class Logger {
       stackFrame
     );
 
-    const traceId: undefined | string =
-      this.settings.traceId instanceof Function
-        ? this.settings.traceId()
-        : this.settings.traceId;
-
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
       hostname: hostname(),
-      traceId,
+      traceId: this.settings.traceId,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
