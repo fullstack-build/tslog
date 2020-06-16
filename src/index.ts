@@ -34,6 +34,7 @@ export {
   ILogLevel,
   TTransportLogger,
   ILogObject,
+  ILogObjectStringifiable,
   IErrorObject,
   IStackFrame,
   ISettingsParam,
