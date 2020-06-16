@@ -101,11 +101,13 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     dateTimeTimezone: string;
     // (undocumented)
+    displayAttributeType: boolean;
+    // (undocumented)
     displayDateTime: boolean;
     // (undocumented)
-    displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
+    displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
     // (undocumented)
-    displayFunctionName?: boolean;
+    displayFunctionName: boolean;
     // (undocumented)
     displayInstanceName: boolean;
     // (undocumented)
@@ -131,6 +133,8 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     overwriteConsole: boolean;
     // (undocumented)
+    prefix: unknown[];
+    // (undocumented)
     prettyInspectHighlightStyles: IHighlightStyles;
     // (undocumented)
     prettyInspectOptions: InspectOptions;
@@ -152,6 +156,7 @@ export interface ISettings extends ISettingsParam {
 export interface ISettingsParam {
     dateTimePattern?: string;
     dateTimeTimezone?: string;
+    displayAttributeType?: boolean;
     displayDateTime?: boolean;
     displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
     displayFunctionName?: boolean;
@@ -167,6 +172,7 @@ export interface ISettingsParam {
     minLevel?: TLogLevelName;
     name?: string;
     overwriteConsole?: boolean;
+    prefix?: unknown[];
     prettyInspectHighlightStyles?: IHighlightStyles;
     prettyInspectOptions?: InspectOptions;
     printLogMessageInNewLine?: boolean;
@@ -197,14 +203,18 @@ export interface IStd {
 
 // @public
 export class Logger {
-    constructor(settings?: ISettingsParam);
+    constructor(settings?: ISettingsParam, parentSettings?: ISettings);
     attachTransport(transportLogger: TTransportLogger<(message: ILogObject) => void>, minLevel?: TLogLevelName): void;
     debug(...args: unknown[]): ILogObject;
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
+    // (undocumented)
+    getChildLogger(settings?: ISettingsParam): Logger;
     info(...args: unknown[]): ILogObject;
     prettyError(error: Error, print?: boolean, exposeErrorCodeFrame?: boolean, exposeStackTrace?: boolean, stackOffset?: number, stackLimit?: number, std?: IStd): IErrorObject;
-    readonly settings: ISettings;
+    // (undocumented)
+    setSettings(settings: ISettingsParam, parentSettings?: ISettings): ISettings;
+    get settings(): ISettings;
     silly(...args: unknown[]): ILogObject;
     trace(...args: unknown[]): ILogObject;
     warn(...args: unknown[]): ILogObject;
