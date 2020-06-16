@@ -363,6 +363,7 @@ export class Logger {
       typeName: stackFrameObject.typeName,
       methodName: stackFrameObject.methodName,
       argumentsArray: [],
+      toJSON: () => this._logObjectToJson(logObject),
     };
 
     const logArgumentsWithPrefix: unknown[] = [
@@ -668,13 +669,8 @@ export class Logger {
     });
   }
 
-  private _printJsonLog(logObject: ILogObject): void {
-    const std: IStd =
-      logObject.logLevelId < this._minLevelToStdErr
-        ? this.settings.stdOut
-        : this.settings.stdErr;
-
-    const logObjectStringifiable: ILogObjectStringifiable = {
+  private _logObjectToJson(logObject: ILogObject): ILogObjectStringifiable {
+    return {
       ...logObject,
       argumentsArray: logObject.argumentsArray.map(
         (argument: unknown | IErrorObject) => {
@@ -691,7 +687,14 @@ export class Logger {
         }
       ),
     };
+  }
 
-    std.write(JSON.stringify(logObjectStringifiable) + "\n");
+  private _printJsonLog(logObject: ILogObject): void {
+    const std: IStd =
+      logObject.logLevelId < this._minLevelToStdErr
+        ? this.settings.stdOut
+        : this.settings.stdErr;
+
+    std.write(JSON.stringify(this._logObjectToJson(logObject)) + "\n");
   }
 }

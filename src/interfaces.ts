@@ -213,6 +213,8 @@ export interface ILogObject extends IStackFrame {
   argumentsArray: (IErrorObject | unknown)[];
   /**  Optional Log stack trace */
   stack?: IStackFrame[];
+  /** Convert a LogObject into a JSON, is used by JSON.stringify() */
+  toJSON: () => ILogObjectStringifiable;
 }
 
 export interface ILogObjectStringifiable extends ILogObject {

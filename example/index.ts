@@ -63,7 +63,8 @@ function Foo() {
 }
 /* @ts-ignore */
 const foo = new Foo();
-log.debug(foo);
+const logMessage = log.debug(foo);
+console.log("JSON.stringify circular log message", JSON.stringify(logMessage));
 
 /* Helper Examples */
 console.log("*******************");

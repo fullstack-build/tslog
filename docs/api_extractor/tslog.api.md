@@ -92,6 +92,8 @@ export interface ILogObject extends IStackFrame {
     logLevel: TLogLevelName;
     logLevelId: TLogLevelId;
     stack?: IStackFrame[];
+    // Warning: (ae-forgotten-export) The symbol "ILogObjectStringifiable" needs to be exported by the entry point index.d.ts
+    toJSON: () => ILogObjectStringifiable;
 }
 
 // @public
