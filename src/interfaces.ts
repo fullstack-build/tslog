@@ -130,17 +130,21 @@ export interface ISettingsParam {
   prefix?: unknown[];
 }
 
+export interface ISettingsParamWithTraceId extends ISettingsParam {
+  traceId?: string;
+}
+
 /**
  * The actual settings object
  * Based on ISettingsParam, however pre-filled with defaults in case no value was provided.
  * @public
  */
-export interface ISettings extends ISettingsParam {
+export interface ISettings extends ISettingsParamWithTraceId {
   type: "json" | "pretty";
   instanceName?: string;
   setCallerAsLoggerName: boolean;
   name?: string;
-  traceId?: string | TTraceIdFunction;
+  traceId?: string;
   minLevel: TLogLevelName;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;

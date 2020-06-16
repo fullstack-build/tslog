@@ -105,8 +105,10 @@ export interface ILogObjectStringifiable extends ILogObject {
     argumentsArray: (IErrorObjectStringified | string)[];
 }
 
+// Warning: (ae-forgotten-export) The symbol "ISettingsParamWithTraceId" needs to be exported by the entry point index.d.ts
+//
 // @public
-export interface ISettings extends ISettingsParam {
+export interface ISettings extends ISettingsParamWithTraceId {
     // (undocumented)
     dateTimePattern: string;
     // (undocumented)
@@ -161,10 +163,8 @@ export interface ISettings extends ISettingsParam {
     stdOut: IStd;
     // (undocumented)
     suppressStdOutput: boolean;
-    // Warning: (ae-forgotten-export) The symbol "TTraceIdFunction" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
-    traceId?: string | TTraceIdFunction;
+    traceId?: string;
     // (undocumented)
     type: "json" | "pretty";
 }
@@ -198,6 +198,8 @@ export interface ISettingsParam {
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
+    // Warning: (ae-forgotten-export) The symbol "TTraceIdFunction" needs to be exported by the entry point index.d.ts
+    //
     // (undocumented)
     traceId?: string | TTraceIdFunction;
     type?: "json" | "pretty";
