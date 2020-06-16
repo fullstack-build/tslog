@@ -156,11 +156,27 @@ export class Logger {
   ): ISettings {
     this._mySettings = { ...this._mySettings, ...settings };
 
+    this._mySettings.name =
+      this._mySettings.name ??
+      (this._mySettings.setCallerAsLoggerName
+        ? LoggerHelper.getCallSites()[0].getTypeName() ??
+          LoggerHelper.getCallSites()[0].getFunctionName() ??
+          undefined
+        : undefined);
+
     if (parentSettings != null) {
       this._parentOrDefaultSettings = {
         ...this._parentOrDefaultSettings,
         ...parentSettings,
       };
+    }
+
+    LoggerHelper.setUtilsInspectStyles(
+      this.settings.prettyInspectHighlightStyles
+    );
+
+    if (this.settings.overwriteConsole) {
+      LoggerHelper.overwriteConsole(this, this._handleLog);
     }
 
     this._childLogger.forEach((childLogger: Logger) => {
