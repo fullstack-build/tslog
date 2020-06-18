@@ -271,4 +271,26 @@ export class LoggerHelper {
       ? `0${lineNumber}`
       : `${lineNumber}`;
   }
+
+  public static maskStr(
+    value: string,
+    maskStrings: string[],
+    maskStrWith: string
+  ): string {
+    const typeOfValue: string = typeof value;
+    if (
+      Object.values(maskStrings).length > 0 &&
+      value != null &&
+      typeOfValue === "string"
+    ) {
+      const regExp: RegExp = new RegExp(
+        Object.values(maskStrings).join("|"),
+        "gi"
+      );
+
+      return (value as string).toString().replace(regExp, maskStrWith);
+    } else {
+      return value;
+    }
+  }
 }

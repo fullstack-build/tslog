@@ -3,9 +3,9 @@
  * @packageDocumentation
  */
 
-import { format, inspect } from "util";
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
+import { inspect, format } from "util";
 import { wrapCallSite } from "source-map-support";
 
 import {
@@ -30,6 +30,7 @@ import {
   ISettingsParamWithTraceId,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
+import { InspectOptions } from "util";
 
 export {
   ILogLevel,
@@ -134,7 +135,11 @@ export class Logger {
 
       stdOut: process.stdout,
       stdErr: process.stderr,
+
       prefix: [],
+      omitKeys: ["password"],
+      maskValues: [],
+      maskPlaceholder: "[***]",
     };
     const mySettings: ISettingsParam = settings != null ? settings : {};
     this.setSettings(mySettings, parentSettings);
@@ -575,10 +580,15 @@ export class Logger {
         errorObject?.isError !== true
       ) {
         std.write(
-          "\n" + typeStr + inspect(argument, this.settings.prettyInspectOptions)
+          "\n" +
+            typeStr +
+            this._inspectAndHideSensitive(
+              argument,
+              this.settings.prettyInspectOptions
+            )
         );
       } else {
-        std.write(typeStr + format(argument) + " ");
+        std.write(typeStr + this._formatAndHideSesitive(argument) + " ");
       }
     });
     std.write("\n");
@@ -603,13 +613,17 @@ export class Logger {
           ["bgRed", "whiteBright", "bold"],
           ` ${errorObject.name} `
         ) +
-        `\t${format(errorObject.message)}`
+        `\t${this._formatAndHideSesitive(errorObject.message)}`
     );
 
     if (Object.values(errorObject.details).length > 0) {
       std.write(LoggerHelper.styleString(["underline", "bold"], "\ndetails:"));
       std.write(
-        "\n" + inspect(errorObject.details, this.settings.prettyInspectOptions)
+        "\n" +
+          this._inspectAndHideSensitive(
+            errorObject.details,
+            this.settings.prettyInspectOptions
+          )
       );
     }
 
@@ -695,10 +709,13 @@ export class Logger {
             return {
               ...errorObject,
               nativeError: undefined,
-              errorString: format(errorObject.nativeError),
+              errorString: this._formatAndHideSesitive(errorObject.nativeError),
             } as IErrorObjectStringified;
           } else {
-            return inspect(argument, this.settings.jsonInspectOptions);
+            return this._inspectAndHideSensitive(
+              argument,
+              this.settings.jsonInspectOptions
+            );
           }
         }
       ),
@@ -711,6 +728,41 @@ export class Logger {
         ? this.settings.stdOut
         : this.settings.stdErr;
 
-    std.write(JSON.stringify(this._logObjectToJson(logObject)) + "\n");
+    std.write(JSON.stringify(logObject) + "\n");
+  }
+
+  private _inspectAndHideSensitive(
+    object: unknown,
+    options: InspectOptions
+  ): string {
+    return LoggerHelper.maskStr(
+      inspect(object, options),
+      this.settings.maskValues,
+      this.settings.maskPlaceholder
+    ).replace(
+      new RegExp(
+        "^(.*)(" +
+          Object.values(this.settings.omitKeys).join("|") +
+          ").*(\\,)$",
+        "gim"
+      ),
+      "$1$2: " +
+        LoggerHelper.styleString(
+          [this.settings.prettyInspectHighlightStyles.string],
+          `'${this.settings.maskPlaceholder}'`
+        ) +
+        "$3"
+    );
+  }
+
+  private _formatAndHideSesitive(
+    formatParam: unknown,
+    ...param: unknown[]
+  ): string {
+    return LoggerHelper.maskStr(
+      format(formatParam, ...param),
+      this.settings.maskValues,
+      this.settings.maskPlaceholder
+    );
   }
 }

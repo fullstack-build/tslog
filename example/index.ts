@@ -110,3 +110,24 @@ const yetAnotherLogger = childLogger1_1.getChildLogger({
   traceId: () => (Math.random() * 12345).toFixed(0).toString(),
 });
 yetAnotherLogger.info("Yet another Logger with a name function");
+
+/** Example: Hide Secrets */
+
+let verySecretiveObject = {
+  password: "swordfish",
+  Authorization: 1234567,
+  stringPwd: "swordfish",
+  nested: {
+    regularString: "I am just a regular string.",
+    otherString: "pass1234.567",
+  },
+};
+verySecretiveObject.nested["circular"] = verySecretiveObject;
+
+const secretiveLogger = new Logger({
+  name: "SecretiveLogger",
+  maskValues: ["swordfish", "pass1234"],
+  omitKeys: ["test", "authorization", "password"],
+});
+
+secretiveLogger.info(verySecretiveObject);
