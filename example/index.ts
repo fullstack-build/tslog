@@ -112,7 +112,6 @@ const yetAnotherLogger = childLogger1_1.getChildLogger({
 yetAnotherLogger.info("Yet another Logger with a name function");
 
 /** Example: Hide Secrets */
-
 let verySecretiveObject = {
   password: "swordfish",
   Authorization: 1234567,
@@ -126,8 +125,8 @@ verySecretiveObject.nested["circular"] = verySecretiveObject;
 
 const secretiveLogger = new Logger({
   name: "SecretiveLogger",
-  maskValues: ["swordfish", "pass1234"],
-  omitKeys: ["test", "authorization", "password"],
+  maskStrings: ["swordfish", "pass1234"],
+  maskValuesOfKeys: ["test", "authorization", "password"],
 });
 
 secretiveLogger.info(verySecretiveObject);

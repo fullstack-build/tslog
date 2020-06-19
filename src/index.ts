@@ -69,6 +69,8 @@ export class Logger {
   private _parentOrDefaultSettings: ISettings;
   private _mySettings: ISettingsParamWithTraceId = {};
   private _childLogger: Logger[] = [];
+  private _maskValuesOfKeysRegExp: RegExp | undefined;
+  private _maskStringsRegExp: RegExp | undefined;
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
@@ -137,8 +139,8 @@ export class Logger {
       stdErr: process.stderr,
 
       prefix: [],
-      omitKeys: ["password"],
-      maskValues: [],
+      maskValuesOfKeys: ["password"],
+      maskStrings: [],
       maskPlaceholder: "[***]",
     };
     const mySettings: ISettingsParam = settings != null ? settings : {};
@@ -185,6 +187,21 @@ export class Logger {
         ...parentSettings,
       };
     }
+
+    this._maskStringsRegExp =
+      this.settings.maskValuesOfKeys?.length > 0
+        ? new RegExp(
+            "^(.*)(" +
+              Object.values(this.settings.maskValuesOfKeys).join("|") +
+              ").*(\\,)$",
+            "gim"
+          )
+        : undefined;
+
+    this._maskStringsRegExp =
+      this.settings.maskStrings?.length > 0
+        ? new RegExp(Object.values(this.settings.maskStrings).join("|"), "g")
+        : undefined;
 
     LoggerHelper.setUtilsInspectStyles(
       this.settings.prettyInspectHighlightStyles
@@ -735,34 +752,38 @@ export class Logger {
     object: unknown,
     options: InspectOptions
   ): string {
-    return LoggerHelper.maskStr(
-      inspect(object, options),
-      this.settings.maskValues,
-      this.settings.maskPlaceholder
-    ).replace(
-      new RegExp(
-        "^(.*)(" +
-          Object.values(this.settings.omitKeys).join("|") +
-          ").*(\\,)$",
-        "gim"
-      ),
-      "$1$2: " +
-        LoggerHelper.styleString(
-          [this.settings.prettyInspectHighlightStyles.string],
-          `'${this.settings.maskPlaceholder}'`
-        ) +
-        "$3"
-    );
+    let inspectedString: string = inspect(object, options);
+
+    if (this._maskValuesOfKeysRegExp != null) {
+      inspectedString = inspectedString.replace(
+        this._maskValuesOfKeysRegExp,
+        "$1$2: " +
+          LoggerHelper.styleString(
+            [this.settings.prettyInspectHighlightStyles.string],
+            `'${this.settings.maskPlaceholder}'`
+          ) +
+          "$3"
+      );
+    }
+
+    return this._maskStringsRegExp != null
+      ? inspectedString.replace(
+          this._maskStringsRegExp,
+          this.settings.maskPlaceholder
+        )
+      : inspectedString;
   }
 
   private _formatAndHideSesitive(
     formatParam: unknown,
     ...param: unknown[]
   ): string {
-    return LoggerHelper.maskStr(
-      format(formatParam, ...param),
-      this.settings.maskValues,
-      this.settings.maskPlaceholder
-    );
+    const formattedStr: string = format(formatParam, ...param);
+    return this._maskStringsRegExp != null
+      ? formattedStr.replace(
+          this._maskStringsRegExp,
+          this.settings.maskPlaceholder
+        )
+      : formattedStr;
   }
 }

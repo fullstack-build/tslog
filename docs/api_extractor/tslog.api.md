@@ -144,13 +144,13 @@ export interface ISettings extends ISettingsParamWithTraceId {
     // (undocumented)
     maskPlaceholder: string;
     // (undocumented)
-    maskValues: string[];
+    maskStrings: string[];
+    // (undocumented)
+    maskValuesOfKeys: (number | string)[];
     // (undocumented)
     minLevel: TLogLevelName;
     // (undocumented)
     name?: string;
-    // (undocumented)
-    omitKeys: (number | string)[];
     // (undocumented)
     overwriteConsole: boolean;
     // (undocumented)
@@ -194,10 +194,10 @@ export interface ISettingsParam {
     jsonInspectOptions?: InspectOptions;
     logLevelsColors?: TLogLevelColor;
     maskPlaceholder?: string;
-    maskValues?: string[];
+    maskStrings?: string[];
+    maskValuesOfKeys?: (number | string)[];
     minLevel?: TLogLevelName;
     name?: string;
-    omitKeys?: (number | string)[];
     overwriteConsole?: boolean;
     prefix?: unknown[];
     prettyInspectHighlightStyles?: IHighlightStyles;

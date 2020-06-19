@@ -130,10 +130,10 @@ export interface ISettingsParam {
   prefix?: unknown[];
 
   /** Exclude case-insensitive keys for object passed to `tslog` that could potentially contain sensitive information (e.g. `password` or `Authorization`), default: ["password"] */
-  omitKeys?: (number | string)[];
+  maskValuesOfKeys?: (number | string)[];
 
   /** Mask all of this case-sensitive strings from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
-  maskValues?: string[];
+  maskStrings?: string[];
 
   /** String to use a placeholder to mask sensitive values. */
   maskPlaceholder?: string;
@@ -178,8 +178,8 @@ export interface ISettings extends ISettingsParamWithTraceId {
   stdOut: IStd;
   stdErr: IStd;
   prefix: unknown[];
-  omitKeys: (number | string)[];
-  maskValues: string[];
+  maskValuesOfKeys: (number | string)[];
+  maskStrings: string[];
   maskPlaceholder: string;
 }
 
