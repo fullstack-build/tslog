@@ -62,6 +62,13 @@
 <div class="container container-main">
 	<div class="row">
 		<div class="col-8 col-content">
+			<section class="tsd-panel tsd-comment">
+				<div class="tsd-comment tsd-typography">
+					<div class="lead">
+						<p>LogObject that can safely be &quot;JSON.stringifed&quot;. All circular structures have been &quot;util.inspected&quot; into strings</p>
+					</div>
+				</div>
+			</section>
 			<section class="tsd-panel tsd-hierarchy">
 				<h3>Hierarchy</h3>
 				<ul class="tsd-hierarchy">
@@ -111,11 +118,11 @@
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-overwrite">
 					<a name="argumentsarray" class="tsd-anchor"></a>
 					<h3>arguments<wbr>Array</h3>
-					<div class="tsd-signature tsd-kind-icon">arguments<wbr>Array<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="ierrorobjectstringified.html" class="tsd-signature-type">IErrorObjectStringified</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">[]</span></div>
+					<div class="tsd-signature tsd-kind-icon">arguments<wbr>Array<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol"> | </span><a href="ierrorobjectstringifiable.html" class="tsd-signature-type">IErrorObjectStringifiable</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">[]</span></div>
 					<aside class="tsd-sources">
 						<p>Overrides <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#argumentsarray">argumentsArray</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L248">interfaces.ts:248</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L261">interfaces.ts:261</a></li>
 						</ul>
 					</aside>
 				</section>
@@ -126,7 +133,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#columnnumber">columnNumber</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L209">interfaces.ts:209</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L218">interfaces.ts:218</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -142,7 +149,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#date">date</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L234">interfaces.ts:234</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L243">interfaces.ts:243</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -158,7 +165,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#filename">fileName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L205">interfaces.ts:205</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L214">interfaces.ts:214</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -174,7 +181,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#filepath">filePath</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L201">interfaces.ts:201</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L210">interfaces.ts:210</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -190,7 +197,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#fullfilepath">fullFilePath</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L203">interfaces.ts:203</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L212">interfaces.ts:212</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -206,7 +213,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#functionname">functionName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L213">interfaces.ts:213</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L222">interfaces.ts:222</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -222,9 +229,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#hostname">hostname</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L230">interfaces.ts:230</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L239">interfaces.ts:239</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Name of the host</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="instancename" class="tsd-anchor"></a>
@@ -233,7 +245,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#instancename">instanceName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L226">interfaces.ts:226</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L235">interfaces.ts:235</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -249,7 +261,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#isconstructor">isConstructor</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L211">interfaces.ts:211</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L220">interfaces.ts:220</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -265,7 +277,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#linenumber">lineNumber</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L207">interfaces.ts:207</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L216">interfaces.ts:216</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -281,7 +293,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#loglevel">logLevel</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L236">interfaces.ts:236</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L245">interfaces.ts:245</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -297,7 +309,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#loglevelid">logLevelId</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L238">interfaces.ts:238</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L247">interfaces.ts:247</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -313,7 +325,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#loggername">loggerName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L228">interfaces.ts:228</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L237">interfaces.ts:237</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -329,7 +341,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#methodname">methodName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L217">interfaces.ts:217</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L226">interfaces.ts:226</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -345,9 +357,14 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#requestid">requestId</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L232">interfaces.ts:232</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L241">interfaces.ts:241</a></li>
 						</ul>
 					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Optional unique request ID</p>
+						</div>
+					</div>
 				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface tsd-is-inherited">
 					<a name="stack" class="tsd-anchor"></a>
@@ -356,7 +373,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#stack">stack</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L242">interfaces.ts:242</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L251">interfaces.ts:251</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -372,7 +389,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="ilogobject.html">ILogObject</a>.<a href="ilogobject.html#tojson">toJSON</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L244">interfaces.ts:244</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L253">interfaces.ts:253</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -403,7 +420,7 @@
 					<aside class="tsd-sources">
 						<p>Inherited from <a href="istackframe.html">IStackFrame</a>.<a href="istackframe.html#typename">typeName</a></p>
 						<ul>
-							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/701c6aa/src/interfaces.ts#L215">interfaces.ts:215</a></li>
+							<li>Defined in <a href="https://github.com/fullstack-build/tslog/blob/44f61c6/src/interfaces.ts#L224">interfaces.ts:224</a></li>
 						</ul>
 					</aside>
 					<div class="tsd-comment tsd-typography">
@@ -434,7 +451,7 @@
 						<a href="ierrorobject.html" class="tsd-kind-icon">IError<wbr>Object</a>
 					</li>
 					<li class=" tsd-kind-interface">
-						<a href="ierrorobjectstringified.html" class="tsd-kind-icon">IError<wbr>Object<wbr>Stringified</a>
+						<a href="ierrorobjectstringifiable.html" class="tsd-kind-icon">IError<wbr>Object<wbr>Stringifiable</a>
 					</li>
 					<li class=" tsd-kind-interface">
 						<a href="ifulldatetimeformatpart.html" class="tsd-kind-icon">IFull<wbr>Date<wbr>Time<wbr>Format<wbr>Part</a>

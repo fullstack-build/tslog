@@ -16,6 +16,7 @@ import {
   ISettingsParam,
   IStackFrame,
   IStd,
+  TRequestIdFunction,
   TTransportLogger,
   ITransportProvider,
   TLogLevelName,
@@ -25,7 +26,7 @@ import {
   ICodeFrame,
   ILogObjectStringifiable,
   TUtilsInspectColors,
-  IErrorObjectStringified,
+  IErrorObjectStringifiable,
   IFullDateTimeFormatPart,
   ISettingsParamWithRequestId,
 } from "./interfaces";
@@ -38,13 +39,17 @@ export {
   ILogObject,
   ILogObjectStringifiable,
   IErrorObject,
+  IErrorObjectStringifiable,
   IStackFrame,
   ISettingsParam,
+  ISettingsParamWithRequestId,
   IStd,
   TLogLevelName,
+  TRequestIdFunction,
   TLogLevelId,
   IHighlightStyles,
   TLogLevelColor,
+  TUtilsInspectColors,
   ISettings,
   ICodeFrame,
 };
@@ -133,7 +138,7 @@ export class Logger {
       displayLoggerName: true,
       displayFilePath: "hideNodeModulesOnly",
       displayFunctionName: true,
-      displayAttributeType: false,
+      displayTypes: false,
 
       stdOut: process.stdout,
       stdErr: process.stderr,
@@ -160,6 +165,13 @@ export class Logger {
     };
   }
 
+  /**
+   *  Change settings during runtime
+   *  Changes will be propagated to potential child loggers
+   *
+   * @param settings - Settings to overwrite with. Only this settings will be overwritten, rest will remain the same.
+   * @param parentSettings - INTERNAL USE: Is called by a parent logger to propagate new settings.
+   */
   public setSettings(
     settings: ISettingsParam,
     parentSettings?: ISettings
@@ -218,6 +230,11 @@ export class Logger {
     return this.settings;
   }
 
+  /**
+   *  Returns a child logger based on the current instance with inherited settings
+   *
+   * @param settings - Overwrite settings inherited from parent logger
+   */
   public getChildLogger(settings?: ISettingsParam): Logger {
     const childSettings: ISettings = {
       ...this.settings,
@@ -582,7 +599,7 @@ export class Logger {
 
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const typeStr: string =
-        this.settings.displayAttributeType === true
+        this.settings.displayTypes === true
           ? LoggerHelper.styleString(["grey", "bold"], typeof argument + ":") +
             " "
           : "";
@@ -725,7 +742,7 @@ export class Logger {
               ...errorObject,
               nativeError: undefined,
               errorString: this._formatAndHideSesitive(errorObject.nativeError),
-            } as IErrorObjectStringified;
+            } as IErrorObjectStringifiable;
           } else if (typeof argument === "object") {
             return this._inspectAndHideSensitive(
               argument,

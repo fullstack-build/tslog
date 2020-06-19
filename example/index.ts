@@ -5,7 +5,7 @@ class MyClass {
     displayInstanceName: false,
     printLogMessageInNewLine: true,
     prefix: [1, 2],
-    displayAttributeType: true,
+    displayTypes: true,
   });
 
   public constructor() {

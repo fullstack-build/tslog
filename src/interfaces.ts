@@ -35,7 +35,11 @@ export type TLogLevelColor = {
   [key in TLogLevelId]: TUtilsInspectColors;
 };
 
-type TRequestIdFunction = () => string;
+/**
+ * Function that generates a request ID.
+ * @public
+ */
+export type TRequestIdFunction = () => string;
 
 /**
  * Constructor: logger settings
@@ -58,6 +62,7 @@ export interface ISettingsParam {
   /** Minimum output log level (e.g. debug), default: "silly" */
   minLevel?: TLogLevelName;
 
+  /** Optional request ID for grouping logs by a logical request. default: `undefined` */
   requestId?: string | TRequestIdFunction;
 
   /** Expose stack with EVERY log message, default: `false`  */
@@ -118,7 +123,7 @@ export interface ISettingsParam {
   displayFunctionName?: boolean;
 
   /** Display type information for each attribute passed. */
-  displayAttributeType?: boolean;
+  displayTypes?: boolean;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -139,6 +144,10 @@ export interface ISettingsParam {
   maskPlaceholder?: string;
 }
 
+/**
+ * Logger settings with an optional requestId string (not a function anymore)
+ * @public
+ */
 export interface ISettingsParamWithRequestId extends ISettingsParam {
   requestId?: string;
 }
@@ -174,7 +183,7 @@ export interface ISettings extends ISettingsParamWithRequestId {
   displayLoggerName?: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
-  displayAttributeType: boolean;
+  displayTypes: boolean;
   stdOut: IStd;
   stdErr: IStd;
   prefix: unknown[];
@@ -226,9 +235,9 @@ export interface ILogObject extends IStackFrame {
   instanceName?: string;
   /**  Optional name of the logger or empty string. */
   loggerName?: string;
-  /* Name of the host */
+  /** Name of the host */
   hostname: string;
-  /* Optional unique request ID */
+  /** Optional unique request ID */
   requestId?: string;
   /**  Timestamp */
   date: Date;
@@ -244,8 +253,12 @@ export interface ILogObject extends IStackFrame {
   toJSON: () => ILogObjectStringifiable;
 }
 
+/**
+ * LogObject that can safely be "JSON.stringifed". All circular structures have been "util.inspected" into strings
+ * @public
+ */
 export interface ILogObjectStringifiable extends ILogObject {
-  argumentsArray: (IErrorObjectStringified | string)[];
+  argumentsArray: (IErrorObjectStringifiable | string)[];
 }
 
 /**
@@ -269,7 +282,11 @@ export interface IErrorObject {
   codeFrame?: ICodeFrame;
 }
 
-export interface IErrorObjectStringified extends IErrorObject {
+/**
+ * ErrorObject that can safely be "JSON.stringifed". All circular structures have been "util.inspected" into strings
+ * @public
+ */
+export interface IErrorObjectStringifiable extends IErrorObject {
   nativeError: never;
   errorString: string;
 }
