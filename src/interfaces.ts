@@ -123,7 +123,7 @@ export interface ISettingsParam {
   displayFunctionName?: boolean;
 
   /** Display type information for each attribute passed. */
-  displayAttributeType?: boolean;
+  displayTypes?: boolean;
 
   /**  Overwrite default std out */
   stdOut?: IStd;
@@ -183,7 +183,7 @@ export interface ISettings extends ISettingsParamWithRequestId {
   displayLoggerName?: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
-  displayAttributeType: boolean;
+  displayTypes: boolean;
   stdOut: IStd;
   stdErr: IStd;
   prefix: unknown[];

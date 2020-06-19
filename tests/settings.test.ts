@@ -553,8 +553,8 @@ describe("Logger: settings", () => {
     expect(doesLogContain(stdArray, "fnctn")).toBeTruthy();
   });
 
-  /* displayAttributeType */
-  test("init logger: displayAttributeType: default", (): void => {
+  /* displayTypes */
+  test("init logger: displayTypes: default", (): void => {
     const stdArray: string[] = [];
     const std: { write: (print: string) => void } = {
       write: (print: string) => {
@@ -568,7 +568,7 @@ describe("Logger: settings", () => {
     expect(doesLogContain(stdArray, "string")).toBeFalsy();
   });
 
-  test("init logger: displayAttributeType: true", (): void => {
+  test("init logger: displayTypes: true", (): void => {
     const stdArray: string[] = [];
     const std: { write: (print: string) => void } = {
       write: (print: string) => {
@@ -577,7 +577,7 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({
       stdOut: std,
-      displayAttributeType: true,
+      displayTypes: true,
     });
     logger.info("test");
 
@@ -585,7 +585,7 @@ describe("Logger: settings", () => {
     expect(doesLogContain(stdArray, "string")).toBeTruthy();
   });
 
-  test("init logger: displayAttributeType: false", (): void => {
+  test("init logger: displayTypes: false", (): void => {
     const stdArray: string[] = [];
     const std: { write: (print: string) => void } = {
       write: (print: string) => {
@@ -594,7 +594,7 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({
       stdOut: std,
-      displayAttributeType: false,
+      displayTypes: false,
     });
     logger.info("test");
 

@@ -114,8 +114,6 @@ export interface ISettings extends ISettingsParamWithRequestId {
     // (undocumented)
     dateTimeTimezone: string;
     // (undocumented)
-    displayAttributeType: boolean;
-    // (undocumented)
     displayDateTime: boolean;
     // (undocumented)
     displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
@@ -129,6 +127,8 @@ export interface ISettings extends ISettingsParamWithRequestId {
     displayLogLevel: boolean;
     // (undocumented)
     displayRequestId: boolean;
+    // (undocumented)
+    displayTypes: boolean;
     // (undocumented)
     exposeErrorCodeFrame: boolean;
     // (undocumented)
@@ -179,7 +179,6 @@ export interface ISettings extends ISettingsParamWithRequestId {
 export interface ISettingsParam {
     dateTimePattern?: string;
     dateTimeTimezone?: string;
-    displayAttributeType?: boolean;
     displayDateTime?: boolean;
     displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
     displayFunctionName?: boolean;
@@ -187,6 +186,7 @@ export interface ISettingsParam {
     displayLoggerName?: boolean;
     displayLogLevel?: boolean;
     displayRequestId?: boolean;
+    displayTypes?: boolean;
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
@@ -242,11 +242,9 @@ export class Logger {
     debug(...args: unknown[]): ILogObject;
     error(...args: unknown[]): ILogObject;
     fatal(...args: unknown[]): ILogObject;
-    // (undocumented)
     getChildLogger(settings?: ISettingsParam): Logger;
     info(...args: unknown[]): ILogObject;
     prettyError(error: Error, print?: boolean, exposeErrorCodeFrame?: boolean, exposeStackTrace?: boolean, stackOffset?: number, stackLimit?: number, std?: IStd): IErrorObject;
-    // (undocumented)
     setSettings(settings: ISettingsParam, parentSettings?: ISettings): ISettings;
     get settings(): ISettings;
     silly(...args: unknown[]): ILogObject;
