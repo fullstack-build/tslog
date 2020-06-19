@@ -27,7 +27,7 @@ import {
   TUtilsInspectColors,
   IErrorObjectStringified,
   IFullDateTimeFormatPart,
-  ISettingsParamWithTraceId,
+  ISettingsParamWithRequestId,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 import { InspectOptions } from "util";
@@ -67,7 +67,7 @@ export class Logger {
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
   private _parentOrDefaultSettings: ISettings;
-  private _mySettings: ISettingsParamWithTraceId = {};
+  private _mySettings: ISettingsParamWithRequestId = {};
   private _childLogger: Logger[] = [];
   private _maskValuesOfKeysRegExp: RegExp | undefined;
   private _maskStringsRegExp: RegExp | undefined;
@@ -129,7 +129,7 @@ export class Logger {
       displayDateTime: true,
       displayLogLevel: true,
       displayInstanceName: false,
-      displayTraceId: false,
+      displayRequestId: false,
       displayLoggerName: true,
       displayFilePath: "hideNodeModulesOnly",
       displayFunctionName: true,
@@ -167,10 +167,10 @@ export class Logger {
     this._mySettings = {
       ...this._mySettings,
       ...settings,
-      traceId:
-        settings.traceId instanceof Function
-          ? settings.traceId()
-          : settings.traceId,
+      requestId:
+        settings.requestId instanceof Function
+          ? settings.requestId()
+          : settings.requestId,
     };
 
     this._mySettings.name =
@@ -188,7 +188,7 @@ export class Logger {
       };
     }
 
-    this._maskStringsRegExp =
+    this._maskValuesOfKeysRegExp =
       this.settings.maskValuesOfKeys?.length > 0
         ? new RegExp(
             "^(.*)(" +
@@ -382,7 +382,7 @@ export class Logger {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
       hostname: hostname(),
-      traceId: this.settings.traceId,
+      requestId: this.settings.requestId,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
@@ -536,8 +536,8 @@ export class Logger {
         : "";
 
     const traceId: string =
-      this.settings.displayTraceId === true && logObject.traceId != null
-        ? `:${logObject.traceId}`
+      this.settings.displayRequestId === true && logObject.requestId != null
+        ? `:${logObject.requestId}`
         : "";
 
     const name: string =

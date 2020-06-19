@@ -91,10 +91,10 @@ export interface ILogObject extends IStackFrame {
     loggerName?: string;
     logLevel: TLogLevelName;
     logLevelId: TLogLevelId;
+    // (undocumented)
+    requestId?: string;
     stack?: IStackFrame[];
     toJSON: () => ILogObjectStringifiable;
-    // (undocumented)
-    traceId?: string;
 }
 
 // @public (undocumented)
@@ -105,10 +105,10 @@ export interface ILogObjectStringifiable extends ILogObject {
     argumentsArray: (IErrorObjectStringified | string)[];
 }
 
-// Warning: (ae-forgotten-export) The symbol "ISettingsParamWithTraceId" needs to be exported by the entry point index.d.ts
+// Warning: (ae-forgotten-export) The symbol "ISettingsParamWithRequestId" needs to be exported by the entry point index.d.ts
 //
 // @public
-export interface ISettings extends ISettingsParamWithTraceId {
+export interface ISettings extends ISettingsParamWithRequestId {
     // (undocumented)
     dateTimePattern: string;
     // (undocumented)
@@ -128,7 +128,7 @@ export interface ISettings extends ISettingsParamWithTraceId {
     // (undocumented)
     displayLogLevel: boolean;
     // (undocumented)
-    displayTraceId: boolean;
+    displayRequestId: boolean;
     // (undocumented)
     exposeErrorCodeFrame: boolean;
     // (undocumented)
@@ -162,6 +162,8 @@ export interface ISettings extends ISettingsParamWithTraceId {
     // (undocumented)
     printLogMessageInNewLine: boolean;
     // (undocumented)
+    requestId?: string;
+    // (undocumented)
     setCallerAsLoggerName: boolean;
     // (undocumented)
     stdErr: IStd;
@@ -169,8 +171,6 @@ export interface ISettings extends ISettingsParamWithTraceId {
     stdOut: IStd;
     // (undocumented)
     suppressStdOutput: boolean;
-    // (undocumented)
-    traceId?: string;
     // (undocumented)
     type: "json" | "pretty";
 }
@@ -186,7 +186,7 @@ export interface ISettingsParam {
     displayInstanceName?: boolean;
     displayLoggerName?: boolean;
     displayLogLevel?: boolean;
-    displayTraceId?: boolean;
+    displayRequestId?: boolean;
     exposeErrorCodeFrame?: boolean;
     exposeErrorCodeFrameLinesBeforeAndAfter?: number;
     exposeStack?: boolean;
@@ -203,14 +203,14 @@ export interface ISettingsParam {
     prettyInspectHighlightStyles?: IHighlightStyles;
     prettyInspectOptions?: InspectOptions;
     printLogMessageInNewLine?: boolean;
+    // Warning: (ae-forgotten-export) The symbol "TRequestIdFunction" needs to be exported by the entry point index.d.ts
+    //
+    // (undocumented)
+    requestId?: string | TRequestIdFunction;
     setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
-    // Warning: (ae-forgotten-export) The symbol "TTraceIdFunction" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
-    traceId?: string | TTraceIdFunction;
     type?: "json" | "pretty";
 }
 

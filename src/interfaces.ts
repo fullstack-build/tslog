@@ -35,7 +35,7 @@ export type TLogLevelColor = {
   [key in TLogLevelId]: TUtilsInspectColors;
 };
 
-type TTraceIdFunction = () => string;
+type TRequestIdFunction = () => string;
 
 /**
  * Constructor: logger settings
@@ -58,7 +58,7 @@ export interface ISettingsParam {
   /** Minimum output log level (e.g. debug), default: "silly" */
   minLevel?: TLogLevelName;
 
-  traceId?: string | TTraceIdFunction;
+  requestId?: string | TRequestIdFunction;
 
   /** Expose stack with EVERY log message, default: `false`  */
   exposeStack?: boolean;
@@ -105,8 +105,8 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: `false` */
   displayInstanceName?: boolean;
 
-  /** Display traceId or not, default: `false` */
-  displayTraceId?: boolean;
+  /** Display requestId or not, default: `false` */
+  displayRequestId?: boolean;
 
   /** Display name of the logger. Will only be visible if `name` was set, default: `true` */
   displayLoggerName?: boolean;
@@ -139,8 +139,8 @@ export interface ISettingsParam {
   maskPlaceholder?: string;
 }
 
-export interface ISettingsParamWithTraceId extends ISettingsParam {
-  traceId?: string;
+export interface ISettingsParamWithRequestId extends ISettingsParam {
+  requestId?: string;
 }
 
 /**
@@ -148,12 +148,12 @@ export interface ISettingsParamWithTraceId extends ISettingsParam {
  * Based on ISettingsParam, however pre-filled with defaults in case no value was provided.
  * @public
  */
-export interface ISettings extends ISettingsParamWithTraceId {
+export interface ISettings extends ISettingsParamWithRequestId {
   type: "json" | "pretty";
   instanceName?: string;
   setCallerAsLoggerName: boolean;
   name?: string;
-  traceId?: string;
+  requestId?: string;
   minLevel: TLogLevelName;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
@@ -170,7 +170,7 @@ export interface ISettings extends ISettingsParamWithTraceId {
   displayDateTime: boolean;
   displayLogLevel: boolean;
   displayInstanceName: boolean;
-  displayTraceId: boolean;
+  displayRequestId: boolean;
   displayLoggerName?: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
@@ -228,8 +228,8 @@ export interface ILogObject extends IStackFrame {
   loggerName?: string;
   /* Name of the host */
   hostname: string;
-  /* Optional unique trace Id */
-  traceId?: string;
+  /* Optional unique request ID */
+  requestId?: string;
   /**  Timestamp */
   date: Date;
   /**  Log level name (e.g. debug) */

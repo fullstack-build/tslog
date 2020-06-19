@@ -106,8 +106,8 @@ childLogger1.setSettings({ prefix: ["child1Renamed"] });
 childLogger1_1.debug("ChildLogger1-1 debug finish");
 const yetAnotherLogger = childLogger1_1.getChildLogger({
   name: "YetAnotherLogger",
-  displayTraceId: true,
-  traceId: () => (Math.random() * 12345).toFixed(0).toString(),
+  displayRequestId: true,
+  requestId: () => (Math.random() * 12345).toFixed(0).toString(),
 });
 yetAnotherLogger.info("Yet another Logger with a name function");
 

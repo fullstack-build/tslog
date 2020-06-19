@@ -32,7 +32,6 @@ describe("Logger: settings", () => {
 
   test("init logger: type", (): void => {
     const logger: Logger = new Logger({ type: "json" });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.type).toBe("json");
   });
 
@@ -41,43 +40,69 @@ describe("Logger: settings", () => {
       instanceName: "ABC",
       displayInstanceName: true,
     });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.instanceName).toBe("ABC");
   });
 
   test("init logger: minLevel", (): void => {
     const logger: Logger = new Logger({ minLevel: "debug" });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.minLevel).toBe("debug");
   });
 
   test("init logger: name", (): void => {
     const logger: Logger = new Logger({ name: "Test" });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.name).toBe("Test");
+  });
+
+  test("init logger: requestId", (): void => {
+    const logger: Logger = new Logger({ requestId: "TestId" });
+    expect(logger.settings.requestId).toBe("TestId");
+  });
+
+  test("init logger: requestId: hidden", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (print: string) => void } = {
+      write: (print: string) => {
+        stdArray.push(print);
+      },
+    };
+    const logger: Logger = new Logger({ stdOut: std, requestId: "TestId" });
+    logger.info("test 123");
+    expect(doesLogContain(stdArray, "TestId")).toBeFalsy();
+  });
+
+  test("init logger: requestId: visible", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (print: string) => void } = {
+      write: (print: string) => {
+        stdArray.push(print);
+      },
+    };
+    const logger: Logger = new Logger({
+      stdOut: std,
+      requestId: "TestId",
+      displayRequestId: true,
+    });
+    logger.info("test 123");
+    expect(doesLogContain(stdArray, "TestId")).toBeTruthy();
   });
 
   test("init logger: caller as logger name", (): void => {
     const logger: Logger = new Logger({ setCallerAsLoggerName: true });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.name).toBe("Logger");
   });
 
   test("init logger: exposeStack", (): void => {
     const logger: Logger = new Logger({ exposeStack: true });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.exposeStack).toBe(true);
   });
 
   test("init logger: suppressStdOutput", (): void => {
     const logger: Logger = new Logger({ suppressStdOutput: true });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.suppressStdOutput).toBe(true);
   });
 
   test("init logger: overwriteConsole", (): void => {
     const logger: Logger = new Logger({ overwriteConsole: true });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.overwriteConsole).toBe(true);
   });
 
@@ -94,7 +119,6 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({
       logLevelsColors,
     });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.logLevelsColors[0]).toBe(logLevelsColors[0]);
     expect(logger.settings.logLevelsColors[1]).toBe(logLevelsColors[1]);
     expect(logger.settings.logLevelsColors[2]).toBe(logLevelsColors[2]);
@@ -123,7 +147,6 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({
       prettyInspectHighlightStyles: highlightStyles,
     });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.prettyInspectHighlightStyles.name).toBe(
       highlightStyles.name
     );
@@ -530,7 +553,22 @@ describe("Logger: settings", () => {
     expect(doesLogContain(stdArray, "fnctn")).toBeTruthy();
   });
 
-  test("init logger: displayFunctionName: false", (): void => {
+  /* displayAttributeType */
+  test("init logger: displayAttributeType: default", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (print: string) => void } = {
+      write: (print: string) => {
+        stdArray.push(print);
+      },
+    };
+    const logger: Logger = new Logger({ stdOut: std });
+    logger.info("test");
+
+    expect(doesLogContain(stdArray, "test")).toBeTruthy();
+    expect(doesLogContain(stdArray, "string")).toBeFalsy();
+  });
+
+  test("init logger: displayAttributeType: true", (): void => {
     const stdArray: string[] = [];
     const std: { write: (print: string) => void } = {
       write: (print: string) => {
@@ -539,13 +577,29 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({
       stdOut: std,
-      displayFunctionName: false,
+      displayAttributeType: true,
     });
-    function fnctn() {
-      logger.info("test 123");
-    }
-    fnctn();
-    expect(doesLogContain(stdArray, "fnctn")).toBeFalsy();
+    logger.info("test");
+
+    expect(doesLogContain(stdArray, "test")).toBeTruthy();
+    expect(doesLogContain(stdArray, "string")).toBeTruthy();
+  });
+
+  test("init logger: displayAttributeType: false", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (print: string) => void } = {
+      write: (print: string) => {
+        stdArray.push(print);
+      },
+    };
+    const logger: Logger = new Logger({
+      stdOut: std,
+      displayAttributeType: false,
+    });
+    logger.info("test");
+
+    expect(doesLogContain(stdArray, "test")).toBeTruthy();
+    expect(doesLogContain(stdArray, "string")).toBeFalsy();
   });
 
   /* displayFilePath */
@@ -614,14 +668,106 @@ describe("Logger: settings", () => {
   test("init logger: stdOut", (): void => {
     const std: { write: () => void } = { write: () => {} };
     const logger: Logger = new Logger({ stdOut: std });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.stdOut).toBe(std);
   });
 
   test("init logger: stdErr", (): void => {
     const std: { write: () => void } = { write: () => {} };
     const logger: Logger = new Logger({ stdErr: std });
-    expect(logger instanceof Logger).toBe(true);
     expect(logger.settings.stdErr).toBe(std);
+  });
+
+  test("init logger: prefix", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      prefix: ["testprefix1", "testprefix2"],
+      stdOut: std,
+      stdErr: std,
+    });
+    logger.info("simple log message");
+    expect(doesLogContain(stdArray, "testprefix1")).toBeTruthy();
+    expect(doesLogContain(stdArray, "testprefix2")).toBeTruthy();
+    expect(doesLogContain(stdArray, "simple log message")).toBeTruthy();
+  });
+
+  test("init logger: maskValuesOfKeys", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      maskValuesOfKeys: ["test", "authorization", "password"],
+      maskPlaceholder: "[xxx]",
+      stdOut: std,
+      stdErr: std,
+    });
+    let verySecretiveCircularObject = {
+      password: "swordfish",
+      Authorization: 1234567,
+      stringPwd: "swordfish",
+      nested: {
+        regularString: "I am just a regular string.",
+        otherString: "pass1234.567",
+      },
+    };
+    verySecretiveCircularObject.nested[
+      "circular"
+    ] = verySecretiveCircularObject;
+
+    logger.info(verySecretiveCircularObject);
+
+    const regExp1 = new RegExp("^(.*)(test|password).*(\\[xxx\\]).*$", "gim");
+    const stdStringGroups1 = regExp1.exec(stdArray.join(""));
+    expect(stdStringGroups1?.[2]).toBe("password");
+    expect(stdStringGroups1?.[3]).toBe("[xxx]");
+
+    const regExp2 = new RegExp(
+      "^(.*)(test|authorization).*(\\[xxx\\]).*$",
+      "gim"
+    );
+    const stdStringGroups2 = regExp2.exec(stdArray.join(""));
+    expect(stdStringGroups2?.[2]).toBe("Authorization");
+    expect(stdStringGroups2?.[3]).toBe("[xxx]");
+  });
+
+  test("init logger: maskStrings", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      maskStrings: ["test", "swordfish", "pass1234"],
+      maskPlaceholder: "[xxx]",
+      stdOut: std,
+      stdErr: std,
+    });
+    let verySecretiveCircularObject = {
+      password: "swordfish",
+      Authorization: 1234567,
+      stringPwd: "swordfish",
+      nested: {
+        regularString: "I am just a regular string.",
+        otherString: "pass1234.567",
+      },
+    };
+    verySecretiveCircularObject.nested[
+      "circular"
+    ] = verySecretiveCircularObject;
+
+    logger.info(verySecretiveCircularObject);
+
+    const stdString: string = stdArray.join("");
+    expect(stdString.includes("swordfish")).toBeFalsy();
+    expect(stdString.includes("pass1234")).toBeFalsy();
+    expect(stdString.includes(".567")).toBeTruthy();
   });
 });
