@@ -106,7 +106,27 @@ childLogger1.setSettings({ prefix: ["child1Renamed"] });
 childLogger1_1.debug("ChildLogger1-1 debug finish");
 const yetAnotherLogger = childLogger1_1.getChildLogger({
   name: "YetAnotherLogger",
-  displayTraceId: true,
-  traceId: () => (Math.random() * 12345).toFixed(0).toString(),
+  displayRequestId: true,
+  requestId: () => (Math.random() * 12345).toFixed(0).toString(),
 });
 yetAnotherLogger.info("Yet another Logger with a name function");
+
+/** Example: Hide Secrets */
+let verySecretiveObject = {
+  password: "swordfish",
+  Authorization: 1234567,
+  stringPwd: "swordfish",
+  nested: {
+    regularString: "I am just a regular string.",
+    otherString: "pass1234.567",
+  },
+};
+verySecretiveObject.nested["circular"] = verySecretiveObject;
+
+const secretiveLogger = new Logger({
+  name: "SecretiveLogger",
+  maskStrings: ["swordfish", "pass1234"],
+  maskValuesOfKeys: ["test", "authorization", "password"],
+});
+
+secretiveLogger.info(verySecretiveObject);

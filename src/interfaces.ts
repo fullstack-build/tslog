@@ -35,7 +35,7 @@ export type TLogLevelColor = {
   [key in TLogLevelId]: TUtilsInspectColors;
 };
 
-type TTraceIdFunction = () => string;
+type TRequestIdFunction = () => string;
 
 /**
  * Constructor: logger settings
@@ -58,7 +58,7 @@ export interface ISettingsParam {
   /** Minimum output log level (e.g. debug), default: "silly" */
   minLevel?: TLogLevelName;
 
-  traceId?: string | TTraceIdFunction;
+  requestId?: string | TRequestIdFunction;
 
   /** Expose stack with EVERY log message, default: `false`  */
   exposeStack?: boolean;
@@ -81,10 +81,10 @@ export interface ISettingsParam {
   /**  Overwrite colors json highlighting */
   prettyInspectHighlightStyles?: IHighlightStyles;
 
-  /**  Options to be set for utils.inspect when output is set to pretty, default: `setting` */
+  /**  Options to be set for utils._inspectAndHideSensitive when output is set to pretty, default: `setting` */
   prettyInspectOptions?: InspectOptions;
 
-  /**  Options to be set for utils.inspect when output is set to json (\{ type: "json" \}) */
+  /**  Options to be set for utils._inspectAndHideSensitive when output is set to json (\{ type: "json" \}) */
   jsonInspectOptions?: InspectOptions;
 
   /**  DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: `year-month-day hour:minute:second.millisecond` */
@@ -105,8 +105,8 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: `false` */
   displayInstanceName?: boolean;
 
-  /** Display traceId or not, default: `false` */
-  displayTraceId?: boolean;
+  /** Display requestId or not, default: `false` */
+  displayRequestId?: boolean;
 
   /** Display name of the logger. Will only be visible if `name` was set, default: `true` */
   displayLoggerName?: boolean;
@@ -128,10 +128,19 @@ export interface ISettingsParam {
 
   /**  Prefix every log message of this logger. */
   prefix?: unknown[];
+
+  /** Exclude case-insensitive keys for object passed to `tslog` that could potentially contain sensitive information (e.g. `password` or `Authorization`), default: ["password"] */
+  maskValuesOfKeys?: (number | string)[];
+
+  /** Mask all of this case-sensitive strings from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  maskStrings?: string[];
+
+  /** String to use a placeholder to mask sensitive values. */
+  maskPlaceholder?: string;
 }
 
-export interface ISettingsParamWithTraceId extends ISettingsParam {
-  traceId?: string;
+export interface ISettingsParamWithRequestId extends ISettingsParam {
+  requestId?: string;
 }
 
 /**
@@ -139,12 +148,12 @@ export interface ISettingsParamWithTraceId extends ISettingsParam {
  * Based on ISettingsParam, however pre-filled with defaults in case no value was provided.
  * @public
  */
-export interface ISettings extends ISettingsParamWithTraceId {
+export interface ISettings extends ISettingsParamWithRequestId {
   type: "json" | "pretty";
   instanceName?: string;
   setCallerAsLoggerName: boolean;
   name?: string;
-  traceId?: string;
+  requestId?: string;
   minLevel: TLogLevelName;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
@@ -161,7 +170,7 @@ export interface ISettings extends ISettingsParamWithTraceId {
   displayDateTime: boolean;
   displayLogLevel: boolean;
   displayInstanceName: boolean;
-  displayTraceId: boolean;
+  displayRequestId: boolean;
   displayLoggerName?: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
@@ -169,6 +178,9 @@ export interface ISettings extends ISettingsParamWithTraceId {
   stdOut: IStd;
   stdErr: IStd;
   prefix: unknown[];
+  maskValuesOfKeys: (number | string)[];
+  maskStrings: string[];
+  maskPlaceholder: string;
 }
 
 /**
@@ -216,8 +228,8 @@ export interface ILogObject extends IStackFrame {
   loggerName?: string;
   /* Name of the host */
   hostname: string;
-  /* Optional unique trace Id */
-  traceId?: string;
+  /* Optional unique request ID */
+  requestId?: string;
   /**  Timestamp */
   date: Date;
   /**  Log level name (e.g. debug) */
@@ -276,7 +288,7 @@ export interface ITransportProvider {
 }
 
 /**
- * Style and color options for utils.inspect.style
+ * Style and color options for utils._inspectAndHideSensitive.style
  * @public
  */
 export type TUtilsInspectColors =
@@ -327,7 +339,7 @@ export type TUtilsInspectColors =
   | "bgWhiteBright";
 
 /**
- * Possible style settings of utils.inspect.styles
+ * Possible style settings of utils._inspectAndHideSensitive.styles
  * Official Node.js typedefs are missing this interface.
  * @public
  */
