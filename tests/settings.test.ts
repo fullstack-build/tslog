@@ -770,4 +770,20 @@ describe("Logger: settings", () => {
     expect(stdString.includes("pass1234")).toBeFalsy();
     expect(stdString.includes(".567")).toBeTruthy();
   });
+
+  test("init logger: setSettings", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (print: string) => void } = {
+      write: (print: string) => {
+        stdArray.push(print);
+      },
+    };
+    const logger: Logger = new Logger({
+      stdOut: std,
+      minLevel: "debug",
+    });
+    expect(logger.settings.minLevel).toBe("debug");
+    logger.setSettings({ minLevel: "info" });
+    expect(logger.settings.minLevel).toBe("info");
+  });
 });

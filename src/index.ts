@@ -583,10 +583,8 @@ export class Logger {
     logObject.argumentsArray.forEach((argument: unknown | IErrorObject) => {
       const typeStr: string =
         this.settings.displayAttributeType === true
-          ? LoggerHelper.styleString(
-              ["grey", "underline"],
-              typeof argument + ":"
-            ) + " "
+          ? LoggerHelper.styleString(["grey", "bold"], typeof argument + ":") +
+            " "
           : "";
 
       const errorObject: IErrorObject = argument as IErrorObject;
@@ -728,11 +726,13 @@ export class Logger {
               nativeError: undefined,
               errorString: this._formatAndHideSesitive(errorObject.nativeError),
             } as IErrorObjectStringified;
-          } else {
+          } else if (typeof argument === "object") {
             return this._inspectAndHideSensitive(
               argument,
               this.settings.jsonInspectOptions
             );
+          } else {
+            return this._formatAndHideSesitive(argument);
           }
         }
       ),
