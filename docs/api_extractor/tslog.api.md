@@ -34,6 +34,14 @@ export interface IErrorObject {
 }
 
 // @public
+export interface IErrorObjectStringifiable extends IErrorObject {
+    // (undocumented)
+    errorString: string;
+    // (undocumented)
+    nativeError: never;
+}
+
+// @public
 export interface IHighlightStyles {
     // (undocumented)
     bigint?: TUtilsInspectColors;
@@ -43,8 +51,6 @@ export interface IHighlightStyles {
     date?: TUtilsInspectColors;
     // (undocumented)
     module?: TUtilsInspectColors;
-    // Warning: (ae-forgotten-export) The symbol "TUtilsInspectColors" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
     name?: TUtilsInspectColors;
     // (undocumented)
@@ -85,28 +91,22 @@ export interface ILogLevel {
 export interface ILogObject extends IStackFrame {
     argumentsArray: (IErrorObject | unknown)[];
     date: Date;
-    // (undocumented)
     hostname: string;
     instanceName?: string;
     loggerName?: string;
     logLevel: TLogLevelName;
     logLevelId: TLogLevelId;
-    // (undocumented)
     requestId?: string;
     stack?: IStackFrame[];
     toJSON: () => ILogObjectStringifiable;
 }
 
-// @public (undocumented)
+// @public
 export interface ILogObjectStringifiable extends ILogObject {
-    // Warning: (ae-forgotten-export) The symbol "IErrorObjectStringified" needs to be exported by the entry point index.d.ts
-    //
     // (undocumented)
-    argumentsArray: (IErrorObjectStringified | string)[];
+    argumentsArray: (IErrorObjectStringifiable | string)[];
 }
 
-// Warning: (ae-forgotten-export) The symbol "ISettingsParamWithRequestId" needs to be exported by the entry point index.d.ts
-//
 // @public
 export interface ISettings extends ISettingsParamWithRequestId {
     // (undocumented)
@@ -203,15 +203,18 @@ export interface ISettingsParam {
     prettyInspectHighlightStyles?: IHighlightStyles;
     prettyInspectOptions?: InspectOptions;
     printLogMessageInNewLine?: boolean;
-    // Warning: (ae-forgotten-export) The symbol "TRequestIdFunction" needs to be exported by the entry point index.d.ts
-    //
-    // (undocumented)
     requestId?: string | TRequestIdFunction;
     setCallerAsLoggerName?: boolean;
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
     type?: "json" | "pretty";
+}
+
+// @public
+export interface ISettingsParamWithRequestId extends ISettingsParam {
+    // (undocumented)
+    requestId?: string;
 }
 
 // @public
@@ -263,9 +266,15 @@ export type TLogLevelId = keyof ILogLevel;
 export type TLogLevelName = ILogLevel[TLogLevelId];
 
 // @public
+export type TRequestIdFunction = () => string;
+
+// @public
 export type TTransportLogger<T> = {
     [key in TLogLevelName]: T;
 };
+
+// @public
+export type TUtilsInspectColors = "reset" | "bold" | "dim" | "italic" | "underline" | "blink" | "inverse" | "hidden" | "strikethrough" | "doubleunderline" | "black" | "red" | "green" | "yellow" | "blue" | "magenta" | "cyan" | "white" | "bgBlack" | "bgRed" | "bgGreen" | "bgYellow" | "bgBlue" | "bgMagenta" | "bgCyan" | "bgWhite" | "framed" | "overlined" | "gray" | "grey" | "redBright" | "greenBright" | "yellowBright" | "blueBright" | "magentaBright" | "cyanBright" | "whiteBright" | "bgGray" | "bgRedBright" | "bgGreenBright" | "bgYellowBright" | "bgBlueBright" | "bgMagentaBright" | "bgCyanBright" | "bgWhiteBright";
 
 
 ```

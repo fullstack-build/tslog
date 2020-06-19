@@ -16,6 +16,7 @@ import {
   ISettingsParam,
   IStackFrame,
   IStd,
+  TRequestIdFunction,
   TTransportLogger,
   ITransportProvider,
   TLogLevelName,
@@ -25,7 +26,7 @@ import {
   ICodeFrame,
   ILogObjectStringifiable,
   TUtilsInspectColors,
-  IErrorObjectStringified,
+  IErrorObjectStringifiable,
   IFullDateTimeFormatPart,
   ISettingsParamWithRequestId,
 } from "./interfaces";
@@ -38,13 +39,17 @@ export {
   ILogObject,
   ILogObjectStringifiable,
   IErrorObject,
+  IErrorObjectStringifiable,
   IStackFrame,
   ISettingsParam,
+  ISettingsParamWithRequestId,
   IStd,
   TLogLevelName,
+  TRequestIdFunction,
   TLogLevelId,
   IHighlightStyles,
   TLogLevelColor,
+  TUtilsInspectColors,
   ISettings,
   ICodeFrame,
 };
@@ -725,7 +730,7 @@ export class Logger {
               ...errorObject,
               nativeError: undefined,
               errorString: this._formatAndHideSesitive(errorObject.nativeError),
-            } as IErrorObjectStringified;
+            } as IErrorObjectStringifiable;
           } else if (typeof argument === "object") {
             return this._inspectAndHideSensitive(
               argument,
