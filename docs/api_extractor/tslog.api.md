@@ -108,7 +108,7 @@ export interface ILogObjectStringifiable extends ILogObject {
 }
 
 // @public
-export interface ISettings extends ISettingsParamWithRequestId {
+export interface ISettings extends ISettingsParam {
     // (undocumented)
     dateTimePattern: string;
     // (undocumented)
@@ -162,7 +162,7 @@ export interface ISettings extends ISettingsParamWithRequestId {
     // (undocumented)
     printLogMessageInNewLine: boolean;
     // (undocumented)
-    requestId?: string;
+    requestId?: string | TRequestIdFunction;
     // (undocumented)
     setCallerAsLoggerName: boolean;
     // (undocumented)
@@ -209,12 +209,6 @@ export interface ISettingsParam {
     stdOut?: IStd;
     suppressStdOutput?: boolean;
     type?: "json" | "pretty";
-}
-
-// @public
-export interface ISettingsParamWithRequestId extends ISettingsParam {
-    // (undocumented)
-    requestId?: string;
 }
 
 // @public

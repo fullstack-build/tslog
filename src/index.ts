@@ -28,7 +28,6 @@ import {
   TUtilsInspectColors,
   IErrorObjectStringifiable,
   IFullDateTimeFormatPart,
-  ISettingsParamWithRequestId,
 } from "./interfaces";
 import { LoggerHelper } from "./LoggerHelper";
 import { InspectOptions } from "util";
@@ -42,7 +41,6 @@ export {
   IErrorObjectStringifiable,
   IStackFrame,
   ISettingsParam,
-  ISettingsParamWithRequestId,
   IStd,
   TLogLevelName,
   TRequestIdFunction,
@@ -72,7 +70,7 @@ export class Logger {
   private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
   private _parentOrDefaultSettings: ISettings;
-  private _mySettings: ISettingsParamWithRequestId = {};
+  private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
   private _maskValuesOfKeysRegExp: RegExp | undefined;
   private _maskStringsRegExp: RegExp | undefined;
@@ -179,10 +177,6 @@ export class Logger {
     this._mySettings = {
       ...this._mySettings,
       ...settings,
-      requestId:
-        settings.requestId instanceof Function
-          ? settings.requestId()
-          : settings.requestId,
     };
 
     this._mySettings.name =
@@ -395,11 +389,16 @@ export class Logger {
       stackFrame
     );
 
+    const requestId: string | undefined =
+      this.settings.requestId instanceof Function
+        ? this.settings.requestId()
+        : this.settings.requestId;
+
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
       hostname: hostname(),
-      requestId: this.settings.requestId,
+      requestId,
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,

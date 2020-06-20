@@ -145,24 +145,16 @@ export interface ISettingsParam {
 }
 
 /**
- * Logger settings with an optional requestId string (not a function anymore)
- * @public
- */
-export interface ISettingsParamWithRequestId extends ISettingsParam {
-  requestId?: string;
-}
-
-/**
  * The actual settings object
  * Based on ISettingsParam, however pre-filled with defaults in case no value was provided.
  * @public
  */
-export interface ISettings extends ISettingsParamWithRequestId {
+export interface ISettings extends ISettingsParam {
   type: "json" | "pretty";
   instanceName?: string;
   setCallerAsLoggerName: boolean;
   name?: string;
-  requestId?: string;
+  requestId?: string | TRequestIdFunction;
   minLevel: TLogLevelName;
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
