@@ -67,7 +67,7 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({ stdOut: std, requestId: "TestId" });
     logger.info("test 123");
-    expect(doesLogContain(stdArray, "TestId")).toBeFalsy();
+    expect(doesLogContain(stdArray, "TestId")).toBeTruthy();
   });
 
   test("init logger: requestId: visible", (): void => {
