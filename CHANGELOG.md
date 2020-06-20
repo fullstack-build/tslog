@@ -2,7 +2,7 @@
 
 ## 2.5.0: 
 Sat, 20 Jun 2020
-*This is a jam packed release 🎉*
+*This is a jam-packed release 🎉*
 
 _Don't underestimate this minor version jump, it's only due to semver and its backward compatibility reasons. ;-)._
 
