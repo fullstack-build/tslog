@@ -763,7 +763,6 @@ log.warn("I am a warn log with a json object:", { foo: "bar" });
 ```json
 {"loggerName":"","date":"2020-04-27T15:24:04.334Z","logLevel":"debug","logLevelId":2,"filePath":"example/index.ts","fullFilePath":"/Users/eugene/Development/workspace/tslog/example/index.ts","fileName":"index.ts","lineNumber":56,"columnNumber":5,"isConstructor":false,"functionName":null,"typeName":"Object","methodName":null,"argumentsArray":["I am a debug log."]}
 {"loggerName":"","date":"2020-04-27T15:24:04.334Z","logLevel":"info","logLevelId":3,"filePath":"example/index.ts","fullFilePath":"/Users/eugene/Development/workspace/tslog/example/index.ts","fileName":"index.ts","lineNumber":57,"columnNumber":5,"isConstructor":false,"functionName":null,"typeName":"Object","methodName":null,"argumentsArray":["I am an info log."]}
-{"loggerName":"","date":"2020-04-27T15:24:04.335Z","logLevel":"warn","logLevelId":4,"filePath":"example/index.ts","fullFilePath":"/Users/eugene/Development/workspace/tslog/example/index.ts","fileName":"index.ts","lineNumber":58,"columnNumber":5,"isConstructor":false,"functionName":null,"typeName":"Object","methodName":null,"argumentsArray":["I am a warn log with a json object:",{"foo":"bar"}]}
 ```
 
 #### Helper
