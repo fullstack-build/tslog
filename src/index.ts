@@ -84,6 +84,7 @@ export class Logger {
       instanceName: hostname(),
       name: undefined,
       setCallerAsLoggerName: false,
+      requestId: undefined,
       minLevel: "silly",
       exposeStack: false,
       exposeErrorCodeFrame: true,
@@ -126,25 +127,26 @@ export class Logger {
       dateTimePattern: "year-month-day hour:minute:second.millisecond",
       // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       dateTimeTimezone: "utc",
+
+      prefix: [],
+      maskValuesOfKeys: ["password"],
+      maskStrings: [],
+      maskPlaceholder: "[***]",
+
       printLogMessageInNewLine: false,
 
       // display settings
       displayDateTime: true,
       displayLogLevel: true,
       displayInstanceName: false,
-      displayRequestId: false,
       displayLoggerName: true,
+      displayRequestId: true,
       displayFilePath: "hideNodeModulesOnly",
       displayFunctionName: true,
       displayTypes: false,
 
       stdOut: process.stdout,
       stdErr: process.stderr,
-
-      prefix: [],
-      maskValuesOfKeys: ["password"],
-      maskStrings: [],
-      maskPlaceholder: "[***]",
     };
     const mySettings: ISettingsParam = settings != null ? settings : {};
     this.setSettings(mySettings, parentSettings);
