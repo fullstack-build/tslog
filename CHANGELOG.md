@@ -1,17 +1,17 @@
 # Change Log - tslog
 
 ## 2.5.0: 
-Fri, 19 Jun 2020
+Sat, 20 Jun 2020
 *This is a jam packed release 🎉*
 
-_Don't underestimate its minor version jump that is due to backward compatibility reasons. ;-)._
+_Don't underestimate this minor version jump, it's only due to semver and its backward compatibility reasons. ;-)._
 
 * **Child Loggers:** Use `getChildLogger` to create a child logger based on the current instance, inherit all its settings including prefixes, and overwrite the ones you would like to change in this child. Makes it possible to follow a request all the way down (s. below `requestId`) 
 * **Runtime settings changes:** Use `setSettings()` to change settings during runtime. Changes will also propagate to every potential child logger but can also be overwritten along the way. Prefixes will be enhanced instead of overwritten. 
 * **requestId:** Use `async_hooks` (e.g. `AsyncLocalStorage`) to follow a request all the way down the promise chain (Example: Display all logs from Server down to DB)
 * **Mask secrets:** Use  `maskValuesOfKeys` & `maskValuesOfKeys` to prevent _tslog_ from printing secrets and sensitive information like passwords, secrets, api keys and Authorization Bearer
 * **Prefix:** `prefix` Prefix every log message with additional attributes that are also inherited to child loggers
-* **Type:** `displayTypes: true` Display types for all variables passed to _tslog_, eg. `string: test number: 123`
+* **Types:** `displayTypes: true` Display types for all variables passed to _tslog_, eg. `string: test number: 123`
 
 ## 2.2.0: 
 Fri, 05 Jun 2020

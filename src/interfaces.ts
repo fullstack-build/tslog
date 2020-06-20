@@ -98,6 +98,18 @@ export interface ISettingsParam {
   /** DateTime timezone, e.g. `utc`, or `Europe/Berlin`, `Europe/Moscow`. You can use `Intl.DateTimeFormat().resolvedOptions().timeZone` for local timezone, default: "utc" */
   dateTimeTimezone?: string;
 
+  /**  Prefix every log message of this logger. */
+  prefix?: unknown[];
+
+  /** Exclude case-insensitive keys for object passed to `tslog` that could potentially contain sensitive information (e.g. `password` or `Authorization`), default: ["password"] */
+  maskValuesOfKeys?: (number | string)[];
+
+  /** Mask all of this case-sensitive strings from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  maskStrings?: string[];
+
+  /** String to use a placeholder to mask sensitive values. */
+  maskPlaceholder?: string;
+
   /** Print log message in a new line below meta information, default: `false` */
   printLogMessageInNewLine?: boolean;
 
@@ -110,11 +122,11 @@ export interface ISettingsParam {
   /** Display instanceName or not, default: `false` */
   displayInstanceName?: boolean;
 
-  /** Display requestId or not, default: `false` */
-  displayRequestId?: boolean;
-
   /** Display name of the logger. Will only be visible if `name` was set, default: `true` */
   displayLoggerName?: boolean;
+
+  /** Display requestId or not, default: `false` */
+  displayRequestId?: boolean;
 
   /** Display file path, default "hideNodeModulesOnly" */
   displayFilePath?: "hidden" | "displayAll" | "hideNodeModulesOnly";
@@ -130,18 +142,6 @@ export interface ISettingsParam {
 
   /**  Overwrite default std err */
   stdErr?: IStd;
-
-  /**  Prefix every log message of this logger. */
-  prefix?: unknown[];
-
-  /** Exclude case-insensitive keys for object passed to `tslog` that could potentially contain sensitive information (e.g. `password` or `Authorization`), default: ["password"] */
-  maskValuesOfKeys?: (number | string)[];
-
-  /** Mask all of this case-sensitive strings from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
-  maskStrings?: string[];
-
-  /** String to use a placeholder to mask sensitive values. */
-  maskPlaceholder?: string;
 }
 
 /**
@@ -167,21 +167,21 @@ export interface ISettings extends ISettingsParam {
   jsonInspectOptions: InspectOptions;
   dateTimePattern: string;
   dateTimeTimezone: string;
+  prefix: unknown[];
+  maskValuesOfKeys: (number | string)[];
+  maskStrings: string[];
+  maskPlaceholder: string;
   printLogMessageInNewLine: boolean;
   displayDateTime: boolean;
   displayLogLevel: boolean;
   displayInstanceName: boolean;
-  displayRequestId: boolean;
   displayLoggerName?: boolean;
+  displayRequestId: boolean;
   displayFilePath: "hidden" | "displayAll" | "hideNodeModulesOnly";
   displayFunctionName: boolean;
   displayTypes: boolean;
   stdOut: IStd;
   stdErr: IStd;
-  prefix: unknown[];
-  maskValuesOfKeys: (number | string)[];
-  maskStrings: string[];
-  maskPlaceholder: string;
 }
 
 /**
