@@ -59,7 +59,7 @@ This feature enables `tslog` to reference a correct line number in your TypeScri
 }
 ```
 
-### Simple usage
+### Simple example
 
 ```typescript
 import { Logger } from "tslog";
@@ -82,7 +82,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **StdOut or StdErr depends on log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
 * **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
-* **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position.
+* **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
 * **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
@@ -91,12 +91,12 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 * **Highly configurable:** All settings can be changed through a typed object, also during run time (e.g. log level)
 * **Adjust settings at runtime** Change settings at runtime with immediate impact (e.g. log level)
-* **Child Logger with inheritance** Powerful child loggers with settings inheritance, also at runtime. 
-* **RequestId:** Group logs that follow a Request and follow them all the way down the promise chain.
-* **Secrets masking:** Prevent passwords and secrets for sneaking into log files by masking them. 
+* **Child Logger with inheritance** Powerful child loggers with settings inheritance, also at runtime
+* **RequestId:** Group logs originated from a request and follow them all the way down the promise chain
+* **Secrets masking:** Prevent passwords and secrets from sneaking into log files by masking them
 * **Short paths:** Paths are relative to the root of the application folder
-* **Prefixes:** Prefix log messages and bequeath prefixes to child loggers.
-* **Types:** Display type information.
+* **Prefixes:** Prefix log messages and bequeath prefixes to child loggers
+* **Types:** Display type information
 * **Runtime-agnostic:** Works with `ts-node`, `ts-node-dev`, as well as compiled down to JavaScript
 * **Optionally overwrite `console`:** Catch `console.log` etc. that would otherwise be hard to find
 * **Tested:** 100% code coverage, CI
@@ -208,8 +208,8 @@ Resulting in the following output:
 
 `tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
 Internally a log level is represented by a numeric ID. 
-Supported log levels are: 
 
+Available log levels are:<br>
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
 
 Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
@@ -243,10 +243,10 @@ Structured (aka. _pretty_) log level output would look like this:
 #### Child Logger
 
 Each `tslog` Logger instance can create child loggers and bequeath its settings to a child. 
-Its is also possible to overwrite every setting when creating a child. 
-Child logger are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.
+It is also possible to overwrite every setting when creating a child.<br>
+Child loggers are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.
 
-Use `getChildLogger` to create a child logger based on the current instance.
+Use `getChildLogger()` to create a child logger based on the current instance.
 
 **Example:**
 ```typescript
@@ -260,28 +260,27 @@ const grandchildLogger: Logger = childLogger.getChildLogger({  name: "GrandChild
 
 #### Settings
  
-As `tslog` follows the _convention over configuration_ approach, it already comes with reasonable default settings. 
-Therfor all settings are optional.Nevertheless, it can be flexibly adapted to your own needs.
+As `tslog` follows _convention over configuration_, it already comes with reasonable default settings. 
+Therefor all settings are optional. Nevertheless, they can be flexibly adapted to your own needs.
 
-All possible settings are defined in the `ISettingsParam` interface and modern IDE will offer auto-completion accordingly.
+All possible settings are defined in the `ISettingsParam` interface and modern IDEs will provide auto-completion accordingly.
  
 **You can use `setSettings()` to adjust settings at runtime.**
-
-> *Hint:* When changing settings at runtime this alternation would also propagate to every child logger, as long as it has not been overwritten down the hierarchy. 
+> **Hint:** When changing settings at runtime this alternation would also propagate to every child loggers, as long as it has not been overwritten down the hierarchy. 
 
 
 ##### `type` 
 ```default: "pretty"```
 
-You can either pretty print the logs, or print them as `json`. 
+You can either pretty print logs, or print them as `json`.<br>
 Having `json` as an output format is particularly useful, if you want to forward your logs directly from your `std` to another log service.
-Instead of parsing the _pretty_ output, most log services can easily parse a _JSON_ object. 
+Instead of parsing a _pretty_ output, most log services prefer a _JSON_ representation. 
+> **Hint:** Printing in `json` gives you direct access to all the available information, like _stack trace_ and _code frame_ and so on.
 
->This gives you direct access to all the information captured by `tslog`, like _stack trace_ and _code frame_ information.
 ```typescript
 new Logger({ type: "json" });
 ```
-Resulting in the following output: 
+_Output:_ 
 ![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
 > **Hint:** Each _JSON_ log is printed in one line, making it easily parsable by external services.
 
@@ -335,27 +334,28 @@ Possible values are: `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`
 ##### `requestId`
 ```default: undefined```
 
-Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP). 
+**❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).** 
 
 In a real world application a call to an API would lead to many logs produced across the entire application.
-When debugging it can get quite handy to group all this logs based by a unique identifier `requestId`. 
+When debugging it can get quite handy to be able to group all logs based by a unique identifier `requestId`. 
 
-A `requestId` can either be a `string` or a lambda function. 
+A `requestId` can either be a `string` or a function.<br>
 A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a `requistId` dynamically. 
 
-**With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
-_It has also been backported to Node.js v12.17.0 and of course it works with Node.js >= 14._<br>
+**With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a> **<br>
+It has also been backported to Node.js v12.17.0 and of course it works with Node.js >= 14.<br>
 However it is still marked as *experimental*. <br>
-<a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">Here is a blog post by Andrey Pechkurov describing ``AsyncLocalStorage`` and performing a small performance comparison.</a> 
+Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing ``AsyncLocalStorage`` and performing a small performance comparison. 
 
 > *Hint*: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
 
-Even though `tslog` is generic enough and works with any of these solutions our example is based on `AsyncLocalStorage`.
-`tslog` also works with any API framework (like `Express`, `Koa`, `Hapi` and so on), we are going to use `Koa` in this example.
+Even though `tslog` is generic enough and works with any of these solutions our example is based on `AsyncLocalStorage`.<br>
+`tslog` also works with any API framework (like `Express`, `Koa`, `Hapi` and so on), but we are going to use `Koa` in this example.<br>
+Based on this example it should be rather easy to create an `Express` or another middleware.
 
 Some provides (e.g. `Heroku`) already set a `X-Request-ID` header, which we are going to use or fallback to a short ID generated by <a href="https://www.npmjs.com/package/nanoid" target="_blank">`nanoid`</a>.  
 
-> *Hint:* In this example every subsequent logger is a child logger of the main logger and thus inherits all of its settings making `requestId` available throughout the entire application without any further ado.
+**In this example every subsequent logger is a child logger of the main logger and thus inherits all of its settings making `requestId` available throughout the entire application without any further ado.**
 
 _index.ts:_
 ```typescript 
@@ -367,8 +367,6 @@ const asyncLocalStorage: AsyncLocalStorage<{ "requestId": string }> = new AsyncL
 
 const logger: Logger = new Logger({
     name: "Server",
-    printLogMessageInNewLine: true,
-    displayRequestId: true,
     requestId: (): string => {
         return asyncLocalStorage.getStore()?.requestId as string;
     }
@@ -379,9 +377,9 @@ const app: Koa = new Koa();
 
 /** START AsyncLocalStorage requestId middleware **/
 koaApp.use(async (ctx: Koa.Context, next: Koa.Next) => {
-    // use x-request-id from header or fallback to a nanoid ID
+    // use x-request-id or fallback to a nanoid
     const requestId: string = ctx.request.headers['x-request-id'] || customAlphabet('1234567890abcdefghijklmnopqrstuvwxyz', 6)();
-    // Every other Koa middleware will run within the AsyncLocalStorage context
+    // every other Koa middleware will run within the AsyncLocalStorage context
     await asyncLocalStorage.run({ requestId },  async () => {
         return next();
     });
@@ -395,7 +393,7 @@ import { logger } from "./index";
 
 const childLogger = logger.getChildLogger({ name: "ChildLogger" });
 
-childLogger.info("Log containing requestId");
+childLogger.info("Log containing requestId"); // <-- will contain a requestId
 ```
 
 
@@ -411,7 +409,7 @@ new Logger({ exposeStack: true });
 
 ![tslog with a stack trace](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png)
 
->**Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code. 
+> **Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code. 
 
 ##### `exposeErrorCodeFrame`
 ```default: true```
@@ -426,7 +424,7 @@ In order to keep the output clean and tidy, code frame does not follow into `nod
 new Logger({ exposeErrorCodeFrame: false });
 ```
 
->**Hint:** By default 5 lines before and after the line with the error will be displayed.  
+> **Hint:** By default 5 lines before and after the line with the error will be displayed.  
 > You can adjust this setting with `exposeErrorCodeFrameLinesBeforeAndAfter`.
 
 ![tslog with a code frame](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png)
@@ -495,16 +493,19 @@ Available placeholders are: `day`,  `dayPeriod`, `era`, `hour`,  `literal`,  `mi
 Define in which timezone the date should be printed in.
 Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. `Europe/Berlin`, `Europe/Moscow` and so on. 
 
-> *Hint:* If you want to use your local time zone, you can set: 
+> **Hint:** If you want to use your local time zone, you can set: 
 > `dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone`
 
 ##### `prefix`
 ```default: [] ```
 
-Prefix every log message of this logger with an array of additional attributes.
-Prefixes propagate to child loggers (s. Child Logger) and can help to follow a chain of promises.
-In addition to `requestId` (s. `requestId`) prefixes can help further distinguish different parts of a request.
-  
+Prefix every log message with an array of additional attributes.<br>
+Prefixes propagate to child loggers and can help to follow a chain of promises.<br>
+In addition to `requestId`, prefixes can help further distinguish different parts of a request.
+    
+> **Hint:** A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.<br> 
+> A `requestId` would mark all the operations and prefixes can help to distinguish separate queries/mutations inside of this request.
+
 **Example:**
 ```typescript
 const logger: Logger = new Logger({
@@ -538,9 +539,6 @@ grandchildLogger.silly("grandchild1 second message")
 // INFO   [GrandChild]   main  parent  renamedChild1     grandchild1 second message
 ```
 
-> *Hint:* A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations. 
-> A `requestId` would mark all the operations and prefixes can help to distinguish separate queries/mutations inside of this request.
-
 ##### `maskValuesOfKeys`
 ```default: ["password"] ```
 
@@ -548,7 +546,7 @@ One of the most common ways of a password/secrets breach is through log files.
 Given the central position of `tslog` as the collecting hub of all application logs, it's only natural to use it as a filter.
 `maskValuesOfKeys` makes it possible to hide/mask all values of fields from objects passed into `tslog`.
 
-_`maskValuesOfKeys` is case insensitive!_
+**`maskValuesOfKeys` is case insensitive!**
 
 ```typescript
 const secretiveLogger = new Logger({
@@ -587,6 +585,7 @@ secretiveLogger.info(secretiveObject);
 
 When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskStrings` to mask every occurrence of a string.  
 
+**`maskValuesOfKeys` is case sensitive!**
 
 ```typescript
 const verySecretiveLogger = new Logger({
@@ -621,7 +620,7 @@ verySecretiveLogger.info(secretiveObject);
 
 ```
 
-> *Hint:* useful for API keys and other secrets (e.g. from ENVs).
+> **Hint:** useful for API keys and other secrets (e.g. from ENVs).
 
 ##### `maskPlaceholder` 
 ```default: "[***]" ```

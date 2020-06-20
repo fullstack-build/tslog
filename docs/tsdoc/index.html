@@ -113,8 +113,8 @@ log.silly(<span class="hljs-string">"I am a silly log."</span>);</code></pre>
         &quot;sourceMap&quot;: true
     }
 }</code></pre>
-				<a href="#simple-usage" id="simple-usage" style="color: inherit; text-decoration: none;">
-					<h3>Simple usage</h3>
+				<a href="#simple-example" id="simple-example" style="color: inherit; text-decoration: none;">
+					<h3>Simple example</h3>
 				</a>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> { Logger } <span class="hljs-keyword">from</span> <span class="hljs-string">"tslog"</span>;
 
@@ -136,7 +136,7 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>StdOut or StdErr depends on log level:</strong> <strong><em>stdout</em></strong> for <code>silly</code>, <code>trace</code>, <code>debug</code>, <code>info</code> and <strong><em>stderr</em></strong> for <code>warn</code>, <code>error</code>, <code>fatal</code> </li>
 					<li><strong>Minimum log level per output:</strong> <code>minLevel</code> level can be set individually per transport</li>
 					<li><strong>Fully typed:</strong> Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank"><em>api-extractor</em></a>, <a href="https://github.com/microsoft/tsdoc" target="_blank"><em>TSDoc</em></a> documented</li>
-					<li><strong>Source maps lookup:</strong> Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position.</li>
+					<li><strong>Source maps lookup:</strong> Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position</li>
 					<li><strong>Stack trace:</strong> Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank"><em>V8 stack trace API</em></a>, excludes internal entries </li>
 					<li><strong>Pretty Error:</strong> Errors and stack traces printed in a structured way and fully accessible through <em>JSON</em> (e.g. external Log services)  </li>
 					<li><strong>Code frame:</strong> <code>tslog</code> captures and displays the source code that lead to an error, making it easier to debug</li>
@@ -145,12 +145,12 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<li><strong>Named Logger:</strong> Logger can be named (e.g. useful for packages/modules and monorepos)</li>
 					<li><strong>Highly configurable:</strong> All settings can be changed through a typed object, also during run time (e.g. log level)</li>
 					<li><strong>Adjust settings at runtime</strong> Change settings at runtime with immediate impact (e.g. log level)</li>
-					<li><strong>Child Logger with inheritance</strong> Powerful child loggers with settings inheritance, also at runtime. </li>
-					<li><strong>RequestId:</strong> Group logs that follow a Request and follow them all the way down the promise chain.</li>
-					<li><strong>Secrets masking:</strong> Prevent passwords and secrets for sneaking into log files by masking them. </li>
+					<li><strong>Child Logger with inheritance</strong> Powerful child loggers with settings inheritance, also at runtime</li>
+					<li><strong>RequestId:</strong> Group logs originated from a request and follow them all the way down the promise chain</li>
+					<li><strong>Secrets masking:</strong> Prevent passwords and secrets from sneaking into log files by masking them</li>
 					<li><strong>Short paths:</strong> Paths are relative to the root of the application folder</li>
-					<li><strong>Prefixes:</strong> Prefix log messages and bequeath prefixes to child loggers.</li>
-					<li><strong>Types:</strong> Display type information.</li>
+					<li><strong>Prefixes:</strong> Prefix log messages and bequeath prefixes to child loggers</li>
+					<li><strong>Types:</strong> Display type information</li>
 					<li><strong>Runtime-agnostic:</strong> Works with <code>ts-node</code>, <code>ts-node-dev</code>, as well as compiled down to JavaScript</li>
 					<li><strong>Optionally overwrite <code>console</code>:</strong> Catch <code>console.log</code> etc. that would otherwise be hard to find</li>
 					<li><strong>Tested:</strong> 100% code coverage, CI</li>
@@ -253,9 +253,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h4>Log level</h4>
 				</a>
 				<p><code>tslog</code> is highly customizable, however, it follows <em>convention over configuration</em> when it comes to <strong>log levels</strong>.
-					Internally a log level is represented by a numeric ID.
-				Supported log levels are: </p>
-				<p><code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
+				Internally a log level is represented by a numeric ID. </p>
+				<p>Available log levels are:<br>
+				<code>0: silly</code>, <code>1: trace</code>, <code>2: debug</code>, <code>3: info</code>, <code>4: warn</code>, <code>5: error</code>, <code>6: fatal</code></p>
 				<p>Per default log level 0 - 3 are written to <code>stdout</code> and 4 - 6 are written to <code>stderr</code>.
 				Each log level is printed in a different color, that is customizable through the settings object.</p>
 				<blockquote>
@@ -284,9 +284,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h4>Child Logger</h4>
 				</a>
 				<p>Each <code>tslog</code> Logger instance can create child loggers and bequeath its settings to a child.
-					Its is also possible to overwrite every setting when creating a child.
-				Child logger are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.</p>
-				<p>Use <code>getChildLogger</code> to create a child logger based on the current instance.</p>
+					It is also possible to overwrite every setting when creating a child.<br>
+				Child loggers are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.</p>
+				<p>Use <code>getChildLogger()</code> to create a child logger based on the current instance.</p>
 				<p><strong>Example:</strong></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> logger: Logger = <span class="hljs-keyword">new</span> Logger({ name: <span class="hljs-string">"MainLogger"</span> });
 
@@ -297,25 +297,25 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				<a href="#settings" id="settings" style="color: inherit; text-decoration: none;">
 					<h4>Settings</h4>
 				</a>
-				<p>As <code>tslog</code> follows the <em>convention over configuration</em> approach, it already comes with reasonable default settings.
-				Therfor all settings are optional.Nevertheless, it can be flexibly adapted to your own needs.</p>
-				<p>All possible settings are defined in the <code>ISettingsParam</code> interface and modern IDE will offer auto-completion accordingly.</p>
+				<p>As <code>tslog</code> follows _convention over configuration_, it already comes with reasonable default settings.
+				Therefor all settings are optional. Nevertheless, they can be flexibly adapted to your own needs.</p>
+				<p>All possible settings are defined in the <code>ISettingsParam</code> interface and modern IDEs will provide auto-completion accordingly.</p>
 				<p><strong>You can use <code>setSettings()</code> to adjust settings at runtime.</strong></p>
 				<blockquote>
-					<p><em>Hint:</em> When changing settings at runtime this alternation would also propagate to every child logger, as long as it has not been overwritten down the hierarchy. </p>
+					<p><strong>Hint:</strong> When changing settings at runtime this alternation would also propagate to every child loggers, as long as it has not been overwritten down the hierarchy. </p>
 				</blockquote>
 				<a href="#type" id="type" style="color: inherit; text-decoration: none;">
 					<h5><code>type</code></h5>
 				</a>
 				<p><code>default: &quot;pretty&quot;</code></p>
-				<p>You can either pretty print the logs, or print them as <code>json</code>.
+				<p>You can either pretty print logs, or print them as <code>json</code>.<br>
 					Having <code>json</code> as an output format is particularly useful, if you want to forward your logs directly from your <code>std</code> to another log service.
-				Instead of parsing the <em>pretty</em> output, most log services can easily parse a <em>JSON</em> object. </p>
+				Instead of parsing a <em>pretty</em> output, most log services prefer a <em>JSON</em> representation. </p>
 				<blockquote>
-					<p>This gives you direct access to all the information captured by <code>tslog</code>, like <em>stack trace</em> and <em>code frame</em> information.</p>
+					<p><strong>Hint:</strong> Printing in <code>json</code> gives you direct access to all the available information, like <em>stack trace</em> and <em>code frame</em> and so on.</p>
 				</blockquote>
 				<pre><code class="language-typescript"><span class="hljs-keyword">new</span> Logger({ <span class="hljs-keyword">type</span>: <span class="hljs-string">"json"</span> });</code></pre>
-				<p>Resulting in the following output:
+				<p><em>Output:</em>
 				<img src="https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png" alt="tslog log level json"></p>
 				<blockquote>
 					<p><strong>Hint:</strong> Each <em>JSON</em> log is printed in one line, making it easily parsable by external services.</p>
@@ -357,24 +357,23 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>requestId</code></h5>
 				</a>
 				<p><code>default: undefined</code></p>
-				<p>Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP). </p>
+				<p><strong>❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).</strong> </p>
 				<p>In a real world application a call to an API would lead to many logs produced across the entire application.
-				When debugging it can get quite handy to group all this logs based by a unique identifier <code>requestId</code>. </p>
-				<p>A <code>requestId</code> can either be a <code>string</code> or a lambda function.
+				When debugging it can get quite handy to be able to group all logs based by a unique identifier <code>requestId</code>. </p>
+				<p>A <code>requestId</code> can either be a <code>string</code> or a function.<br>
 				A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a <code>requistId</code> dynamically. </p>
-				<p><strong>With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a></strong><br>
-					<em>It has also been backported to Node.js v12.17.0 and of course it works with Node.js &gt;= 14.</em><br>
-					However it is still marked as <em>experimental</em>. <br>
-				<a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">Here is a blog post by Andrey Pechkurov describing <code>AsyncLocalStorage</code> and performing a small performance comparison.</a> </p>
+				<p>*<em>With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a> **<br>
+						It has also been backported to Node.js v12.17.0 and of course it works with Node.js &gt;= 14.<br>
+					However it is still marked as *experimental</em>. <br>
+				Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing <code>AsyncLocalStorage</code> and performing a small performance comparison. </p>
 				<blockquote>
 					<p><em>Hint</em>: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank"><code>cls-hooked</code></a>.</p>
 				</blockquote>
-				<p>Even though <code>tslog</code> is generic enough and works with any of these solutions our example is based on <code>AsyncLocalStorage</code>.
-				<code>tslog</code> also works with any API framework (like <code>Express</code>, <code>Koa</code>, <code>Hapi</code> and so on), we are going to use <code>Koa</code> in this example.</p>
+				<p>Even though <code>tslog</code> is generic enough and works with any of these solutions our example is based on <code>AsyncLocalStorage</code>.<br>
+					<code>tslog</code> also works with any API framework (like <code>Express</code>, <code>Koa</code>, <code>Hapi</code> and so on), but we are going to use <code>Koa</code> in this example.<br>
+				Based on this example it should be rather easy to create an <code>Express</code> or another middleware.</p>
 				<p>Some provides (e.g. <code>Heroku</code>) already set a <code>X-Request-ID</code> header, which we are going to use or fallback to a short ID generated by <a href="https://www.npmjs.com/package/nanoid" target="_blank"><code>nanoid</code></a>.  </p>
-				<blockquote>
-					<p><em>Hint:</em> In this example every subsequent logger is a child logger of the main logger and thus inherits all of its settings making <code>requestId</code> available throughout the entire application without any further ado.</p>
-				</blockquote>
+				<p><strong>In this example every subsequent logger is a child logger of the main logger and thus inherits all of its settings making <code>requestId</code> available throughout the entire application without any further ado.</strong></p>
 				<p><em>index.ts:</em></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">import</span> * <span class="hljs-keyword">as</span> Koa <span class="hljs-keyword">from</span> <span class="hljs-string">'koa'</span>;
 <span class="hljs-keyword">import</span> { AsyncLocalStorage } <span class="hljs-keyword">from</span> <span class="hljs-string">"async_hooks"</span>;
@@ -384,8 +383,6 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 
 <span class="hljs-keyword">const</span> logger: Logger = <span class="hljs-keyword">new</span> Logger({
     name: <span class="hljs-string">"Server"</span>,
-    printLogMessageInNewLine: <span class="hljs-literal">true</span>,
-    displayRequestId: <span class="hljs-literal">true</span>,
     requestId: (): <span class="hljs-function"><span class="hljs-params">string</span> =&gt;</span> {
         <span class="hljs-keyword">return</span> asyncLocalStorage.getStore()?.requestId <span class="hljs-keyword">as</span> <span class="hljs-built_in">string</span>;
     }
@@ -396,9 +393,9 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 
 <span class="hljs-comment">/** START AsyncLocalStorage requestId middleware **/</span>
 koaApp.use(<span class="hljs-keyword">async</span> (ctx: Koa.Context, next: Koa.Next) =&gt; {
-    <span class="hljs-comment">// use x-request-id from header or fallback to a nanoid ID</span>
+    <span class="hljs-comment">// use x-request-id or fallback to a nanoid</span>
     <span class="hljs-keyword">const</span> requestId: <span class="hljs-built_in">string</span> = ctx.request.headers[<span class="hljs-string">'x-request-id'</span>] || customAlphabet(<span class="hljs-string">'1234567890abcdefghijklmnopqrstuvwxyz'</span>, <span class="hljs-number">6</span>)();
-    <span class="hljs-comment">// Every other Koa middleware will run within the AsyncLocalStorage context</span>
+    <span class="hljs-comment">// every other Koa middleware will run within the AsyncLocalStorage context</span>
     <span class="hljs-keyword">await</span> asyncLocalStorage.run({ requestId },  <span class="hljs-keyword">async</span> () =&gt; {
         <span class="hljs-keyword">return</span> next();
     });
@@ -409,7 +406,7 @@ koaApp.use(<span class="hljs-keyword">async</span> (ctx: Koa.Context, next: Koa.
 
 <span class="hljs-keyword">const</span> childLogger = logger.getChildLogger({ name: <span class="hljs-string">"ChildLogger"</span> });
 
-childLogger.info(<span class="hljs-string">"Log containing requestId"</span>);</code></pre>
+childLogger.info(<span class="hljs-string">"Log containing requestId"</span>); <span class="hljs-comment">// &lt;-- will contain a requestId</span></code></pre>
 				<a href="#exposestack" id="exposestack" style="color: inherit; text-decoration: none;">
 					<h5><code>exposeStack</code></h5>
 				</a>
@@ -492,16 +489,20 @@ childLogger.info(<span class="hljs-string">"Log containing requestId"</span>);</
 				<p>Define in which timezone the date should be printed in.
 				Possible values are <code>utc</code> and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. <code>Europe/Berlin</code>, <code>Europe/Moscow</code> and so on. </p>
 				<blockquote>
-					<p><em>Hint:</em> If you want to use your local time zone, you can set:
+					<p><strong>Hint:</strong> If you want to use your local time zone, you can set:
 					<code>dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone</code></p>
 				</blockquote>
 				<a href="#prefix" id="prefix" style="color: inherit; text-decoration: none;">
 					<h5><code>prefix</code></h5>
 				</a>
 				<p><code>default: []</code></p>
-				<p>Prefix every log message of this logger with an array of additional attributes.
-					Prefixes propagate to child loggers (s. Child Logger) and can help to follow a chain of promises.
-				In addition to <code>requestId</code> (s. <code>requestId</code>) prefixes can help further distinguish different parts of a request.</p>
+				<p>Prefix every log message with an array of additional attributes.<br>
+					Prefixes propagate to child loggers and can help to follow a chain of promises.<br>
+				In addition to <code>requestId</code>, prefixes can help further distinguish different parts of a request.</p>
+				<blockquote>
+					<p><strong>Hint:</strong> A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.<br>
+					A <code>requestId</code> would mark all the operations and prefixes can help to distinguish separate queries/mutations inside of this request.</p>
+				</blockquote>
 				<p><strong>Example:</strong></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> logger: Logger = <span class="hljs-keyword">new</span> Logger({
   name: <span class="hljs-string">"MainLogger"</span>,
@@ -532,10 +533,6 @@ childLogger.setSettings({ prefix: [<span class="hljs-string">"renamedChild1"</sp
 grandchildLogger.silly(<span class="hljs-string">"grandchild1 second message"</span>)
 <span class="hljs-comment">// Output:</span>
 <span class="hljs-comment">// INFO   [GrandChild]   main  parent  renamedChild1     grandchild1 second message</span></code></pre>
-				<blockquote>
-					<p><em>Hint:</em> A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.
-					A <code>requestId</code> would mark all the operations and prefixes can help to distinguish separate queries/mutations inside of this request.</p>
-				</blockquote>
 				<a href="#maskvaluesofkeys" id="maskvaluesofkeys" style="color: inherit; text-decoration: none;">
 					<h5><code>maskValuesOfKeys</code></h5>
 				</a>
@@ -543,7 +540,7 @@ grandchildLogger.silly(<span class="hljs-string">"grandchild1 second message"</s
 				<p>One of the most common ways of a password/secrets breach is through log files.
 					Given the central position of <code>tslog</code> as the collecting hub of all application logs, it&#39;s only natural to use it as a filter.
 				<code>maskValuesOfKeys</code> makes it possible to hide/mask all values of fields from objects passed into <code>tslog</code>.</p>
-				<p><em><code>maskValuesOfKeys</code> is case insensitive!</em></p>
+				<p><strong><code>maskValuesOfKeys</code> is case insensitive!</strong></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> secretiveLogger = <span class="hljs-keyword">new</span> Logger({
   name: <span class="hljs-string">"SecretiveLogger"</span>,
   maskValuesOfKeys: [<span class="hljs-string">"test"</span>, <span class="hljs-string">"authorization"</span>, <span class="hljs-string">"password"</span>],
@@ -578,6 +575,7 @@ secretiveLogger.info(secretiveObject);
 				</a>
 				<p><code>default: []</code></p>
 				<p>When <code>maskValuesOfKeys</code> is just not enough, and you really want to make sure no secrets get populated, you can also use <code>maskStrings</code> to mask every occurrence of a string.  </p>
+				<p><strong><code>maskValuesOfKeys</code> is case sensitive!</strong></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> verySecretiveLogger = <span class="hljs-keyword">new</span> Logger({
   name: <span class="hljs-string">"SecretiveLogger"</span>,
   maskValuesOfKeys: [<span class="hljs-string">"test"</span>, <span class="hljs-string">"authorization"</span>, <span class="hljs-string">"password"</span>],
@@ -609,7 +607,7 @@ verySecretiveLogger.info(secretiveObject);
 <span class="hljs-comment">// }</span>
 </code></pre>
 				<blockquote>
-					<p><em>Hint:</em> useful for API keys and other secrets (e.g. from ENVs).</p>
+					<p><strong>Hint:</strong> useful for API keys and other secrets (e.g. from ENVs).</p>
 				</blockquote>
 				<a href="#maskplaceholder" id="maskplaceholder" style="color: inherit; text-decoration: none;">
 					<h5><code>maskPlaceholder</code></h5>
