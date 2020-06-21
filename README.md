@@ -347,7 +347,7 @@ It has also been backported to Node.js v12.17.0 and of course it works with Node
 However it is still marked as *experimental*. <br>
 Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing ``AsyncLocalStorage`` and performing a small performance comparison. 
 
-> *Hint*: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
+> **Hint**: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
 
 Even though `tslog` is generic enough and works with any of these solutions our example is based on `AsyncLocalStorage`.<br>
 `tslog` also works with any API framework (like `Express`, `Koa`, `Hapi` and so on), but we are going to use `Koa` in this example.<br>
