@@ -342,12 +342,12 @@ When debugging it can get quite handy to be able to group all logs based by a un
 A `requestId` can either be a `string` or a function.<br>
 A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a `requistId` dynamically. 
 
-**With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a> **<br>
+**With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
 It has also been backported to Node.js v12.17.0 and of course it works with Node.js >= 14.<br>
 However it is still marked as *experimental*. <br>
 Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing ``AsyncLocalStorage`` and performing a small performance comparison. 
 
-> *Hint*: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
+> **Hint**: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
 
 Even though `tslog` is generic enough and works with any of these solutions our example is based on `AsyncLocalStorage`.<br>
 `tslog` also works with any API framework (like `Express`, `Koa`, `Hapi` and so on), but we are going to use `Koa` in this example.<br>
