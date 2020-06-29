@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "description": "📝 Expressive TypeScript Logger for Node.js: Pretty errors, stack traces, code frames, and JSON output to attachable transports.",
   "main": "dist/index",
   "typings": "dist/index",
