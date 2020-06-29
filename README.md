@@ -272,9 +272,12 @@ All possible settings are defined in the `ISettingsParam` interface and modern I
 ##### `type` 
 ```default: "pretty"```
 
-You can either pretty print logs, or print them as `json`.<br>
+Possible values: `"json" | "pretty" | "hidden"` 
+
+You can either `pretty` print logs, print them as `json` or hide them all together with `hidden` (e.g. when using custom transports).<br>
 Having `json` as an output format is particularly useful, if you want to forward your logs directly from your `std` to another log service.
 Instead of parsing a _pretty_ output, most log services prefer a _JSON_ representation. 
+
 > **Hint:** Printing in `json` gives you direct access to all the available information, like _stack trace_ and _code frame_ and so on.
 
 ```typescript

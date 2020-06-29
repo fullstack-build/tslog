@@ -53,7 +53,7 @@ export class LoggerHelper {
         : ((error.stack as unknown) as NodeJS.CallSite[]);
     Error.prepareStackTrace = _prepareStackTrace;
 
-    return cleanUp === true
+    return cleanUp === true && stack?.reduce != null
       ? stack.reduce(
           (
             cleanedUpCallsites: NodeJS.CallSite[],

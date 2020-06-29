@@ -47,8 +47,8 @@ export type TRequestIdFunction = () => string;
  * @public
  */
 export interface ISettingsParam {
-  /** Print log pretty or as a stringified json, default: `pretty` */
-  type?: "json" | "pretty";
+  /** Print log `pretty`, as a stringified `json` or prevent printing with `hidden`, default: `pretty` */
+  type?: "json" | "pretty" | "hidden";
 
   /** Name of the instance name, default: _host name_ */
   instanceName?: string;
@@ -150,7 +150,7 @@ export interface ISettingsParam {
  * @public
  */
 export interface ISettings extends ISettingsParam {
-  type: "json" | "pretty";
+  type: "json" | "pretty" | "hidden";
   instanceName?: string;
   setCallerAsLoggerName: boolean;
   name?: string;
