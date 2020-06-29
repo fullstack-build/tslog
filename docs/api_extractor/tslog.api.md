@@ -172,7 +172,7 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     suppressStdOutput: boolean;
     // (undocumented)
-    type: "json" | "pretty";
+    type: "json" | "pretty" | "hidden";
 }
 
 // @public
@@ -208,7 +208,7 @@ export interface ISettingsParam {
     stdErr?: IStd;
     stdOut?: IStd;
     suppressStdOutput?: boolean;
-    type?: "json" | "pretty";
+    type?: "json" | "pretty" | "hidden";
 }
 
 // @public

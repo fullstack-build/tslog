@@ -184,8 +184,8 @@ export class Logger {
     this._mySettings.name =
       this._mySettings.name ??
       (this._mySettings.setCallerAsLoggerName
-        ? LoggerHelper.getCallSites()[0].getTypeName() ??
-          LoggerHelper.getCallSites()[0].getFunctionName() ??
+        ? LoggerHelper.getCallSites()?.[0]?.getTypeName() ??
+          LoggerHelper.getCallSites()?.[0]?.getFunctionName() ??
           undefined
         : undefined);
 
@@ -360,8 +360,10 @@ export class Logger {
     ) {
       if (this.settings.type === "pretty") {
         this._printPrettyLog(logObject);
-      } else {
+      } else if (this.settings.type === "json") {
         this._printJsonLog(logObject);
+      } else {
+        // don't print (e.g. "hidden")
       }
     }
 
@@ -646,7 +648,9 @@ export class Logger {
           ["bgRed", "whiteBright", "bold"],
           ` ${errorObject.name} `
         ) +
-        `\t${this._formatAndHideSesitive(errorObject.message)}`
+        (errorObject.message != null
+          ? `\t${this._formatAndHideSesitive(errorObject.message)}`
+          : "")
     );
 
     if (Object.values(errorObject.details).length > 0) {

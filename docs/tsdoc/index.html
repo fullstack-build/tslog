@@ -308,7 +308,8 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 					<h5><code>type</code></h5>
 				</a>
 				<p><code>default: &quot;pretty&quot;</code></p>
-				<p>You can either pretty print logs, or print them as <code>json</code>.<br>
+				<p>Possible values: <code>&quot;json&quot; | &quot;pretty&quot; | &quot;hidden&quot;</code> </p>
+				<p>You can either <code>pretty</code> print logs, print them as <code>json</code> or hide them all together with <code>hidden</code> (e.g. when using custom transports).<br>
 					Having <code>json</code> as an output format is particularly useful, if you want to forward your logs directly from your <code>std</code> to another log service.
 				Instead of parsing a <em>pretty</em> output, most log services prefer a <em>JSON</em> representation. </p>
 				<blockquote>
@@ -362,12 +363,12 @@ log.fatal(<span class="hljs-keyword">new</span> <span class="hljs-built_in">Erro
 				When debugging it can get quite handy to be able to group all logs based by a unique identifier <code>requestId</code>. </p>
 				<p>A <code>requestId</code> can either be a <code>string</code> or a function.<br>
 				A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a <code>requistId</code> dynamically. </p>
-				<p>*<em>With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a> **<br>
-						It has also been backported to Node.js v12.17.0 and of course it works with Node.js &gt;= 14.<br>
-					However it is still marked as *experimental</em>. <br>
+				<p><strong>With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a></strong><br>
+					It has also been backported to Node.js v12.17.0 and of course it works with Node.js &gt;= 14.<br>
+					However it is still marked as <em>experimental</em>. <br>
 				Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing <code>AsyncLocalStorage</code> and performing a small performance comparison. </p>
 				<blockquote>
-					<p><em>Hint</em>: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank"><code>cls-hooked</code></a>.</p>
+					<p><strong>Hint</strong>: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank"><code>cls-hooked</code></a>.</p>
 				</blockquote>
 				<p>Even though <code>tslog</code> is generic enough and works with any of these solutions our example is based on <code>AsyncLocalStorage</code>.<br>
 					<code>tslog</code> also works with any API framework (like <code>Express</code>, <code>Koa</code>, <code>Hapi</code> and so on), but we are going to use <code>Koa</code> in this example.<br>
