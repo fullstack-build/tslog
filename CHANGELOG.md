@@ -1,5 +1,10 @@
 # Change Log - tslog
 
+## 2.6.0: 
+Mon, 29 Jun 2020
+
+* Add new type: `hidden`
+
 ## 2.5.0: 
 Sat, 20 Jun 2020
 *This is a jam-packed release 🎉*
