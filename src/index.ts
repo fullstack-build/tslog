@@ -452,9 +452,9 @@ export class Logger {
   ): IErrorObject {
     const errorCallSites: NodeJS.CallSite[] = LoggerHelper.getCallSites(error);
     stackOffset = stackOffset > -1 ? stackOffset : 0;
-    const relevantCallSites: NodeJS.CallSite[] = errorCallSites.splice(
-      stackOffset
-    );
+
+    const relevantCallSites: NodeJS.CallSite[] =
+      (errorCallSites?.splice && errorCallSites.splice(stackOffset)) ?? [];
 
     stackLimit = stackLimit > -1 ? stackLimit : 0;
     if (stackLimit < Infinity) {
@@ -664,7 +664,7 @@ export class Logger {
       );
     }
 
-    if (printStackTrace === true) {
+    if (printStackTrace === true && errorObject?.stack?.length > 0) {
       std.write(
         LoggerHelper.styleString(["underline", "bold"], "\nerror stack:")
       );
@@ -679,25 +679,41 @@ export class Logger {
   private _printPrettyStack(std: IStd, stackObjectArray: IStackFrame[]): void {
     std.write("\n");
     Object.values(stackObjectArray).forEach((stackObject: IStackFrame) => {
+      std.write(LoggerHelper.styleString(["gray"], "• "));
+
+      if (stackObject.fileName != null) {
+        std.write(
+          LoggerHelper.styleString(["yellowBright"], stackObject.fileName)
+        );
+      }
+
+      if (stackObject.lineNumber != null) {
+        std.write(LoggerHelper.styleString(["gray"], ":"));
+        std.write(LoggerHelper.styleString(["yellow"], stackObject.lineNumber));
+      }
+
       std.write(
-        LoggerHelper.styleString(["gray"], "• ") +
-          LoggerHelper.styleString(["yellowBright"], stackObject.fileName) +
-          LoggerHelper.styleString(["gray"], ":") +
-          LoggerHelper.styleString(["yellow"], stackObject.lineNumber) +
-          LoggerHelper.styleString(
-            ["white"],
-            " " + (stackObject.functionName ?? "<anonymous>")
-          )
-      );
-      std.write("\n    ");
-      std.write(
-        fileNormalize(
-          LoggerHelper.styleString(
-            ["gray"],
-            `${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}`
-          )
+        LoggerHelper.styleString(
+          ["white"],
+          " " + (stackObject.functionName ?? "<anonymous>")
         )
       );
+
+      if (
+        stackObject.filePath != null &&
+        stackObject.lineNumber != null &&
+        stackObject.columnNumber != null
+      ) {
+        std.write("\n    ");
+        std.write(
+          fileNormalize(
+            LoggerHelper.styleString(
+              ["gray"],
+              `${stackObject.filePath}:${stackObject.lineNumber}:${stackObject.columnNumber}`
+            )
+          )
+        );
+      }
       std.write("\n\n");
     });
   }
