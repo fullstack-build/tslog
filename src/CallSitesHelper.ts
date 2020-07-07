@@ -1,5 +1,7 @@
 /* Based on https://github.com/watson/error-callsites */
 const callsitesSym: symbol = Symbol("callsites");
+export { callsitesSym };
+
 const fallback:
   | ((err: Error, stackTraces: NodeJS.CallSite[]) => unknown)
   | undefined = Error.prepareStackTrace;
@@ -44,6 +46,6 @@ Object.defineProperty(Error, "prepareStackTrace", {
   },
 });
 
-export function getCallsites(err: Error): NodeJS.CallSite[] {
+export function getCallSites(err: Error): NodeJS.CallSite[] {
   return err.stack ? err[callsitesSym] : err[callsitesSym];
 }

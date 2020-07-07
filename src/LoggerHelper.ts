@@ -2,7 +2,7 @@ import { inspect, types } from "util";
 import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
-import { getCallsites } from "./CallSitesHelper";
+import { getCallSites } from "./CallSitesHelper";
 
 import { Logger } from "./index";
 import {
@@ -46,7 +46,7 @@ export class LoggerHelper {
     cleanUp: boolean = true
   ): NodeJS.CallSite[] {
     const stack: NodeJS.CallSite[] =
-      error == null ? getCallsites(new Error()).slice(1) : getCallsites(error);
+      error == null ? getCallSites(new Error()).slice(1) : getCallSites(error);
 
     return cleanUp === true && stack?.reduce != null
       ? stack.reduce(
