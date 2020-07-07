@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../src";
+import { IErrorObject, ILogObject, Logger } from "../src";
 import { doesLogContain } from "./helper";
 
 let stdOut: string[] = [];
@@ -46,6 +46,23 @@ describe("Logger: Error with details", () => {
     loggerJson.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+  });
+
+  test("JSON: Check if call site wrapping is working (Bugfix: #29)", (): void => {
+    try {
+      let obj: any;
+      const id = obj.id; // generating uncaught exception
+    } catch (err) {
+      loggerJson.error(err);
+      const logObj: ILogObject = JSON.parse(stdErr[0]);
+      const errorObj: IErrorObject = logObj.argumentsArray?.[0] as IErrorObject;
+
+      expect(errorObj?.message).toContain(
+        "Cannot read property 'id' of undefined"
+      );
+
+      expect(errorObj?.stack?.[0].fileName).toContain("error.test.ts");
+    }
   });
 
   test("Helper: Print error", (): void => {

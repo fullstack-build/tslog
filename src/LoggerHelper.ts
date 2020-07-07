@@ -2,6 +2,8 @@ import { inspect, types } from "util";
 import { readFileSync } from "fs";
 import { basename as fileBasename, sep as pathSeparator } from "path";
 
+import { getCallsites } from "./CallSitesHelper";
+
 import { Logger } from "./index";
 import {
   ICodeFrame,
@@ -43,15 +45,8 @@ export class LoggerHelper {
     error?: Error,
     cleanUp: boolean = true
   ): NodeJS.CallSite[] {
-    const _prepareStackTrace:
-      | ((err: Error, stackTraces: NodeJS.CallSite[]) => unknown)
-      | undefined = Error.prepareStackTrace;
-    Error.prepareStackTrace = (_, stack) => stack;
     const stack: NodeJS.CallSite[] =
-      error == null
-        ? ((new Error().stack as unknown) as NodeJS.CallSite[]).slice(1)
-        : ((error.stack as unknown) as NodeJS.CallSite[]);
-    Error.prepareStackTrace = _prepareStackTrace;
+      error == null ? getCallsites(new Error()).slice(1) : getCallsites(error);
 
     return cleanUp === true && stack?.reduce != null
       ? stack.reduce(
