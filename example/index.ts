@@ -130,15 +130,3 @@ const secretiveLogger = new Logger({
 });
 
 secretiveLogger.info(verySecretiveObject);
-
-/* Debugging #29*/
-const logger = new Logger();
-
-function logError(err: any) {
-  logger.error(err);
-}
-
-process.on("uncaughtException", logError);
-
-let obj: any;
-const id = obj.id; // generating uncaught exception
