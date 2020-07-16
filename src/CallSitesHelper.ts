@@ -20,7 +20,7 @@ function prepareStackTrace(
   // function is being called. This would create an infinite loop if not
   // handled.
   if (Object.prototype.hasOwnProperty.call(err, callsitesSym)) {
-    return (fallback && fallback(err, callsites)) ?? [];
+    return (fallback && fallback(err, callsites)) ?? err.toString();
   }
 
   Object.defineProperty(err, callsitesSym, {
@@ -30,7 +30,10 @@ function prepareStackTrace(
     value: callsites,
   });
 
-  return (lastPrepareStackTrace && lastPrepareStackTrace(err, callsites)) ?? [];
+  return (
+    (lastPrepareStackTrace && lastPrepareStackTrace(err, callsites)) ??
+    err.toString()
+  );
 }
 
 Object.defineProperty(Error, "prepareStackTrace", {
