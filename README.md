@@ -757,9 +757,9 @@ logger.attachTransport(
   "debug"
 );
 
-log.debug("I am a debug log.");
-log.info("I am an info log.");
-log.warn("I am a warn log with a json object:", { foo: "bar" });
+logger.debug("I am a debug log.");
+logger.info("I am an info log.");
+logger.warn("I am a warn log with a json object:", { foo: "bar" });
 ```
 
 **Result:** `logs.txt`
