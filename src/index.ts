@@ -200,8 +200,10 @@ export class Logger {
       this.settings.maskValuesOfKeys?.length > 0
         ? new RegExp(
             "^(.[^']*)(" +
-              Object.values(this.settings.maskValuesOfKeys).join("|") +
-              ").*(\\,?)$",
+              Object.values(this.settings.maskValuesOfKeys).join(
+                ".[^\\w_)].*:|"
+              ) +
+              ".[^\\w_)].*:).*(\\,?)$",
             "gim"
           )
         : undefined;
