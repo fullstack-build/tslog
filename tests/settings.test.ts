@@ -765,10 +765,17 @@ describe("Logger: settings", () => {
 
     logger.info(verySecretiveCircularObject);
 
+    let verySecretiveSimpleObject = {
+      other: "example",
+      password: "matrix",
+    };
+    logger.info(verySecretiveSimpleObject);
+
     const stdString: string = stdArray.join("");
     expect(stdString.includes("swordfish")).toBeFalsy();
     expect(stdString.includes("pass1234")).toBeFalsy();
     expect(stdString.includes(".567")).toBeTruthy();
+    expect(stdString.includes("matrix")).toBeFalsy();
   });
 
   test("init logger: setSettings", (): void => {
