@@ -583,10 +583,11 @@ secretiveLogger.info(secretiveObject);
 
 ```
 
-##### `maskStrings`
+##### `maskAny`
 ```default: [] ```
 
-When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskStrings` to mask every occurrence of a string.  
+When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskAny` to mask every occurrence of a string/number.
+> **Hint:** It will also mask keys if it encounters this strings/numbers.  
 
 **`maskValuesOfKeys` is case sensitive!**
 
