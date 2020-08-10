@@ -142,9 +142,9 @@ export interface ISettings extends ISettingsParam {
     // (undocumented)
     logLevelsColors: TLogLevelColor;
     // (undocumented)
-    maskPlaceholder: string;
+    maskAny: (string | number)[];
     // (undocumented)
-    maskStrings: string[];
+    maskPlaceholder: string;
     // (undocumented)
     maskValuesOfKeys: (number | string)[];
     // (undocumented)
@@ -193,8 +193,8 @@ export interface ISettingsParam {
     instanceName?: string;
     jsonInspectOptions?: InspectOptions;
     logLevelsColors?: TLogLevelColor;
+    maskAny?: (string | number)[];
     maskPlaceholder?: string;
-    maskStrings?: string[];
     maskValuesOfKeys?: (number | string)[];
     minLevel?: TLogLevelName;
     name?: string;
@@ -226,7 +226,7 @@ export interface IStackFrame {
 
 // @public
 export interface IStd {
-    write: Function;
+    write: (message: string) => void;
 }
 
 // @public

@@ -571,11 +571,14 @@ secretiveLogger.info(secretiveObject);
 <span class="hljs-comment">//   }</span>
 <span class="hljs-comment">// }</span>
 </code></pre>
-				<a href="#maskstrings" id="maskstrings" style="color: inherit; text-decoration: none;">
-					<h5><code>maskStrings</code></h5>
+				<a href="#maskany" id="maskany" style="color: inherit; text-decoration: none;">
+					<h5><code>maskAny</code></h5>
 				</a>
 				<p><code>default: []</code></p>
-				<p>When <code>maskValuesOfKeys</code> is just not enough, and you really want to make sure no secrets get populated, you can also use <code>maskStrings</code> to mask every occurrence of a string.  </p>
+				<p>When <code>maskValuesOfKeys</code> is just not enough, and you really want to make sure no secrets get populated, you can also use <code>maskAny</code> to mask every occurrence of a string/number.</p>
+				<blockquote>
+					<p><strong>Hint:</strong> It will also mask keys if it encounters this strings/numbers.  </p>
+				</blockquote>
 				<p><strong><code>maskValuesOfKeys</code> is case sensitive!</strong></p>
 				<pre><code class="language-typescript"><span class="hljs-keyword">const</span> verySecretiveLogger = <span class="hljs-keyword">new</span> Logger({
   name: <span class="hljs-string">&quot;SecretiveLogger&quot;</span>,
