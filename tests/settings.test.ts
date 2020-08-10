@@ -737,7 +737,7 @@ describe("Logger: settings", () => {
     expect(stdStringGroups2?.[3]).toBe("[xxx]");
   });
 
-  test("init logger: maskStrings", (): void => {
+  test("init logger: maskAny", (): void => {
     const stdArray: string[] = [];
     const std: { write: (line: string) => void } = {
       write: (line: string) => {
@@ -745,7 +745,7 @@ describe("Logger: settings", () => {
       },
     };
     const logger: Logger = new Logger({
-      maskStrings: ["test", "swordfish", "pass1234"],
+      maskAny: ["test", "swordfish", "pass1234"],
       maskPlaceholder: "[xxx]",
       stdOut: std,
       stdErr: std,

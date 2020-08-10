@@ -104,8 +104,8 @@ export interface ISettingsParam {
   /** Exclude case-insensitive keys for object passed to `tslog` that could potentially contain sensitive information (e.g. `password` or `Authorization`), default: ["password"] */
   maskValuesOfKeys?: (number | string)[];
 
-  /** Mask all of this case-sensitive strings from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
-  maskStrings?: string[];
+  /** Mask all occurrences (case-sensitive) from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  maskAny?: (string | number)[];
 
   /** String to use a placeholder to mask sensitive values. */
   maskPlaceholder?: string;
@@ -169,7 +169,7 @@ export interface ISettings extends ISettingsParam {
   dateTimeTimezone: string;
   prefix: unknown[];
   maskValuesOfKeys: (number | string)[];
-  maskStrings: string[];
+  maskAny: (string | number)[];
   maskPlaceholder: string;
   printLogMessageInNewLine: boolean;
   displayDateTime: boolean;
@@ -190,7 +190,7 @@ export interface ISettings extends ISettingsParam {
  */
 export interface IStd {
   /** stream.Writable */
-  write: Function;
+  write: (message: string) => void;
 }
 
 /**

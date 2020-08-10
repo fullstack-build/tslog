@@ -73,7 +73,7 @@ export class Logger {
   private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
   private _maskValuesOfKeysRegExp: RegExp | undefined;
-  private _maskStringsRegExp: RegExp | undefined;
+  private _maskAnyRegExp: RegExp | undefined;
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
@@ -130,7 +130,7 @@ export class Logger {
 
       prefix: [],
       maskValuesOfKeys: ["password"],
-      maskStrings: [],
+      maskAny: [],
       maskPlaceholder: "[***]",
 
       printLogMessageInNewLine: false,
@@ -208,9 +208,9 @@ export class Logger {
           )
         : undefined;
 
-    this._maskStringsRegExp =
-      this.settings.maskStrings?.length > 0
-        ? new RegExp(Object.values(this.settings.maskStrings).join("|"), "g")
+    this._maskAnyRegExp =
+      this.settings.maskAny?.length > 0
+        ? new RegExp(Object.values(this.settings.maskAny).join("|"), "g")
         : undefined;
 
     LoggerHelper.setUtilsInspectStyles(
@@ -797,7 +797,7 @@ export class Logger {
     if (this._maskValuesOfKeysRegExp != null) {
       inspectedString = inspectedString.replace(
         this._maskValuesOfKeysRegExp,
-        "$1$2: " +
+        "$1$2 " +
           LoggerHelper.styleString(
             [this.settings.prettyInspectHighlightStyles.string],
             `'${this.settings.maskPlaceholder}'`
@@ -806,9 +806,9 @@ export class Logger {
       );
     }
 
-    return this._maskStringsRegExp != null
+    return this._maskAnyRegExp != null
       ? inspectedString.replace(
-          this._maskStringsRegExp,
+          this._maskAnyRegExp,
           this.settings.maskPlaceholder
         )
       : inspectedString;
@@ -819,11 +819,8 @@ export class Logger {
     ...param: unknown[]
   ): string {
     const formattedStr: string = format(formatParam, ...param);
-    return this._maskStringsRegExp != null
-      ? formattedStr.replace(
-          this._maskStringsRegExp,
-          this.settings.maskPlaceholder
-        )
+    return this._maskAnyRegExp != null
+      ? formattedStr.replace(this._maskAnyRegExp, this.settings.maskPlaceholder)
       : formattedStr;
   }
 }
