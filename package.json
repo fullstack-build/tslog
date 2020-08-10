@@ -23,7 +23,7 @@
     "api-extractor": "tsc && mkdir -p ./docs/api_extractor && api-extractor run --local --verbose",
     "typedoc": "typedoc",
     "generate-all-docs": "npm run api-extractor && typedoc",
-    "release": "npm run generate-all-docs && git add . && np"
+    "release": "np"
   },
   "jest": {
     "verbose": true,
