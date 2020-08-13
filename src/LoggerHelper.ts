@@ -106,7 +106,11 @@ export class LoggerHelper {
 
   public static overwriteConsole(
     $this: Logger,
-    handleLog: Function
+    handleLog: (
+      logLevel: TLogLevelName,
+      logArguments: unknown[],
+      exposeStack?: boolean
+    ) => void
   ): ILogObject | void {
     ["log", "debug", "info", "warn", "trace", "error"].forEach(
       (name: string) => {
