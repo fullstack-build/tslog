@@ -372,7 +372,7 @@ export class Logger {
     this._attachedTransports.forEach((transport: ITransportProvider) => {
       if (
         logObject.logLevelId >=
-        Object.values(this._logLevels).indexOf(this.settings.minLevel)
+        Object.values(this._logLevels).indexOf(transport.minLevel)
       ) {
         transport.transportLogger[logLevel](logObject);
       }

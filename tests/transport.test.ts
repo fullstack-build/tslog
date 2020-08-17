@@ -67,4 +67,21 @@ describe("Logger: Transport", () => {
       doesLogContain(stdErr, transportErr[0].argumentsArray[0] as string)
     ).toBeTruthy();
   });
+
+  test("different log level", (): void => {
+    logger.setSettings({ minLevel: "info" });
+
+    logger.silly("test message");
+    logger.trace("test message");
+    logger.debug("test message");
+    logger.info("test message");
+    logger.warn("test message");
+    logger.error("test message");
+    logger.fatal("test message");
+
+    // all 4: silly, trace, debug, info
+    expect(transportOut.length).toBe(4);
+    // info only to stdOut
+    expect(stdOut.length).toBe(1);
+  });
 });
