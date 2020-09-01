@@ -595,7 +595,7 @@ When `maskValuesOfKeys` is just not enough, and you really want to make sure no 
 const verySecretiveLogger = new Logger({
   name: "SecretiveLogger",
   maskValuesOfKeys: ["test", "authorization", "password"],
-  maskStrings: ["pass1234"],
+  maskAny: ["pass1234"],
 });
 
 let secretiveObject = {
@@ -629,7 +629,7 @@ verySecretiveLogger.info(secretiveObject);
 ##### `maskPlaceholder` 
 ```default: "[***]" ```
 
-String to use for masking of secrets (s. `maskStrings` & `maskValuesOfKeys`)
+String to use for masking of secrets (s. `maskAny` & `maskValuesOfKeys`)
 
 ##### `printLogMessageInNewLine` 
 ```default: false ```
