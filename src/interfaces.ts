@@ -105,7 +105,7 @@ export interface ISettingsParam {
   maskValuesOfKeys?: (number | string)[];
 
   /** Mask all occurrences (case-sensitive) from logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
-  maskAny?: (string | number)[];
+  maskAnyRegEx?: (string | number)[];
 
   /** String to use a placeholder to mask sensitive values. */
   maskPlaceholder?: string;
@@ -169,7 +169,7 @@ export interface ISettings extends ISettingsParam {
   dateTimeTimezone: string;
   prefix: unknown[];
   maskValuesOfKeys: (number | string)[];
-  maskAny: (string | number)[];
+  maskAnyRegEx: (string | number)[];
   maskPlaceholder: string;
   printLogMessageInNewLine: boolean;
   displayDateTime: boolean;
