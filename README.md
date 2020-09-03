@@ -583,11 +583,11 @@ secretiveLogger.info(secretiveObject);
 
 ```
 
-##### `maskAny`
+##### `maskAnyRegEx`
 ```default: [] ```
 
-When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskAny` to mask every occurrence of a string/number.
-> **Hint:** It will also mask keys if it encounters this strings/numbers.  
+When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskAnyRegEx` to mask every occurrence of a string matching a particular RegEx.
+> **Hint:** It will also mask keys if it encounters a matching pattern.  
 
 **`maskValuesOfKeys` is case sensitive!**
 
@@ -595,7 +595,7 @@ When `maskValuesOfKeys` is just not enough, and you really want to make sure no 
 const verySecretiveLogger = new Logger({
   name: "SecretiveLogger",
   maskValuesOfKeys: ["test", "authorization", "password"],
-  maskAny: ["pass1234"],
+  maskAnyRegEx: ["pass.*"], // mask every string that starts with "pass"
 });
 
 let secretiveObject = {
@@ -629,7 +629,7 @@ verySecretiveLogger.info(secretiveObject);
 ##### `maskPlaceholder` 
 ```default: "[***]" ```
 
-String to use for masking of secrets (s. `maskAny` & `maskValuesOfKeys`)
+String to use for masking of secrets (s. `maskAnyRegEx` & `maskValuesOfKeys`)
 
 ##### `printLogMessageInNewLine` 
 ```default: false ```

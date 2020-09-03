@@ -130,7 +130,7 @@ export class Logger {
 
       prefix: [],
       maskValuesOfKeys: ["password"],
-      maskAny: [],
+      maskAnyRegEx: [],
       maskPlaceholder: "[***]",
 
       printLogMessageInNewLine: false,
@@ -209,8 +209,8 @@ export class Logger {
         : undefined;
 
     this._maskAnyRegExp =
-      this.settings.maskAny?.length > 0
-        ? new RegExp(Object.values(this.settings.maskAny).join("|"), "g")
+      this.settings.maskAnyRegEx?.length > 0
+        ? new RegExp(Object.values(this.settings.maskAnyRegEx).join("|"), "g")
         : undefined;
 
     LoggerHelper.setUtilsInspectStyles(

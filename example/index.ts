@@ -125,8 +125,21 @@ verySecretiveObject.nested["circular"] = verySecretiveObject;
 
 const secretiveLogger = new Logger({
   name: "SecretiveLogger",
-  maskAny: ["swordfish", "pass1234"],
+  maskAnyRegEx: ["swordfish", "pass1234"],
   maskValuesOfKeys: ["test", "authorization", "password"],
 });
 
 secretiveLogger.info(verySecretiveObject);
+
+console.log("#############");
+
+const secretiveLogger2 = new Logger({
+  name: "SecretiveLogger2",
+  maskAnyRegEx: ["token_prefix_.*", "lala.*"],
+});
+
+secretiveLogger2.info({
+  x: "token_prefix_123 huhu",
+  y: "token_prefix_456 haha",
+  z: "lala_huhu lala",
+});
