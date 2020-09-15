@@ -25,3 +25,9 @@ If applicable, add screenshots to help explain your problem.
 
 **Additional context**
 Add any other context about the problem here.
+
+**Node.js Version**
+e.g. 12.08
+
+**OS incl. Version**
+e.g. macOS 10.15.5
