@@ -693,7 +693,7 @@ If you want to redirect the output or directly access any logged object, we advi
 
 #### <a name="transport"></a>Transports
 `tslog` focuses on the one thing it does well: capturing logs. 
-Therefor there is no build-in _file system_ logging, _log rotation_, or similar. 
+Therefore, there is no build-in _file system_ logging, _log rotation_, or similar. 
 Per default all logs go to `stdOut` and `stdErr` respectively. 
 
 However, you can easily attach as many _transports_ as you wish, enabling you to do fancy stuff
@@ -703,6 +703,8 @@ When attaching a transport, you _must_ implement every log level.
 All of them could be potentially handled by the same function, though.
 
 Each _transport_ can have its own `minLevel`.
+
+**Attached transports are also inherited to child loggers.** 
 
 ##### Simple transport example
 
