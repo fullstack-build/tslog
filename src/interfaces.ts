@@ -142,6 +142,9 @@ export interface ISettingsParam {
 
   /**  Overwrite default std err */
   stdErr?: IStd;
+
+  /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
+  attachedTransports?: ITransportProvider[];
 }
 
 /**
@@ -182,6 +185,7 @@ export interface ISettings extends ISettingsParam {
   displayTypes: boolean;
   stdOut: IStd;
   stdErr: IStd;
+  attachedTransports: ITransportProvider[];
 }
 
 /**

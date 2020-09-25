@@ -69,4 +69,35 @@ describe("Logger: Child", () => {
     expect(grandchild1Log2.argumentsArray[2]).toBe("child1-1");
     expect(grandchild1Log2.argumentsArray[3]).toBe("grandchild1");
   });
+
+  test("Propagate Attached loggers to child loggers", (): void => {
+    const child1: Logger = logger.getChildLogger({
+      name: "FirstChild",
+      prefix: ["child1"],
+    });
+
+    const attachedLogMessages: ILogObject[] = [];
+    const attachedLoggerFunction = async function (logObject: ILogObject) {
+      return attachedLogMessages.push(logObject);
+    };
+
+    child1.attachTransport(
+      {
+        silly: attachedLoggerFunction,
+        debug: attachedLoggerFunction,
+        trace: attachedLoggerFunction,
+        info: attachedLoggerFunction,
+        warn: attachedLoggerFunction,
+        error: attachedLoggerFunction,
+        fatal: attachedLoggerFunction,
+      },
+      "debug"
+    );
+
+    child1.debug("test child1 message");
+
+    const grandchild1: Logger = child1.getChildLogger({ name: "GrandChild" });
+    grandchild1.debug("test child1 message");
+    expect(stdOut.length).toBe(attachedLogMessages.length);
+  });
 });
