@@ -522,7 +522,7 @@ export class Logger {
         }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
         {
           type: "millisecond",
-          value: logObject.date.getMilliseconds().toString(),
+          value: logObject.date.getMilliseconds().toFixed(3),
         } as IFullDateTimeFormatPart,
       ];
 
