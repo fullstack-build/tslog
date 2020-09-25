@@ -67,7 +67,6 @@ export class Logger {
     "fatal",
   ];
   private _ignoreStackLevels: number = 3;
-  private _attachedTransports: ITransportProvider[] = [];
   private readonly _minLevelToStdErr: number = 4;
   private _parentOrDefaultSettings: ISettings;
   private _mySettings: ISettingsParam = {};
@@ -77,6 +76,7 @@ export class Logger {
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
+   * @param parentSettings - Used internally to
    */
   public constructor(settings?: ISettingsParam, parentSettings?: ISettings) {
     this._parentOrDefaultSettings = {
@@ -147,6 +147,7 @@ export class Logger {
 
       stdOut: process.stdout,
       stdErr: process.stderr,
+      attachedTransports: [],
     };
     const mySettings: ISettingsParam = settings != null ? settings : {};
     this.setSettings(mySettings, parentSettings);
@@ -252,7 +253,7 @@ export class Logger {
     transportLogger: TTransportLogger<(message: ILogObject) => void>,
     minLevel: TLogLevelName = "silly"
   ): void {
-    this._attachedTransports.push({
+    this.settings.attachedTransports.push({
       minLevel,
       transportLogger,
     });
@@ -369,14 +370,16 @@ export class Logger {
       }
     }
 
-    this._attachedTransports.forEach((transport: ITransportProvider) => {
-      if (
-        logObject.logLevelId >=
-        Object.values(this._logLevels).indexOf(transport.minLevel)
-      ) {
-        transport.transportLogger[logLevel](logObject);
+    this.settings.attachedTransports.forEach(
+      (transport: ITransportProvider) => {
+        if (
+          logObject.logLevelId >=
+          Object.values(this._logLevels).indexOf(transport.minLevel)
+        ) {
+          transport.transportLogger[logLevel](logObject);
+        }
       }
-    });
+    );
 
     return logObject;
   }
