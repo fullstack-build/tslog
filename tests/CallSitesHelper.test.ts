@@ -1,7 +1,11 @@
 import "ts-jest";
 const { EOL } = require("os");
 const util = require("util");
-import { getCallSites, callsitesSym } from "../src/CallSitesHelper";
+import {
+  getCallSites,
+  callsitesSym,
+  FormatStackTrace,
+} from "../src/CallSitesHelper";
 
 describe("CallSitesHelper Tests", () => {
   test("return non-empty array", function () {
@@ -100,5 +104,26 @@ describe("CallSitesHelper Tests", () => {
       // @ts-ignore
       expect(stack[i].indexOf("    at ")).toBe(0);
     }
+  });
+
+  test("Test FormatStackTrace fallback", function () {
+    const error = new Error("Broken");
+    const error1FormatStackTrace = FormatStackTrace(error, getCallSites(error));
+    const error2 = new Error("Broken");
+    expect(
+      error1FormatStackTrace.indexOf("at Object.<anonymous>")
+    ).toBeGreaterThan(-1);
+
+    // @ts-ignore
+    error2.toString = undefined;
+    const fakeCallsite = {};
+    // @ts-ignore
+    fakeCallsite.toString = null;
+    // @ts-ignore
+    const error2FormatStackTrace = FormatStackTrace(error2, [fakeCallsite]);
+
+    expect(
+      error2FormatStackTrace.indexOf("TypeError: error.toString")
+    ).toBeGreaterThan(-1);
   });
 });
