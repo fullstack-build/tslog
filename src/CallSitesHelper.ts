@@ -2,13 +2,38 @@
 const callsitesSym: symbol = Symbol("callsites");
 export { callsitesSym };
 
-const fallback:
-  | ((err: Error, stackTraces: NodeJS.CallSite[]) => unknown)
-  | undefined = Error.prepareStackTrace;
+// Lifted from Node.js 0.10.40:
+// https://github.com/nodejs/node/blob/0439a28d519fb6efe228074b0588a59452fc1677/deps/v8/src/messages.js#L1053-L1080
+export function FormatStackTrace(
+  error: Error,
+  frames: NodeJS.CallSite[]
+): string {
+  const lines: string[] = [];
+  try {
+    lines.push(error.toString());
+  } catch (e) {
+    lines.push("<error: " + e + ">");
+  }
+  for (let i: number = 0; i < frames.length; i++) {
+    const frame: NodeJS.CallSite = frames[i];
+    let line: string;
+    try {
+      line = frame.toString();
+    } catch (e) {
+      line = "<error: " + e + ">";
+    }
+    lines.push("    at " + line);
+  }
+  return lines.join("\n");
+}
 
-let lastPrepareStackTrace:
-  | ((err: Error, stackTraces: NodeJS.CallSite[]) => unknown)
-  | undefined = fallback;
+const fallback: (err: Error, stackTraces: NodeJS.CallSite[]) => string =
+  Error.prepareStackTrace || FormatStackTrace;
+
+let lastPrepareStackTrace: (
+  err: Error,
+  stackTraces: NodeJS.CallSite[]
+) => unknown = fallback;
 
 function prepareStackTrace(
   err: Error,
@@ -20,7 +45,7 @@ function prepareStackTrace(
   // function is being called. This would create an infinite loop if not
   // handled.
   if (Object.prototype.hasOwnProperty.call(err, callsitesSym)) {
-    return (fallback && fallback(err, callsites)) ?? err.toString();
+    return fallback(err, callsites);
   }
 
   Object.defineProperty(err, callsitesSym, {
@@ -42,10 +67,13 @@ Object.defineProperty(Error, "prepareStackTrace", {
   get: function () {
     return prepareStackTrace;
   },
-  set: function (fn?: (err: Error, stackTraces: NodeJS.CallSite[]) => unknown) {
+  set: function (fn?: (err: Error, stackTraces: NodeJS.CallSite[]) => string) {
     // Don't set `lastPrepareStackTrace` to ourselves. If we did, we'd end up
     // throwing a RangeError (Maximum call stack size exceeded).
-    lastPrepareStackTrace = fn === prepareStackTrace ? fallback : fn;
+    lastPrepareStackTrace =
+      fn === prepareStackTrace
+        ? fallback
+        : (fn as (err: Error, stackTraces: NodeJS.CallSite[]) => string);
   },
 });
 
