@@ -367,7 +367,7 @@ export class Logger {
           : this.settings.stdErr;
 
       if (this.settings.type === "pretty") {
-        this._printPrettyLog(std, logObject);
+        this.printPrettyLog(std, logObject);
       } else if (this.settings.type === "json") {
         this._printJsonLog(std, logObject);
       } else {
@@ -509,7 +509,13 @@ export class Logger {
     return stackFrame;
   }
 
-  private _printPrettyLog(std: IStd, logObject: ILogObject): void {
+  /**
+   * Pretty print the log object to the designated output.
+   *
+   * @param std - output where to pretty print the object
+   * @param logObject - object to pretty print
+   **/
+  public printPrettyLog(std: IStd, logObject: ILogObject): void {
     if (this.settings.displayDateTime === true) {
       const dateTimeParts: IFullDateTimeFormatPart[] = [
         ...(new Intl.DateTimeFormat("en", {

@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../src";
+import { IStd, Logger } from "../src";
 import { doesLogContain } from "./helper";
 
 const stdOut: string[] = [];
@@ -125,4 +125,25 @@ test("Pretty circular JSON (stdOut)", (): void => {
   logger.debug(foo);
   expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
   expect(doesLogContain(stdOut, "[Circular")).toBeTruthy();
+});
+
+test("Pretty print on custom IStd", (): void => {
+  class SimpleStd implements IStd {
+    constructor(private _buffer: string = "") {}
+    write(message: string) {
+      this._buffer += message;
+    }
+
+    get buffer(): string {
+      return this._buffer;
+    }
+  }
+
+  const testVector = ["this", "is", "a", "test"];
+  const myStd = new SimpleStd();
+  testVector.forEach((e) => logger.printPrettyLog(myStd, logger.debug(e)));
+
+  const logs = myStd.buffer.split(/\r?\n/);
+  expect(logs.length).toBe(testVector.length + 1); // + 1 is for the last EOL
+  logs.forEach((e, i) => expect(e.endsWith(testVector[i] + " ")));
 });
