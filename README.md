@@ -795,7 +795,9 @@ logger.prettyError(err);
 * `std` - Which std should the output be printed to? _(default: stdErr)_
 
 ##### printPrettyLog
-Sometimes you just want to _pretty print_ an error on a custom output (if you want to add a new transport for example), e.g.:
+If you just want to _pretty print_ an error on a custom output (for adding a new transport for example), 
+you can just call `logger.printPrettyLog(myStd, myLogObject)` where myStd is an instance of `IStd` (e.g. `process.stdout`, `process.stderr` or even a custom one, see example below):
+
 ```typescript
 class SimpleStd implements IStd {
   constructor(private _buffer: string = '') {}
@@ -807,6 +809,12 @@ class SimpleStd implements IStd {
     return this._buffer;
   }
 }
+
+const logger: Logger = new Logger();
+
+const myStd = new SimpleStd();
+const myLogObject = logger.info("Hello World");
+logger.printPrettyLog(myStd, myLogObject);
 ```
 
-In those cases, to fill the buffer with the pretty printed log you can just call `logger.printPrettyLog(myStd, myLogObject)` where myStd is an instance of `SimpleStd`.
+
