@@ -361,10 +361,15 @@ export class Logger {
       !this.settings.suppressStdOutput &&
       logObject.logLevelId >= this._logLevels.indexOf(this.settings.minLevel)
     ) {
+      const std: IStd =
+        logObject.logLevelId < this._minLevelToStdErr
+          ? this.settings.stdOut
+          : this.settings.stdErr;
+
       if (this.settings.type === "pretty") {
-        this._printPrettyLog(logObject);
+        this.printPrettyLog(std, logObject);
       } else if (this.settings.type === "json") {
-        this._printJsonLog(logObject);
+        this._printJsonLog(std, logObject);
       } else {
         // don't print (e.g. "hidden")
       }
@@ -504,12 +509,13 @@ export class Logger {
     return stackFrame;
   }
 
-  private _printPrettyLog(logObject: ILogObject): void {
-    const std: IStd =
-      logObject.logLevelId < this._minLevelToStdErr
-        ? this.settings.stdOut
-        : this.settings.stdErr;
-
+  /**
+   * Pretty print the log object to the designated output.
+   *
+   * @param std - output where to pretty print the object
+   * @param logObject - object to pretty print
+   **/
+  public printPrettyLog(std: IStd, logObject: ILogObject): void {
     if (this.settings.displayDateTime === true) {
       const dateTimeParts: IFullDateTimeFormatPart[] = [
         ...(new Intl.DateTimeFormat("en", {
@@ -782,12 +788,7 @@ export class Logger {
     };
   }
 
-  private _printJsonLog(logObject: ILogObject): void {
-    const std: IStd =
-      logObject.logLevelId < this._minLevelToStdErr
-        ? this.settings.stdOut
-        : this.settings.stdErr;
-
+  private _printJsonLog(std: IStd, logObject: ILogObject): void {
     std.write(JSON.stringify(logObject) + "\n");
   }
 

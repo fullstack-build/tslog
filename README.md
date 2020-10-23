@@ -793,3 +793,20 @@ logger.prettyError(err);
 * `stackOffset` - Offset lines of the stack trace _(default: 0)_
 * `stackLimit`  - Limit number of lines of the stack trace _(default: Infinity)_
 * `std` - Which std should the output be printed to? _(default: stdErr)_
+
+##### printPrettyLog
+Sometimes you just want to _pretty print_ an error on a custom output (if you want to add a new transport for example), e.g.:
+```typescript
+class SimpleStd implements IStd {
+  constructor(private _buffer: string = '') {}
+  write(message: string) {
+    this._buffer += message;
+  }
+
+  get buffer(): string {
+    return this._buffer;
+  }
+}
+```
+
+In those cases, to fill the buffer with the pretty printed log you can just call `logger.printPrettyLog(myStd, myLogObject)` where myStd is an instance of `SimpleStd`.
