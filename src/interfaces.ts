@@ -22,7 +22,7 @@ export interface ILogLevel {
 export type TLogLevelId = keyof ILogLevel;
 
 /**
- * Log level names (sill - fatal)
+ * Log level names (silly - fatal)
  * @public
  */
 export type TLogLevelName = ILogLevel[TLogLevelId];
