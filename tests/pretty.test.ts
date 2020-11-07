@@ -1,6 +1,7 @@
 import "ts-jest";
 import { IStd, Logger } from "../src";
 import { doesLogContain } from "./helper";
+import exp = require("constants");
 
 const stdOut: string[] = [];
 const stdErr: string[] = [];
@@ -109,41 +110,63 @@ describe("Logger: Pretty print", () => {
     expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
     expect(doesLogContain(stdOut, "ObjClass {")).toBeTruthy();
   });
-});
 
-test("Pretty circular JSON (stdOut)", (): void => {
-  function Foo() {
-    /* @ts-ignore */
-    this.abc = "Hello";
-    /* @ts-ignore */
-    this.circular = this;
-  }
-
-  /* @ts-ignore */
-  const foo = new Foo();
-
-  logger.debug(foo);
-  expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
-  expect(doesLogContain(stdOut, "[Circular")).toBeTruthy();
-});
-
-test("Pretty print on custom IStd", (): void => {
-  class SimpleStd implements IStd {
-    constructor(private _buffer: string = "") {}
-    write(message: string) {
-      this._buffer += message;
+  test("Pretty circular JSON (stdOut)", (): void => {
+    function Foo() {
+      /* @ts-ignore */
+      this.abc = "Hello";
+      /* @ts-ignore */
+      this.circular = this;
     }
 
-    get buffer(): string {
-      return this._buffer;
+    /* @ts-ignore */
+    const foo = new Foo();
+
+    logger.debug(foo);
+    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+    expect(doesLogContain(stdOut, "[Circular")).toBeTruthy();
+  });
+
+  test("Pretty print on custom IStd", (): void => {
+    class SimpleStd implements IStd {
+      constructor(private _buffer: string = "") {}
+      write(message: string) {
+        this._buffer += message;
+      }
+
+      get buffer(): string {
+        return this._buffer;
+      }
     }
-  }
 
-  const testVector = ["this", "is", "a", "test"];
-  const myStd = new SimpleStd();
-  testVector.forEach((e) => logger.printPrettyLog(myStd, logger.debug(e)));
+    const testVector = ["this", "is", "a", "test"];
+    const myStd = new SimpleStd();
+    testVector.forEach((e) => logger.printPrettyLog(myStd, logger.debug(e)));
 
-  const logs = myStd.buffer.split(/\r?\n/);
-  expect(logs.length).toBe(testVector.length + 1); // + 1 is for the last EOL
-  logs.forEach((e, i) => expect(e.endsWith(testVector[i] + " ")));
+    const logs = myStd.buffer.split(/\r?\n/);
+    expect(logs.length).toBe(testVector.length + 1); // + 1 is for the last EOL
+    logs.forEach((e, i) => expect(e.endsWith(testVector[i] + " ")));
+  });
+
+  test("Pretty print: not colorized", (): void => {
+    const nonColorizedStdOut: string[] = [];
+    const plainLogger: Logger = new Logger({
+      colorizePrettyLogs: false,
+      stdOut: {
+        write: (print: string) => {
+          nonColorizedStdOut.push(print);
+        },
+      },
+      stdErr: {
+        write: (print: string) => {
+          nonColorizedStdOut.push(print);
+        },
+      },
+    });
+
+    logger.info("Test-Message colorized");
+    plainLogger.info("Test-Message non-colorized");
+    expect(stdOut[0].indexOf("\u001b[90m")).toBeGreaterThan(-1);
+    expect(nonColorizedStdOut[0].indexOf("\u001b[90m")).toBe(-1);
+  });
 });

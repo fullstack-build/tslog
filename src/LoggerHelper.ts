@@ -144,14 +144,17 @@ export class LoggerHelper {
 
   public static styleString<T, S>(
     styleTypes: T | TUtilsInspectColors[],
-    str: S | string
+    str: S | string,
+    colorizePrettyLogs: boolean = true
   ): string {
-    return Object.values(styleTypes).reduce((resultStr: S, styleType: T) => {
-      return LoggerHelper._stylizeWithColor(
-        (styleType as unknown) as TUtilsInspectColors,
-        resultStr
-      );
-    }, str);
+    return colorizePrettyLogs
+      ? Object.values(styleTypes).reduce((resultStr: S, styleType: T) => {
+          return LoggerHelper._stylizeWithColor(
+            (styleType as unknown) as TUtilsInspectColors,
+            resultStr
+          );
+        }, str)
+      : str;
   }
 
   private static _stylizeWithColor<T>(

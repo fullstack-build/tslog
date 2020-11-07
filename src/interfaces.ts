@@ -83,6 +83,9 @@ export interface ISettingsParam {
   /**  Overwrite colors of log messages of different log levels */
   logLevelsColors?: TLogLevelColor;
 
+  /**  Determines whether pretty printed logs should be colorized, default: `true` */
+  colorizePrettyLogs?: boolean;
+
   /**  Overwrite colors json highlighting */
   prettyInspectHighlightStyles?: IHighlightStyles;
 
@@ -165,6 +168,7 @@ export interface ISettings extends ISettingsParam {
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
+  colorizePrettyLogs: boolean;
   prettyInspectHighlightStyles: IHighlightStyles;
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
