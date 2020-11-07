@@ -164,9 +164,7 @@ describe("Logger: Pretty print", () => {
       },
     });
 
-    logger.info("Test-Message colorized");
     plainLogger.info("Test-Message non-colorized");
-    expect(stdOut[0].indexOf("\u001b[90m")).toBeGreaterThan(-1);
     expect(nonColorizedStdOut[0].indexOf("\u001b[90m")).toBe(-1);
   });
 });

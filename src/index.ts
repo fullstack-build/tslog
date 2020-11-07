@@ -66,7 +66,7 @@ export class Logger {
     "error",
     "fatal",
   ];
-  private _ignoreStackLevels: number = 3;
+
   private readonly _minLevelToStdErr: number = 4;
   private _parentOrDefaultSettings: ISettings;
   private _mySettings: ISettingsParam = {};
@@ -89,6 +89,7 @@ export class Logger {
       exposeStack: false,
       exposeErrorCodeFrame: true,
       exposeErrorCodeFrameLinesBeforeAndAfter: 5,
+      ignoreStackLevels: 3,
       suppressStdOutput: false,
       overwriteConsole: false,
       colorizePrettyLogs: true,
@@ -397,7 +398,7 @@ export class Logger {
   ): ILogObject {
     const callSites: NodeJS.CallSite[] = LoggerHelper.getCallSites();
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
-      this._ignoreStackLevels
+      this.settings.ignoreStackLevels
     );
     const stackFrame: NodeJS.CallSite = wrapCallSite(relevantCallSites[0]);
     const stackFrameObject: IStackFrame = LoggerHelper.toStackFrameObject(

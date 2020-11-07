@@ -74,6 +74,9 @@ export interface ISettingsParam {
   /** Capture lines before and after a code frame, default: `5` */
   exposeErrorCodeFrameLinesBeforeAndAfter?: number;
 
+  /** How many stack trace levels should be ignores. `tslog` adds 3. default: `3` */
+  ignoreStackLevels?: number;
+
   /** Suppress any log output to std out / std err */
   suppressStdOutput?: boolean;
 
@@ -165,6 +168,7 @@ export interface ISettings extends ISettingsParam {
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
   exposeErrorCodeFrameLinesBeforeAndAfter: number;
+  ignoreStackLevels: number;
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
