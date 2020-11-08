@@ -433,6 +433,14 @@ new Logger({ exposeErrorCodeFrame: false });
 ![tslog with a code frame](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png)
 
 
+##### `ignoreStackLevels`
+```default: 3```
+
+Defines how many stack levels should be ignored. 
+`tslog` adds additional 3 layers to the stack and that the reason why the default is set to `3`.
+You can increase this number, if you want to add additional layers  (e.g. a factory class or a facade).
+
+
 ##### `suppressStdOutput`
 ```default: false```
 
@@ -468,6 +476,12 @@ new Logger({ name: "console", overwriteConsole: true });
 * `console.error`: `error`
 
 _There is no `console.fatal`._
+
+
+##### `colorizePrettyLogs`
+```default: true```
+
+By default `pretty` output is colorized with ANSI escape codes. If you prefer a plain output, you can disable the colorization with this setting.  
 
 ##### `logLevelsColors`
 
