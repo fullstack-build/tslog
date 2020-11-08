@@ -222,7 +222,7 @@ export class LoggerHelper {
   public static _getCodeFrame(
     filePath: string,
     lineNumber: number,
-    columnNumber: number | undefined,
+    columnNumber: number | null,
     linesBeforeAndAfter: number
   ): ICodeFrame | undefined {
     const lineNumberMinusOne: number = lineNumber - 1;

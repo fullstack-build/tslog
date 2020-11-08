@@ -386,7 +386,7 @@ export interface IHighlightStyles {
 export interface ICodeFrame {
   firstLineNumber: number;
   lineNumber: number;
-  columnNumber: number | undefined;
+  columnNumber: number | null;
   linesBefore: string[];
   relevantLine: string;
   linesAfter: string[];
