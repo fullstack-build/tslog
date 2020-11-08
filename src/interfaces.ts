@@ -74,6 +74,9 @@ export interface ISettingsParam {
   /** Capture lines before and after a code frame, default: `5` */
   exposeErrorCodeFrameLinesBeforeAndAfter?: number;
 
+  /** How many stack trace levels should be ignores. `tslog` adds 3. default: `3` */
+  ignoreStackLevels?: number;
+
   /** Suppress any log output to std out / std err */
   suppressStdOutput?: boolean;
 
@@ -82,6 +85,9 @@ export interface ISettingsParam {
 
   /**  Overwrite colors of log messages of different log levels */
   logLevelsColors?: TLogLevelColor;
+
+  /**  Determines whether pretty printed logs should be colorized, default: `true` */
+  colorizePrettyLogs?: boolean;
 
   /**  Overwrite colors json highlighting */
   prettyInspectHighlightStyles?: IHighlightStyles;
@@ -162,9 +168,11 @@ export interface ISettings extends ISettingsParam {
   exposeStack: boolean;
   exposeErrorCodeFrame: boolean;
   exposeErrorCodeFrameLinesBeforeAndAfter: number;
+  ignoreStackLevels: number;
   suppressStdOutput: boolean;
   overwriteConsole: boolean;
   logLevelsColors: TLogLevelColor;
+  colorizePrettyLogs: boolean;
   prettyInspectHighlightStyles: IHighlightStyles;
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
