@@ -695,7 +695,7 @@ describe("Logger: settings", () => {
     expect(doesLogContain(stdArray, "simple log message")).toBeTruthy();
   });
 
-  test("init logger: maskValuesOfKeys", (): void => {
+  test("init logger(type=pretty): maskValuesOfKeys", (): void => {
     const stdArray: string[] = [];
     const std: { write: (line: string) => void } = {
       write: (line: string) => {
@@ -737,7 +737,7 @@ describe("Logger: settings", () => {
     expect(stdStringGroups2?.[3]).toBe("[xxx]");
   });
 
-  test("init logger: maskAnyRegEx", (): void => {
+  test("init logger(type=json): maskValuesOfKeys", (): void => {
     const stdArray: string[] = [];
     const std: { write: (line: string) => void } = {
       write: (line: string) => {
@@ -745,6 +745,91 @@ describe("Logger: settings", () => {
       },
     };
     const logger: Logger = new Logger({
+      type: "json",
+      maskValuesOfKeys: ["test", "authorization", "password"],
+      maskPlaceholder: "[xxx]",
+      stdOut: std,
+      stdErr: std,
+    });
+    let verySecretiveCircularObject = {
+      password: "swordfish",
+      Authorization: 1234567,
+      stringPwd: "swordfish",
+      nested: {
+        regularString: "I am just a regular string.",
+        otherString: "pass1234.567",
+      },
+    };
+    verySecretiveCircularObject.nested[
+      "circular"
+    ] = verySecretiveCircularObject;
+
+    logger.info(verySecretiveCircularObject);
+
+    const regExp1 = new RegExp("^(.*)(test|password).*(\\[xxx\\]).*$", "gim");
+    const stdStringGroups1 = regExp1.exec(stdArray.join(""));
+    expect(stdStringGroups1?.[2]).toBe("password");
+    expect(stdStringGroups1?.[3]).toBe("[xxx]");
+
+    const regExp2 = new RegExp(
+      "^(.*)(test|authorization).*(\\[xxx\\]).*$",
+      "gim"
+    );
+    const stdStringGroups2 = regExp2.exec(stdArray.join(""));
+    expect(stdStringGroups2?.[2]).toBe("Authorization");
+    expect(stdStringGroups2?.[3]).toBe("[xxx]");
+  });
+
+  test("init logger(type=pretty): maskAnyRegEx", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      maskAnyRegEx: ["test", "swordfish", "pass.*"],
+      maskPlaceholder: "[xxx]",
+      stdOut: std,
+      stdErr: std,
+    });
+    let verySecretiveCircularObject = {
+      password: "swordfish",
+      Authorization: 1234567,
+      stringPwd: "swordfish",
+      nested: {
+        regularString: "I am just a regular string.",
+        otherString: "pass1234.567",
+      },
+    };
+    verySecretiveCircularObject.nested[
+      "circular"
+    ] = verySecretiveCircularObject;
+
+    logger.info(verySecretiveCircularObject);
+
+    let verySecretiveSimpleObject = {
+      other: "example",
+      password: "matrix",
+    };
+    logger.info(verySecretiveSimpleObject);
+
+    const stdString: string = stdArray.join("");
+    expect(stdString.includes("swordfish")).toBeFalsy();
+    expect(stdString.includes("pass1234")).toBeFalsy();
+    expect(stdString.includes(".567")).toBeFalsy();
+    expect(stdString.includes("matrix")).toBeFalsy();
+  });
+
+  test("init logger(type=json): maskAnyRegEx", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      type: "json",
       maskAnyRegEx: ["test", "swordfish", "pass.*"],
       maskPlaceholder: "[xxx]",
       stdOut: std,

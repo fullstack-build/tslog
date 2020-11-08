@@ -273,4 +273,50 @@ export class LoggerHelper {
       ? `0${lineNumber}`
       : `${lineNumber}`;
   }
+
+  public static traverseObjectRecursively<T>(
+    obj: T,
+    fn: (key: number | string, value: unknown) => [number | string, unknown],
+    done: unknown[] = []
+  ): T {
+    Object.keys(obj).forEach((currentKey: string | number) => {
+      if (!done.includes(obj[currentKey])) {
+        done.push(obj[currentKey]);
+        if (obj[currentKey] != null && typeof obj[currentKey] === "object") {
+          const [key, value] = fn(currentKey, obj[currentKey]);
+          obj[key] = LoggerHelper.traverseObjectRecursively(value, fn, done);
+        } else {
+          const [key, value] = fn(currentKey, obj[currentKey]);
+          obj[key] = value;
+        }
+      }
+    });
+
+    return obj;
+  }
+
+  public static logObjectMaskValuesOfKeys<T>(
+    obj: T,
+    keys: (number | string)[],
+    maskPlaceholder: string
+  ): T {
+    const fn = (
+      key: number | string,
+      value: unknown
+    ): [number | string, unknown] => {
+      const keysLowerCase: (
+        | string
+        | number
+      )[] = keys.map((key: string | number) =>
+        typeof key === "string" ? key.toLowerCase() : key
+      );
+      return keysLowerCase.includes(
+        typeof key === "string" ? key.toLowerCase() : key
+      )
+        ? [key, maskPlaceholder]
+        : [key, value];
+    };
+
+    return LoggerHelper.traverseObjectRecursively(obj, fn);
+  }
 }

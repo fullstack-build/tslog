@@ -71,7 +71,6 @@ export class Logger {
   private _parentOrDefaultSettings: ISettings;
   private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
-  private _maskValuesOfKeysRegExp: RegExp | undefined;
   private _maskAnyRegExp: RegExp | undefined;
 
   /**
@@ -198,18 +197,6 @@ export class Logger {
         ...parentSettings,
       };
     }
-
-    this._maskValuesOfKeysRegExp =
-      this.settings.maskValuesOfKeys?.length > 0
-        ? new RegExp(
-            "^(.[^']*)(" +
-              Object.values(this.settings.maskValuesOfKeys).join(
-                ".[^\\w_)].*:|"
-              ) +
-              ".[^\\w_)].*:).*(\\,?)$",
-            "gim"
-          )
-        : undefined;
 
     this._maskAnyRegExp =
       this.settings.maskAnyRegEx?.length > 0
@@ -538,7 +525,8 @@ export class Logger {
       ];
 
       const nowStr: string = dateTimeParts.reduce(
-        (prevStr, thisStr) => prevStr.replace(thisStr.type, thisStr.value),
+        (prevStr: string, thisStr: IFullDateTimeFormatPart) =>
+          prevStr.replace(thisStr.type, thisStr.value),
         this.settings.dateTimePattern
       );
       std.write(
@@ -867,37 +855,31 @@ export class Logger {
   }
 
   private _inspectAndHideSensitive(
-    object: unknown,
+    object: object | null,
     options: InspectOptions
   ): string {
-    let inspectedString: string = inspect(object, options);
-
-    if (this._maskValuesOfKeysRegExp != null) {
-      inspectedString = inspectedString.replace(
-        this._maskValuesOfKeysRegExp,
-        "$1$2 " +
-          LoggerHelper.styleString(
-            [this.settings.prettyInspectHighlightStyles.string],
-            `'${this.settings.maskPlaceholder}'`,
-            this.settings.colorizePrettyLogs
-          ) +
-          "$3"
-      );
-    }
-
-    return this._maskAnyRegExp != null
-      ? inspectedString.replace(
-          this._maskAnyRegExp,
-          this.settings.maskPlaceholder
-        )
-      : inspectedString;
+    const maskedObject = this._maskValuesOfKeys(object);
+    return this._maskAny(inspect(maskedObject, options));
   }
 
   private _formatAndHideSensitive(
     formatParam: unknown,
     ...param: unknown[]
   ): string {
-    const formattedStr: string = format(formatParam, ...param);
+    return this._maskAny(format(formatParam, ...param));
+  }
+
+  private _maskValuesOfKeys(object: object | null) {
+    return LoggerHelper.logObjectMaskValuesOfKeys(
+      object,
+      this.settings.maskValuesOfKeys,
+      this.settings.maskPlaceholder
+    );
+  }
+
+  private _maskAny(str: string) {
+    const formattedStr = str;
+
     return this._maskAnyRegExp != null
       ? formattedStr.replace(this._maskAnyRegExp, this.settings.maskPlaceholder)
       : formattedStr;

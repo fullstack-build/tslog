@@ -88,6 +88,15 @@ describe("Logger: Pretty print", () => {
     logger.info({ very: "much", a: null, b: true, c: 1, d: null });
     //json indentation discovered
     expect(doesLogContain(stdOut, '\n{\n  "very": "much"\n}'));
+
+    class ObjClass {
+      constructor() {
+        const foo = "bar";
+      }
+    }
+    logger.debug(new ObjClass());
+    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
+    expect(doesLogContain(stdOut, "ObjClass {")).toBeTruthy();
   });
 
   test("Pretty Promise (stdOut)", (): void => {
@@ -97,18 +106,6 @@ describe("Logger: Pretty print", () => {
     logger.debug(promise);
     expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
     expect(doesLogContain(stdOut, "Promise {")).toBeTruthy();
-  });
-
-  test("Pretty object (stdOut)", (): void => {
-    class ObjClass {
-      constructor() {
-        const foo = "bar";
-      }
-    }
-
-    logger.debug(new ObjClass());
-    expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
-    expect(doesLogContain(stdOut, "ObjClass {")).toBeTruthy();
   });
 
   test("Pretty circular JSON (stdOut)", (): void => {
