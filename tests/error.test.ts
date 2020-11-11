@@ -1,5 +1,5 @@
 import "ts-jest";
-import { IErrorObject, ILogObject, Logger } from "../src";
+import { IErrorObject, ILogObject, Logger, LoggerWithoutCallSite } from "../src";
 import { doesLogContain } from "./helper";
 
 let stdOut: string[] = [];
@@ -20,6 +20,7 @@ const loggerConfig = {
 
 const loggerPretty: Logger = new Logger({ ...loggerConfig, type: "pretty" });
 const loggerJson: Logger = new Logger({ ...loggerConfig, type: "json" });
+const loggerJsonWithoutCallsite: Logger = new LoggerWithoutCallSite({ ...loggerConfig, type: "json" });
 
 class TestError extends Error {
   constructor(message: string) {
@@ -54,6 +55,23 @@ describe("Logger: Error with details", () => {
       const id = obj.id; // generating uncaught exception
     } catch (err) {
       loggerJson.error(err);
+      const logObj: ILogObject = JSON.parse(stdErr[0]);
+      const errorObj: IErrorObject = logObj.argumentsArray?.[0] as IErrorObject;
+
+      expect(errorObj?.message).toContain(
+        "Cannot read property 'id' of undefined"
+      );
+
+      expect(errorObj?.stack?.[0].fileName).toContain("error.test.ts");
+    }
+  });
+
+  test("JSON: Check if logger works without callsite wrapper", (): void => {
+    try {
+      let obj: any;
+      const id = obj.id; // generating uncaught exception
+    } catch (err) {
+      loggerJsonWithoutCallsite.error(err);
       const logObj: ILogObject = JSON.parse(stdErr[0]);
       const errorObj: IErrorObject = logObj.argumentsArray?.[0] as IErrorObject;
 
