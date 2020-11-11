@@ -300,6 +300,10 @@ export class LoggerHelper {
     keys: (number | string)[],
     maskPlaceholder: string
   ): T {
+    if (!Array.isArray(keys) || keys.length === 0) {
+      return obj;
+    }
+
     const fn = (
       key: number | string,
       value: unknown

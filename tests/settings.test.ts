@@ -780,6 +780,47 @@ describe("Logger: settings", () => {
     expect(stdStringGroups2?.[3]).toBe("[xxx]");
   });
 
+  test("init logger(type=json): empty maskValuesOfKeys", (): void => {
+    const stdArray: string[] = [];
+    const std: { write: (line: string) => void } = {
+      write: (line: string) => {
+        stdArray.push(line);
+      },
+    };
+    const logger: Logger = new Logger({
+      type: "json",
+      maskValuesOfKeys: [],
+      stdOut: std,
+      stdErr: std,
+    });
+    let verySecretiveCircularObject = {
+      password: "swordfish",
+      Authorization: 1234567,
+      stringPwd: "swordfish",
+      nested: {
+        regularString: "I am just a regular string.",
+        otherString: "pass1234.567",
+      },
+    };
+    verySecretiveCircularObject.nested[
+      "circular"
+    ] = verySecretiveCircularObject;
+
+    const { argumentsArray } = logger.info(verySecretiveCircularObject);
+    expect(argumentsArray[0]).toBe(verySecretiveCircularObject);
+
+    stdArray.length = 0;
+    const undefinedMaskValuesLogger: Logger = new Logger({
+      type: "json",
+      maskValuesOfKeys: undefined,
+      stdOut: std,
+      stdErr: std,
+    });
+
+    const { argumentsArray: undefinedMaskValuesArgArray } = undefinedMaskValuesLogger.info(verySecretiveCircularObject);
+    expect(undefinedMaskValuesArgArray[0]).toBe(verySecretiveCircularObject);
+  });
+
   test("init logger(type=pretty): maskAnyRegEx", (): void => {
     const stdArray: string[] = [];
     const std: { write: (line: string) => void } = {
