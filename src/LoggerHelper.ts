@@ -276,18 +276,21 @@ export class LoggerHelper {
 
   public static traverseObjectRecursively<T>(
     obj: T,
-    fn: (key: number | string, value: unknown) => [number | string, unknown],
+    maskValuesFn: (key: number | string, obj: T) => T,
     done: unknown[] = []
   ): T {
     Object.keys(obj).forEach((currentKey: string | number) => {
       if (!done.includes(obj[currentKey])) {
         done.push(obj[currentKey]);
         if (obj[currentKey] != null && typeof obj[currentKey] === "object") {
-          const [key, value] = fn(currentKey, obj[currentKey]);
-          obj[key] = LoggerHelper.traverseObjectRecursively(value, fn, done);
+          const maskedObj = maskValuesFn(currentKey, obj);
+          obj[currentKey] = LoggerHelper.traverseObjectRecursively(
+            maskedObj[currentKey],
+            maskValuesFn,
+            done
+          );
         } else {
-          const [key, value] = fn(currentKey, obj[currentKey]);
-          obj[key] = value;
+          obj = maskValuesFn(currentKey, obj);
         }
       }
     });
@@ -304,23 +307,23 @@ export class LoggerHelper {
       return obj;
     }
 
-    const fn = (
-      key: number | string,
-      value: unknown
-    ): [number | string, unknown] => {
+    const maskValuesFn = <T>(key: number | string, obj: T): T => {
       const keysLowerCase: (
         | string
         | number
       )[] = keys.map((key: string | number) =>
         typeof key === "string" ? key.toLowerCase() : key
       );
-      return keysLowerCase.includes(
-        typeof key === "string" ? key.toLowerCase() : key
-      )
-        ? [key, maskPlaceholder]
-        : [key, value];
+      if (
+        keysLowerCase.includes(
+          typeof key === "string" ? key.toLowerCase() : key
+        )
+      ) {
+        obj[key] = maskPlaceholder;
+      }
+      return obj;
     };
 
-    return LoggerHelper.traverseObjectRecursively(obj, fn);
+    return LoggerHelper.traverseObjectRecursively(obj, maskValuesFn);
   }
 }

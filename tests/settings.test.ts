@@ -817,7 +817,9 @@ describe("Logger: settings", () => {
       stdErr: std,
     });
 
-    const { argumentsArray: undefinedMaskValuesArgArray } = undefinedMaskValuesLogger.info(verySecretiveCircularObject);
+    const {
+      argumentsArray: undefinedMaskValuesArgArray,
+    } = undefinedMaskValuesLogger.info(verySecretiveCircularObject);
     expect(undefinedMaskValuesArgArray[0]).toBe(verySecretiveCircularObject);
   });
 
