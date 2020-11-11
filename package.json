@@ -84,6 +84,7 @@
     "dist",
     "src"
   ],
+  "sideEffects": false,
   "keywords": [
     "logger",
     "typescript",
