@@ -21,8 +21,7 @@ export {
   TUtilsInspectColors,
   ISettings,
   ICodeFrame,
-} from './interfaces';
+} from "./interfaces";
 
-export { Logger } from './Logger';
-export { LoggerWithoutCallSite } from './LoggerWithoutCallSite';
-
+export { Logger } from "./Logger";
+export { LoggerWithoutCallSite } from "./LoggerWithoutCallSite";

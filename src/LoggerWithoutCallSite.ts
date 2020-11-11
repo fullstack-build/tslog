@@ -1,4 +1,3 @@
-
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { inspect, format } from "util";
@@ -200,7 +199,10 @@ export class LoggerWithoutCallSite {
     const childSettings: ISettings = {
       ...this.settings,
     };
-    const childLogger: Logger = new (this.constructor as any)(settings, childSettings);
+    const childLogger: Logger = new (this.constructor as any)(
+      settings,
+      childSettings
+    );
     this._childLogger.push(childLogger);
     return childLogger;
   }
@@ -360,7 +362,9 @@ export class LoggerWithoutCallSite {
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
       this.settings.ignoreStackLevels
     );
-    const stackFrame: NodeJS.CallSite = this._callSiteWrapper(relevantCallSites[0]);
+    const stackFrame: NodeJS.CallSite = this._callSiteWrapper(
+      relevantCallSites[0]
+    );
     const stackFrameObject: IStackFrame = LoggerHelper.toStackFrameObject(
       stackFrame
     );
