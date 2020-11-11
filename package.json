@@ -2,8 +2,9 @@
   "name": "tslog",
   "version": "2.11.1",
   "description": "📝 Expressive TypeScript Logger for Node.js: Pretty errors, stack traces, code frames, and JSON output to attachable transports.",
-  "main": "dist/index",
-  "typings": "dist/index",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
   "engines": {
     "node": ">=10"
   },
@@ -12,7 +13,7 @@
     "ts-node-onchange": "onchange -i \"**/*.ts\" -- npm run ts-node",
     "start-ts": "npm run ts-node",
     "start": "node dist/example/index.js",
-    "build": "tsc",
+    "build": "tsc -b tsconfig.json tsconfig.esm.json tsconfig.types.json",
     "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
@@ -80,8 +81,10 @@
     "source-map-support": "^0.5.19"
   },
   "files": [
-    "dist"
+    "dist",
+    "src"
   ],
+  "sideEffects": false,
   "keywords": [
     "logger",
     "typescript",

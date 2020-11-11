@@ -10,7 +10,7 @@
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![GitHub stars](https://img.shields.io/github/stars/fullstack-build/tslog.svg?style=social&label=Star)](https://github.com/fullstack-build/tslog)
 
-> Powerful, fast and expressive logging for Node.js 
+> Powerful, fast and expressive logging for Node.js
 
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
@@ -39,14 +39,14 @@ const log: Logger = new Logger();
 log.silly("I am a silly log.");
 ```
 
-### Install 
+### Install
 ```bash
 npm install tslog
 ```
 
 **Enable TypeScript source map support:**
 
-This feature enables `tslog` to reference a correct line number in your TypeScript source code. 
+This feature enables `tslog` to reference a correct line number in your TypeScript source code.
 
 ```json5
 // tsconfig.json
@@ -79,12 +79,12 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Log level:** `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` (different colors)
 * **Output to std:** Structured/_pretty_ output (easy parsable `tab` delimiters), `JSON` or suppressed
 * **Attachable transports:** Send logs to an external log aggregation services, file system, database, or email/slack/sms/you name it...
-* **StdOut or StdErr depends on log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal` 
+* **StdOut or StdErr depends on log level:** **_stdout_** for `silly`, `trace`, `debug`, `info` and **_stderr_** for `warn`, `error`, `fatal`
 * **Minimum log level per output:** `minLevel` level can be set individually per transport
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
-* **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries 
-* **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)  
+* **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries
+* **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
 * **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
 * **Instance Name:** Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances (e.g. serverless)
@@ -177,7 +177,7 @@ interface ILogObject {
 }
 ```
 
-There are three ways to access this object: 
+There are three ways to access this object:
 
 ##### Returned by each log method
 
@@ -196,7 +196,7 @@ console.log(JSON.stringify(logWithTrace, null, 2));
 ```typescript
 new Logger({ type: "json" });
 ```
-Resulting in the following output: 
+Resulting in the following output:
 ![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
 
 
@@ -206,8 +206,8 @@ Resulting in the following output:
 
 #### Log level
 
-`tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**. 
-Internally a log level is represented by a numeric ID. 
+`tslog` is highly customizable, however, it follows _convention over configuration_ when it comes to **log levels**.
+Internally a log level is represented by a numeric ID.
 
 Available log levels are:<br>
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
@@ -215,9 +215,9 @@ Available log levels are:<br>
 Per default log level 0 - 3 are written to `stdout` and 4 - 6 are written to `stderr`.
 Each log level is printed in a different color, that is customizable through the settings object.
 
-> **Hint:** Log level `trace` behaves a bit differently compared to all the other log levels. 
-> While it is possible to activate a stack trace for every log level, it is already activated for `trace` by default. 
-> That means every `trace` log will also automatically capture and print its entire stack trace. 
+> **Hint:** Log level `trace` behaves a bit differently compared to all the other log levels.
+> While it is possible to activate a stack trace for every log level, it is already activated for `trace` by default.
+> That means every `trace` log will also automatically capture and print its entire stack trace.
 
 ```typescript
 import { Logger } from "tslog";
@@ -232,17 +232,17 @@ log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
 
-Structured (aka. _pretty_) log level output would look like this: 
+Structured (aka. _pretty_) log level output would look like this:
 ![tslog log level structured](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_pretty.png "tslog log level structured")
 
 
 > **Hint:** Each logging method has a return type, which is a _JSON_ representation of the log message (`ILogObject`).
-> You can use this object to access its stack trace etc. 
-> <a href="#logObject">More details</a>  
+> You can use this object to access its stack trace etc.
+> <a href="#logObject">More details</a>
 
 #### Child Logger
 
-Each `tslog` Logger instance can create child loggers and bequeath its settings to a child. 
+Each `tslog` Logger instance can create child loggers and bequeath its settings to a child.
 It is also possible to overwrite every setting when creating a child.<br>
 Child loggers are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.
 
@@ -258,44 +258,58 @@ const grandchildLogger: Logger = childLogger.getChildLogger({  name: "GrandChild
 
 ```
 
+#### Creating logger without source map support
+
+By default, `Logger` creates instance with stack trace's source mapping support. For some cases, it may not be needed. `LoggerWithoutCallSite` returns same interface as `Logger` does and only disabling call site wrapping for source map.
+
+```typescript
+import { Logger, LoggerWithoutCallSite } from 'tslog';
+
+const logger = new Logger(...);
+const loggerWithoutCallSite = new LoggerWithoutCallSite(...);
+
+```
+
+Since `tslog` supports [tree-shaking](https://webpack.js.org/guides/tree-shaking/) via esm import syntax, importing `LoggerWithoutCallSite` without `Logger` will reduce overall bundle size.
+
 #### Settings
- 
-As `tslog` follows _convention over configuration_, it already comes with reasonable default settings. 
+
+As `tslog` follows _convention over configuration_, it already comes with reasonable default settings.
 Therefor all settings are optional. Nevertheless, they can be flexibly adapted to your own needs.
 
 All possible settings are defined in the `ISettingsParam` interface and modern IDEs will provide auto-completion accordingly.
- 
+
 **You can use `setSettings()` to adjust settings at runtime.**
-> **Hint:** When changing settings at runtime this alternation would also propagate to every child loggers, as long as it has not been overwritten down the hierarchy. 
+> **Hint:** When changing settings at runtime this alternation would also propagate to every child loggers, as long as it has not been overwritten down the hierarchy.
 
 
-##### `type` 
+##### `type`
 ```default: "pretty"```
 
-Possible values: `"json" | "pretty" | "hidden"` 
+Possible values: `"json" | "pretty" | "hidden"`
 
 You can either `pretty` print logs, print them as `json` or hide them all together with `hidden` (e.g. when using custom transports).<br>
 Having `json` as an output format is particularly useful, if you want to forward your logs directly from your `std` to another log service.
-Instead of parsing a _pretty_ output, most log services prefer a _JSON_ representation. 
+Instead of parsing a _pretty_ output, most log services prefer a _JSON_ representation.
 
 > **Hint:** Printing in `json` gives you direct access to all the available information, like _stack trace_ and _code frame_ and so on.
 
 ```typescript
 new Logger({ type: "json" });
 ```
-_Output:_ 
+_Output:_
 ![tslog log level json](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_log_level_json.png)
 > **Hint:** Each _JSON_ log is printed in one line, making it easily parsable by external services.
 
 ##### `instanceName`
 ```default: os.hostname``` _(hidden by default)_
 
-You can provide each logger with the name of the instance, making it easy to distinguish logs from different machines.  
-This approach works well in the serverless environment as well, allowing you to filter all logs coming from a certain instance. 
+You can provide each logger with the name of the instance, making it easy to distinguish logs from different machines.
+This approach works well in the serverless environment as well, allowing you to filter all logs coming from a certain instance.
 
-Per default `instanceName` is pre-filled with the `hostname` of your environment, which can be overwritten. 
-However, this value is hidden by default in order to keep the log clean and tidy. 
-You can change this behavior by setting `displayInstanceName` to `true`. 
+Per default `instanceName` is pre-filled with the `hostname` of your environment, which can be overwritten.
+However, this value is hidden by default in order to keep the log clean and tidy.
+You can change this behavior by setting `displayInstanceName` to `true`.
 
 ```typescript
 
@@ -304,15 +318,15 @@ const logger: Logger = new Logger({ displayInstanceName: true });
 
 const logger: Logger = new Logger({ displayInstanceName: true, instanceName: "ABC" });
 // Would print out ABC as the name of this instance
- 
+
 ```
 
 ##### `name`
 ```default: undefined```
 
-Each logger has an optional name, that is hidden by default. You can change this behavior by setting `displayLoggerName` to `true`. 
-This setting is particularly interesting when working in a `monorepo`, 
-giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.   
+Each logger has an optional name, that is hidden by default. You can change this behavior by setting `displayLoggerName` to `true`.
+This setting is particularly interesting when working in a `monorepo`,
+giving you the possibility to provide each module/package with its own logger and being able to distinguish logs coming from different parts of your application.
 
 ```typescript
 new Logger({ name: "myLogger" });
@@ -331,24 +345,24 @@ new Logger({ setCallerAsLoggerName: true });
 ##### `minLevel`
 ```default: "silly"```
 
-Minimum log level to be captured by this logger. 
+Minimum log level to be captured by this logger.
 Possible values are: `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal`
 
 ##### `requestId`
 ```default: undefined```
 
-**❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).** 
+**❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).**
 
 In a real world application a call to an API would lead to many logs produced across the entire application.
-When debugging it can get quite handy to be able to group all logs based by a unique identifier `requestId`. 
+When debugging it can get quite handy to be able to group all logs based by a unique identifier `requestId`.
 
 A `requestId` can either be a `string` or a function.<br>
-A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a `requistId` dynamically. 
+A string is suitable when you create a child logger for each request, while a function is helpful, when you need to reuse the same logger and need to obtain a `requistId` dynamically.
 
 **With Node.js 13.10, we got a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
 It has also been backported to Node.js v12.17.0 and of course it works with Node.js >= 14.<br>
 However it is still marked as *experimental*. <br>
-Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing ``AsyncLocalStorage`` and performing a small performance comparison. 
+Here is <a href="https://itnext.io/one-node-js-cls-api-to-rule-them-all-1670ac66a9e8" target="_blank">a blog post by Andrey Pechkurov</a> describing ``AsyncLocalStorage`` and performing a small performance comparison.
 
 > **Hint**: If you prefer to use a more proven (yet slower) approach, you may want to check out <a href="https://www.npmjs.com/package/cls-hooked" target="_blank">`cls-hooked`</a>.
 
@@ -356,12 +370,12 @@ Even though `tslog` is generic enough and works with any of these solutions our 
 `tslog` also works with any API framework (like `Express`, `Koa`, `Hapi` and so on), but we are going to use `Koa` in this example.<br>
 Based on this example it should be rather easy to create an `Express` or another middleware.
 
-Some provides (e.g. `Heroku`) already set a `X-Request-ID` header, which we are going to use or fallback to a short ID generated by <a href="https://www.npmjs.com/package/nanoid" target="_blank">`nanoid`</a>.  
+Some provides (e.g. `Heroku`) already set a `X-Request-ID` header, which we are going to use or fallback to a short ID generated by <a href="https://www.npmjs.com/package/nanoid" target="_blank">`nanoid`</a>.
 
 **In this example every subsequent logger is a child logger of the main logger and thus inherits all of its settings making `requestId` available throughout the entire application without any further ado.**
 
 _index.ts:_
-```typescript 
+```typescript
 import * as Koa from 'koa';
 import { AsyncLocalStorage } from "async_hooks";
 import { customAlphabet } from "nanoid";
@@ -402,8 +416,8 @@ childLogger.info("Log containing requestId"); // <-- will contain a requestId
 
 ##### `exposeStack`
  ```default: false```
- 
-Usually, only _Errors_ and log level `trace` logs would capture the entire stack trace.  
+
+Usually, only _Errors_ and log level `trace` logs would capture the entire stack trace.
 By enabling this option **every** stack trace of every log message is going to be captured.
 
 ```typescript
@@ -412,22 +426,22 @@ new Logger({ exposeStack: true });
 
 ![tslog with a stack trace](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_stacktrace.png)
 
-> **Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code. 
+> **Hint:** When working in an IDE like _WebStorm_ or an editor like _VSCode_ you can click on the path leading you directly to the position in your source code.
 
 ##### `exposeErrorCodeFrame`
 ```default: true```
 
-A nice feature of `tslog` is to capture the _code frame_ around the error caught, showing the _exact_ location of the error.   
+A nice feature of `tslog` is to capture the _code frame_ around the error caught, showing the _exact_ location of the error.
 While it comes quite handy during development, it also means that the source file (*.js or *.ts) needs to be loaded.
-When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time, 
-you may want to disable this feature. 
+When running in production, you probably want as much performance as possible and since errors are analyzed at a later point in time,
+you may want to disable this feature.
 In order to keep the output clean and tidy, code frame does not follow into `node_modules`.
 
 ```typescript
 new Logger({ exposeErrorCodeFrame: false });
 ```
 
-> **Hint:** By default 5 lines before and after the line with the error will be displayed.  
+> **Hint:** By default 5 lines before and after the line with the error will be displayed.
 > You can adjust this setting with `exposeErrorCodeFrameLinesBeforeAndAfter`.
 
 ![tslog with a code frame](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_code_frame.png)
@@ -436,7 +450,7 @@ new Logger({ exposeErrorCodeFrame: false });
 ##### `ignoreStackLevels`
 ```default: 3```
 
-Defines how many stack levels should be ignored. 
+Defines how many stack levels should be ignored.
 `tslog` adds additional 3 layers to the stack and that the reason why the default is set to `3`.
 You can increase this number, if you want to add additional layers  (e.g. a factory class or a facade).
 
@@ -444,8 +458,8 @@ You can increase this number, if you want to add additional layers  (e.g. a fact
 ##### `suppressStdOutput`
 ```default: false```
 
-It is possible to connect multiple _transports_ (external loggers) to `tslog` (see below). 
-In this case it might be useful to suppress all output.   
+It is possible to connect multiple _transports_ (external loggers) to `tslog` (see below).
+In this case it might be useful to suppress all output.
 
 ```typescript
 new Logger({ suppressStdOutput: true });
@@ -454,15 +468,15 @@ new Logger({ suppressStdOutput: true });
 ##### `overwriteConsole`
 ```default: false```
 
-`tslog` is designed to be used directly through its API. 
-However, there might be use cases, where you want to make sure to capture all logs, 
-even though they might occur in a library or somebody else's code. 
-Or maybe you prefer or used to work with `console`, like `console.log`, `console.warn` and so on. 
+`tslog` is designed to be used directly through its API.
+However, there might be use cases, where you want to make sure to capture all logs,
+even though they might occur in a library or somebody else's code.
+Or maybe you prefer or used to work with `console`, like `console.log`, `console.warn` and so on.
 
 In this case, you can advise `tslog` to overwrite the default behavior of `console`.
 
-> **Hint:** It is only possible to overwrite `console` once, so the last attempt wins. 
-> If you wish to do so, I would recommend to have a designated logger for this purpose. 
+> **Hint:** It is only possible to overwrite `console` once, so the last attempt wins.
+> If you wish to do so, I would recommend to have a designated logger for this purpose.
 
 ```typescript
 new Logger({ name: "console", overwriteConsole: true });
@@ -481,36 +495,36 @@ _There is no `console.fatal`._
 ##### `colorizePrettyLogs`
 ```default: true```
 
-By default `pretty` output is colorized with ANSI escape codes. If you prefer a plain output, you can disable the colorization with this setting.  
+By default `pretty` output is colorized with ANSI escape codes. If you prefer a plain output, you can disable the colorization with this setting.
 
 ##### `logLevelsColors`
 
 This setting allows you to overwrite the default log level colors of `tslog`.
 
-Possible styles are: 
+Possible styles are:
 * <a href="https://nodejs.org/api/util.html#util_foreground_colors" target="_blank">Foreground colors</a>
 * <a href="https://nodejs.org/api/util.html#util_background_colors" target="_blank">Background colors</a>
 * <a href="https://nodejs.org/api/util.html#util_modifiers" target="_blank">Modifiers</a>
-  
+
 ##### `prettyInspectHighlightStyles`
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
 
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
 
-##### `dateTimePattern` 
+##### `dateTimePattern`
 ```default: "year-month-day hour:minute:second.millisecond"```
 
-Change the way `tslog` prints out the date. 
-Based on Intl.DateTimeFormat.formatToParts with additional milliseconds, you can use type as a placeholder. 
+Change the way `tslog` prints out the date.
+Based on Intl.DateTimeFormat.formatToParts with additional milliseconds, you can use type as a placeholder.
 Available placeholders are: `day`,  `dayPeriod`, `era`, `hour`,  `literal`,  `minute`,  `month`, `second`, `millisecond`, `timeZoneName`, `weekday` and `year`.
 
-##### `dateTimeTimezone` 
+##### `dateTimeTimezone`
 ```default: "utc" ```
 
 Define in which timezone the date should be printed in.
-Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. `Europe/Berlin`, `Europe/Moscow` and so on. 
+Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="_blank">IANA (Internet Assigned Numbers Authority)</a> based timezones, e.g. `Europe/Berlin`, `Europe/Moscow` and so on.
 
-> **Hint:** If you want to use your local time zone, you can set: 
+> **Hint:** If you want to use your local time zone, you can set:
 > `dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone`
 
 ##### `prefix`
@@ -519,8 +533,8 @@ Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="
 Prefix every log message with an array of additional attributes.<br>
 Prefixes propagate to child loggers and can help to follow a chain of promises.<br>
 In addition to `requestId`, prefixes can help further distinguish different parts of a request.
-    
-> **Hint:** A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.<br> 
+
+> **Hint:** A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.<br>
 > A `requestId` would mark all the operations and prefixes can help to distinguish separate queries/mutations inside of this request.
 
 **Example:**
@@ -559,7 +573,7 @@ grandchildLogger.silly("grandchild1 second message")
 ##### `maskValuesOfKeys`
 ```default: ["password"] ```
 
-One of the most common ways of a password/secrets breach is through log files. 
+One of the most common ways of a password/secrets breach is through log files.
 Given the central position of `tslog` as the collecting hub of all application logs, it's only natural to use it as a filter.
 `maskValuesOfKeys` makes it possible to hide/mask all values of fields from objects passed into `tslog`.
 
@@ -584,7 +598,7 @@ let secretiveObject = {
 secretiveLogger.info(secretiveObject);
 
 // Output:
-// INFO   [SecretiveLogger]                
+// INFO   [SecretiveLogger]
 // {
 //   Authorization: '[***]',
 //   regularString: 'I am just a regular string.',
@@ -601,7 +615,7 @@ secretiveLogger.info(secretiveObject);
 ```default: [] ```
 
 When `maskValuesOfKeys` is just not enough, and you really want to make sure no secrets get populated, you can also use `maskAnyRegEx` to mask every occurrence of a string matching a particular RegEx.
-> **Hint:** It will also mask keys if it encounters a matching pattern.  
+> **Hint:** It will also mask keys if it encounters a matching pattern.
 
 **`maskValuesOfKeys` is case sensitive!**
 
@@ -625,7 +639,7 @@ let secretiveObject = {
 verySecretiveLogger.info(secretiveObject);
 
 // Output:
-// INFO   [SecretiveLogger]                
+// INFO   [SecretiveLogger]
 // {
 //   Authorization: '[***]',
 //   regularString: 'I am just a regular string.',
@@ -640,60 +654,60 @@ verySecretiveLogger.info(secretiveObject);
 
 > **Hint:** useful for API keys and other secrets (e.g. from ENVs).
 
-##### `maskPlaceholder` 
+##### `maskPlaceholder`
 ```default: "[***]" ```
 
 String to use for masking of secrets (s. `maskAnyRegEx` & `maskValuesOfKeys`)
 
-##### `printLogMessageInNewLine` 
+##### `printLogMessageInNewLine`
 ```default: false ```
 
-By default `tslog` uses `tab` delimiters for separation of the meta information (date, log level, etc.) and the log parameters.  
-Since the meta information can become quite long, you may want to prefer to print the log attributes in a new line. 
+By default `tslog` uses `tab` delimiters for separation of the meta information (date, log level, etc.) and the log parameters.
+Since the meta information can become quite long, you may want to prefer to print the log attributes in a new line.
 
-##### `displayDateTime` 
+##### `displayDateTime`
 ```default: true ```
 
-Defines whether the date time should be displayed.  
+Defines whether the date time should be displayed.
 
-##### `displayLogLevel` 
+##### `displayLogLevel`
 ```default: true ```
 
-Defines whether the log level should be displayed.  
+Defines whether the log level should be displayed.
 
-##### `displayInstanceName` 
+##### `displayInstanceName`
 ```default: false ```
 
-Defines whether the instance name (e.g. host name) should be displayed. 
+Defines whether the instance name (e.g. host name) should be displayed.
 
-##### `displayLoggerName` 
+##### `displayLoggerName`
 ```default: true ```
 
-Defines whether the optional logger name should be displayed.  
+Defines whether the optional logger name should be displayed.
 
 
-##### `displayRequestId` 
+##### `displayRequestId`
 ```default: true ```
 
-Defines whether the `requestId` should be displayed, if set and available (s. `requestId`).  
+Defines whether the `requestId` should be displayed, if set and available (s. `requestId`).
 
-##### `displayFunctionName` 
+##### `displayFunctionName`
 ```default: true ```
 
-Defines whether the class and method or function name should be displayed.  
+Defines whether the class and method or function name should be displayed.
 
 
-##### `displayTypes` 
+##### `displayTypes`
 ```default: false ```
 
 Defines whether type information (`typeof`) of every attribute passed to `tslog` should be displayed.
 
 
-##### `displayFilePath` 
+##### `displayFilePath`
 ```default: hideNodeModulesOnly ```
 
-Defines whether file path and line should be displayed or not. 
-There are 3 possible settgins:  
+Defines whether file path and line should be displayed or not.
+There are 3 possible settgins:
 * `hidden`
 * `displayAll`
 * `hideNodeModulesOnly` (default): This setting will hide all file paths containing `node_modules`.
@@ -701,28 +715,28 @@ There are 3 possible settgins:
 
 ##### `stdOut` and `stdErr`
 
-This both settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_. 
-However, this would lead to a colorized output. We use this setting mostly for testing purposes. 
-If you want to redirect the output or directly access any logged object, we advise you to **attach a transport** (see below).  
+This both settings allow you to replace the default `stdOut` and `stdErr` _WriteStreams_.
+However, this would lead to a colorized output. We use this setting mostly for testing purposes.
+If you want to redirect the output or directly access any logged object, we advise you to **attach a transport** (see below).
 
 #### <a name="transport"></a>Transports
-`tslog` focuses on the one thing it does well: capturing logs. 
-Therefore, there is no build-in _file system_ logging, _log rotation_, or similar. 
-Per default all logs go to `stdOut` and `stdErr` respectively. 
+`tslog` focuses on the one thing it does well: capturing logs.
+Therefore, there is no build-in _file system_ logging, _log rotation_, or similar.
+Per default all logs go to `stdOut` and `stdErr` respectively.
 
 However, you can easily attach as many _transports_ as you wish, enabling you to do fancy stuff
-like sending a message to _Slack_ or _Telegram_ in case of an urgent error. 
+like sending a message to _Slack_ or _Telegram_ in case of an urgent error.
 
-When attaching a transport, you _must_ implement every log level. 
+When attaching a transport, you _must_ implement every log level.
 All of them could be potentially handled by the same function, though.
 
 Each _transport_ can have its own `minLevel`.
 
-**Attached transports are also inherited to child loggers.** 
+**Attached transports are also inherited to child loggers.**
 
 ##### Simple transport example
 
-Here is a very simple implementation used in our _jest_ tests: 
+Here is a very simple implementation used in our _jest_ tests:
 ```typescript
 import { ILogObject, Logger } from "tslog";
 
@@ -750,7 +764,7 @@ logger.attachTransport(
 
 ##### Storing logs in a file
 
-Here is an example how to store all logs in a file.  
+Here is an example how to store all logs in a file.
 
 ```typescript
 import { ILogObject, Logger } from "tslog";
@@ -788,10 +802,10 @@ logger.warn("I am a warn log with a json object:", { foo: "bar" });
 #### Helper
 
 ##### prettyError
-Sometimes you just want to _pretty print_ an error without having to log it, or maybe just catch its call sites, or it's stack frame? If so, this helper is for you.  
-`prettyError` exposes all the awesomeness of `tslog` without the actual logging. A possible use case could be in a CLI, or other internal helper tools. 
+Sometimes you just want to _pretty print_ an error without having to log it, or maybe just catch its call sites, or it's stack frame? If so, this helper is for you.
+`prettyError` exposes all the awesomeness of `tslog` without the actual logging. A possible use case could be in a CLI, or other internal helper tools.
 
-Example: 
+Example:
 ```typescript
 const logger: Logger = new Logger();
 const err: Error = new Error("Test Error");
@@ -809,7 +823,7 @@ logger.prettyError(err);
 * `std` - Which std should the output be printed to? _(default: stdErr)_
 
 ##### printPrettyLog
-If you just want to _pretty print_ an error on a custom output (for adding a new transport for example), 
+If you just want to _pretty print_ an error on a custom output (for adding a new transport for example),
 you can just call `logger.printPrettyLog(myStd, myLogObject)` where myStd is an instance of `IStd` (e.g. `process.stdout`, `process.stderr` or even a custom one, see example below):
 
 ```typescript
