@@ -15,12 +15,10 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
     "strict": true,
     "suppressImplicitAnyIndexErrors": true,
     "allowSyntheticDefaultImports": true,
-    "outDir": "dist"
+    "outDir": "dist/cjs"
   },
   "include": [
     "src/*.ts",
