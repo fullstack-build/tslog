@@ -43,7 +43,9 @@ export class LoggerWithoutCallSite {
   private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
   private _maskAnyRegExp: RegExp | undefined;
-  protected _callSiteWrapper: (frame: any) => any = (x) => x;
+  protected _callSiteWrapper: (callSite: NodeJS.CallSite) => NodeJS.CallSite = (
+    callSite: NodeJS.CallSite
+  ) => callSite;
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
