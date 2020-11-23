@@ -353,7 +353,7 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({ stdOut: std });
     logger.info("test 123");
-    expect(stdArray[3]).toBe("  \t");
+    expect(stdArray[3]).toBe("  ");
   });
 
   test("init logger: printLogMessageInNewLine: true", (): void => {
@@ -383,7 +383,7 @@ describe("Logger: settings", () => {
       printLogMessageInNewLine: false,
     });
     logger.info("test 123");
-    expect(stdArray[3]).toBe("  \t");
+    expect(stdArray[3]).toBe("  ");
   });
 
   /* display settings */
