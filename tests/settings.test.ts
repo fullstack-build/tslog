@@ -2,8 +2,8 @@ import "ts-jest";
 import { IHighlightStyles, Logger, TLogLevelColor } from "../src";
 import { doesLogContain } from "./helper";
 
-const stdOut = [];
-const stdErr = [];
+const stdOut: string[] = [];
+const stdErr: string[] = [];
 
 const logger: Logger = new Logger({
   suppressStdOutput: true,
@@ -183,6 +183,45 @@ describe("Logger: settings", () => {
     expect(logger.settings.prettyInspectHighlightStyles.module).toBe(
       highlightStyles.module
     );
+  });
+
+  test("init logger: delimeter", (): void => {
+    const defaultConfig = {
+      stdOut: {
+        write: (print: string) => {
+          stdOut.push(print);
+        },
+      },
+      stdErr: {
+        write: (print: string) => {
+          stdErr.push(print);
+        },
+      },
+    };
+
+    const defaultLogger: Logger = new Logger({ ...defaultConfig });
+    defaultLogger.info("test");
+    expect(stdOut[3]).toBe("  ");
+    stdOut.length = 0;
+
+    const spaceLogger: Logger = new Logger({
+      ...defaultConfig,
+      delimiter: " ",
+    });
+    spaceLogger.info("test");
+    expect(stdOut[3]).toBe("  ");
+    stdOut.length = 0;
+
+    const tabLogger: Logger = new Logger({ ...defaultConfig, delimiter: "\t" });
+    tabLogger.info("test");
+    expect(stdOut[3]).toBe(" \t");
+    stdOut.length = 0;
+
+    const dotLogger: Logger = new Logger({ ...defaultConfig, delimiter: "." });
+    dotLogger.info("test");
+
+    expect(stdOut[3]).toBe(" .");
+    stdOut.length = 0;
   });
 
   /* date time */

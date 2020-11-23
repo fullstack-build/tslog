@@ -99,7 +99,7 @@ export interface ISettingsParam {
   jsonInspectOptions?: InspectOptions;
 
   /** Determines the delimiter when pretty printing, default: space */
-  delimiter?: " " | "\t";
+  delimiter?: string;
 
   /**  DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: `year-month-day hour:minute:second.millisecond` */
   dateTimePattern?: string;
@@ -179,7 +179,7 @@ export interface ISettings extends ISettingsParam {
   prettyInspectHighlightStyles: IHighlightStyles;
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
-  delimiter: " " | "\t";
+  delimiter: string;
   dateTimePattern: string;
   dateTimeTimezone: string;
   prefix: unknown[];
