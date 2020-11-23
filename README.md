@@ -27,7 +27,7 @@
 👨‍👧‍👦 **Child logger with inheritance**<br>
 🙊 **Mask/hide secrets and keys**<br>
 🔍 **Native support for request IDs (<a href="https://nodejs.org/api/async_hooks.html#async_hooks_async_hooks" target="_blank">`async_hooks`</a>, <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">`AsyncLocalStorage`</a>)**<br>
-🌳 **Tree shaking support**<br>
+📦 **CommonJS and ES Modules support with tree shaking support**<br>
 🧲 **Optionally catch all `console` logs**<br>
 ✍️ **well documented**<br>
 
@@ -85,7 +85,8 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 * **Fully typed:** Written in TypeScript, fully typed, API checked with <a href="https://api-extractor.com" target="_blank">_api-extractor_</a>, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented
 * **Source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
 * **Stack trace:** Callsites through native <a href="https://v8.dev/docs/stack-trace-api" target="_blank">_V8 stack trace API_</a>, excludes internal entries
-* **Tree shake suport** via esm import syntax ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
+* **CommonJS and ES Modules**<br>
+* **Tree shake support** via ESM import syntax ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
 * **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
 * **Code frame:** `tslog` captures and displays the source code that lead to an error, making it easier to debug
 * **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
@@ -512,6 +513,10 @@ Possible styles are:
 This setting allows you to overwrite the default colors of `tslog` used for the native Node.js `utils.inspect` interpolation.
 
 More Details: <a href="https://nodejs.org/api/util.html#util_customizing_util_inspect_colors" target="_blank">Customizing util.inspect colors</a>
+
+##### `delimiter`
+```default: [ ] (space)```
+Set a custom pretty log delimiter. 
 
 ##### `dateTimePattern`
 ```default: "year-month-day hour:minute:second.millisecond"```
