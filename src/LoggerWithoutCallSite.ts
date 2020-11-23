@@ -99,6 +99,7 @@ export class LoggerWithoutCallSite {
         compact: true,
         depth: Infinity,
       },
+      delimiter: " ",
       dateTimePattern: "year-month-day hour:minute:second.millisecond",
       // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       dateTimeTimezone: "utc",
@@ -511,7 +512,7 @@ export class LoggerWithoutCallSite {
       std.write(
         LoggerHelper.styleString(
           ["gray"],
-          `${nowStr}\t`,
+          `${nowStr}${this.settings.delimiter}`,
           this.settings.colorizePrettyLogs
         )
       );
@@ -527,7 +528,7 @@ export class LoggerWithoutCallSite {
           [colorName, "bold"],
           ` ${logObject.logLevel.toUpperCase()} `,
           this.settings.colorizePrettyLogs
-        ) + "\t"
+        ) + this.settings.delimiter
       );
     }
 
@@ -581,11 +582,11 @@ export class LoggerWithoutCallSite {
           ["gray"],
           `[${concatenatedMetaLine}]`,
           this.settings.colorizePrettyLogs
-        ) + "  \t"
+        ) + ` ${this.settings.delimiter}`
       );
 
       if (this.settings.printLogMessageInNewLine === false) {
-        std.write("  \t");
+        std.write(` ${this.settings.delimiter}`);
       } else {
         std.write("\n");
       }
@@ -648,7 +649,9 @@ export class LoggerWithoutCallSite {
           this.settings.colorizePrettyLogs
         ) +
         (errorObject.message != null
-          ? `\t${this._formatAndHideSensitive(errorObject.message)}`
+          ? `${this.settings.delimiter}${this._formatAndHideSensitive(
+              errorObject.message
+            )}`
           : "")
     );
 
