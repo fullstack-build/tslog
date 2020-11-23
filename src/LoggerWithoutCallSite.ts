@@ -526,7 +526,7 @@ export class LoggerWithoutCallSite {
       std.write(
         LoggerHelper.styleString(
           [colorName, "bold"],
-          ` ${logObject.logLevel.toUpperCase()} `,
+          logObject.logLevel.toUpperCase(),
           this.settings.colorizePrettyLogs
         ) + this.settings.delimiter
       );
@@ -573,20 +573,20 @@ export class LoggerWithoutCallSite {
       fileLocation = `${logObject.filePath}:${logObject.lineNumber}`;
     }
     const concatenatedMetaLine: string = [name, fileLocation, functionName]
-      .join(" ")
-      .replace(/\s\s+/g, " ")
+      .join("")
       .trim();
+
     if (concatenatedMetaLine.length > 0) {
       std.write(
         LoggerHelper.styleString(
           ["gray"],
           `[${concatenatedMetaLine}]`,
           this.settings.colorizePrettyLogs
-        ) + ` ${this.settings.delimiter}`
+        )
       );
 
       if (this.settings.printLogMessageInNewLine === false) {
-        std.write(` ${this.settings.delimiter}`);
+        std.write(`${this.settings.delimiter}`);
       } else {
         std.write("\n");
       }
@@ -599,7 +599,7 @@ export class LoggerWithoutCallSite {
               ["grey", "bold"],
               typeof argument + ":",
               this.settings.colorizePrettyLogs
-            ) + " "
+            ) + this.settings.delimiter
           : "";
 
       const errorObject: IErrorObject = argument as IErrorObject;
@@ -618,7 +618,11 @@ export class LoggerWithoutCallSite {
             )
         );
       } else {
-        std.write(typeStr + this._formatAndHideSensitive(argument) + " ");
+        std.write(
+          typeStr +
+            this._formatAndHideSensitive(argument) +
+            this.settings.delimiter
+        );
       }
     });
     std.write("\n");
@@ -645,7 +649,7 @@ export class LoggerWithoutCallSite {
       "\n" +
         LoggerHelper.styleString(
           ["bgRed", "whiteBright", "bold"],
-          ` ${errorObject.name} `,
+          ` ${errorObject.name}${this.settings.delimiter}`,
           this.settings.colorizePrettyLogs
         ) +
         (errorObject.message != null
