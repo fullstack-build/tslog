@@ -500,7 +500,7 @@ export class LoggerWithoutCallSite {
         }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
         {
           type: "millisecond",
-          value: logObject.date.getMilliseconds().toFixed(3),
+          value: ("00" + logObject.date.getMilliseconds()).slice(-3),
         } as IFullDateTimeFormatPart,
       ];
 
