@@ -201,7 +201,7 @@ describe("Logger: settings", () => {
 
     const defaultLogger: Logger = new Logger({ ...defaultConfig });
     defaultLogger.info("test");
-    expect(stdOut[3]).toBe("  ");
+    expect(stdOut[3]).toBe(" ");
     stdOut.length = 0;
 
     const spaceLogger: Logger = new Logger({
@@ -209,18 +209,18 @@ describe("Logger: settings", () => {
       delimiter: " ",
     });
     spaceLogger.info("test");
-    expect(stdOut[3]).toBe("  ");
+    expect(stdOut[3]).toBe(" ");
     stdOut.length = 0;
 
     const tabLogger: Logger = new Logger({ ...defaultConfig, delimiter: "\t" });
     tabLogger.info("test");
-    expect(stdOut[3]).toBe(" \t");
+    expect(stdOut[3]).toBe("\t");
     stdOut.length = 0;
 
     const dotLogger: Logger = new Logger({ ...defaultConfig, delimiter: "." });
     dotLogger.info("test");
 
-    expect(stdOut[3]).toBe(" .");
+    expect(stdOut[3]).toBe(".");
     stdOut.length = 0;
   });
 
@@ -353,7 +353,7 @@ describe("Logger: settings", () => {
     };
     const logger: Logger = new Logger({ stdOut: std });
     logger.info("test 123");
-    expect(stdArray[3]).toBe("  ");
+    expect(stdArray[3]).toBe(" ");
   });
 
   test("init logger: printLogMessageInNewLine: true", (): void => {
@@ -383,7 +383,7 @@ describe("Logger: settings", () => {
       printLogMessageInNewLine: false,
     });
     logger.info("test 123");
-    expect(stdArray[3]).toBe("  ");
+    expect(stdArray[3]).toBe(" ");
   });
 
   /* display settings */
