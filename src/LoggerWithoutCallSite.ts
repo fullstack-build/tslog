@@ -43,9 +43,6 @@ export class LoggerWithoutCallSite {
   private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
   private _maskAnyRegExp: RegExp | undefined;
-  protected _callSiteWrapper: (callSite: NodeJS.CallSite) => NodeJS.CallSite = (
-    callSite: NodeJS.CallSite
-  ) => callSite;
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
@@ -99,6 +96,7 @@ export class LoggerWithoutCallSite {
         compact: true,
         depth: Infinity,
       },
+      delimiter: " ",
       dateTimePattern: "year-month-day hour:minute:second.millisecond",
       // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       dateTimeTimezone: "utc",
@@ -174,7 +172,8 @@ export class LoggerWithoutCallSite {
 
     this._maskAnyRegExp =
       this.settings.maskAnyRegEx?.length > 0
-        ? new RegExp(Object.values(this.settings.maskAnyRegEx).join("|"), "g")
+        ? // eslint-disable-next-line @rushstack/security/no-unsafe-regexp
+          new RegExp(Object.values(this.settings.maskAnyRegEx).join("|"), "g")
         : undefined;
 
     LoggerHelper.setUtilsInspectStyles(
@@ -201,10 +200,7 @@ export class LoggerWithoutCallSite {
     const childSettings: ISettings = {
       ...this.settings,
     };
-    const childLogger: Logger = new (this.constructor as any)(
-      settings,
-      childSettings
-    );
+    const childLogger: Logger = new Logger(settings, childSettings);
     this._childLogger.push(childLogger);
     return childLogger;
   }
@@ -311,6 +307,10 @@ export class LoggerWithoutCallSite {
     }
     return errorObject;
   }
+
+  protected _callSiteWrapper: (callSite: NodeJS.CallSite) => NodeJS.CallSite = (
+    callSite: NodeJS.CallSite
+  ) => callSite;
 
   private _handleLog(
     logLevel: TLogLevelName,
@@ -499,7 +499,7 @@ export class LoggerWithoutCallSite {
         }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
         {
           type: "millisecond",
-          value: logObject.date.getMilliseconds().toFixed(3),
+          value: ("00" + logObject.date.getMilliseconds()).slice(-3),
         } as IFullDateTimeFormatPart,
       ];
 
@@ -511,7 +511,7 @@ export class LoggerWithoutCallSite {
       std.write(
         LoggerHelper.styleString(
           ["gray"],
-          `${nowStr}\t`,
+          `${nowStr}${this.settings.delimiter}`,
           this.settings.colorizePrettyLogs
         )
       );
@@ -525,9 +525,9 @@ export class LoggerWithoutCallSite {
       std.write(
         LoggerHelper.styleString(
           [colorName, "bold"],
-          ` ${logObject.logLevel.toUpperCase()} `,
+          logObject.logLevel.toUpperCase(),
           this.settings.colorizePrettyLogs
-        ) + "\t"
+        ) + this.settings.delimiter
       );
     }
 
@@ -560,6 +560,8 @@ export class LoggerWithoutCallSite {
           ? ` ${logObject.typeName}.${logObject.methodName}`
           : logObject.functionName != null
           ? ` ${logObject.functionName}`
+          : logObject.typeName !== null
+          ? `${logObject.typeName}.<anonymous>`
           : ""
         : "";
 
@@ -572,20 +574,20 @@ export class LoggerWithoutCallSite {
       fileLocation = `${logObject.filePath}:${logObject.lineNumber}`;
     }
     const concatenatedMetaLine: string = [name, fileLocation, functionName]
-      .join(" ")
-      .replace(/\s\s+/g, " ")
+      .join("")
       .trim();
+
     if (concatenatedMetaLine.length > 0) {
       std.write(
         LoggerHelper.styleString(
           ["gray"],
           `[${concatenatedMetaLine}]`,
           this.settings.colorizePrettyLogs
-        ) + "  \t"
+        )
       );
 
       if (this.settings.printLogMessageInNewLine === false) {
-        std.write("  \t");
+        std.write(`${this.settings.delimiter}`);
       } else {
         std.write("\n");
       }
@@ -598,7 +600,7 @@ export class LoggerWithoutCallSite {
               ["grey", "bold"],
               typeof argument + ":",
               this.settings.colorizePrettyLogs
-            ) + " "
+            ) + this.settings.delimiter
           : "";
 
       const errorObject: IErrorObject = argument as IErrorObject;
@@ -617,7 +619,11 @@ export class LoggerWithoutCallSite {
             )
         );
       } else {
-        std.write(typeStr + this._formatAndHideSensitive(argument) + " ");
+        std.write(
+          typeStr +
+            this._formatAndHideSensitive(argument) +
+            this.settings.delimiter
+        );
       }
     });
     std.write("\n");
@@ -644,11 +650,13 @@ export class LoggerWithoutCallSite {
       "\n" +
         LoggerHelper.styleString(
           ["bgRed", "whiteBright", "bold"],
-          ` ${errorObject.name} `,
+          ` ${errorObject.name}${this.settings.delimiter}`,
           this.settings.colorizePrettyLogs
         ) +
         (errorObject.message != null
-          ? `\t${this._formatAndHideSensitive(errorObject.message)}`
+          ? `${this.settings.delimiter}${this._formatAndHideSensitive(
+              errorObject.message
+            )}`
           : "")
     );
 
@@ -848,7 +856,7 @@ export class LoggerWithoutCallSite {
     return this._maskAny(format(formatParam, ...param));
   }
 
-  private _maskValuesOfKeys(object: object | null) {
+  private _maskValuesOfKeys<T>(object: T): T {
     return LoggerHelper.logObjectMaskValuesOfKeys(
       object,
       this.settings.maskValuesOfKeys,
@@ -856,7 +864,7 @@ export class LoggerWithoutCallSite {
     );
   }
 
-  private _maskAny(str: string) {
+  private _maskAny(str: string): string {
     const formattedStr = str;
 
     return this._maskAnyRegExp != null

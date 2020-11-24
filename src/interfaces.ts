@@ -98,6 +98,9 @@ export interface ISettingsParam {
   /**  Options to be set for utils._inspectAndHideSensitive when output is set to json (\{ type: "json" \}) */
   jsonInspectOptions?: InspectOptions;
 
+  /** Determines the delimiter when pretty printing, default: space */
+  delimiter?: string;
+
   /**  DateTime pattern based on Intl.DateTimeFormat.formatToParts with additional milliseconds, default: `year-month-day hour:minute:second.millisecond` */
   dateTimePattern?: string;
 
@@ -176,6 +179,7 @@ export interface ISettings extends ISettingsParam {
   prettyInspectHighlightStyles: IHighlightStyles;
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
+  delimiter: string;
   dateTimePattern: string;
   dateTimeTimezone: string;
   prefix: unknown[];

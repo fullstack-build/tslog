@@ -100,9 +100,7 @@ describe("Logger: Pretty print", () => {
   });
 
   test("Pretty Promise (stdOut)", (): void => {
-    const promise = new Promise((resolve) => {
-      return resolve();
-    });
+    const promise = new Promise(() => {});
     logger.debug(promise);
     expect(doesLogContain(stdOut, "DEBUG")).toBeTruthy();
     expect(doesLogContain(stdOut, "Promise {")).toBeTruthy();
