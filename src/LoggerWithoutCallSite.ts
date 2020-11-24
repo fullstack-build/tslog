@@ -855,7 +855,7 @@ export class LoggerWithoutCallSite {
     return this._maskAny(format(formatParam, ...param));
   }
 
-  private _maskValuesOfKeys(object: object | null) {
+  private _maskValuesOfKeys<T>(object: T): T {
     return LoggerHelper.logObjectMaskValuesOfKeys(
       object,
       this.settings.maskValuesOfKeys,
@@ -863,7 +863,7 @@ export class LoggerWithoutCallSite {
     );
   }
 
-  private _maskAny(str: string) {
+  private _maskAny(str: string): string {
     const formattedStr = str;
 
     return this._maskAnyRegExp != null

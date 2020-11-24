@@ -274,28 +274,34 @@ export class LoggerHelper {
       : `${lineNumber}`;
   }
 
-  public static traverseObjectRecursively<T>(
+  public static cloneObjectRecursively<T>(
     obj: T,
-    maskValuesFn: (key: number | string, obj: T) => T,
-    done: unknown[] = []
+    maskValuesFn: (key: number | string, value: unknown) => unknown,
+    done: unknown[] = [],
+    clonedObject: T = Object.create(Object.getPrototypeOf(obj)) as T
   ): T {
+    done.push(obj);
     Object.keys(obj).forEach((currentKey: string | number) => {
       if (!done.includes(obj[currentKey])) {
-        done.push(obj[currentKey]);
-        if (obj[currentKey] != null && typeof obj[currentKey] === "object") {
-          const maskedObj = maskValuesFn(currentKey, obj);
-          obj[currentKey] = LoggerHelper.traverseObjectRecursively(
-            maskedObj[currentKey],
-            maskValuesFn,
-            done
-          );
+        if (obj[currentKey] == null) {
+          clonedObject[currentKey] = obj[currentKey];
+        } else if (typeof obj[currentKey] !== "object") {
+          clonedObject[currentKey] = maskValuesFn(currentKey, obj[currentKey]);
         } else {
-          obj = maskValuesFn(currentKey, obj);
+          clonedObject[currentKey] = LoggerHelper.cloneObjectRecursively(
+            obj[currentKey],
+            maskValuesFn,
+            done,
+            clonedObject[currentKey]
+          );
         }
+      } else {
+        // cicrular detected: point to itself to make inspect printout [circular]
+        clonedObject[currentKey] = clonedObject;
       }
     });
 
-    return obj;
+    return clonedObject as T;
   }
 
   public static logObjectMaskValuesOfKeys<T>(
@@ -307,7 +313,7 @@ export class LoggerHelper {
       return obj;
     }
 
-    const maskValuesFn = <T>(key: number | string, obj: T): T => {
+    const maskValuesFn = (key: number | string, value: unknown): unknown => {
       const keysLowerCase: (
         | string
         | number
@@ -319,11 +325,11 @@ export class LoggerHelper {
           typeof key === "string" ? key.toLowerCase() : key
         )
       ) {
-        obj[key] = maskPlaceholder;
+        return maskPlaceholder;
       }
-      return obj;
+      return value;
     };
 
-    return LoggerHelper.traverseObjectRecursively(obj, maskValuesFn);
+    return LoggerHelper.cloneObjectRecursively(obj, maskValuesFn);
   }
 }
