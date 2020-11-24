@@ -200,7 +200,11 @@ export class LoggerWithoutCallSite {
     const childSettings: ISettings = {
       ...this.settings,
     };
-    const childLogger: Logger = new Logger(settings, childSettings);
+    //eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const childLogger: Logger = new (this.constructor as any)(
+      settings,
+      childSettings
+    );
     this._childLogger.push(childLogger);
     return childLogger;
   }
