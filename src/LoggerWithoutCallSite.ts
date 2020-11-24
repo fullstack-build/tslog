@@ -560,6 +560,8 @@ export class LoggerWithoutCallSite {
           ? ` ${logObject.typeName}.${logObject.methodName}`
           : logObject.functionName != null
           ? ` ${logObject.functionName}`
+          : logObject.typeName !== null
+          ? `${logObject.typeName}.<anonymous>`
           : ""
         : "";
 
