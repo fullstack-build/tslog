@@ -27,7 +27,7 @@
 👨‍👧‍👦 **Child logger with inheritance**<br>
 🙊 **Mask/hide secrets and keys**<br>
 🔍 **Native support for request IDs (<a href="https://nodejs.org/api/async_hooks.html#async_hooks_async_hooks" target="_blank">`async_hooks`</a>, <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">`AsyncLocalStorage`</a>)**<br>
-📦 **CommonJS and ES Modules support with tree shaking support**<br>
+📦 **CommonJS and ES Modules with tree shaking support**<br>
 🧲 **Optionally catch all `console` logs**<br>
 ✍️ **well documented**<br>
 
