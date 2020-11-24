@@ -55,10 +55,14 @@ This feature enables `tslog` to reference a correct line number in your TypeScri
     // ...
     "compilerOptions": {
         // ...
-        "sourceMap": true
+        "sourceMap": true,
+        // we recommend using an current ES version
+        "target": "es2019",
     }
 }
 ```
+
+
 
 ### Simple example
 
