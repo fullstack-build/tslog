@@ -43,9 +43,6 @@ export class LoggerWithoutCallSite {
   private _mySettings: ISettingsParam = {};
   private _childLogger: Logger[] = [];
   private _maskAnyRegExp: RegExp | undefined;
-  protected _callSiteWrapper: (callSite: NodeJS.CallSite) => NodeJS.CallSite = (
-    callSite: NodeJS.CallSite
-  ) => callSite;
 
   /**
    * @param settings - Configuration of the logger instance  (all settings are optional with sane defaults)
@@ -175,7 +172,8 @@ export class LoggerWithoutCallSite {
 
     this._maskAnyRegExp =
       this.settings.maskAnyRegEx?.length > 0
-        ? new RegExp(Object.values(this.settings.maskAnyRegEx).join("|"), "g")
+        ? // eslint-disable-next-line @rushstack/security/no-unsafe-regexp
+          new RegExp(Object.values(this.settings.maskAnyRegEx).join("|"), "g")
         : undefined;
 
     LoggerHelper.setUtilsInspectStyles(
@@ -202,10 +200,7 @@ export class LoggerWithoutCallSite {
     const childSettings: ISettings = {
       ...this.settings,
     };
-    const childLogger: Logger = new (this.constructor as any)(
-      settings,
-      childSettings
-    );
+    const childLogger: Logger = new Logger(settings, childSettings);
     this._childLogger.push(childLogger);
     return childLogger;
   }
@@ -312,6 +307,10 @@ export class LoggerWithoutCallSite {
     }
     return errorObject;
   }
+
+  protected _callSiteWrapper: (callSite: NodeJS.CallSite) => NodeJS.CallSite = (
+    callSite: NodeJS.CallSite
+  ) => callSite;
 
   private _handleLog(
     logLevel: TLogLevelName,

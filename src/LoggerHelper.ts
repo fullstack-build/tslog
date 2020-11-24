@@ -18,6 +18,7 @@ import {
 export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 
+  // eslint-disable-next-line @rushstack/no-new-null
   public static cleanUpFilePath(fileName: string | null): string | null {
     return fileName == null
       ? fileName
@@ -222,6 +223,7 @@ export class LoggerHelper {
   public static _getCodeFrame(
     filePath: string,
     lineNumber: number,
+    // eslint-disable-next-line @rushstack/no-new-null
     columnNumber: number | null,
     linesBeforeAndAfter: number
   ): ICodeFrame | undefined {
