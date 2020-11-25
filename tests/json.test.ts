@@ -96,7 +96,7 @@ describe("Logger: JSON", () => {
     expect(logJson.stack).not.toBeNull();
   });
 
-  test("Log object to jsonOut)", (): void => {
+  test("Log object to (jsonOut)", (): void => {
     logger.info({ foo: "bar" });
 
     const logJson: ILogObject = JSON.parse(stdOut[0]);
