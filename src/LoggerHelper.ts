@@ -77,12 +77,12 @@ export class LoggerHelper {
       filePath: LoggerHelper.cleanUpFilePath(filePath) ?? "",
       fullFilePath: filePath ?? "",
       fileName: fileBasename(stackFrame.getFileName() ?? ""),
-      lineNumber: stackFrame.getLineNumber(),
-      columnNumber: stackFrame.getColumnNumber(),
-      isConstructor: stackFrame.isConstructor(),
-      functionName: stackFrame.getFunctionName(),
-      typeName: stackFrame.getTypeName(),
-      methodName: stackFrame.getMethodName(),
+      lineNumber: stackFrame.getLineNumber() ?? undefined,
+      columnNumber: stackFrame.getColumnNumber() ?? undefined,
+      isConstructor: stackFrame.isConstructor() ?? undefined,
+      functionName: stackFrame.getFunctionName() ?? undefined,
+      typeName: stackFrame.getTypeName() ?? undefined,
+      methodName: stackFrame.getMethodName() ?? undefined,
     };
   }
 
@@ -223,8 +223,7 @@ export class LoggerHelper {
   public static _getCodeFrame(
     filePath: string,
     lineNumber: number,
-    // eslint-disable-next-line @rushstack/no-new-null
-    columnNumber: number | null,
+    columnNumber: number | undefined,
     linesBeforeAndAfter: number
   ): ICodeFrame | undefined {
     const lineNumberMinusOne: number = lineNumber - 1;

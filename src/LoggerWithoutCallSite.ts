@@ -369,12 +369,14 @@ export class LoggerWithoutCallSite {
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
       this.settings.ignoreStackLevels
     );
-    const stackFrame: NodeJS.CallSite = this._callSiteWrapper(
-      relevantCallSites[0]
-    );
-    const stackFrameObject: IStackFrame = LoggerHelper.toStackFrameObject(
-      stackFrame
-    );
+    const stackFrame: NodeJS.CallSite | undefined =
+      relevantCallSites[0] != null
+        ? this._callSiteWrapper(relevantCallSites[0])
+        : undefined;
+    const stackFrameObject: IStackFrame | undefined =
+      stackFrame != null
+        ? LoggerHelper.toStackFrameObject(stackFrame)
+        : undefined;
 
     const requestId: string | undefined =
       this.settings.requestId instanceof Function
@@ -389,15 +391,15 @@ export class LoggerWithoutCallSite {
       date: new Date(),
       logLevel: logLevel,
       logLevelId: this._logLevels.indexOf(logLevel) as TLogLevelId,
-      filePath: stackFrameObject.filePath,
-      fullFilePath: stackFrameObject.fullFilePath,
-      fileName: stackFrameObject.fileName,
-      lineNumber: stackFrameObject.lineNumber,
-      columnNumber: stackFrameObject.columnNumber,
-      isConstructor: stackFrameObject.isConstructor,
-      functionName: stackFrameObject.functionName,
-      typeName: stackFrameObject.typeName,
-      methodName: stackFrameObject.methodName,
+      filePath: stackFrameObject?.filePath,
+      fullFilePath: stackFrameObject?.fullFilePath,
+      fileName: stackFrameObject?.fileName,
+      lineNumber: stackFrameObject?.lineNumber,
+      columnNumber: stackFrameObject?.columnNumber,
+      isConstructor: stackFrameObject?.isConstructor,
+      functionName: stackFrameObject?.functionName,
+      typeName: stackFrameObject?.typeName,
+      methodName: stackFrameObject?.methodName,
       argumentsArray: [],
       toJSON: () => this._logObjectToJson(logObject),
     };
@@ -457,11 +459,14 @@ export class LoggerWithoutCallSite {
         this._callSiteWrapper(relevantCallSites[0])
       );
       if (exposeErrorCodeFrame && errorCallSite.lineNumber != null) {
-        if (errorCallSite.fullFilePath.indexOf("node_modules") < 0) {
+        if (
+          errorCallSite.fullFilePath != null &&
+          errorCallSite.fullFilePath.indexOf("node_modules") < 0
+        ) {
           errorObject.codeFrame = LoggerHelper._getCodeFrame(
             errorCallSite.fullFilePath,
             errorCallSite.lineNumber,
-            errorCallSite.columnNumber,
+            errorCallSite?.columnNumber,
             this.settings.exposeErrorCodeFrameLinesBeforeAndAfter
           );
         }
@@ -576,6 +581,7 @@ export class LoggerWithoutCallSite {
     if (
       this.settings.displayFilePath === "displayAll" ||
       (this.settings.displayFilePath === "hideNodeModulesOnly" &&
+        logObject.filePath != null &&
         logObject.filePath.indexOf("node_modules") < 0)
     ) {
       fileLocation = `${logObject.filePath}:${logObject.lineNumber}`;

@@ -215,23 +215,23 @@ export interface IStd {
  */
 export interface IStackFrame {
   /** Relative path based on the main folder */
-  filePath: string;
+  filePath: string | undefined;
   /** Full path */
-  fullFilePath: string;
+  fullFilePath: string | undefined;
   /** Name of the file */
-  fileName: string;
+  fileName: string | undefined;
   /** Line number */
-  lineNumber: number | null;
+  lineNumber: number | undefined;
   /** Column Name */
-  columnNumber: number | null;
+  columnNumber: number | undefined;
   /** Called from constructor */
-  isConstructor: boolean | null;
+  isConstructor: boolean | undefined;
   /** Name of the function */
-  functionName: string | null;
+  functionName: string | undefined;
   /** Name of the class */
-  typeName: string | null;
+  typeName: string | undefined;
   /** Name of the Method */
-  methodName: string | null;
+  methodName: string | undefined;
 }
 
 /**
@@ -390,7 +390,7 @@ export interface IHighlightStyles {
 export interface ICodeFrame {
   firstLineNumber: number;
   lineNumber: number;
-  columnNumber: number | null;
+  columnNumber: number | undefined;
   linesBefore: string[];
   relevantLine: string;
   linesAfter: string[];
