@@ -278,17 +278,20 @@ export class LoggerHelper {
 
   public static cloneObjectRecursively<T>(
     obj: T,
-    maskValuesFn: (key: number | string, value: unknown) => unknown,
+    maskValuesFn?: (key: number | string, value: unknown) => unknown,
     done: unknown[] = [],
     clonedObject: T = Object.create(Object.getPrototypeOf(obj)) as T
   ): T {
     done.push(obj);
-    Object.keys(obj).forEach((currentKey: string | number) => {
+    Object.getOwnPropertyNames(obj).forEach((currentKey: string | number) => {
       if (!done.includes(obj[currentKey])) {
         if (obj[currentKey] == null) {
           clonedObject[currentKey] = obj[currentKey];
         } else if (typeof obj[currentKey] !== "object") {
-          clonedObject[currentKey] = maskValuesFn(currentKey, obj[currentKey]);
+          clonedObject[currentKey] =
+            maskValuesFn != null
+              ? maskValuesFn(currentKey, obj[currentKey])
+              : obj[currentKey];
         } else {
           clonedObject[currentKey] = LoggerHelper.cloneObjectRecursively(
             obj[currentKey],

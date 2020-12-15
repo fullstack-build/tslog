@@ -444,7 +444,9 @@ export class LoggerWithoutCallSite {
       relevantCallSites.length = stackLimit;
     }
 
-    const errorObject: IErrorObject = JSON.parse(JSON.stringify(error));
+    const errorObject: IErrorObject = (LoggerHelper.cloneObjectRecursively(
+      error
+    ) as unknown) as IErrorObject;
     errorObject.nativeError = error;
     errorObject.details = { ...error };
     errorObject.name = errorObject.name ?? "Error";
