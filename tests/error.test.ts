@@ -43,6 +43,13 @@ describe("Logger: Error with details", () => {
     stdErr = [];
   });
 
+  test("JSON: Check Error.toJSON()", (): void => {
+    const error = new TestError("TestError");
+    const errorToJson = JSON.stringify(error);
+
+    expect(errorToJson.length).toBeGreaterThan(0);
+  });
+
   test("Pretty: Error with details (stdErr)", (): void => {
     const error = new TestError("TestError");
     loggerPretty.warn(error);
