@@ -525,8 +525,10 @@ Set a custom pretty log delimiter.
 ##### `dateTimePattern`
 ```default: "year-month-day hour:minute:second.millisecond"```
 
+> **Caution!** Changing this pattern will affect performance (invocation of Intl.DateTimeFormat)
+
 Change the way `tslog` prints out the date.
-Based on Intl.DateTimeFormat.formatToParts with additional milliseconds, you can use type as a placeholder.
+Based on Intl.DateTimeFormat formatToParts with additional milliseconds, you can use type as a placeholder.
 Available placeholders are: `day`,  `dayPeriod`, `era`, `hour`,  `literal`,  `minute`,  `month`, `second`, `millisecond`, `timeZoneName`, `weekday` and `year`.
 
 ##### `dateTimeTimezone`
@@ -537,6 +539,8 @@ Possible values are `utc` and <a href="https://www.iana.org/time-zones" target="
 
 > **Hint:** If you want to use your local time zone, you can set:
 > `dateTimeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone`
+
+> **Caution!** Changing this pattern will affect performance (invocation of Intl.DateTimeFormat)
 
 ##### `prefix`
 ```default: [] ```
