@@ -15,7 +15,7 @@
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_pretty_output.png "tslog pretty output")
 
 ### Highlights
-⚡ **Small footprint, blazing performance (native V8 integration)**<br>
+⚡ **Batteries included, native V8 integration**<br>
 👮‍️ **Fully typed with TypeScript support (exact code position)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
 ⭕️ **Supports _circular_ structures**<br>

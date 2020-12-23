@@ -180,8 +180,8 @@ export interface ISettings extends ISettingsParam {
   prettyInspectOptions: InspectOptions;
   jsonInspectOptions: InspectOptions;
   delimiter: string;
-  dateTimePattern: string;
-  dateTimeTimezone: string;
+  dateTimePattern?: string;
+  dateTimeTimezone?: string;
   prefix: unknown[];
   maskValuesOfKeys: (number | string)[];
   maskAnyRegEx: (string | number)[];

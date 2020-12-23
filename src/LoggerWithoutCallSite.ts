@@ -97,9 +97,9 @@ export class LoggerWithoutCallSite {
         depth: Infinity,
       },
       delimiter: " ",
-      dateTimePattern: "year-month-day hour:minute:second.millisecond",
+      dateTimePattern: undefined,
       // local timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      dateTimeTimezone: "utc",
+      dateTimeTimezone: undefined,
 
       prefix: [],
       maskValuesOfKeys: ["password"],
@@ -366,6 +366,7 @@ export class LoggerWithoutCallSite {
     exposeStack: boolean = true
   ): ILogObject {
     const callSites: NodeJS.CallSite[] = LoggerHelper.getCallSites();
+
     const relevantCallSites: NodeJS.CallSite[] = callSites.splice(
       this.settings.ignoreStackLevels
     );
@@ -373,6 +374,7 @@ export class LoggerWithoutCallSite {
       relevantCallSites[0] != null
         ? this._callSiteWrapper(relevantCallSites[0])
         : undefined;
+
     const stackFrameObject: IStackFrame | undefined =
       stackFrame != null
         ? LoggerHelper.toStackFrameObject(stackFrame)
@@ -497,29 +499,43 @@ export class LoggerWithoutCallSite {
    **/
   public printPrettyLog(std: IStd, logObject: ILogObject): void {
     if (this.settings.displayDateTime === true) {
-      const dateTimeParts: IFullDateTimeFormatPart[] = [
-        ...(new Intl.DateTimeFormat("en", {
-          weekday: undefined,
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-          hour12: false,
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-          timeZone: this.settings.dateTimeTimezone,
-        }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
-        {
-          type: "millisecond",
-          value: ("00" + logObject.date.getMilliseconds()).slice(-3),
-        } as IFullDateTimeFormatPart,
-      ];
+      let nowStr: string = "";
+      if (
+        this.settings.dateTimePattern != null ||
+        this.settings.dateTimeTimezone != null
+      ) {
+        const dateTimePattern =
+          this.settings.dateTimePattern ??
+          "year-month-day hour:minute:second.millisecond";
+        const dateTimeTimezone = this.settings.dateTimeTimezone ?? "utc";
 
-      const nowStr: string = dateTimeParts.reduce(
-        (prevStr: string, thisStr: IFullDateTimeFormatPart) =>
-          prevStr.replace(thisStr.type, thisStr.value),
-        this.settings.dateTimePattern
-      );
+        const dateTimeParts: IFullDateTimeFormatPart[] = [
+          ...(new Intl.DateTimeFormat("en", {
+            weekday: undefined,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+            hour12: false,
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+            timeZone: dateTimeTimezone,
+          }).formatToParts(logObject.date) as IFullDateTimeFormatPart[]),
+          {
+            type: "millisecond",
+            value: ("00" + logObject.date.getMilliseconds()).slice(-3),
+          } as IFullDateTimeFormatPart,
+        ];
+
+        nowStr = dateTimeParts.reduce(
+          (prevStr: string, thisStr: IFullDateTimeFormatPart) =>
+            prevStr.replace(thisStr.type, thisStr.value),
+          dateTimePattern
+        );
+      } else {
+        nowStr = new Date().toISOString().replace("T", " ").replace("Z", " ");
+      }
+
       std.write(
         LoggerHelper.styleString(
           ["gray"],
@@ -587,7 +603,7 @@ export class LoggerWithoutCallSite {
       fileLocation = `${logObject.filePath}:${logObject.lineNumber}`;
     }
     const concatenatedMetaLine: string = [name, fileLocation, functionName]
-      .join("")
+      .join(" ")
       .trim();
 
     if (concatenatedMetaLine.length > 0) {
