@@ -71,3 +71,6 @@ common/temp/
 
 #  Don't commit tsdoc meta
 /src/tsdoc-metadata.json
+
+# For now, ignore banchmarks (WIP)
+/benchmarks/
