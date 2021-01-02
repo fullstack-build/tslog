@@ -334,6 +334,8 @@ export class LoggerHelper {
       return value;
     };
 
-    return LoggerHelper.cloneObjectRecursively(obj, maskValuesFn);
+    return obj != null
+      ? LoggerHelper.cloneObjectRecursively(obj, maskValuesFn)
+      : obj;
   }
 }
