@@ -18,12 +18,6 @@ coverage
 # nyc test coverage
 .nyc_output
 
-# Grunt intermediate storage (http://gruntjs.com/creating-plugins#storing-task-files)
-.grunt
-
-# Bower dependency directory (https://bower.io/)
-bower_components
-
 # node-waf configuration
 .lock-wscript
 
@@ -66,7 +60,6 @@ common/temp/
 .idea
 
 # don't check in build files
-**/dist
 /temp/
 
 #  Don't commit tsdoc meta
@@ -80,3 +73,12 @@ common/temp/
 
 # Ignore Tests
 /tests/
+
+# Ignore Docs
+/docs/
+
+# Ignore Examples
+/examples/
+
+# Ignore Git hooks
+/git-hooks/
