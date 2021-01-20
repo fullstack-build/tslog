@@ -1,7 +1,6 @@
 import "ts-jest";
 import { IStd, Logger } from "../src";
 import { doesLogContain } from "./helper";
-import exp = require("constants");
 
 const stdOut: string[] = [];
 const stdErr: string[] = [];

@@ -17,6 +17,7 @@ const logger: Logger = new Logger({
       stdErr.push(print);
     },
   },
+  colorizePrettyLogs: false,
 });
 
 describe("Logger: Parameter", () => {
@@ -53,5 +54,61 @@ describe("Logger: Parameter", () => {
     logger.silly("string");
     expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
     expect(doesLogContain(stdOut, "string")).toBeTruthy();
+  });
+
+  test("date", (): void => {
+    const date = new Date();
+    logger.silly(date);
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, date.toISOString())).toBeTruthy();
+  });
+
+  test("array", (): void => {
+    logger.silly([1, 2, 3]);
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "1,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "2,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "3")).toBeTruthy();
+  });
+
+  test("object", (): void => {
+    const obj = {
+      null: null,
+      undefined: undefined,
+      boolean: true,
+      number: 0,
+      string: "string",
+      array: [1, 2, 3],
+      date: new Date(),
+      error: new Error(),
+      object: {
+        null: null,
+        undefined: undefined,
+        boolean: true,
+        number: 0,
+        string: "string",
+        array: [1, 2, 3],
+        date: new Date(),
+        error: new Error(),
+        recursive: {},
+      },
+    };
+    obj.object.recursive = obj;
+
+    logger.silly(obj);
+
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "{")).toBeTruthy();
+    expect(doesLogContain(stdOut, "null: null,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "undefined: undefined,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "boolean: true,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "number: 0,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "tring: 'string',")).toBeTruthy();
+    expect(doesLogContain(stdOut, "array: [")).toBeTruthy();
+    expect(doesLogContain(stdOut, "1,")).toBeTruthy();
+    expect(doesLogContain(stdOut, "date: ")).toBeTruthy();
+    expect(doesLogContain(stdOut, "error: Error {")).toBeTruthy();
+    expect(doesLogContain(stdOut, "object: ")).toBeTruthy();
+    expect(doesLogContain(stdOut, "recursive: [Circular")).toBeTruthy();
   });
 });

@@ -282,29 +282,42 @@ export class LoggerHelper {
     clonedObject: T = Object.create(Object.getPrototypeOf(obj)) as T
   ): T {
     done.push(obj);
-    Object.getOwnPropertyNames(obj).forEach((currentKey: string | number) => {
-      if (!done.includes(obj[currentKey])) {
-        if (obj[currentKey] == null) {
-          clonedObject[currentKey] = obj[currentKey];
-        } else if (typeof obj[currentKey] !== "object") {
-          clonedObject[currentKey] =
-            maskValuesFn != null
-              ? maskValuesFn(currentKey, obj[currentKey])
-              : obj[currentKey];
-        } else {
-          clonedObject[currentKey] = LoggerHelper.cloneObjectRecursively(
-            obj[currentKey],
-            maskValuesFn,
-            done,
-            clonedObject[currentKey]
-          );
-        }
-      } else {
-        // cicrular detected: point to itself to make inspect printout [circular]
-        clonedObject[currentKey] = clonedObject;
-      }
-    });
 
+    // clone array. could potentially be a separate function
+    if (obj instanceof Date) {
+      return (new Date(obj) as unknown) as T;
+    } else if (Array.isArray(obj)) {
+      return (Object.entries(obj).map(([key, value]) => {
+        if (value == null || typeof value !== "object") {
+          return value;
+        } else {
+          return LoggerHelper.cloneObjectRecursively(value, maskValuesFn, done);
+        }
+      }) as unknown) as T;
+    } else {
+      Object.getOwnPropertyNames(obj).forEach((currentKey: string | number) => {
+        if (!done.includes(obj[currentKey])) {
+          if (obj[currentKey] == null) {
+            clonedObject[currentKey] = obj[currentKey];
+          } else if (typeof obj[currentKey] !== "object") {
+            clonedObject[currentKey] =
+              maskValuesFn != null
+                ? maskValuesFn(currentKey, obj[currentKey])
+                : obj[currentKey];
+          } else {
+            clonedObject[currentKey] = LoggerHelper.cloneObjectRecursively(
+              obj[currentKey],
+              maskValuesFn,
+              done,
+              clonedObject[currentKey]
+            );
+          }
+        } else {
+          // cicrular detected: point to itself to make inspect printout [circular]
+          clonedObject[currentKey] = clonedObject;
+        }
+      });
+    }
     return clonedObject as T;
   }
 
