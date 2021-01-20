@@ -155,6 +155,13 @@ export class LoggerWithoutCallSite {
       ...settings,
     };
 
+    if (
+      this.settings.prettyInspectOptions?.colors != null ||
+      this.settings.prettyInspectOptions?.colors === true
+    ) {
+      this.settings.prettyInspectOptions.colors = this.settings.colorizePrettyLogs;
+    }
+
     this._mySettings.name =
       this._mySettings.name ??
       (this._mySettings.setCallerAsLoggerName
