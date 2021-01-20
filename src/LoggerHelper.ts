@@ -155,7 +155,7 @@ export class LoggerHelper {
             resultStr
           );
         }, str)
-      : str;
+      : `${str}`;
   }
 
   private static _stylizeWithColor<T>(
