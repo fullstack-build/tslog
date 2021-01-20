@@ -71,6 +71,12 @@ describe("Logger: Parameter", () => {
     expect(doesLogContain(stdOut, "3")).toBeTruthy();
   });
 
+  test("array with objects", (): void => {
+    logger.silly([{ 1: true }, { 2: true }, { 3: true }]);
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "'1': true")).toBeTruthy();
+  });
+
   test("object", (): void => {
     const obj = {
       null: null,
@@ -90,10 +96,20 @@ describe("Logger: Parameter", () => {
         array: [1, 2, 3],
         date: new Date(),
         error: new Error(),
-        recursive: {},
+        object: {
+          null: null,
+          undefined: undefined,
+          boolean: true,
+          number: 0,
+          string: "string",
+          array: [1, 2, 3],
+          date: new Date(),
+          error: new Error(),
+          recursive: {},
+        },
       },
     };
-    obj.object.recursive = obj;
+    obj.object.object.recursive = obj.object;
 
     logger.silly(obj);
 
