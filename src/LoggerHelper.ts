@@ -294,6 +294,8 @@ export class LoggerHelper {
           return LoggerHelper.cloneObjectRecursively(value, maskValuesFn, done);
         }
       }) as unknown) as T;
+    } else if (Buffer.isBuffer(obj)) {
+      return obj as T;
     } else {
       Object.getOwnPropertyNames(obj).forEach((currentKey: string | number) => {
         if (!done.includes(obj[currentKey])) {
