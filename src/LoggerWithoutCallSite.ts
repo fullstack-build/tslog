@@ -852,7 +852,7 @@ export class LoggerWithoutCallSite {
       argumentsArray: logObject.argumentsArray.map(
         (argument: unknown | IErrorObject) => {
           const errorObject: IErrorObject = argument as IErrorObject;
-          if (typeof argument === "object" && errorObject.isError) {
+          if (typeof argument === "object" && errorObject?.isError) {
             return {
               ...errorObject,
               nativeError: undefined,
