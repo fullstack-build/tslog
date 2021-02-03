@@ -640,7 +640,19 @@ export class LoggerWithoutCallSite {
           : "";
 
       const errorObject: IErrorObject = argument as IErrorObject;
-      if (typeof argument === "object" && errorObject?.isError === true) {
+      if (argument == null) {
+        std.write(
+          typeStr +
+            this._inspectAndHideSensitive(
+              argument as null,
+              this.settings.prettyInspectOptions
+            ) +
+            " "
+        );
+      } else if (
+        typeof argument === "object" &&
+        errorObject?.isError === true
+      ) {
         this._printPrettyError(std, errorObject);
       } else if (
         typeof argument === "object" &&
