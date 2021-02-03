@@ -127,4 +127,12 @@ describe("Logger: Parameter", () => {
     expect(doesLogContain(stdOut, "object: ")).toBeTruthy();
     expect(doesLogContain(stdOut, "recursive: [Circular")).toBeTruthy();
   });
+
+  test("buffer", (): void => {
+    const buffer = Buffer.from("foo");
+    logger.silly(buffer);
+
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "<Buffer 66 6f 6f>")).toBeTruthy();
+  });
 });
