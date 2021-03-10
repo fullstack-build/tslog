@@ -2,9 +2,8 @@
   "name": "tslog",
   "version": "3.1.1",
   "description": "📝 Expressive TypeScript Logger for Node.js: Pretty errors, stack traces, code frames, and JSON output to attachable transports.",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
-  "types": "./dist/types/index.d.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "engines": {
     "node": ">=10"
   },
@@ -13,7 +12,7 @@
     "ts-node-onchange": "onchange -i \"**/*.ts\" -- npm run ts-node",
     "start-ts": "npm run ts-node",
     "start": "node dist/example/index.js",
-    "build": "tsc -b tsconfig.json tsconfig.esm.json tsconfig.types.json",
+    "build": "rm -r dist; tsc;",
     "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
@@ -44,8 +43,7 @@
     "access": "public"
   },
   "repository": {
-    "type": "git",
-    "url": "git+https://github.com/fullstack-build/tslog.git"
+    "type": "git"
   },
   "authors": [
     "Eugene Terehov <eugene@fullstack.build>",
@@ -80,10 +78,6 @@
   "dependencies": {
     "source-map-support": "^0.5.19"
   },
-  "files": [
-    "dist",
-    "src"
-  ],
   "sideEffects": false,
   "keywords": [
     "logger",
