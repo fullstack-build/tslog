@@ -378,8 +378,8 @@ export class LoggerWithoutCallSite {
       this.settings.ignoreStackLevels
     );
     const stackFrame: NodeJS.CallSite | undefined =
-      relevantCallSites[0] != null
-        ? this._callSiteWrapper(relevantCallSites[0])
+      relevantCallSites[1] != null
+        ? this._callSiteWrapper(relevantCallSites[1])
         : undefined;
 
     const stackFrameObject: IStackFrame | undefined =
@@ -465,7 +465,7 @@ export class LoggerWithoutCallSite {
     errorObject.stack = this._toStackObjectArray(relevantCallSites);
     if (errorObject.stack.length > 0) {
       const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
-        this._callSiteWrapper(relevantCallSites[0])
+        this._callSiteWrapper(relevantCallSites[1])
       );
       if (exposeErrorCodeFrame && errorCallSite.lineNumber != null) {
         if (
