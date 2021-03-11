@@ -48,8 +48,7 @@
     "url": "git+https://github.com/fullstack-build/tslog.git"
   },
   "authors": [
-    "Eugene Terehov <eugene@fullstack.build>",
-    "Dustin Hoffner <dustin@fullstack.build>"
+    "Eugene Terehov <eugene@fullstack.build>"
   ],
   "license": "MIT",
   "bugs": {
