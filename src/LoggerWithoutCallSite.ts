@@ -896,9 +896,9 @@ export class LoggerWithoutCallSite {
     let formatted;
     try {
       const maskedObject = this._maskValuesOfKeys(object);
-      formatted = format(maskedObject, options);
+      formatted = inspect(maskedObject, options);
     } catch {
-      formatted = format(object, options);
+      formatted = inspect(object, options);
     }
 
     return this._maskAny(formatted);
