@@ -1,7 +1,7 @@
 import "ts-jest";
 import { IStd, Logger } from "../src";
 import { doesLogContain } from "./helper";
-import exp = require("constants");
+import { URL } from "url";
 
 const stdOut: string[] = [];
 const stdErr: string[] = [];
@@ -134,5 +134,13 @@ describe("Logger: Parameter", () => {
 
     expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
     expect(doesLogContain(stdOut, "<Buffer 66 6f 6f>")).toBeTruthy();
+  });
+
+  test("Url", (): void => {
+    const url = new URL("http://example.com");
+    logger.silly(url);
+
+    expect(doesLogContain(stdOut, "SILLY")).toBeTruthy();
+    expect(doesLogContain(stdOut, "http://example.com/")).toBeTruthy();
   });
 });

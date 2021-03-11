@@ -893,8 +893,15 @@ export class LoggerWithoutCallSite {
     object: object | null,
     options: InspectOptions
   ): string {
-    const maskedObject = this._maskValuesOfKeys(object);
-    return this._maskAny(inspect(maskedObject, options));
+    let formatted;
+    try {
+      const maskedObject = this._maskValuesOfKeys(object);
+      formatted = format(maskedObject, options);
+    } catch {
+      formatted = format(object, options);
+    }
+
+    return this._maskAny(formatted);
   }
 
   private _formatAndHideSensitive(
