@@ -62,7 +62,7 @@
     "@types/node": "^14.14.9",
     "@types/source-map-support": "^0.5.3",
     "coveralls": "^3.1.0",
-    "docsify": "^4.11.6",
+    "docsify": "^4.12.1",
     "eslint": "^7.14.0",
     "eslint-config-prettier": "^6.15.0",
     "eslint-plugin-prettier": "^3.1.4",
@@ -73,7 +73,7 @@
     "prettier": "^2.2.0",
     "ts-jest": "^26.4.4",
     "ts-node": "^9.0.0",
-    "typedoc": "^0.19.2",
+    "typedoc": "^0.20.30",
     "typescript": "^4.1.2"
   },
   "dependencies": {
