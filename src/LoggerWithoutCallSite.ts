@@ -455,14 +455,15 @@ export class LoggerWithoutCallSite {
       relevantCallSites.length = stackLimit;
     }
 
-    const errorObject: IErrorObject = (LoggerHelper.cloneObjectRecursively(
-      error
-    ) as unknown) as IErrorObject;
-    errorObject.nativeError = error;
-    errorObject.details = { ...error };
-    errorObject.name = errorObject.name ?? "Error";
-    errorObject.isError = true;
-    errorObject.stack = this._toStackObjectArray(relevantCallSites);
+    const errorObject: IErrorObject = {
+      nativeError: error,
+      details: { ...error },
+      name: error.name ?? "Error",
+      isError: true,
+      message: error.message,
+      stack: this._toStackObjectArray(relevantCallSites),
+    };
+
     if (errorObject.stack.length > 0) {
       const errorCallSite: IStackFrame = LoggerHelper.toStackFrameObject(
         this._callSiteWrapper(relevantCallSites[0])
