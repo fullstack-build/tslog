@@ -120,8 +120,10 @@ class LoggerWithoutCallSite {
             ((_b = this.settings.prettyInspectOptions) === null || _b === void 0 ? void 0 : _b.colors) === true) {
             this.settings.prettyInspectOptions.colors = this.settings.colorizePrettyLogs;
         }
-        this._mySettings.name = (_c = this._mySettings.name) !== null && _c !== void 0 ? _c : (this._mySettings.setCallerAsLoggerName
-            ? (_j = (_f = (_e = (_d = LoggerHelper_1.LoggerHelper.getCallSites()) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.getTypeName()) !== null && _f !== void 0 ? _f : (_h = (_g = LoggerHelper_1.LoggerHelper.getCallSites()) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.getFunctionName()) !== null && _j !== void 0 ? _j : undefined : undefined);
+        this._mySettings.name =
+            (_c = this._mySettings.name) !== null && _c !== void 0 ? _c : (this._mySettings.setCallerAsLoggerName
+                ? (_j = (_f = (_e = (_d = LoggerHelper_1.LoggerHelper.getCallSites()) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.getTypeName()) !== null && _f !== void 0 ? _f : (_h = (_g = LoggerHelper_1.LoggerHelper.getCallSites()) === null || _g === void 0 ? void 0 : _g[0]) === null || _h === void 0 ? void 0 : _h.getFunctionName()) !== null && _j !== void 0 ? _j : undefined
+                : undefined);
         if (parentSettings != null) {
             this._parentOrDefaultSettings = Object.assign(Object.assign({}, this._parentOrDefaultSettings), parentSettings);
         }

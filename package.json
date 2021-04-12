@@ -12,7 +12,7 @@
     "ts-node-onchange": "onchange -i \"**/*.ts\" -- npm run ts-node",
     "start-ts": "npm run ts-node",
     "start": "node dist/example/index.js",
-    "build": "rm -r dist; tsc;",
+    "build": "scripts/build.sh",
     "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
