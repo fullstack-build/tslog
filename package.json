@@ -3,20 +3,28 @@
   "version": "3.1.1",
   "description": "📝 Expressive TypeScript Logger for Node.js: Pretty errors, stack traces, code frames, and JSON output to attachable transports.",
   "main": "dist/index.js",
+  "module": "dist/index.es.js",
   "types": "dist/index.d.ts",
   "engines": {
     "node": ">=10"
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "setup": "scripts/setup.sh",
+    "test": "jest",
+    "tests:watch": "jest --watch",
+    "build-check": "scripts/preCommit/buildCheck.sh",
+    "enforce-pre-commit": "scripts/enforcePreCommitSetup.sh",
+    "build": "scripts/build.sh",
+    "prepack": "yarn build",
     "ts-node": "ts-node example/index.ts",
     "ts-node-onchange": "onchange -i \"**/*.ts\" -- npm run ts-node",
     "start-ts": "npm run ts-node",
     "start": "node dist/example/index.js",
-    "build": "scripts/build.sh",
-    "prepublishOnly": "npm run build && npm run test",
     "eslint": "eslint . --ext .ts",
     "eslint-fix": "eslint . --ext .ts --fix",
-    "test": "jest",
     "coveralls": "jest --coverage && coveralls < coverage/lcov.info",
     "docsify-init": "docsify init ./docs",
     "docsify-serve": "cd docs && docsify serve",
