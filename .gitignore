@@ -73,3 +73,12 @@ common/temp/
 
 # For now, ignore banchmarks (WIP)
 /benchmarks/
+
+.idea/*
+dist/*
+.yarn/*
+!.yarn/releases
+!.yarn/plugins
+!.yarn/sdks
+!.yarn/versions
+.pnp.*

@@ -6,9 +6,6 @@ echo "Setting up pre-commit hooks for git..."
 cp "scripts/preCommit.sh" "$preCommitFile"
 echo "Setting up pre-commit hooks for git...done"
 
-# Install NodeJs
-read -p 'Install Nodejs? [y/N]: ' installNode
-if [ "${installNode,,}" = "y" ]
-then
-  sudo apt-get install nodejs
-fi
+# Set a local yarn to v2.0
+yarn set version berry
+yarn install
