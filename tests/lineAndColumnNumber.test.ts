@@ -1,6 +1,5 @@
 import "ts-jest";
 import { ILogObject, Logger } from "../src";
-import { doesLogContain } from "./helper";
 
 const stdOut: string[] = [];
 const stdErr: string[] = [];
