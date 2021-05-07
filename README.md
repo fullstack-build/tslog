@@ -209,7 +209,7 @@ Resulting in the following output:
 
 ##### Forwarded to an attached transport
 
-<a href="#transport">More details below</a>
+<a href="#/?id=transports">More details below</a>
 
 #### Log level
 
