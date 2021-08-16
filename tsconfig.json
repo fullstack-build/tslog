@@ -10,7 +10,7 @@
     ],
     "target": "es2019",
     "module": "commonjs",
-    "types": ["node"],
+    "types": ["jest", "node"],
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
@@ -20,9 +20,12 @@
     "allowSyntheticDefaultImports": true,
     "outDir": "dist/cjs"
   },
-  "include": [
-    "src/*.ts",
-    "src/**/*.ts"
-  ],
-  "exclude": ["node_modules","**/node_modules", "**/dist", "**/test", "*.test.ts"]
+  "include": ["src/*.ts", "src/**/*.ts"],
+  "exclude": [
+    "node_modules",
+    "**/node_modules",
+    "**/dist",
+    "**/test",
+    "*.test.ts"
+  ]
 }
