@@ -146,41 +146,6 @@ describe("Logger: Error with details", () => {
     expect(doesLogContain(stdErr, "error stack:")).toBeFalsy();
   });
 
-  test("Helper: Stack Trace offset: 0", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, 0);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(8);
-  });
-
-  test("Helper: Stack Trace offset: 1", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, 1);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(7);
-  });
-
-  test("Helper: Stack Trace offset: 4", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, 4);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(4);
-  });
-
-  test("Helper: Stack Trace offset: 5", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, 5);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(3);
-  });
-
-  test("Helper: Stack Trace offset: 6", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, 6);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(2);
-  });
-
   test("Helper: Stack Trace offset: Infinity", (): void => {
     const error = new TestError("TestError");
     const errorObject = loggerJson.prettyError(
@@ -192,27 +157,6 @@ describe("Logger: Error with details", () => {
     );
     expect(errorObject).not.toBeNull();
     expect(errorObject.stack.length).toBe(0);
-  });
-
-  test("Helper: Stack Trace offset: -1", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(error, false, false, false, -1);
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(8);
-  });
-
-  test("Helper: Stack Trace limit: Infinity", (): void => {
-    const error = new TestError("TestError");
-    const errorObject = loggerJson.prettyError(
-      error,
-      false,
-      false,
-      false,
-      0,
-      Infinity
-    );
-    expect(errorObject).not.toBeNull();
-    expect(errorObject.stack.length).toBe(8);
   });
 
   test("Helper: Stack Trace limit: 1", (): void => {
