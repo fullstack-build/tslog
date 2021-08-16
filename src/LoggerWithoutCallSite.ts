@@ -159,7 +159,8 @@ export class LoggerWithoutCallSite {
       this.settings.prettyInspectOptions?.colors != null ||
       this.settings.prettyInspectOptions?.colors === true
     ) {
-      this.settings.prettyInspectOptions.colors = this.settings.colorizePrettyLogs;
+      this.settings.prettyInspectOptions.colors =
+        this.settings.colorizePrettyLogs;
     }
 
     this._mySettings.name =
@@ -554,9 +555,8 @@ export class LoggerWithoutCallSite {
     }
 
     if (this.settings.displayLogLevel) {
-      const colorName: TUtilsInspectColors = this.settings.logLevelsColors[
-        logObject.logLevelId
-      ];
+      const colorName: TUtilsInspectColors =
+        this.settings.logLevelsColors[logObject.logLevelId];
 
       std.write(
         LoggerHelper.styleString(

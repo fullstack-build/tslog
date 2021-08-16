@@ -151,7 +151,7 @@ export class LoggerHelper {
     return colorizePrettyLogs
       ? Object.values(styleTypes).reduce((resultStr: S, styleType: T) => {
           return LoggerHelper._stylizeWithColor(
-            (styleType as unknown) as TUtilsInspectColors,
+            styleType as unknown as TUtilsInspectColors,
             resultStr
           );
         }, str)
@@ -285,15 +285,15 @@ export class LoggerHelper {
 
     // clone array. could potentially be a separate function
     if (obj instanceof Date) {
-      return (new Date(obj) as unknown) as T;
+      return new Date(obj) as unknown as T;
     } else if (Array.isArray(obj)) {
-      return (Object.entries(obj).map(([key, value]) => {
+      return Object.entries(obj).map(([key, value]) => {
         if (value == null || typeof value !== "object") {
           return value;
         } else {
           return LoggerHelper.cloneObjectRecursively(value, maskValuesFn, done);
         }
-      }) as unknown) as T;
+      }) as unknown as T;
     } else {
       Object.getOwnPropertyNames(obj).forEach((currentKey: string | number) => {
         if (!done.includes(obj[currentKey])) {
@@ -331,11 +331,9 @@ export class LoggerHelper {
     }
 
     const maskValuesFn = (key: number | string, value: unknown): unknown => {
-      const keysLowerCase: (
-        | string
-        | number
-      )[] = keys.map((key: string | number) =>
-        typeof key === "string" ? key.toLowerCase() : key
+      const keysLowerCase: (string | number)[] = keys.map(
+        (key: string | number) =>
+          typeof key === "string" ? key.toLowerCase() : key
       );
       if (
         keysLowerCase.includes(

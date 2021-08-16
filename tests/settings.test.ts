@@ -281,27 +281,18 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({ stdOut: std });
     logger.info("test 123");
 
-    const [
-      ,
-      ,
-      ,
-      ,
-      ,
-      ,
-      { value: hour },
-      ,
-      { value: minute },
-    ] = new Intl.DateTimeFormat("en", {
-      weekday: undefined,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: "utc",
-    }).formatToParts(new Date());
+    const [, , , , , , { value: hour }, , { value: minute }] =
+      new Intl.DateTimeFormat("en", {
+        weekday: undefined,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "utc",
+      }).formatToParts(new Date());
     expect(doesLogContain(stdArray, `${hour}:${minute}`)).toBeTruthy();
   });
 
@@ -319,27 +310,18 @@ describe("Logger: settings", () => {
     });
     logger.info("test 123");
 
-    const [
-      ,
-      ,
-      ,
-      ,
-      ,
-      ,
-      { value: hour },
-      ,
-      { value: minute },
-    ] = new Intl.DateTimeFormat("en", {
-      weekday: undefined,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour12: false,
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: timezone,
-    }).formatToParts(new Date());
+    const [, , , , , , { value: hour }, , { value: minute }] =
+      new Intl.DateTimeFormat("en", {
+        weekday: undefined,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour12: false,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: timezone,
+      }).formatToParts(new Date());
     expect(doesLogContain(stdArray, `${hour}:${minute}`)).toBeTruthy();
   });
 
@@ -756,9 +738,8 @@ describe("Logger: settings", () => {
         otherString: "pass1234.567",
       },
     };
-    verySecretiveCircularObject.nested[
-      "circular"
-    ] = verySecretiveCircularObject;
+    verySecretiveCircularObject.nested["circular"] =
+      verySecretiveCircularObject;
 
     logger.info(verySecretiveCircularObject);
 
@@ -799,9 +780,8 @@ describe("Logger: settings", () => {
         otherString: "pass1234.567",
       },
     };
-    verySecretiveCircularObject.nested[
-      "circular"
-    ] = verySecretiveCircularObject;
+    verySecretiveCircularObject.nested["circular"] =
+      verySecretiveCircularObject;
 
     logger.info(verySecretiveCircularObject);
 
@@ -841,9 +821,8 @@ describe("Logger: settings", () => {
         otherString: "pass1234.567",
       },
     };
-    verySecretiveCircularObject.nested[
-      "circular"
-    ] = verySecretiveCircularObject;
+    verySecretiveCircularObject.nested["circular"] =
+      verySecretiveCircularObject;
 
     const { argumentsArray } = logger.info(verySecretiveCircularObject);
     expect(argumentsArray[0]).toBe(verySecretiveCircularObject);
@@ -856,9 +835,8 @@ describe("Logger: settings", () => {
       stdErr: std,
     });
 
-    const {
-      argumentsArray: undefinedMaskValuesArgArray,
-    } = undefinedMaskValuesLogger.info(verySecretiveCircularObject);
+    const { argumentsArray: undefinedMaskValuesArgArray } =
+      undefinedMaskValuesLogger.info(verySecretiveCircularObject);
     expect(undefinedMaskValuesArgArray[0]).toBe(verySecretiveCircularObject);
   });
 
@@ -884,9 +862,8 @@ describe("Logger: settings", () => {
         otherString: "pass1234.567",
       },
     };
-    verySecretiveCircularObject.nested[
-      "circular"
-    ] = verySecretiveCircularObject;
+    verySecretiveCircularObject.nested["circular"] =
+      verySecretiveCircularObject;
 
     logger.info(verySecretiveCircularObject);
 
@@ -926,9 +903,8 @@ describe("Logger: settings", () => {
         otherString: "pass1234.567",
       },
     };
-    verySecretiveCircularObject.nested[
-      "circular"
-    ] = verySecretiveCircularObject;
+    verySecretiveCircularObject.nested["circular"] =
+      verySecretiveCircularObject;
 
     logger.info(verySecretiveCircularObject);
 
