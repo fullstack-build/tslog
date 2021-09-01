@@ -3,6 +3,7 @@ node_js:
   - "16"
   - "14"
   - "12"
+  - "10"
 
 install:
   - npm install
