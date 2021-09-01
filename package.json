@@ -6,7 +6,7 @@
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "engines": {
-    "node": ">=10"
+    "node": ">=12"
   },
   "scripts": {
     "ts-node": "ts-node example/index.ts",
