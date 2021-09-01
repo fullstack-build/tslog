@@ -9,7 +9,7 @@
       "es2020.symbol.wellknown",
       "es2020.intl"
     ],
-    "target": "es2020",
+    "target": "es2019",
     "module": "commonjs",
     "types": ["jest", "node"],
     "moduleResolution": "node",
