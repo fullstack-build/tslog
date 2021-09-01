@@ -6,7 +6,8 @@
       "es2019",
       "esnext.bigint",
       "es2020.string",
-      "es2020.symbol.wellknown"
+      "es2020.symbol.wellknown",
+      "es2020.intl"
     ],
     "target": "es2019",
     "module": "commonjs",
