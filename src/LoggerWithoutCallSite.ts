@@ -456,9 +456,15 @@ export class LoggerWithoutCallSite {
       relevantCallSites.length = stackLimit;
     }
 
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      name: _name,
+      ...errorWithoutName
+    } = error;
+
     const errorObject: IErrorObject = {
       nativeError: error,
-      details: { ...error },
+      details: { ...errorWithoutName },
       name: error.name ?? "Error",
       isError: true,
       message: error.message,
