@@ -1,6 +1,6 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
-import { inspect, format } from "util";
+import { inspect, formatWithOptions } from "util";
 
 import {
   IErrorObject,
@@ -456,9 +456,15 @@ export class LoggerWithoutCallSite {
       relevantCallSites.length = stackLimit;
     }
 
+    const {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      name: _name,
+      ...errorWithoutName
+    } = error;
+
     const errorObject: IErrorObject = {
       nativeError: error,
-      details: { ...error },
+      details: { ...errorWithoutName },
       name: error.name ?? "Error",
       isError: true,
       message: error.message,
@@ -563,7 +569,10 @@ export class LoggerWithoutCallSite {
           [colorName, "bold"],
           logObject.logLevel.toUpperCase(),
           this.settings.colorizePrettyLogs
-        ) + this.settings.delimiter
+        ) +
+          (logObject.logLevel === "info"
+            ? this.settings.delimiter.repeat(2)
+            : this.settings.delimiter)
       );
     }
 
@@ -909,7 +918,13 @@ export class LoggerWithoutCallSite {
     formatParam: unknown,
     ...param: unknown[]
   ): string {
-    return this._maskAny(format(formatParam, ...param));
+    return this._maskAny(
+      formatWithOptions(
+        this.settings.prettyInspectOptions,
+        formatParam,
+        ...param
+      )
+    );
   }
 
   private _maskValuesOfKeys<T>(object: T): T {

@@ -55,6 +55,7 @@ describe("Logger: Error with details", () => {
     loggerPretty.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, "details:")).toBeFalsy();
   });
 
   test("JSON: Error with details (stdErr)", (): void => {
@@ -62,6 +63,7 @@ describe("Logger: Error with details", () => {
     loggerJson.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, '"details":{}')).toBeTruthy();
   });
 
   test("JSON: Check if call site wrapping is working (Bugfix: #29)", (): void => {
@@ -73,9 +75,8 @@ describe("Logger: Error with details", () => {
       const logObj: ILogObject = JSON.parse(stdErr[0]);
       const errorObj: IErrorObject = logObj.argumentsArray?.[0] as IErrorObject;
 
-      expect(errorObj?.message).toContain(
-        "Cannot read property 'id' of undefined"
-      );
+      expect(errorObj?.message).toContain("Cannot read propert");
+      expect(errorObj?.message).toContain("'id'");
 
       expect(errorObj?.stack?.[0].fileName).toContain("error.test.ts");
     }
@@ -90,9 +91,8 @@ describe("Logger: Error with details", () => {
       const logObj: ILogObject = JSON.parse(stdErr[0]);
       const errorObj: IErrorObject = logObj.argumentsArray?.[0] as IErrorObject;
 
-      expect(errorObj?.message).toContain(
-        "Cannot read property 'id' of undefined"
-      );
+      expect(errorObj?.message).toContain("Cannot read propert");
+      expect(errorObj?.message).toContain("'id'");
 
       expect(errorObj?.stack?.[0].fileName).toContain("error.test.ts");
     }
