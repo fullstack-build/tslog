@@ -3,7 +3,6 @@
 [![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
 ![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)
 [![npm version](https://img.shields.io/npm/v/tslog?color=76c800&logoColor=76c800&style=flat-square)](https://www.npmjs.com/package/tslog)
-![Dependency status](https://img.shields.io/librariesio/github/fullstack-build/tslog?style=flat-square)
 [![CI: Travis](https://img.shields.io/travis/fullstack-build/tslog?style=flat-square)](https://travis-ci.com/github/fullstack-build/tslog)
 [![Coverage Status](https://img.shields.io/coveralls/github/fullstack-build/tslog?style=flat-square)](https://coveralls.io/github/fullstack-build/tslog)
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
