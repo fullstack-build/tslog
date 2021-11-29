@@ -1,6 +1,6 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
-import { inspect, format } from "util";
+import { inspect, formatWithOptions } from "util";
 
 import {
   IErrorObject,
@@ -569,9 +569,10 @@ export class LoggerWithoutCallSite {
           [colorName, "bold"],
           logObject.logLevel.toUpperCase(),
           this.settings.colorizePrettyLogs
-        ) + logObject.logLevel === "info" 
-            ? this.settings.delimiter.repeat(2) 
-            : this.settings.delimiter
+        ) +
+          (logObject.logLevel === "info"
+            ? this.settings.delimiter.repeat(2)
+            : this.settings.delimiter)
       );
     }
 
@@ -917,7 +918,13 @@ export class LoggerWithoutCallSite {
     formatParam: unknown,
     ...param: unknown[]
   ): string {
-    return this._maskAny(format(formatParam, ...param));
+    return this._maskAny(
+      formatWithOptions(
+        this.settings.prettyInspectOptions,
+        formatParam,
+        ...param
+      )
+    );
   }
 
   private _maskValuesOfKeys<T>(object: T): T {
