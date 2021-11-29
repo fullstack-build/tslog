@@ -55,6 +55,7 @@ describe("Logger: Error with details", () => {
     loggerPretty.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, "details:")).toBeFalsy();
   });
 
   test("JSON: Error with details (stdErr)", (): void => {
@@ -62,6 +63,7 @@ describe("Logger: Error with details", () => {
     loggerJson.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, '"details":{}')).toBeTruthy();
   });
 
   test("JSON: Check if call site wrapping is working (Bugfix: #29)", (): void => {
