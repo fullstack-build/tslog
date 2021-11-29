@@ -37,7 +37,15 @@ class TestError extends Error {
   }
 }
 
-describe("Logger: Error with details", () => {
+class TestErrorWithDetails extends TestError {
+  private lines: number;
+  constructor(message: string) {
+    super(message);
+    this.lines = 1234;
+  }
+}
+
+describe("Logger: Error with and without details", () => {
   beforeEach(() => {
     stdOut = [];
     stdErr = [];
@@ -50,7 +58,7 @@ describe("Logger: Error with details", () => {
     expect(errorToJson.length).toBeGreaterThan(0);
   });
 
-  test("Pretty: Error with details (stdErr)", (): void => {
+  test("Pretty: Error without details (stdErr)", (): void => {
     const error = new TestError("TestError");
     loggerPretty.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
@@ -58,12 +66,28 @@ describe("Logger: Error with details", () => {
     expect(doesLogContain(stdErr, "details:")).toBeFalsy();
   });
 
-  test("JSON: Error with details (stdErr)", (): void => {
+  test("Pretty: Error with details (stdErr)", (): void => {
+    const error = new TestErrorWithDetails("TestError");
+    loggerPretty.warn(error);
+    expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
+    expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, "details:")).toBeTruthy();
+  });
+
+  test("JSON: Error without details (stdErr)", (): void => {
     const error = new TestError("TestError");
     loggerJson.warn(error);
     expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
     expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
     expect(doesLogContain(stdErr, '"details":{}')).toBeTruthy();
+  });
+
+  test("JSON: Error with details (stdErr)", (): void => {
+    const error = new TestErrorWithDetails("TestError");
+    loggerJson.warn(error);
+    expect(doesLogContain(stdErr, "TestError")).toBeTruthy();
+    expect(doesLogContain(stdErr, ".test.ts")).toBeTruthy();
+    expect(doesLogContain(stdErr, "details:")).toBeTruthy();
   });
 
   test("JSON: Check if call site wrapping is working (Bugfix: #29)", (): void => {
