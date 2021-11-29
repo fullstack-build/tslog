@@ -563,7 +563,9 @@ export class LoggerWithoutCallSite {
           [colorName, "bold"],
           logObject.logLevel.toUpperCase(),
           this.settings.colorizePrettyLogs
-        ) + this.settings.delimiter
+        ) + logObject.logLevel === "info" 
+            ? this.settings.delimiter.repeat(2) 
+            : this.settings.delimiter
       );
     }
 
