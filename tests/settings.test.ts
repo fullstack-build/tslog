@@ -281,8 +281,10 @@ describe("Logger: settings", () => {
     const logger: Logger = new Logger({ stdOut: std });
     logger.info("test 123");
 
-    const [, , , , , , { value: hour }, , { value: minute }] =
-      new Intl.DateTimeFormat("en", {
+    let options = {};
+    // hourCycle only supported > Node.js 10
+    if (process.version.indexOf("v10") > -1) {
+      options = {
         weekday: undefined,
         year: "numeric",
         month: "2-digit",
@@ -292,7 +294,23 @@ describe("Logger: settings", () => {
         minute: "2-digit",
         second: "2-digit",
         timeZone: "utc",
-      }).formatToParts(new Date());
+      };
+    } else {
+      options = {
+        weekday: undefined,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hourCycle: "h23",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "utc",
+      };
+    }
+
+    const [, , , , , , { value: hour }, , { value: minute }] =
+      new Intl.DateTimeFormat("en", options).formatToParts(new Date());
     expect(doesLogContain(stdArray, `${hour}:${minute}`)).toBeTruthy();
   });
 
@@ -316,11 +334,11 @@ describe("Logger: settings", () => {
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-        hour12: false,
+        hourCycle: "h23",
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
-        timeZone: timezone,
+        timeZone: "Europe/Berlin",
       }).formatToParts(new Date());
     expect(doesLogContain(stdArray, `${hour}:${minute}`)).toBeTruthy();
   });
