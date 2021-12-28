@@ -78,5 +78,5 @@ Object.defineProperty(Error, "prepareStackTrace", {
 });
 
 export function getCallSites(err: Error): NodeJS.CallSite[] {
-  return err.stack ? err[callsitesSym] : err[callsitesSym];
+  return (err.stack ? err[callsitesSym] : err[callsitesSym]) || [];
 }
