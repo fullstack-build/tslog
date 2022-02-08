@@ -53,6 +53,9 @@ export interface ISettingsParam {
   /** Name of the instance name, default: _host name_ */
   instanceName?: string;
 
+  /** Name of the host, default: _host name_ */
+  hostname?: string;
+
   /** Use the name of the caller type as the name of the logger, default: `false` */
   setCallerAsLoggerName?: boolean;
 
@@ -164,6 +167,7 @@ export interface ISettingsParam {
 export interface ISettings extends ISettingsParam {
   type: "json" | "pretty" | "hidden";
   instanceName?: string;
+  hostname: string;
   setCallerAsLoggerName: boolean;
   name?: string;
   requestId?: string | TRequestIdFunction;
