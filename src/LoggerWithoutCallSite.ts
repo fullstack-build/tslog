@@ -51,7 +51,8 @@ export class LoggerWithoutCallSite {
   public constructor(settings?: ISettingsParam, parentSettings?: ISettings) {
     this._parentOrDefaultSettings = {
       type: "pretty",
-      instanceName: hostname(),
+      instanceName: undefined,
+      hostname: parentSettings?.hostname ?? hostname(),
       name: undefined,
       setCallerAsLoggerName: false,
       requestId: undefined,
@@ -162,6 +163,9 @@ export class LoggerWithoutCallSite {
       this.settings.prettyInspectOptions.colors =
         this.settings.colorizePrettyLogs;
     }
+
+    this._mySettings.instanceName =
+      this._mySettings.instanceName ?? this._mySettings.hostname;
 
     this._mySettings.name =
       this._mySettings.name ??
@@ -396,7 +400,7 @@ export class LoggerWithoutCallSite {
     const logObject: ILogObject = {
       instanceName: this.settings.instanceName,
       loggerName: this.settings.name,
-      hostname: hostname(),
+      hostname: this.settings.hostname,
       requestId,
       date: new Date(),
       logLevel: logLevel,
