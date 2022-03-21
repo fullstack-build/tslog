@@ -18,19 +18,16 @@ import {
 export class LoggerHelper {
   public static cwdArray: string[] = process.cwd().split(pathSeparator);
 
-  // eslint-disable-next-line @rushstack/no-new-null
-  public static cleanUpFilePath(fileName: string | null): string | null {
-    return fileName == null
-      ? fileName
-      : Object.entries(fileName.split(pathSeparator))
-          .reduce(
-            (cleanFileName: string, fileNamePart) =>
-              fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
-                ? (cleanFileName += pathSeparator + fileNamePart[1])
-                : cleanFileName,
-            ""
-          )
-          .substring(1);
+  public static cleanUpFilePath(fileName: string): string {
+    return Object.entries(fileName.split(pathSeparator))
+      .reduce(
+        (cleanFileName: string, fileNamePart) =>
+          fileNamePart[1] !== LoggerHelper.cwdArray[fileNamePart[0]]
+            ? (cleanFileName += pathSeparator + fileNamePart[1])
+            : cleanFileName,
+        ""
+      )
+      .substring(1);
   }
 
   public static isError(e: Error | unknown): boolean {
@@ -72,11 +69,12 @@ export class LoggerHelper {
   }
 
   public static toStackFrameObject(stackFrame: NodeJS.CallSite): IStackFrame {
-    const filePath: string | null = stackFrame.getFileName();
+    let filePath: string = stackFrame.getFileName() || "";
+    filePath = filePath.replace("file://", "");
     return {
-      filePath: LoggerHelper.cleanUpFilePath(filePath) ?? "",
-      fullFilePath: filePath ?? "",
-      fileName: fileBasename(stackFrame.getFileName() ?? ""),
+      filePath: LoggerHelper.cleanUpFilePath(filePath),
+      fullFilePath: filePath,
+      fileName: fileBasename(filePath),
       lineNumber: stackFrame.getLineNumber() ?? undefined,
       columnNumber: stackFrame.getColumnNumber() ?? undefined,
       isConstructor: stackFrame.isConstructor() ?? undefined,
