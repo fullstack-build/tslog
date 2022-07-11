@@ -372,7 +372,7 @@ export class LoggerWithoutCallSite {
     return logObject;
   }
 
-  private _buildLogObject(
+  protected _buildLogObject(
     logLevel: TLogLevelName,
     logArguments: unknown[],
     exposeStack: boolean = true
