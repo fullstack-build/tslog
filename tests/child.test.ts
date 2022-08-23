@@ -100,4 +100,57 @@ describe("Logger: Child", () => {
     grandchild1.debug("test child1 message");
     expect(stdOut.length).toBe(attachedLogMessages.length);
   });
+
+  test("Don't overwrite parents' name", (): void => {
+    const parent = new Logger({ name: "parent" });
+    expect(parent.settings.name).toBe("parent");
+
+    const child = parent.getChildLogger({ requestId: "foo" });
+    expect(child.settings.name).toBe("parent");
+  });
+
+  test("Don't overwrite transports of parents and siblings", (): void => {
+    const loggerParent = new Logger({
+      name: "parent",
+      stdOut: {
+        write: (print: string) => {
+          stdOut.push(print);
+        },
+      },
+      stdErr: {
+        write: (print: string) => {
+          stdErr.push(print);
+        },
+      },
+    });
+    const loggerChild1 = loggerParent.getChildLogger({ name: "child1" });
+    const loggerChild2 = loggerParent.getChildLogger({ name: "child2" });
+
+    const loggerTransportArray: unknown[][] = [];
+    const logX = (logObject: ILogObject) => {
+      loggerTransportArray.push(logObject.argumentsArray);
+    };
+    loggerChild1.attachTransport(
+      {
+        silly: logX,
+        debug: logX,
+        trace: logX,
+        info: logX,
+        warn: logX,
+        error: logX,
+        fatal: logX,
+      },
+      "debug"
+    );
+
+    loggerParent.info("parent");
+    loggerChild1.info("child1");
+    loggerChild2.info("child2");
+
+    const loggerChild12 = loggerChild1.getChildLogger({ name: "child1-2" });
+    loggerChild12.info("child1-2");
+
+    expect(loggerTransportArray[0][0]).toBe("child1");
+    expect(loggerTransportArray[1][0]).toBe("child1-2");
+  });
 });
