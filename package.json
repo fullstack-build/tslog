@@ -8,6 +8,7 @@
   "engines": {
     "node": ">=10"
   },
+  "funding": "https://github.com/fullstack-build/tslog?sponsor=1",
   "scripts": {
     "ts-node": "ts-node example/index.ts",
     "ts-node-onchange": "onchange -i \"**/*.ts\" -- npm run ts-node",
