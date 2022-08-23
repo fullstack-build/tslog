@@ -39,7 +39,7 @@ export type TLogLevelColor = {
  * Function that generates a request ID.
  * @public
  */
-export type TRequestIdFunction = () => string;
+export type TRequestIdFunction = () => string | undefined;
 
 /**
  * Constructor: logger settings
