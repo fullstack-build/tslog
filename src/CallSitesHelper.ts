@@ -78,5 +78,12 @@ Object.defineProperty(Error, "prepareStackTrace", {
 });
 
 export function getCallSites(err: Error): NodeJS.CallSite[] {
-  return (err.stack ? err[callsitesSym] : err[callsitesSym]) || [];
+  //V8 does not initiate the "stack" property when the Error is constructed.
+  //However it seems that the "stack" property is a getter that then calls Error.prepareStackTrace.
+  //So to ensure that the custom "prepareStackTrace" function is executed we must first read the value of "Error.stack" to trigger the getter
+
+  // eslint-disable-next-line no-unused-expressions
+  err.stack;
+
+  return err[callsitesSym] || [];
 }
