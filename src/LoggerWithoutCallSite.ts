@@ -213,6 +213,7 @@ export class LoggerWithoutCallSite {
   public getChildLogger(settings?: ISettingsParam): Logger {
     const childSettings: ISettings = {
       ...this.settings,
+      attachedTransports: [...this.settings.attachedTransports],
     };
 
     const childLogger: Logger = new (this.constructor as new (

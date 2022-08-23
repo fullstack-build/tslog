@@ -1,4 +1,4 @@
-import { Logger } from "../src";
+import { Logger, ILogObject } from "../src";
 
 class MyClass {
   private readonly _logger: Logger = new Logger({
@@ -138,3 +138,32 @@ parent.info("parent-test");
 
 const child = parent.getChildLogger({ requestId: "foo" }); // parent.settings.name = undefined
 child.info("child-test");
+
+console.log("*******************");
+
+const loggerParent = new Logger({ name: "parent" });
+const loggerChild1 = loggerParent.getChildLogger({ name: "child1" });
+const loggerChild2 = loggerParent.getChildLogger({ name: "child2" });
+
+const logX = (logObject: ILogObject) => {
+  console.log("child1 transport", logObject.argumentsArray);
+};
+loggerChild1.attachTransport(
+  {
+    silly: logX,
+    debug: logX,
+    trace: logX,
+    info: logX,
+    warn: logX,
+    error: logX,
+    fatal: logX,
+  },
+  "debug"
+);
+
+loggerParent.info("parent");
+loggerChild1.info("child1");
+loggerChild2.info("child2");
+
+const loggerChild12 = loggerChild1.getChildLogger({ name: "child1-2" });
+loggerChild12.info("child1-2");
