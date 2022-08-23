@@ -130,3 +130,11 @@ const secretiveLogger = new Logger({
 });
 
 secretiveLogger.info(verySecretiveObject);
+
+console.log("*******************");
+
+const parent = new Logger({ name: "parent" }); // parent.settings.name = 'parent'
+parent.info("parent-test");
+
+const child = parent.getChildLogger({ requestId: "foo" }); // parent.settings.name = undefined
+child.info("child-test");

@@ -167,13 +167,15 @@ export class LoggerWithoutCallSite {
     this._mySettings.instanceName =
       this._mySettings.instanceName ?? this._mySettings.hostname;
 
-    this._mySettings.name =
-      this._mySettings.name ??
-      (this._mySettings.setCallerAsLoggerName
-        ? LoggerHelper.getCallSites()?.[0]?.getTypeName() ??
-          LoggerHelper.getCallSites()?.[0]?.getFunctionName() ??
-          undefined
-        : undefined);
+    if (
+      this._mySettings.name == null &&
+      this._mySettings.setCallerAsLoggerName
+    ) {
+      this._mySettings.name =
+        LoggerHelper.getCallSites()?.[0]?.getTypeName() ??
+        LoggerHelper.getCallSites()?.[0]?.getFunctionName() ??
+        undefined;
+    }
 
     if (parentSettings != null) {
       this._parentOrDefaultSettings = {
