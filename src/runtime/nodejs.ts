@@ -1,0 +1,44 @@
+import { hostname } from "os";
+import { formatWithOptions, InspectOptions, inspect } from "util";
+export { InspectOptions };
+
+const meta = {
+  runtime: "Nodejs",
+  hostname: hostname()
+};
+
+export function getMeta(logLevelId: number, logLevelName: string) {
+    return {
+        ...meta,
+        date: new Date(),
+        logLevelId,
+        logLevelName,
+        path: trace()
+    };
+}
+
+function trace() {
+    try {
+        throw new Error('getStackTrace');
+    }
+    catch (e: any) {
+
+        let fullFilePath = e.stack.split("\n").filter((line: string) => !line.includes("internal/")).pop()
+            .replace(/^\s+at\s+/gm, ''); // remove prefix text ' at '
+        if(fullFilePath.slice(-1) === ")") {
+            fullFilePath = fullFilePath.match(/\(([^)]+)\)/)[1];
+        }
+
+        const pathArray = fullFilePath?.replace("file://", "")?.replace(process.cwd(), "")?.split(":");
+        return {
+            fullFilePath,
+            filePath: pathArray[0],
+            fileLine: pathArray[1],
+            fileColumn: pathArray[2]
+        };
+    }
+}
+
+export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: InspectOptions) {
+    return formatWithOptions(prettyInspectOptions, ...maskedArgs)
+}

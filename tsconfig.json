@@ -3,25 +3,21 @@
   "compileOnSave": false,
   "compilerOptions": {
     "lib": [
-      "es2019",
-      "esnext.bigint",
-      "es2020.string",
-      "es2020.symbol.wellknown",
-      "es2020.intl"
+      "es2020",
+      "dom"
     ],
-    "target": "es2019",
-    "module": "commonjs",
-    "types": ["jest", "node"],
-    "moduleResolution": "node",
+    "target": "es2020",
+    "module": "ES2020",
+    "types": ["node","jest"],
+    "moduleResolution": "Node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
     "strict": true,
+    "skipLibCheck": true,
     "suppressImplicitAnyIndexErrors": true,
-    "allowSyntheticDefaultImports": true,
-    "outDir": "dist/cjs"
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["src/*.ts", "src/**/*.ts"],
   "exclude": [
     "node_modules",
     "**/node_modules",

@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [master, v4]
+  pull_request:
+    branches: [master]
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        strategy:
+            matrix:
+                node-version: [16.x, 18.x]
+
+        env:
+            CI: true
+            COVERAGE: ${{ matrix.node-version == '18.x' && true || false }}
+
+        steps:
+            - uses: actions/checkout@v3
+            - name: Use Node.js ${{ matrix.node-version }}
+              uses: actions/setup-node@v3
+              with:
+                  node-version: ${{ matrix.node-version }}
+            - run: npm ci
+
+            # Coverage.
+            - name: Run coverage
+              run: npm run coverage
+            - name: Report coverage
+              uses: codecov/codecov-action@v3

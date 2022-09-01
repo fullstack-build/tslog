@@ -28,11 +28,13 @@ bower_components
 .lock-wscript
 
 # Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+/build/
 
 # Dependency directories
-node_modules/
-jspm_packages/
+/node_modules/
+/jspm_packages/
+**/node_modules/
+**/jspm_packages/
 
 # Optional npm cache directory
 .npm
@@ -59,18 +61,21 @@ jspm_packages/
 .DS_Store
 
 # Rush temporary files
-common/temp/
-**/.rush/temp/
+/common/temp/
 
 # IDE
-.idea
+/.idea/
 
 # don't check in build files
 **/dist
+/dist/
 /temp/
 
 #  Don't commit tsdoc meta
 /src/tsdoc-metadata.json
+
+# coverage results
+/coverage/
 
 # For now, ignore banchmarks (WIP)
 /benchmarks/
