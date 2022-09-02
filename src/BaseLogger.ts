@@ -47,9 +47,7 @@ export class BaseLogger<LogObj> {
         // @ts-ignore
         this.isBrowserBlinkEngine = (isBrowser) ? ((window.chrome || (window.Intl && Intl.v8BreakIterator)) && 'CSS' in window) != null : false;
         const isSafari = (isBrowser) ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
-        if(isSafari) {
-            this.stackDepthLevel = 4;
-        }
+        this.stackDepthLevel = (isSafari) ? 4: this.stackDepthLevel;
 
         this.settings = {
             type: settings?.type ?? "pretty",
@@ -91,9 +89,9 @@ export class BaseLogger<LogObj> {
             case "pretty":
                 const logMetaMarkup = this._prettyFormatLogObjMeta(logObj?.[this.settings.metaProperty]);
                 const logMarkup: any = prettyFormatLogObj(maskedArgs, this.settings.prettyInspectOptions);
-                if(typeof logMarkup === "string") {
+                if(typeof logMarkup === "string") { // Node.js (with util.formatWithOptions)
                     this._transport(logMetaMarkup + logMarkup);
-                } else if(Array.isArray(logMarkup)) {
+                } else if(Array.isArray(logMarkup)) { // Browser (with util.formatWithOptions)
                     const str = logMarkup.shift();
                     this._transport(logMetaMarkup + str, logMarkup);
                 } else {
@@ -205,7 +203,7 @@ export class BaseLogger<LogObj> {
                     return styleWrap(value, style[value.trim()]);
                 } else if(style != null && style["*"] != null) {
                     return styleWrap(value, style["*"]);
-                }else {
+                } else {
                     return value;
                 }
             }
@@ -231,9 +229,7 @@ export class BaseLogger<LogObj> {
         }
     }
 
-
 }
-
 
 function structuredClone(obj: any){
     return JSON.parse(JSON.stringify(obj));

@@ -38,5 +38,5 @@ export function getTrace(stackDepthLevel: number) {
 }
 
 export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: InspectOptions) {
-    return formatWithOptions(prettyInspectOptions, ...maskedArgs)
+    return formatWithOptions(prettyInspectOptions, ...maskedArgs);
 }

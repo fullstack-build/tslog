@@ -68,8 +68,27 @@ describe("Pretty: Settings", () => {
         expect(getConsoleLog()).not.toContain(`pass123`);
         expect(getConsoleLog()).toContain(`otherKey:`);
         expect(getConsoleLog()).not.toContain(`otherKey456`);
-        expect(getConsoleLog()).toContain(`yetAnotherKey`);
+        expect(getConsoleLog()).toContain(`yetAnotherKey:`);
         expect(getConsoleLog()).toContain(`otherKey789`);
+    });
+
+    test("maskValuesOfKeys set and maskPlaceholder nested object", (): void => {
+        const logger = new Logger({ type: "pretty", maskValuesOfKeys: ["otherKey", "moviePassword"], maskPlaceholder: "[###]"});
+        logger.log(1234, "testLevel", {
+            "password": "pass123",
+            "otherKey": "otherKey456",
+            "nested": {
+                "moviePassword": "swordfish"
+            }
+        });
+
+        expect(getConsoleLog()).toContain(`password:`);
+        expect(getConsoleLog()).toContain(`[###]`);
+        expect(getConsoleLog()).toContain(`pass123`);
+        expect(getConsoleLog()).toContain(`otherKey:`);
+        expect(getConsoleLog()).not.toContain(`otherKey456`);
+        expect(getConsoleLog()).toContain(`moviePassword:`);
+        expect(getConsoleLog()).not.toContain(`swordfish`);
     });
 
     test("maskValuesOfKeys and maskValuesOfKeysCaseInsensitive", (): void => {

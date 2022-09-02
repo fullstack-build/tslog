@@ -60,6 +60,22 @@ describe("JSON: Settings", () => {
         expect(getConsoleLog()).not.toContain(`otherKey456`);
     });
 
+    test("maskValuesOfKeys set and maskPlaceholder nested object", (): void => {
+        const logger = new Logger({ type: "json", maskValuesOfKeys: ["otherKey", "moviePassword"], maskPlaceholder: "[###]"});
+        logger.log(1234, "testLevel", {
+            "password": "pass123",
+            "otherKey": "otherKey456",
+            "nested": {
+                "moviePassword": "swordfish"
+            }
+        });
+
+        expect(getConsoleLog()).toContain(`"otherKey": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`otherKey456`);
+        expect(getConsoleLog()).toContain(`"moviePassword": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`swordfish`);
+    });
+
     test("maskValuesOfKeys set two keys and maskPlaceholder", (): void => {
         const logger = new Logger({ type: "json", maskValuesOfKeys: ["password", "otherKey", "yetanotherKey"], maskPlaceholder: "[###]"});
         logger.log(1234, "testLevel", {
