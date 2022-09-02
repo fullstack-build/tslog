@@ -61,14 +61,28 @@ describe("JSON: Settings", () => {
     });
 
     test("maskValuesOfKeys set two keys and maskPlaceholder", (): void => {
-        const logger = new Logger({ type: "json", maskValuesOfKeys: ["password", "otherKey"], maskPlaceholder: "[###]"});
+        const logger = new Logger({ type: "json", maskValuesOfKeys: ["password", "otherKey", "yetanotherKey"], maskPlaceholder: "[###]"});
         logger.log(1234, "testLevel", {
             "password": "pass123",
             "otherKey": "otherKey456",
+            "yetAnotherKey": "otherKey789",
         });
         expect(getConsoleLog()).toContain(`"password": "[###]"`);
         expect(getConsoleLog()).not.toContain(`pass123`);
         expect(getConsoleLog()).toContain(`"otherKey": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`otherKey456`);
+        expect(getConsoleLog()).toContain(`"yetAnotherKey": "otherKey789"`);
+    });
+
+    test("maskValuesOfKeys and maskValuesOfKeysCaseInsensitive", (): void => {
+        const logger = new Logger({ type: "json", maskValuesOfKeys: ["password", "otherkey"], maskValuesOfKeysCaseInsensitive: true});
+        logger.log(1234, "testLevel", {
+            "password": "pass123",
+            "otherKey": "otherKey456",
+        });
+        expect(getConsoleLog()).toContain(`"password": "[***]"`);
+        expect(getConsoleLog()).not.toContain(`pass123`);
+        expect(getConsoleLog()).toContain(`"otherKey": "[***]"`);
         expect(getConsoleLog()).not.toContain(`otherKey456`);
     });
 
