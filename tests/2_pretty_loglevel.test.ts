@@ -1,58 +1,56 @@
 import "ts-jest";
 import { Logger } from "../src";
+import { getConsoleLog, mockConsoleLog } from "./helper";
 
 
-const logger = new Logger({ type: "json" });
-let consoleOutput = "";
+const logger = new Logger({ type: "pretty" });
+
 describe("Pretty: Log level", () => {
     beforeEach(() => {
-        const storeLog = (inputs: any) => {
-            process.stdout.write("console.log: " + inputs + "\n");
-            consoleOutput += inputs;
-        };
-        console["log"] = jest.fn(storeLog);
-        consoleOutput = "";
+        mockConsoleLog(true, false);
     });
 
     test("silly (console)", (): void => {
         logger.silly("Test");
-        expect(consoleOutput).toContain("SILLY");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("SILLY");
+        expect(getConsoleLog()).toContain("Test");
+        expect(getConsoleLog()).toContain(`${new Date().toISOString().replace("T", " ").split(".")[0]}`); // ignore ms
+        expect(getConsoleLog()).toContain("/tests/2_pretty_loglevel.test.ts:14");
     });
 
     test("trace (console)", (): void => {
         logger.trace("Test");
-        expect(consoleOutput).toContain("TRACE");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("TRACE");
+        expect(getConsoleLog()).toContain("Test");
     });
 
     test("debug (console)", (): void => {
         logger.debug("Test");
-        expect(consoleOutput).toContain("DEBUG");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("DEBUG");
+        expect(getConsoleLog()).toContain("Test");
     });
 
     test("info (console)", (): void => {
         logger.info("Test");
-        expect(consoleOutput).toContain("INFO");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("INFO");
+        expect(getConsoleLog()).toContain("Test");
     });
 
     test("warn (console)", (): void => {
         logger.warn("Test");
-        expect(consoleOutput).toContain("WARN");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("WARN");
+        expect(getConsoleLog()).toContain("Test");
     });
 
     test("error (console)", (): void => {
         logger.error("Test");
-        expect(consoleOutput).toContain("ERROR");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("ERROR");
+        expect(getConsoleLog()).toContain("Test");
     });
 
     test("fatal (console)", (): void => {
         logger.fatal("Test");
-        expect(consoleOutput).toContain("FATAL");
-        expect(consoleOutput).toContain("Test");
+        expect(getConsoleLog()).toContain("FATAL");
+        expect(getConsoleLog()).toContain("Test");
     });
 });

@@ -1,47 +1,42 @@
 import "ts-jest";
 import { Logger } from "../src";
 
+import { mockConsoleLog, getConsoleLog } from "./helper";
 
-let consoleOutput = "";
 describe("Pretty: Settings", () => {
     beforeEach(() => {
-        const storeLog = (inputs: any) => {
-            process.stdout.write("console.log: " + inputs + "\n");
-            consoleOutput += inputs;
-        };
-        console["log"] = jest.fn(storeLog);
-        consoleOutput = "";
+        mockConsoleLog(true, false);
     });
 
     test("plain string", (): void => {
         const logger = new Logger({ type: "pretty" });
         logger.log(1234, "testLevel", "Test");
-        expect(consoleOutput).toContain(`testLevel`);
-        expect(consoleOutput).toContain(`]\nTest`);
+        expect(getConsoleLog()).toContain(`testLevel`);
+        expect(getConsoleLog()).toContain(`]\nTest`);
     });
 
     test("two strings", (): void => {
         const logger = new Logger({ type: "json" });
         logger.log(1234, "testLevel", "Test1", "Test2");
-        expect(consoleOutput).toContain(`"0": "Test1"`);
-        expect(consoleOutput).toContain(`"1": "Test2"`);
-        expect(consoleOutput).toContain(`"_meta": {`);
+        expect(getConsoleLog()).toContain(`"0": "Test1"`);
+        expect(getConsoleLog()).toContain(`"1": "Test2"`);
+        expect(getConsoleLog()).toContain(`"_meta": {`);
     });
 
     test("argumentsArray", (): void => {
         const logger = new Logger({ type: "json", argumentsArrayName: "argumentsArray"});
         logger.log(1234, "testLevel", "Test1", "Test2");
-        expect(consoleOutput).toContain(`"argumentsArray": [
+        expect(getConsoleLog()).toContain(`"argumentsArray": [
     "Test1",
     "Test2"
   ]`);
-        expect(consoleOutput).toContain(`"_meta": {`);
+        expect(getConsoleLog()).toContain(`"_meta": {`);
     });
 
     test("metaProperty", (): void => {
         const logger = new Logger({ type: "json", metaProperty: "_test"});
         logger.log(1234, "testLevel", "Test");
-        expect(consoleOutput).toContain(`"_test": {`);
+        expect(getConsoleLog()).toContain(`"_test": {`);
     });
 
     test("maskValuesOfKeys not set", (): void => {
@@ -49,8 +44,8 @@ describe("Pretty: Settings", () => {
         logger.log(1234, "testLevel", {
             "password": "pass123"
         });
-        expect(consoleOutput).toContain(`"password": "[***]"`);
-        expect(consoleOutput).not.toContain(`pass123`);
+        expect(getConsoleLog()).toContain(`"password": "[***]"`);
+        expect(getConsoleLog()).not.toContain(`pass123`);
     });
 
     test("maskValuesOfKeys set and maskPlaceholder", (): void => {
@@ -60,8 +55,8 @@ describe("Pretty: Settings", () => {
             "otherKey": "otherKey456",
         });
 
-        expect(consoleOutput).toContain(`"otherKey": "[###]"`);
-        expect(consoleOutput).not.toContain(`otherKey456`);
+        expect(getConsoleLog()).toContain(`"otherKey": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`otherKey456`);
     });
 
     test("maskValuesOfKeys set two keys and maskPlaceholder", (): void => {
@@ -70,10 +65,10 @@ describe("Pretty: Settings", () => {
             "password": "pass123",
             "otherKey": "otherKey456",
         });
-        expect(consoleOutput).toContain(`"password": "[###]"`);
-        expect(consoleOutput).not.toContain(`pass123`);
-        expect(consoleOutput).toContain(`"otherKey": "[###]"`);
-        expect(consoleOutput).not.toContain(`otherKey456`);
+        expect(getConsoleLog()).toContain(`"password": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`pass123`);
+        expect(getConsoleLog()).toContain(`"otherKey": "[###]"`);
+        expect(getConsoleLog()).not.toContain(`otherKey456`);
     });
 
 });
