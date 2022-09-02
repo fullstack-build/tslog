@@ -5,7 +5,7 @@ export { BaseLogger };
 export class Logger<LogObj> extends BaseLogger<LogObj> {
 
     public constructor(settings?: any, logObj?: LogObj) {
-        super(settings, logObj);
+        super(settings, logObj, 5);
     }
 
     /**

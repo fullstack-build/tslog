@@ -3,9 +3,12 @@ import { Logger } from "../src";
 
 
 let consoleOutput = "";
-describe("JSON: Log level", () => {
+describe("JSON: Settings", () => {
     beforeEach(() => {
-        const storeLog = (inputs: any) => (consoleOutput += inputs);
+        const storeLog = (inputs: any) => {
+            process.stdout.write("console.log: " + inputs + "\n");
+            consoleOutput += inputs;
+        };
         console["log"] = jest.fn(storeLog);
         consoleOutput = "";
     });

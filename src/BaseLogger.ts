@@ -1,4 +1,4 @@
-import { getMeta, prettyFormatLogObj, InspectOptions } from "./runtime/nodejs";
+import { getMeta, getTrace, prettyFormatLogObj, InspectOptions } from "./runtime/nodejs";
 import { prettyLogStyles } from "./prettyLogStyles";
 
 type TStyle = null | string | string[] | {
@@ -22,7 +22,6 @@ interface ISettings {
         "logLevelName"?: TStyle;
         "filePath"?: TStyle;
         "fileLine"?: TStyle;
-        "fileColumn"?: TStyle;
     };
     metaProperty: string;
     prettyInspectOptions: InspectOptions;
@@ -34,16 +33,23 @@ interface ISettings {
 export class BaseLogger<LogObj> {
 
     private readonly runtime: "browser" | "nodejs" | "unknown";
+    private readonly isBrowserBlinkEngine: boolean;
     private readonly getMeta = getMeta;
 
     private readonly settings: ISettings;
 
 
-    public constructor(settings?: any, private logObj?: LogObj) {
+    public constructor(settings?: any, private logObj?: LogObj, private stackDepthLevel: number = 4) {
 
         const isBrowser = ![typeof window, typeof document].includes('undefined');
         const isNode = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
         this.runtime = isBrowser ? "browser" : isNode ? "nodejs" : "unknown";
+        // @ts-ignore
+        this.isBrowserBlinkEngine = (isBrowser) ? ((window.chrome || (window.Intl && Intl.v8BreakIterator)) && 'CSS' in window) != null : false;
+        const isSafari = (isBrowser) ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
+        if(isSafari) {
+            this.stackDepthLevel = 4;
+        }
 
         this.settings = {
             type: settings?.type ?? "pretty",
@@ -152,7 +158,7 @@ export class BaseLogger<LogObj> {
     private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string) {
         return {
             ...logObj,
-            [this.settings.metaProperty]: this.getMeta(logLevelId, logLevelName)
+            [this.settings.metaProperty]: this.getMeta(logLevelId, logLevelName, this.stackDepthLevel)
         };
     }
 
@@ -182,11 +188,11 @@ export class BaseLogger<LogObj> {
             placeholderValues["ms"] = (dateMilliseconds == null) ? "--" : (dateMilliseconds < 10) ? "00" + dateMilliseconds : (dateMilliseconds < 100) ? "0" + dateMilliseconds : dateMilliseconds;
         }
         placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
-        placeholderValues["filePath"] = logObjMeta?.path?.filePath + ":" + logObjMeta?.path?.fileLine + ":" + logObjMeta?.path?.fileColumn;
+        placeholderValues["filePath"] = logObjMeta?.path?.filePath + ":" + logObjMeta?.path?.fileLine;
         placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
 
-
-        const ansiColorWrap = (placeholderValue: string, code: [number, number]) => `\u001b[${code[0]}m${placeholderValue}\u001b[${code[1]}m`;
+        // colorize for server and only for blink browsers
+        const ansiColorWrap = (this.runtime !== "browser" || this.isBrowserBlinkEngine) ? (placeholderValue: string, code: [number, number]) => `\u001b[${code[0]}m${placeholderValue}\u001b[${code[1]}m` : (placeholderValue: string) => placeholderValue;
 
         const styleWrap: (value: string, style: TStyle) => string
             = (value: string, style: TStyle) => {
@@ -220,7 +226,9 @@ export class BaseLogger<LogObj> {
     }
 
     private _transportJSON(json: any): void {
-        console.log(JSON.stringify(json, null, 2));
+        if(this.settings.type !== "hidden") {
+            console.log(JSON.stringify(json, null, 2));
+        }
     }
 
 

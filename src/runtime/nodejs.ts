@@ -7,34 +7,32 @@ const meta = {
   hostname: hostname()
 };
 
-export function getMeta(logLevelId: number, logLevelName: string) {
+export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number) {
     return {
         ...meta,
         date: new Date(),
         logLevelId,
         logLevelName,
-        path: trace()
+        path: getTrace(stackDepthLevel)
     };
 }
 
-function trace() {
+export function getTrace(stackDepthLevel: number) {
     try {
         throw new Error('getStackTrace');
     }
     catch (e: any) {
 
-        let fullFilePath = e.stack.split("\n").filter((line: string) => !line.includes("internal/")).pop()
-            .replace(/^\s+at\s+/gm, ''); // remove prefix text ' at '
-        if(fullFilePath.slice(-1) === ")") {
+        let fullFilePath = e.stack.split("\n").filter((line: string) => line.includes("    at "))?.[stackDepthLevel]?.replace(/^\s+at\s+/gm, ''); // remove prefix text ' at '
+        if(fullFilePath?.slice(-1) === ")") {
             fullFilePath = fullFilePath.match(/\(([^)]+)\)/)[1];
         }
 
         const pathArray = fullFilePath?.replace("file://", "")?.replace(process.cwd(), "")?.split(":");
         return {
             fullFilePath,
-            filePath: pathArray[0],
-            fileLine: pathArray[1],
-            fileColumn: pathArray[2]
+            filePath: pathArray?.[0],
+            fileLine: pathArray?.[1]
         };
     }
 }

@@ -6,7 +6,10 @@ const logger = new Logger({ type: "json" });
 let consoleOutput = "";
 describe("Pretty: Log level", () => {
     beforeEach(() => {
-        const storeLog = (inputs: any) => (consoleOutput += inputs);
+        const storeLog = (inputs: any) => {
+            process.stdout.write("console.log: " + inputs + "\n");
+            consoleOutput += inputs;
+        };
         console["log"] = jest.fn(storeLog);
         consoleOutput = "";
     });

@@ -6,7 +6,10 @@ const logger = new Logger({ type: "json" });
 let consoleOutput = "";
 describe("JSON: Log level", () => {
     beforeEach(() => {
-        const storeLog = (inputs: any) => (consoleOutput += inputs);
+        const storeLog = (inputs: any) => {
+            process.stdout.write("console.log: " + inputs + "\n");
+            consoleOutput += inputs;
+        };
         console["log"] = jest.fn(storeLog);
         consoleOutput = "";
     });
@@ -15,7 +18,14 @@ describe("JSON: Log level", () => {
         logger.silly("Test");
         expect(consoleOutput).toContain(`"0": "Test"`);
         expect(consoleOutput).toContain(`"_meta": {`);
+        expect(consoleOutput).toContain(`"runtime": "`);
+        expect(consoleOutput).toContain(`"hostname": "`);
+        expect(consoleOutput).toContain(`"date": "${new Date().toISOString().split(".")[0]}`); // ignore ms
+        expect(consoleOutput).toContain(`"logLevelId": 0`);
         expect(consoleOutput).toContain(`"logLevelName": "SILLY"`);
+        expect(consoleOutput).toContain("\"path\": {");
+        expect(consoleOutput).toContain("\"path\": {");
+
     });
 
     test("trace (console)", (): void => {
