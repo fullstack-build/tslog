@@ -19,7 +19,7 @@
     "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node example/dist/example/nodejs/index.js",
     "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
     "test-puppeteer-serve": "npm run build-browser && node tests/Browser/server/index.cjs -p 4444",
-    "coverage": "jest --coverage",
+    "coverage": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest --coverage",
     "typedoc": "typedoc"
   },
   "keywords": [],
