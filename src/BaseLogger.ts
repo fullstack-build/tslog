@@ -145,18 +145,12 @@ export class BaseLogger<LogObj> {
             placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
         } else {
             placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
-            const dateMonth = logObjMeta?.date?.getMonth();
-            placeholderValues["mm"] = (dateMonth == null) ? "--" : (dateMonth < 10) ? "0" + (dateMonth + 1) : (dateMonth + 1);
-            const dateDay = logObjMeta?.date ?.getDate();
-            placeholderValues["dd"] = (dateDay == null) ? "--" : (dateDay < 10) ? "0" + (dateDay + 1) : (dateDay + 1);
-            const dateHours = logObjMeta?.date?.getHours();
-            placeholderValues["hh"] = (dateHours == null) ? "--" : (dateHours < 10) ? "0" + dateHours : dateHours;
-            const dateMinutes = logObjMeta?.date?.getMinutes();
-            placeholderValues["MM"] = (dateMinutes == null) ? "--" : (dateMinutes < 10) ? "0" + dateMinutes : dateMinutes;
-            const dateSeconds = logObjMeta?.date?.getSeconds();
-            placeholderValues["ss"] = (dateSeconds == null) ? "--" : (dateSeconds < 10) ? "0" + dateSeconds : dateSeconds;
-            const dateMilliseconds = logObjMeta?.date?.getMilliseconds();
-            placeholderValues["ms"] = (dateMilliseconds == null) ? "--" : (dateMilliseconds < 10) ? "00" + dateMilliseconds : (dateMilliseconds < 100) ? "0" + dateMilliseconds : dateMilliseconds;
+            placeholderValues["mm"] = this.addMissingZeros(logObjMeta?.date?.getMonth(), 2);
+            placeholderValues["dd"] = this.addMissingZeros(logObjMeta?.date?.getDate(), 2);
+            placeholderValues["hh"] = this.addMissingZeros(logObjMeta?.date?.getHours(), 2);
+            placeholderValues["MM"] = this.addMissingZeros(logObjMeta?.date?.getMinutes(), 2);
+            placeholderValues["ss"] = this.addMissingZeros(logObjMeta?.date?.getSeconds(), 2);
+            placeholderValues["ms"] = this.addMissingZeros(logObjMeta?.date?.getMilliseconds(), 3);
         }
         placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
         placeholderValues["filePath"] = logObjMeta?.path?.filePath + ":" + logObjMeta?.path?.fileLine;
@@ -186,6 +180,12 @@ export class BaseLogger<LogObj> {
             const value = (placeholderValues[placeholder] != null) ? placeholderValues[placeholder] : _;
             return (this.settings.stylePrettyLogs) ? styleWrap(value, this.settings?.prettyLogStyles?.[placeholder]) + ansiColorWrap("", prettyLogStyles.reset) : value;
         });
+    }
+
+    private addMissingZeros(value: number, digits: number = 2){
+        return (digits === 2) ?
+            (value == null) ? "--" : (value < 10) ? "0" + value : value :
+            (value == null) ? "--" : (value < 10) ? "00" + value : (value < 100) ? "0" + value : value;
     }
 
 }
