@@ -14,7 +14,7 @@ describe("Pretty: Log level", () => {
         logger.silly("Test");
         expect(getConsoleLog()).toContain("SILLY");
         expect(getConsoleLog()).toContain("Test");
-        expect(getConsoleLog()).toContain(`${new Date().toISOString().replace("T", " ").split(".")[0]}`); // ignore ms
+        expect(getConsoleLog()).toContain(`${new Date().toISOString().replace("T", " ")[0]}`); // ignore time
         expect(getConsoleLog()).toContain("/2_pretty_loglevel.test.ts:14");
     });
 

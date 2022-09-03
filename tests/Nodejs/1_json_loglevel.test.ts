@@ -16,7 +16,7 @@ describe("JSON: Log level", () => {
         expect(getConsoleLog()).toContain(`"_meta": {`);
         expect(getConsoleLog()).toContain(`"runtime": "`);
         expect(getConsoleLog()).toContain(`"hostname": "`);
-        expect(getConsoleLog()).toContain(`"date": "${new Date().toISOString().split(".")[0]}`); // ignore ms
+        expect(getConsoleLog()).toContain(`"date": "${new Date().toISOString().split("T")[0]}`); // ignore time
         expect(getConsoleLog()).toContain(`"logLevelId": 0`);
         expect(getConsoleLog()).toContain(`"logLevelName": "SILLY"`);
         expect(getConsoleLog()).toContain(`"path": {`);
