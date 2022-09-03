@@ -1,4 +1,4 @@
-import { getMeta, getTrace, prettyFormatLogObj, InspectOptions } from "./runtime/nodejs";
+import { getMeta, transport, transportJSON, prettyFormatLogObj, InspectOptions } from "./runtime/nodejs";
 import { prettyLogStyles } from "./prettyLogStyles";
 
 type TStyle = null | string | string[] | {
@@ -89,17 +89,12 @@ export class BaseLogger<LogObj> {
             case "pretty":
                 const logMetaMarkup = this._prettyFormatLogObjMeta(logObj?.[this.settings.metaProperty]);
                 const logMarkup: any = prettyFormatLogObj(maskedArgs, this.settings.prettyInspectOptions);
-                if(typeof logMarkup === "string") { // Node.js (with util.formatWithOptions)
-                    this._transport(logMetaMarkup + logMarkup);
-                } else if(Array.isArray(logMarkup)) { // Browser (with util.formatWithOptions)
-                    const str = logMarkup.shift();
-                    this._transport(logMetaMarkup + str, logMarkup);
-                } else {
-                    this._transport(logMetaMarkup, logMarkup);
-                }
+                transport(logMetaMarkup, logMarkup);
             break;
             default:
-                this._transportJSON(logObj);
+                if(this.settings.type !== "hidden") {
+                    transportJSON(logObj);
+                }
         }
 
     }
@@ -213,20 +208,6 @@ export class BaseLogger<LogObj> {
             const value = (placeholderValues[placeholder] != null) ? placeholderValues[placeholder] : _;
             return (this.settings.stylePrettyLogs) ? styleWrap(value, this.settings?.prettyLogStyles?.[placeholder]) + ansiColorWrap("", prettyLogStyles.reset) : value;
         });
-    }
-
-    private _transport(markup: string, args?: unknown[]): void {
-        if(args != null) {
-            console.log(markup, ...args);
-        } else {
-            console.log(markup);
-        }
-    }
-
-    private _transportJSON(json: any): void {
-        if(this.settings.type !== "hidden") {
-            console.log(JSON.stringify(json, null, 2));
-        }
     }
 
 }

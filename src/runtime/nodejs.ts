@@ -40,3 +40,11 @@ export function getTrace(stackDepthLevel: number) {
 export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: InspectOptions) {
     return formatWithOptions(prettyInspectOptions, ...maskedArgs);
 }
+
+export function transport(logMetaMarkup: string, logMarkup: string): void {
+    console.log(logMetaMarkup + logMarkup);
+}
+
+export function transportJSON(json: any): void {
+    console.log(JSON.stringify(json, null, 2));
+}
