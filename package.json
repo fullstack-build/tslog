@@ -35,6 +35,9 @@
     "testMatch": [
       "**/tests/**/*.test.ts",
       "**/tests/**/*.test.js"
+    ],
+    "coveragePathIgnorePatterns": [
+      "<rootDir>/tests/"
     ]
   },
   "devDependencies": {
