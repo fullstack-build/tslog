@@ -17,7 +17,11 @@ export function getMeta(logLevelId: number, logLevelName: string, stackDepthLeve
     };
 }
 
-export function getTrace(stackDepthLevel: number) {
+export function getTrace(stackDepthLevel: number): {
+    fullFilePath: string,
+    filePath: string,
+    fileLine: string
+} {
     try {
         throw new Error('getStackTrace');
     }

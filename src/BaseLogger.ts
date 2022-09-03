@@ -145,8 +145,8 @@ export class BaseLogger<LogObj> {
             placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
         } else {
             placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
-            placeholderValues["mm"] = this.addMissingZeros(logObjMeta?.date?.getMonth(), 2);
-            placeholderValues["dd"] = this.addMissingZeros(logObjMeta?.date?.getDate(), 2);
+            placeholderValues["mm"] = this.addMissingZeros(logObjMeta?.date?.getMonth(), 2, 1);
+            placeholderValues["dd"] = this.addMissingZeros(logObjMeta?.date?.getDate(), 2, 1);
             placeholderValues["hh"] = this.addMissingZeros(logObjMeta?.date?.getHours(), 2);
             placeholderValues["MM"] = this.addMissingZeros(logObjMeta?.date?.getMinutes(), 2);
             placeholderValues["ss"] = this.addMissingZeros(logObjMeta?.date?.getSeconds(), 2);
@@ -182,10 +182,14 @@ export class BaseLogger<LogObj> {
         });
     }
 
-    private addMissingZeros(value: number, digits: number = 2){
+    private addMissingZeros(value: number, digits: number = 2, addNumber: number = 0){
+        if (value == null) {
+            return (digits === 2) ? "--" : "---";
+        }
+        value += addNumber;
         return (digits === 2) ?
-            (value == null) ? "--" : (value < 10) ? "0" + value : value :
-            (value == null) ? "--" : (value < 10) ? "00" + value : (value < 100) ? "0" + value : value;
+            (value < 10) ? "0" + value : value :
+            (value < 10) ? "00" + value : (value < 100) ? "0" + value : value;
     }
 
 }
