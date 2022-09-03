@@ -10,6 +10,13 @@ describe("JSON: Log level", () => {
         mockConsoleLog(true, false);
     });
 
+    test("log object", (): void => {
+        const logObj: any = logger.log(123, "test", "Test");
+        expect(logObj?.["0"]).toContain("Test");
+        expect(logObj?._meta?.logLevelId === 123).toBeTruthy();
+        expect(logObj?._meta?.logLevelName).toContain("test");
+    });
+
     test("silly (console)", (): void => {
         logger.silly("Test");
         expect(getConsoleLog()).toContain(`"0": "Test"`);
@@ -21,8 +28,7 @@ describe("JSON: Log level", () => {
         expect(getConsoleLog()).toContain(`"logLevelName": "SILLY"`);
         expect(getConsoleLog()).toContain(`"path": {`);
         expect(getConsoleLog()).toContain(`"filePath": "/tests/Nodejs/1_json_loglevel.test.ts",`);
-        expect(getConsoleLog()).toContain(`"fileLine": "14"`);
-
+        expect(getConsoleLog()).toContain(`"fileLine": "21"`);
     });
 
     test("trace (console)", (): void => {

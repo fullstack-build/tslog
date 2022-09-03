@@ -10,12 +10,20 @@ describe("Pretty: Log level", () => {
         mockConsoleLog(true, false);
     });
 
+
+    test("log object", (): void => {
+        const logObj: any = logger.log(123, "test", "Test");
+        expect(logObj?.["0"]).toContain("Test");
+        expect(logObj?._meta?.logLevelId === 123).toBeTruthy();
+        expect(logObj?._meta?.logLevelName).toContain("test");
+    });
+
     test("silly (console)", (): void => {
         logger.silly("Test");
         expect(getConsoleLog()).toContain("SILLY");
         expect(getConsoleLog()).toContain("Test");
         expect(getConsoleLog()).toContain(`${new Date().toISOString().replace("T", " ")[0]}`); // ignore time
-        expect(getConsoleLog()).toContain("/2_pretty_loglevel.test.ts:14");
+        expect(getConsoleLog()).toContain("/2_pretty_loglevel.test.ts:22");
     });
 
     test("trace (console)", (): void => {

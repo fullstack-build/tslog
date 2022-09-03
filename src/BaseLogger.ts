@@ -81,8 +81,13 @@ export class BaseLogger<LogObj> {
 
     }
 
-
-    public log(logLevelId: number, logLevelName: string, ...args: unknown[]){
+    /**
+     * Logs a message with a custom log level.
+     * @param logLevelId    - Log level ID e.g. 0
+     * @param logLevelName  - Log level name e.g. silly
+     * @param args          - Multiple log attributes that should be logged out.
+     */
+    public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj{
         const maskedArgs: unknown[] = (this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0) ? this._mask(args) : args;
         const logObj = this._addMetaToLogObj(this._toLogObj(maskedArgs), logLevelId, logLevelName);
         switch (this.settings.type) {
@@ -96,7 +101,7 @@ export class BaseLogger<LogObj> {
                     transportJSON(logObj);
                 }
         }
-
+        return logObj;
     }
 
     private _mask(args: unknown[]): unknown[] {
