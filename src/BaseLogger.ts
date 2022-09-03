@@ -183,13 +183,10 @@ export class BaseLogger<LogObj> {
     }
 
     private addMissingZeros(value: number, digits: number = 2, addNumber: number = 0){
-        if (value == null) {
-            return (digits === 2) ? "--" : "---";
-        }
-        value += addNumber;
+        value = (value != null) ? value + addNumber : value;
         return (digits === 2) ?
-            (value < 10) ? "0" + value : value :
-            (value < 10) ? "00" + value : (value < 100) ? "0" + value : value;
+            (value == null) ? "--" : (value < 10) ? "0" + value : value :
+            (value == null) ? "---" : (value < 10) ? "00" + value : (value < 100) ? "0" + value : value;
     }
 
 }
