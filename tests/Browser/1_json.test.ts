@@ -2,11 +2,11 @@
  * @jest-environment puppeteer
  */
 import 'expect-puppeteer';
-import {getConsoleLog} from "../Nodejs/helper";
 
 let consoleOutput = "";
 describe('Browser: JSON: Log level', () => {
     beforeAll(async () => {
+        jest.setTimeout(35000);
         await page.goto('http://localhost:4444', { waitUntil: 'load' });
         page.on('console', consoleObj => consoleOutput = consoleObj.text());
     })

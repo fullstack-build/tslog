@@ -17,7 +17,7 @@
     "start": "node example/index.js",
     "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' example/nodejs/index.ts",
     "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node example/dist/example/nodejs/index.js",
-    "test": "jest --HEADLESS=false",
+    "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
     "test-puppeteer-serve": "npm run build-browser && node tests/Browser/server/index.cjs -p 4444",
     "coverage": "jest --coverage",
     "typedoc": "typedoc"
