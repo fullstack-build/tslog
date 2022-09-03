@@ -1,4 +1,4 @@
-import { ISettingsProperties, BaseLogger } from "./BaseLogger";
+import { BaseLogger, ISettingsProperties } from "./BaseLogger";
 export { ISettingsProperties, BaseLogger };
 
 
