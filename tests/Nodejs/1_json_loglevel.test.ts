@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../src";
+import { Logger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper";
 
 
@@ -20,7 +20,7 @@ describe("JSON: Log level", () => {
         expect(getConsoleLog()).toContain(`"logLevelId": 0`);
         expect(getConsoleLog()).toContain(`"logLevelName": "SILLY"`);
         expect(getConsoleLog()).toContain(`"path": {`);
-        expect(getConsoleLog()).toContain(`"filePath": "/tests/1_json_loglevel.test.ts",`);
+        expect(getConsoleLog()).toContain(`"filePath": "/tests/Nodejs/1_json_loglevel.test.ts",`);
         expect(getConsoleLog()).toContain(`"fileLine": "14"`);
 
     });

@@ -1,6 +1,5 @@
 import "ts-jest";
-import { Logger } from "../src";
-
+import { Logger } from "../../src";
 import { mockConsoleLog, getConsoleLog } from "./helper";
 
 describe("Pretty: Settings", () => {
