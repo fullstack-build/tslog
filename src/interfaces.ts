@@ -1,10 +1,10 @@
-import {InspectOptions} from "./runtime/nodejs";
+import {IMeta, InspectOptions} from "./runtime/nodejs";
 
 export type TStyle = null | string | string[] | {
     [value:string] : null | string | string[]
 };
 
-export interface ISettingsProperties {
+export interface ISettingsProperties<LogObj> {
     type?: "json" | "pretty" | "hidden";
     argumentsArrayName?: string;
     prettyLogTemplate?: string;
@@ -27,9 +27,18 @@ export interface ISettingsProperties {
     maskPlaceholder?: string;
     maskValuesOfKeys?: string[];
     maskValuesOfKeysCaseInsensitive?: boolean;
+    overwrite?: {
+        mask?: (args: unknown[]) => unknown[];
+        toLogObj?: (args: unknown[]) => LogObj;
+        addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
+        formatMeta?: (meta?: IMeta) => string;
+        formatLogObj?: (maskedArgs: unknown[], prettyInspectOptions: InspectOptions) => string;
+        transportFormatted?: (logMetaMarkup: string, logMarkup: string) => void;
+        transportJSON?: (json: any) => void;
+    }
 }
 
-export interface ISettings extends ISettingsProperties{
+export interface ISettings<LogObj> extends ISettingsProperties<LogObj>{
     type: "json" | "pretty" | "hidden";
     argumentsArrayName?: string;
     prettyLogTemplate: string;
@@ -52,4 +61,8 @@ export interface ISettings extends ISettingsProperties{
     maskPlaceholder: string;
     maskValuesOfKeys: string[];
     maskValuesOfKeysCaseInsensitive: boolean;
+}
+
+export interface ILogObjMeta {
+    [name: string]: IMeta;
 }

@@ -1,5 +1,5 @@
-import { getMeta, transport, transportJSON, prettyFormatLogObj, InspectOptions } from "./runtime/nodejs";
-import { TStyle, ISettingsProperties, ISettings } from "./interfaces";
+import { getMeta, transportFormatted, transportJSON, prettyFormatLogObj, InspectOptions, IMeta } from "./runtime/nodejs";
+import { TStyle, ISettingsProperties, ISettings, ILogObjMeta } from "./interfaces";
 export * from "./interfaces";
 import { prettyLogStyles } from "./prettyLogStyles";
 
@@ -9,10 +9,10 @@ export class BaseLogger<LogObj> {
     private readonly isBrowserBlinkEngine: boolean;
     private readonly getMeta = getMeta;
 
-    private readonly settings: ISettings;
+    private readonly settings: ISettings<LogObj>;
 
 
-    public constructor(settings?: ISettingsProperties, private logObj?: LogObj, private stackDepthLevel: number = 4) {
+    constructor(settings?: ISettingsProperties<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
 
         const isBrowser = ![typeof window, typeof document].includes('undefined');
         const isNode = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
@@ -50,6 +50,15 @@ export class BaseLogger<LogObj> {
             maskPlaceholder: settings?.maskPlaceholder ?? "[***]",
             maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
             maskValuesOfKeysCaseInsensitive: settings?.maskValuesOfKeysCaseInsensitive ?? false,
+            overwrite: {
+                mask: settings?.overwrite?.mask,
+                toLogObj: settings?.overwrite?.toLogObj,
+                addMeta: settings?.overwrite?.addMeta,
+                formatMeta: settings?.overwrite?.formatMeta,
+                formatLogObj: settings?.overwrite?.formatLogObj,
+                transportFormatted: settings?.overwrite?.transportFormatted,
+                transportJSON: settings?.overwrite?.transportJSON,
+            }
         };
 
     }
@@ -59,22 +68,36 @@ export class BaseLogger<LogObj> {
      * @param logLevelId    - Log level ID e.g. 0
      * @param logLevelName  - Log level name e.g. silly
      * @param args          - Multiple log attributes that should be logged out.
+     * @return LogObject with meta property
      */
-    public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj{
-        const maskedArgs: unknown[] = (this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0) ? this._mask(args) : args;
-        const logObj = this._addMetaToLogObj(this._toLogObj(maskedArgs), logLevelId, logLevelName);
-        switch (this.settings.type) {
-            case "pretty":
-                const logMetaMarkup = this._prettyFormatLogObjMeta(logObj?.[this.settings.metaProperty]);
-                const logMarkup: any = prettyFormatLogObj(maskedArgs, this.settings.prettyInspectOptions);
-                transport(logMetaMarkup, logMarkup);
-            break;
-            default:
-                if(this.settings.type !== "hidden") {
-                    transportJSON(logObj);
-                }
+    public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj & ILogObjMeta {
+        const maskedArgs: unknown[] = (this.settings.overwrite?.mask != null) ? this.settings.overwrite?.mask(args) : (this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0) ? this._mask(args) : args;
+        const logObj: LogObj = (this.settings.overwrite?.toLogObj != null) ? this.settings.overwrite?.toLogObj(maskedArgs) : this._toLogObj(maskedArgs);
+        const logObjWithMeta: LogObj & ILogObjMeta = (this.settings.overwrite?.addMeta != null) ? this.settings.overwrite?.addMeta(logObj, logLevelId, logLevelName) : this._addMetaToLogObj(logObj, logLevelId, logLevelName);
+
+        // overwrite no matter what, should work for any type (pretty, json, ...)
+        let logMetaMarkup;
+        let logMarkup;
+        if (this.settings.overwrite?.formatMeta != null) {
+            logMetaMarkup = this.settings.overwrite?.formatMeta(logObjWithMeta?.[this.settings.metaProperty]);
         }
-        return logObj;
+        if (this.settings.overwrite?.formatLogObj != null) {
+            logMarkup = this.settings.overwrite?.formatLogObj(maskedArgs, this.settings.prettyInspectOptions);
+        }
+
+        if (this.settings.type === "pretty") {
+            logMetaMarkup = this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
+            logMarkup = prettyFormatLogObj(maskedArgs, this.settings.prettyInspectOptions);
+        }
+
+        if(logMetaMarkup != null && logMarkup != null) {
+            (this.settings.overwrite?.transportFormatted != null) ? this.settings.overwrite?.transportFormatted(logMetaMarkup, logMarkup) : transportFormatted(logMetaMarkup, logMarkup);
+        } else {
+            // overwrite transport no matter what, hide only with default transport
+            (this.settings.overwrite?.transportJSON != null) ? this.settings.overwrite?.transportJSON(logObjWithMeta) : (this.settings.type !== "hidden") ? transportJSON(logObjWithMeta) : undefined;
+        }
+
+        return logObjWithMeta;
     }
 
     private _mask(args: unknown[]): unknown[] {
@@ -126,14 +149,17 @@ export class BaseLogger<LogObj> {
         return thisLogObj;
     }
 
-    private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string) {
+    private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta {
         return {
             ...logObj,
             [this.settings.metaProperty]: this.getMeta(logLevelId, logLevelName, this.stackDepthLevel)
         };
     }
 
-    private _prettyFormatLogObjMeta(logObjMeta: any): string {
+    private _prettyFormatLogObjMeta(logObjMeta?: IMeta): string {
+        if (logObjMeta == null) {
+            return "";
+        }
 
         let template = String(this.settings.prettyLogTemplate);
 

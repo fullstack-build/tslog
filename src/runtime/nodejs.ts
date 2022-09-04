@@ -2,12 +2,30 @@ import { hostname } from "os";
 import { formatWithOptions, InspectOptions, inspect } from "util";
 export { InspectOptions };
 
-const meta = {
+export interface ITrace {
+    fullFilePath: string,
+    filePath: string,
+    fileLine: string
+}
+
+export interface IMetaStatic {
+    runtime: string;
+    hostname: string;
+}
+
+export interface IMeta extends IMetaStatic{
+    date: Date;
+    logLevelId: number;
+    logLevelName: string;
+    path: ITrace
+}
+
+const meta: IMetaStatic = {
   runtime: "Nodejs",
   hostname: hostname()
 };
 
-export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number) {
+export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number): IMeta {
     return {
         ...meta,
         date: new Date(),
@@ -17,11 +35,7 @@ export function getMeta(logLevelId: number, logLevelName: string, stackDepthLeve
     };
 }
 
-export function getTrace(stackDepthLevel: number): {
-    fullFilePath: string,
-    filePath: string,
-    fileLine: string
-} {
+export function getTrace(stackDepthLevel: number): ITrace {
     try {
         throw new Error('getStackTrace');
     }
@@ -41,11 +55,11 @@ export function getTrace(stackDepthLevel: number): {
     }
 }
 
-export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: InspectOptions) {
+export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: InspectOptions): string {
     return formatWithOptions(prettyInspectOptions, ...maskedArgs);
 }
 
-export function transport(logMetaMarkup: string, logMarkup: string): void {
+export function transportFormatted(logMetaMarkup: string, logMarkup: string): void {
     console.log(logMetaMarkup + logMarkup);
 }
 

@@ -1,10 +1,28 @@
-const meta = {
+export interface ITrace {
+    fullFilePath: string,
+    filePath: string,
+    fileLine: string
+}
+
+export interface IMetaStatic {
+    runtime: string;
+    browser: string;
+}
+
+export interface IMeta extends IMetaStatic{
+    date: Date;
+    logLevelId: number;
+    logLevelName: string;
+    path: ITrace
+}
+
+const meta: IMetaStatic = {
     runtime: "Browser",
     // @ts-ignore
     browser: window.navigator.userAgent
 };
 
-export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number) {
+export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number): IMeta {
     return {
         ...meta,
         date: new Date(),
@@ -14,11 +32,7 @@ export function getMeta(logLevelId: number, logLevelName: string, stackDepthLeve
     };
 }
 
-export function getTrace(stackDepthLevel: number): {
-    fullFilePath: string,
-    filePath: string,
-    fileLine: string
-} {
+export function getTrace(stackDepthLevel: number): ITrace {
     try {
         throw new Error('getStackTrace');
     }
@@ -48,11 +62,11 @@ export function getTrace(stackDepthLevel: number): {
     }
 }
 
-export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: unknown) {
+export function prettyFormatLogObj(maskedArgs: unknown[], prettyInspectOptions: unknown): unknown[] {
     return maskedArgs;
 }
 
-export function transport(logMetaMarkup: string, logMarkup: string): void {
+export function transportFormatted(logMetaMarkup: string, logMarkup: string): void {
 
     if(Array.isArray(logMarkup)) {
         const str = logMarkup.shift();
