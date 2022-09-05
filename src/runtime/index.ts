@@ -1,6 +1,6 @@
 export function getMeta() {
-    return {
-        date: new Date(),
-        logLevelName: "UNKNOWN"
-    };
+  return {
+    date: new Date(),
+    logLevelName: "UNKNOWN",
+  };
 }

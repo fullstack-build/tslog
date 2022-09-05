@@ -4,6 +4,5 @@
   "compilerOptions": {
     "outDir": "example/dist"
   },
-  "include": ["example/nodejs/*.ts"],
-
+  "include": ["example/nodejs/*.ts"]
 }
