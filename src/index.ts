@@ -1,4 +1,4 @@
-import { BaseLogger, ILogObjMeta, ISettings, ISettingsParam } from "./BaseLogger";
+import { BaseLogger, ILogObjMeta, ISettingsParam } from "./BaseLogger";
 export { ISettingsParam, BaseLogger };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
