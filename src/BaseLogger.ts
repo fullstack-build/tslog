@@ -5,9 +5,8 @@ export * from "./interfaces";
 
 export class BaseLogger<LogObj> {
   private readonly runtime: "browser" | "nodejs" | "unknown";
-  private readonly getMeta = getMeta;
-
   private readonly settings: ISettings<LogObj>;
+  private subLogger: BaseLogger<LogObj>[] = [];
 
   constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
@@ -129,6 +128,23 @@ export class BaseLogger<LogObj> {
     this.settings.attachedTransports.push(transportLogger);
   }
 
+  /**
+   *  Returns a child logger based on the current instance with inherited settings
+   *
+   * @param settings - Overwrite settings inherited from parent logger
+   */
+  public getSubLogger(settings?: ISettingsParam<LogObj>): BaseLogger<LogObj> {
+    const subLoggerSettings: ISettings<LogObj> = {
+      ...this.settings,
+      attachedTransports: [...(this.settings.attachedTransports ?? [])],
+      ...settings,
+    };
+
+    const subLogger: BaseLogger<LogObj> = new (this.constructor as new (childSettings?: ISettingsParam<LogObj>) => this)(subLoggerSettings);
+    this.subLogger.push(subLogger);
+    return subLogger;
+  }
+
   private _mask(args: unknown[]): unknown[] {
     const maskValuesOfKeys =
       this.settings.maskValuesOfKeysCaseInsensitive !== true ? this.settings.maskValuesOfKeys : this.settings.maskValuesOfKeys.map((key) => key.toLowerCase());
@@ -177,7 +193,7 @@ export class BaseLogger<LogObj> {
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta {
     return {
       ...logObj,
-      [this.settings.metaProperty]: this.getMeta(logLevelId, logLevelName, this.stackDepthLevel),
+      [this.settings.metaProperty]: getMeta(logLevelId, logLevelName, this.stackDepthLevel),
     };
   }
 

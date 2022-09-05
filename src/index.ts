@@ -1,4 +1,4 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam } from "./BaseLogger";
+import { BaseLogger, ILogObjMeta, ISettings, ISettingsParam } from "./BaseLogger";
 export { ISettingsParam, BaseLogger };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
@@ -70,5 +70,14 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
    */
   public fatal(...args: unknown[]): LogObj & ILogObjMeta {
     return super.log(6, "FATAL", ...args);
+  }
+
+  /**
+   *  Returns a child logger based on the current instance with inherited settings
+   *
+   * @param settings - Overwrite settings inherited from parent logger
+   */
+  public getSubLogger(settings?: ISettingsParam<LogObj>): Logger<LogObj> {
+    return super.getSubLogger(settings) as Logger<LogObj>;
   }
 }
