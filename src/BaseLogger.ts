@@ -53,7 +53,8 @@ export class BaseLogger<LogObj> {
         transportFormatted: settings?.overwrite?.transportFormatted,
         transportJSON: settings?.overwrite?.transportJSON,
       },
-      attachedTransports: settings?.attachedTransports,
+      attachedTransports: [...(settings?.attachedTransports ?? [])],
+      prefix: [...(settings?.prefix ?? [])],
     };
 
     // style only for server and blink browsers
@@ -68,12 +69,13 @@ export class BaseLogger<LogObj> {
    * @return LogObject with meta property
    */
   public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj & ILogObjMeta {
+    const logArgs = [...this.settings.prefix, ...args];
     const maskedArgs: unknown[] =
       this.settings.overwrite?.mask != null
-        ? this.settings.overwrite?.mask(args)
+        ? this.settings.overwrite?.mask(logArgs)
         : this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0
-        ? this._mask(args)
-        : args;
+        ? this._mask(logArgs)
+        : logArgs;
     const logObj: LogObj = this.settings.overwrite?.toLogObj != null ? this.settings.overwrite?.toLogObj(maskedArgs) : this._toLogObj(maskedArgs);
     const logObjWithMeta: LogObj & ILogObjMeta =
       this.settings.overwrite?.addMeta != null
@@ -124,7 +126,6 @@ export class BaseLogger<LogObj> {
    * @param minLevel        - Minimum log level to be forwarded to this attached transport logger. (e.g. debug)
    */
   public attachTransport(transportLogger: (transportLogger: LogObj & ILogObjMeta) => void): void {
-    this.settings.attachedTransports = this.settings.attachedTransports ?? [];
     this.settings.attachedTransports.push(transportLogger);
   }
 
@@ -136,8 +137,9 @@ export class BaseLogger<LogObj> {
   public getSubLogger(settings?: ISettingsParam<LogObj>): BaseLogger<LogObj> {
     const subLoggerSettings: ISettings<LogObj> = {
       ...this.settings,
-      attachedTransports: [...(this.settings.attachedTransports ?? [])],
       ...settings,
+      // merge alle prefixes instead of overwriting them
+      prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
 
     const subLogger: BaseLogger<LogObj> = new (this.constructor as new (childSettings?: ISettingsParam<LogObj>) => this)(subLoggerSettings);

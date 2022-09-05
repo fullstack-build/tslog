@@ -42,6 +42,8 @@ export interface ISettingsParam<LogObj> {
   };
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
+  /**  Prefix every log message of this logger. */
+  prefix?: unknown[];
 }
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
@@ -67,6 +69,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   maskPlaceholder: string;
   maskValuesOfKeys: string[];
   maskValuesOfKeysCaseInsensitive: boolean;
+  attachedTransports: ((transportLogger: LogObj & ILogObjMeta) => void)[];
+  prefix: unknown[];
 }
 
 export interface ILogObjMeta {
