@@ -4,7 +4,7 @@ export type TStyle = null | string | string[] | {
     [value:string] : null | string | string[]
 };
 
-export interface ISettingsProperties<LogObj> {
+export interface ISettingsParam<LogObj> {
     type?: "json" | "pretty" | "hidden";
     argumentsArrayName?: string;
     prettyLogTemplate?: string;
@@ -35,10 +35,12 @@ export interface ISettingsProperties<LogObj> {
         formatLogObj?: (maskedArgs: unknown[], prettyInspectOptions: InspectOptions) => string;
         transportFormatted?: (logMetaMarkup: string, logMarkup: string) => void;
         transportJSON?: (json: any) => void;
-    }
+    };
+    /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
+    attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
 }
 
-export interface ISettings<LogObj> extends ISettingsProperties<LogObj>{
+export interface ISettings<LogObj> extends ISettingsParam<LogObj>{
     type: "json" | "pretty" | "hidden";
     argumentsArrayName?: string;
     prettyLogTemplate: string;
@@ -65,4 +67,10 @@ export interface ISettings<LogObj> extends ISettingsProperties<LogObj>{
 
 export interface ILogObjMeta {
     [name: string]: IMeta;
+}
+
+export interface ITrace {
+    fullFilePath: string,
+    filePath: string,
+    fileLine: string
 }

@@ -1,8 +1,4 @@
-export interface ITrace {
-    fullFilePath: string,
-    filePath: string,
-    fileLine: string
-}
+import { ILogObjMeta, ITrace } from "../interfaces";
 
 export interface IMetaStatic {
     runtime: string;
@@ -76,6 +72,6 @@ export function transportFormatted(logMetaMarkup: string, logMarkup: string): vo
     }
 }
 
-export function transportJSON(json: any): void {
+export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
     console.log(JSON.stringify(json, null, 2));
 }

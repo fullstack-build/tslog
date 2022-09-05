@@ -1,7 +1,7 @@
 import { getMeta, transportFormatted, transportJSON, prettyFormatLogObj, InspectOptions, IMeta } from "./runtime/nodejs";
-import { TStyle, ISettingsProperties, ISettings, ILogObjMeta } from "./interfaces";
-export * from "./interfaces";
 import { prettyLogStyles } from "./prettyLogStyles";
+import { TStyle, ISettingsParam, ISettings, ILogObjMeta } from "./interfaces";
+export * from "./interfaces";
 
 export class BaseLogger<LogObj> {
 
@@ -12,7 +12,7 @@ export class BaseLogger<LogObj> {
     private readonly settings: ISettings<LogObj>;
 
 
-    constructor(settings?: ISettingsProperties<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
+    constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
 
         const isBrowser = ![typeof window, typeof document].includes('undefined');
         const isNode = Object.prototype.toString.call(typeof process !== 'undefined' ? process : 0) === '[object process]';
@@ -58,7 +58,8 @@ export class BaseLogger<LogObj> {
                 formatLogObj: settings?.overwrite?.formatLogObj,
                 transportFormatted: settings?.overwrite?.transportFormatted,
                 transportJSON: settings?.overwrite?.transportJSON,
-            }
+            },
+            attachedTransports: settings?.attachedTransports
         };
 
     }
@@ -97,8 +98,28 @@ export class BaseLogger<LogObj> {
             (this.settings.overwrite?.transportJSON != null) ? this.settings.overwrite?.transportJSON(logObjWithMeta) : (this.settings.type !== "hidden") ? transportJSON(logObjWithMeta) : undefined;
         }
 
+        if (this.settings.attachedTransports != null && this.settings.attachedTransports.length > 0) {
+            this.settings.attachedTransports.forEach(transportLogger => {
+                transportLogger(logObjWithMeta);
+            });
+        }
+
         return logObjWithMeta;
     }
+
+    /**
+     *  Attaches external Loggers, e.g. external log services, file system, database
+     *
+     * @param transportLogger - External logger to be attached. Must implement all log methods.
+     * @param minLevel        - Minimum log level to be forwarded to this attached transport logger. (e.g. debug)
+     */
+    public attachTransport(
+        transportLogger: (transportLogger: LogObj & ILogObjMeta) => void
+    ): void {
+        this.settings.attachedTransports = this.settings.attachedTransports ?? [];
+        this.settings.attachedTransports.push(transportLogger);
+    }
+
 
     private _mask(args: unknown[]): unknown[] {
 

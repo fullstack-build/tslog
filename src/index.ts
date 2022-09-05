@@ -1,10 +1,10 @@
-import {BaseLogger, ILogObjMeta, ISettingsProperties} from "./BaseLogger";
-export { ISettingsProperties, BaseLogger };
+import {BaseLogger, ILogObjMeta, ISettingsParam} from "./BaseLogger";
+export { ISettingsParam, BaseLogger };
 
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
 
-    constructor(settings?: ISettingsProperties<LogObj>, logObj?: LogObj) {
+    constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
         super(settings, logObj, 5);
     }
 
