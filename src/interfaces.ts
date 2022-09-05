@@ -44,6 +44,8 @@ export interface ISettingsParam<LogObj> {
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   /**  Prefix every log message of this logger. */
   prefix?: unknown[];
+  /** Mask all occurrences (case-sensitive) from values in logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  maskValuesRegEx?: RegExp[];
 }
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {

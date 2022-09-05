@@ -120,4 +120,34 @@ describe("JSON: Settings", () => {
     expect(getConsoleLog()).toContain('"otherKey": "[***]"');
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
+
+  test("maskValuesRegEx", (): void => {
+    const logger = new Logger({
+      type: "json",
+      maskValuesRegEx: [new RegExp("otherKey", "g")],
+    });
+    logger.log(1234, "testLevel", {
+      password: "pass123",
+      otherKey: "otherKey456",
+    });
+    expect(getConsoleLog()).toContain('"password": "[***]"');
+    expect(getConsoleLog()).not.toContain("pass123");
+    expect(getConsoleLog()).toContain('"otherKey": "[***]456"');
+    expect(getConsoleLog()).not.toContain("otherKey456");
+  });
+
+  test("prefix", (): void => {
+    const logger = new Logger({
+      type: "json",
+      prefix: [1, 2, "test"],
+    });
+    logger.log(1234, "testLevel", {
+      password: "pass123",
+      otherKey: "otherKey456",
+    });
+    expect(getConsoleLog()).toContain('"0": 1');
+    expect(getConsoleLog()).toContain('"1": 2');
+    expect(getConsoleLog()).toContain('"2": "test"');
+    expect(getConsoleLog()).toContain('"3": {');
+  });
 });

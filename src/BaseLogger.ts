@@ -44,6 +44,7 @@ export class BaseLogger<LogObj> {
       maskPlaceholder: settings?.maskPlaceholder ?? "[***]",
       maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
       maskValuesOfKeysCaseInsensitive: settings?.maskValuesOfKeysCaseInsensitive ?? false,
+      maskValuesRegEx: settings?.maskValuesRegEx,
       overwrite: {
         mask: settings?.overwrite?.mask,
         toLogObj: settings?.overwrite?.toLogObj,
@@ -151,24 +152,30 @@ export class BaseLogger<LogObj> {
     const maskValuesOfKeys =
       this.settings.maskValuesOfKeysCaseInsensitive !== true ? this.settings.maskValuesOfKeys : this.settings.maskValuesOfKeys.map((key) => key.toLowerCase());
     return args?.map((arg) => {
-      return this._maskValuesOfKeysRecursive(arg, maskValuesOfKeys, this.settings.maskPlaceholder, this.settings.maskValuesOfKeysCaseInsensitive);
+      return this._maskValuesOfKeysRecursive(arg, maskValuesOfKeys);
     });
   }
 
-  private _maskValuesOfKeysRecursive<T>(obj: T, keys: (number | string)[], maskPlaceholder: string, maskValuesOfKeysCaseInsensitive: boolean): T {
+  private _maskValuesOfKeysRecursive<T>(obj: T, keys: (number | string)[]): T {
     if (typeof obj !== "object" || obj == null) {
       return obj;
     }
 
     Object.keys(obj).map((key) => {
-      const thisKey = maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
+      const thisKey = this.settings.maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
+
+      if (this.settings.maskValuesRegEx != null && this.settings.maskValuesRegEx.length > 0) {
+        this.settings.maskValuesRegEx.forEach((regEx) => {
+          obj[key] = obj[key].replace(regEx, this.settings.maskPlaceholder);
+        });
+      }
 
       if (keys.includes(thisKey)) {
-        obj[key] = maskPlaceholder;
+        obj[key] = this.settings.maskPlaceholder;
       }
 
       if (typeof obj[key] === "object" && obj[key] !== null) {
-        this._maskValuesOfKeysRecursive(obj[key], keys, maskPlaceholder, maskValuesOfKeysCaseInsensitive);
+        this._maskValuesOfKeysRecursive(obj[key], keys);
       }
     });
 
