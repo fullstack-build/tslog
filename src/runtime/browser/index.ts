@@ -161,6 +161,7 @@ export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unkno
     console.log(...[logMetaMarkup + str, ...logArgs, ...logErrors]);
   } else {
     const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
+    settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
     logArgs = logArgs.map((arg) => (typeof arg === "object" ? inspect(arg, settings.prettyInspectOptions) : arg));
     console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
   }
