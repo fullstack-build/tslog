@@ -1,5 +1,7 @@
-<html>
+<!doctype html>
+<html lang="en">
 <head>
+  <meta charset="utf-8">
     <title>tslog demo</title>
 </head>
 <body>
@@ -13,13 +15,13 @@
 
     const logger = new tslog.Logger({}, defaultLogObject);
 
-    logger.silly("silly huhu", { "haha": true, "password": "123456"}, ["SECRET"]);
-    logger.trace("trace huhu", { "haha": true});
-    logger.debug("debug huhu", { "haha": true});
-    logger.info("info huhu", { "haha": true});
-    logger.warn("warn huhu", { "haha": true});
-    logger.error("error huhu", { "haha": true});
-    logger.fatal("fatal huhu", { "haha": true});
+    logger.silly("silly foo", { bar: true, password: "123456" }, ["SECRET"]);
+    logger.trace("trace foo", { bar: true });
+    logger.debug("debug foo", { bar: true });
+    logger.info("info foo", { bar: true });
+    logger.warn("warn foo", { bar: true });
+    logger.error("error foo", { bar: true });
+    logger.fatal("fatal foo", { bar: true });
 
 
     logger.fatal({ "onlyOne": true});
@@ -30,6 +32,18 @@
     const baseLogger = new tslog.BaseLogger({}, defaultLogObject);
 
     baseLogger.log(0, "test", "test base logger", { "haha": true, "password": "123456"}, ["SECRET"]);
+
+
+    console.log("####### Error: ########");
+
+    logger.fatal("test1", "test2", "test3");
+
+    logger.fatal("test1 %s test3", "test2");
+
+    logger.fatal(new Error("test"));
+
+    logger.fatal("test", new Error("test"));
+
 
 </script>
 <script src="example.js"></script>

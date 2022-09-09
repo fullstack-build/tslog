@@ -12,6 +12,8 @@ export interface ISettingsParam<LogObj> {
   type?: "json" | "pretty" | "hidden";
   argumentsArrayName?: string;
   prettyLogTemplate?: string;
+  prettyErrorTemplate?: string;
+  prettyErrorStackTemplate?: string;
   stylePrettyLogs?: boolean;
   prettyLogStyles?: {
     yyyy?: TStyle;
@@ -36,8 +38,8 @@ export interface ISettingsParam<LogObj> {
     toLogObj?: (args: unknown[]) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
     formatMeta?: (meta?: IMeta) => string;
-    formatLogObj?: (maskedArgs: unknown[], prettyInspectOptions: InspectOptions) => string;
-    transportFormatted?: (logMetaMarkup: string, logMarkup: string) => void;
+    formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
+    transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
     transportJSON?: (json: unknown) => void;
   };
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
@@ -52,6 +54,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   type: "json" | "pretty" | "hidden";
   argumentsArrayName?: string;
   prettyLogTemplate: string;
+  prettyErrorTemplate: string;
+  prettyErrorStackTemplate: string;
   stylePrettyLogs: boolean;
   prettyLogStyles: {
     yyyy?: TStyle;
@@ -63,8 +67,12 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     ms?: TStyle;
     dateIsoStr?: TStyle;
     logLevelName?: TStyle;
+    fileName?: TStyle;
     filePath?: TStyle;
     fileLine?: TStyle;
+    filePathWithLine?: TStyle;
+    errorName?: TStyle;
+    errorMessage?: TStyle;
   };
   metaProperty: string;
   prettyInspectOptions: InspectOptions;
@@ -75,12 +83,59 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   prefix: unknown[];
 }
 
+export interface ILogObj {
+  [name: string]: unknown;
+}
+
 export interface ILogObjMeta {
   [name: string]: IMeta;
 }
 
-export interface ITrace {
+export interface IStackFrame {
   fullFilePath?: string;
+  fileName?: string;
   filePath?: string;
   fileLine?: string;
+  fileColumn?: string;
+  filePathWithLine?: string;
+  method?: string;
+}
+
+/**
+ * Object representing an error with a stack trace
+ * @public
+ */
+export interface IErrorObject {
+  /** Name of the error*/
+  name: string;
+  /** Error message */
+  message: string;
+  /** native Error object */
+  nativeError: Error;
+  /** Stack trace of the error */
+  stack: IStackFrame[];
+}
+
+/**
+ * ErrorObject that can safely be "JSON.stringifed". All circular structures have been "util.inspected" into strings
+ * @public
+ */
+export interface IErrorObjectStringifiable extends IErrorObject {
+  nativeError: never;
+  errorString: string;
+}
+
+/**
+ * Object representing an error with a stack trace
+ * @public
+ */
+export interface IErrorObject {
+  /** Name of the error*/
+  name: string;
+  /** Error message */
+  message: string;
+  /** native Error object */
+  nativeError: Error;
+  /** Stack trace of the error */
+  stack: IStackFrame[];
 }

@@ -6,7 +6,7 @@
   "browser": {
     "tslog": "./dist/browser/index.js",
     "util": "",
-    "./src/runtime/nodejs.ts": "./src/runtime/browser.ts"
+    "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts"
   },
   "type": "module",
   "exports": "./dist/index.js",

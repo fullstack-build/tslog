@@ -1,4 +1,4 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam } from "./BaseLogger";
+import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger";
 export { ISettingsParam, BaseLogger };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
@@ -12,7 +12,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
    * @param logLevelName  - Log level name e.g. silly
    * @param args          - Multiple log attributes that should be logged out.
    */
-  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj & ILogObjMeta {
+  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj & ILogObjMeta & ILogObj {
     return super.log(logLevelId, logLevelName, ...args);
   }
 

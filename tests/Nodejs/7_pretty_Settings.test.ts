@@ -144,13 +144,13 @@ describe("Pretty: Settings", () => {
     logger.log(1234, "testLevel", "Test");
     const yyyy = new Date().getFullYear();
     const dateMonth = new Date().getMonth();
-    const mm = dateMonth == null ? "--" : dateMonth < 10 ? "0" + (dateMonth + 1) : dateMonth + 1;
+    const mm = dateMonth == null ? "--" : dateMonth < 9 ? "0" + (dateMonth + 1) : dateMonth + 1;
     const dateDay = new Date().getDate();
-    const dd = dateDay == null ? "--" : dateDay < 10 ? "0" + (dateDay + 1) : dateDay + 1;
+    const dd = dateDay == null ? "--" : dateDay < 9 ? "0" + (dateDay + 1) : dateDay + 1;
     const dateHours = new Date().getHours();
-    const hh = dateHours == null ? "--" : dateHours < 10 ? "0" + dateHours : dateHours;
+    const hh = dateHours == null ? "--" : dateHours < 9 ? "0" + dateHours : dateHours;
     const dateMinutes = new Date().getMinutes();
-    const MM = dateMinutes == null ? "--" : dateMinutes < 10 ? "0" + dateMinutes : dateMinutes;
+    const MM = dateMinutes == null ? "--" : dateMinutes < 9 ? "0" + dateMinutes : dateMinutes;
     expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}**Test`);
   });
 });

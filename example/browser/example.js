@@ -3,15 +3,15 @@
     name: "example.js",
   };
 
-  const logger = new tslog.Logger({}, defaultLogObject);
+  const logger = new tslog.Logger({ type: "pretty" }, defaultLogObject);
 
-  logger.silly("silly huhu", { haha: true, password: "123456" }, ["SECRET"]);
-  logger.trace("trace huhu", { haha: true });
-  logger.debug("debug huhu", { haha: true });
-  logger.info("info huhu", { haha: true });
-  logger.warn("warn huhu", { haha: true });
-  logger.error("error huhu", { haha: true });
-  logger.fatal("fatal huhu", { haha: true });
+  logger.silly("silly foo", { bar: true, password: "123456" }, ["SECRET"]);
+  logger.trace("trace foo", { bar: true });
+  logger.debug("debug foo", { bar: true });
+  logger.info("info foo", { bar: true });
+  logger.warn("warn foo", { bar: true });
+  logger.error("error foo", { bar: true });
+  logger.fatal("fatal foo", { bar: true });
 
   logger.fatal({ onlyOne: true });
 
@@ -21,5 +21,7 @@
 
   const baseLogger = new tslog.BaseLogger({}, defaultLogObject);
 
-  baseLogger.log(0, "test", "test base logger", { haha: true, password: "123456" }, ["SECRET"]);
+  baseLogger.log(0, "test", "test base logger", { foo: true, password: "123456" }, ["SECRET"]);
+
+  logger.fatal("test error", new Error("test example.js"));
 })();

@@ -33,7 +33,26 @@ describe("Browser: JSON: Log level", () => {
     expect(consoleOutput).toContain('"logLevelId": 0');
     expect(consoleOutput).toContain('"logLevelName": "SILLY"');
     expect(consoleOutput).toContain('"path": {');
-    expect(consoleOutput).toContain('"filePath": "pptr",');
     expect(consoleOutput).toContain('"fileLine": "4"');
+  });
+
+  it("pretty", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty" });
+      logger.silly("Test");
+    });
+
+    expect(consoleOutput).toContain("Test");
+  });
+
+  it("pretty no styles", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.silly("Test");
+    });
+
+    expect(consoleOutput).toContain("Test");
   });
 });

@@ -1,6 +1,7 @@
 import "ts-jest";
 import { Logger } from "../../src";
 import { IMeta, InspectOptions } from "../../src/runtime/nodejs";
+import { ILogObjMeta, ISettings } from "../../src/interfaces";
 
 describe("Overwrites", () => {
   test("mask", (): void => {
@@ -88,12 +89,12 @@ describe("Overwrites", () => {
           result["meta"] = meta;
           return "_META_STRING_";
         },
-        formatLogObj: (maskedArgs: unknown[], prettyInspectOptions: InspectOptions) => {
-          result["log"] = { maskedArgs, prettyInspectOptions };
-          return "_LOG_STRING_";
+        formatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => {
+          result["log"] = { maskedArgs, settings };
+          return { args: ["_LOG_STRING_"], errors: ["_LOG_ERROR_STRING_"] };
         },
-        transportFormatted: (logMetaMarkup: string, logMarkup: string) => {
-          result["transport"] = { logMetaMarkup, logMarkup };
+        transportFormatted: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: unknown) => {
+          result["transport"] = { logMetaMarkup, logArgs, logErrors };
         },
       },
     });
@@ -106,7 +107,8 @@ describe("Overwrites", () => {
     expect(result?.meta?.logLevelId).toBe(3);
     expect(result?.meta?.logLevelName).toBe("INFO");
     expect(result?.transport?.logMetaMarkup).toBe("_META_STRING_");
-    expect(result?.transport?.logMarkup).toBe("_LOG_STRING_");
+    expect(result?.transport?.logArgs?.[0]).toBe("_LOG_STRING_");
+    expect(result?.transport?.logErrors?.[0]).toBe("_LOG_ERROR_STRING_");
   });
 
   test("transportJSON", (): void => {

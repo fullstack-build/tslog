@@ -8,4 +8,4 @@
 [![code style: prettier](https://img.shields.io/badge/code_style-prettier-ff69b4.svg?style=flat-square)](https://github.com/prettier/prettier)
 [![GitHub stars](https://img.shields.io/github/stars/fullstack-build/tslog.svg?style=social&label=Star)](https://github.com/fullstack-build/tslog)
 
-> Powerful, fast and expressive logging for Node.js
+> Powerful, fast and expressive logging for TypeScript and JavaScript

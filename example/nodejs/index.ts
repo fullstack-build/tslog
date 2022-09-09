@@ -8,13 +8,13 @@ const defaultLogObject: {
 
 const logger = new Logger({}, defaultLogObject);
 
-logger.silly("silly huhu", { haha: true, password: "123456" }, ["SECRET"]);
-logger.trace("trace huhu", { haha: true });
-logger.debug("debug huhu", { haha: true });
-logger.info("info huhu", { haha: true });
-logger.warn("warn huhu", { haha: true });
-logger.error("error huhu", { haha: true });
-logger.fatal("fatal huhu", { haha: true });
+logger.silly("silly foo", { bar: true, password: "123456" }, ["SECRET"]);
+logger.trace("trace foo", { bar: true });
+logger.debug("debug foo", { bar: true });
+logger.info("info foo", { bar: true });
+logger.warn("warn foo", { bar: true });
+logger.error("error foo", { bar: true });
+logger.fatal("fatal foo", { bar: true });
 
 logger.fatal({ onlyOne: true });
 

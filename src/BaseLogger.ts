@@ -1,6 +1,6 @@
-import { getMeta, transportFormatted, transportJSON, prettyFormatLogObj, IMeta } from "./runtime/nodejs";
-import { prettyLogStyles } from "./prettyLogStyles";
-import { TStyle, ISettingsParam, ISettings, ILogObjMeta } from "./interfaces";
+import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError } from "./runtime/nodejs";
+import { formatTemplate } from "./formatTemplate";
+import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces";
 export * from "./interfaces";
 
 export class BaseLogger<LogObj> {
@@ -19,7 +19,9 @@ export class BaseLogger<LogObj> {
     this.settings = {
       type: settings?.type ?? "pretty",
       argumentsArrayName: settings?.argumentsArrayName,
-      prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePath}}]\n",
+      prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\n",
+      prettyErrorTemplate: settings?.prettyErrorTemplate ?? "{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
+      prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "• {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
       prettyLogStyles: settings?.prettyLogStyles ?? {
         logLevelName: {
@@ -33,7 +35,9 @@ export class BaseLogger<LogObj> {
           FATAL: ["bold", "redBright"],
         },
         dateIsoStr: "white",
-        filePath: "white",
+        filePathWithLine: "white",
+        errorName: ["bold", "bgRedBright", "whiteBright"],
+        fileName: ["yellow"],
       },
       metaProperty: settings?.metaProperty ?? "_meta",
       prettyInspectOptions: settings?.prettyInspectOptions ?? {
@@ -85,23 +89,23 @@ export class BaseLogger<LogObj> {
 
     // overwrite no matter what, should work for any type (pretty, json, ...)
     let logMetaMarkup;
-    let logMarkup;
+    let logArgsAndErrorsMarkup: { args: unknown[]; errors: string[] } | undefined = undefined;
     if (this.settings.overwrite?.formatMeta != null) {
       logMetaMarkup = this.settings.overwrite?.formatMeta(logObjWithMeta?.[this.settings.metaProperty]);
     }
     if (this.settings.overwrite?.formatLogObj != null) {
-      logMarkup = this.settings.overwrite?.formatLogObj(maskedArgs, this.settings.prettyInspectOptions);
+      logArgsAndErrorsMarkup = this.settings.overwrite?.formatLogObj(maskedArgs, this.settings);
     }
 
     if (this.settings.type === "pretty") {
       logMetaMarkup = this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
-      logMarkup = prettyFormatLogObj(maskedArgs, this.settings.prettyInspectOptions);
+      logArgsAndErrorsMarkup = prettyFormatLogObj(maskedArgs, this.settings);
     }
 
-    if (logMetaMarkup != null && logMarkup != null) {
+    if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {
       this.settings.overwrite?.transportFormatted != null
-        ? this.settings.overwrite?.transportFormatted(logMetaMarkup, logMarkup)
-        : transportFormatted(logMetaMarkup, logMarkup);
+        ? this.settings.overwrite?.transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings)
+        : transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings);
     } else {
       // overwrite transport no matter what, hide only with default transport
       this.settings.overwrite?.transportJSON != null
@@ -139,7 +143,7 @@ export class BaseLogger<LogObj> {
     const subLoggerSettings: ISettings<LogObj> = {
       ...this.settings,
       ...settings,
-      // merge alle prefixes instead of overwriting them
+      // merge all prefixes instead of overwriting them
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
 
@@ -184,6 +188,8 @@ export class BaseLogger<LogObj> {
 
   private _toLogObj(args: unknown[]): LogObj {
     let thisLogObj: LogObj = this.logObj != null ? structuredClone(this.logObj) : {};
+    args = args?.map((arg) => (isError(arg) ? this._toErrorObject(arg as Error) : arg));
+
     if (this.settings.argumentsArrayName == null) {
       if (args.length === 1) {
         thisLogObj = typeof args[0] === "object" ? { ...args[0], ...thisLogObj } : { 0: args[0], ...thisLogObj };
@@ -199,7 +205,16 @@ export class BaseLogger<LogObj> {
     return thisLogObj;
   }
 
-  private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta {
+  private _toErrorObject(error: Error): IErrorObject {
+    return {
+      nativeError: error,
+      name: error.name ?? "Error",
+      message: error.message,
+      stack: getErrorTrace(error),
+    };
+  }
+
+  private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
     return {
       ...logObj,
       [this.settings.metaProperty]: getMeta(logLevelId, logLevelName, this.stackDepthLevel),
@@ -211,7 +226,7 @@ export class BaseLogger<LogObj> {
       return "";
     }
 
-    let template = String(this.settings.prettyLogTemplate);
+    let template = this.settings.prettyLogTemplate;
 
     const placeholderValues = {};
 
@@ -229,31 +244,10 @@ export class BaseLogger<LogObj> {
       placeholderValues["ms"] = this.addMissingZeros(logObjMeta?.date?.getMilliseconds(), 3);
     }
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
-    placeholderValues["filePath"] = logObjMeta?.path?.filePath + ":" + logObjMeta?.path?.fileLine;
+    placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
 
-    const ansiColorWrap = (placeholderValue: string, code: [number, number]) => `\u001b[${code[0]}m${placeholderValue}\u001b[${code[1]}m`;
-
-    const styleWrap: (value: string, style: TStyle) => string = (value: string, style: TStyle) => {
-      if (style != null && typeof style === "string") {
-        return ansiColorWrap(value, prettyLogStyles[style]);
-      } else if (style != null && Array.isArray(style)) {
-        return style.reduce((prevValue: string, thisStyle: string) => styleWrap(prevValue, thisStyle), value);
-      } else {
-        if (style != null && style[value.trim()] != null) {
-          return styleWrap(value, style[value.trim()]);
-        } else if (style != null && style["*"] != null) {
-          return styleWrap(value, style["*"]);
-        } else {
-          return value;
-        }
-      }
-    };
-
-    return template.replace(/{{(.+?)}}/g, (_, placeholder) => {
-      const value = placeholderValues[placeholder] != null ? placeholderValues[placeholder] : _;
-      return this.settings.stylePrettyLogs ? styleWrap(value, this.settings?.prettyLogStyles?.[placeholder]) + ansiColorWrap("", prettyLogStyles.reset) : value;
-    });
+    return formatTemplate(this.settings, template, placeholderValues);
   }
 
   private addMissingZeros(value: number, digits = 2, addNumber = 0) {
