@@ -68,13 +68,28 @@ jspm_packages/
 /benchmarks/
 
 # Ignore Tests
-/tests/
+/tests/*
 
 # Ignore Docs
-/docs/
+/docs/*
 
 # Ignore Examples
-/examples/
+/examples/*
 
 # Ignore Git hooks
-/git-hooks/
+/git-hooks/*
+
+# Ignore husky
+/.husky/*
+
+# Ignore GitHub
+/.github/*
+
+# Ignore other config files
+.editorconfig
+ jest-preset.cjs
+jest-puppeteer.config.cjs
+build.js
+typedoc.js
+.eslintrc.json
+tsconfig*
