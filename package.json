@@ -20,14 +20,14 @@
     "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts"
   },
   "type": "module",
-  "exports": "./dist/index.js",
+  "exports": "./dist/nodejs/index.js",
   "scripts": {
     "build": "npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
     "build-server": "tsc -b tsconfig.src.json tsconfig.example.json",
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/example/nodejs/index.js",
-    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
-    "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/example/nodejs/index.js",
+    "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
+    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
+    "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
