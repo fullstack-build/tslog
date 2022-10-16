@@ -62,6 +62,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@jest/types": "^28.1.3",
     "@types/expect-puppeteer": "^5.0.1",
     "@types/jest": "^29.0.0",
     "@types/jest-environment-puppeteer": "^5.0.2",
