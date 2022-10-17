@@ -35,6 +35,27 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain("Test");
   });
 
+  test("Don't mask", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      maskValuesOfKeys: [],
+    });
+    logger.log(1234, "testLevel", {
+      password: "pass123",
+      otherKey: "otherKey456",
+      nested: {
+        moviePassword: "swordfish",
+      },
+    });
+
+    expect(getConsoleLog()).toContain("password:");
+    expect(getConsoleLog()).toContain("pass123");
+    expect(getConsoleLog()).toContain("otherKey:");
+    expect(getConsoleLog()).toContain("otherKey456");
+    expect(getConsoleLog()).toContain("moviePassword:");
+    expect(getConsoleLog()).toContain("swordfish");
+  });
+
   test("maskValuesOfKeys not set", (): void => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", {
