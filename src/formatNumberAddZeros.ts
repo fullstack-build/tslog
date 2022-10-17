@@ -1,5 +1,5 @@
 export function formatNumberAddZeros(value: number, digits = 2, addNumber = 0): string {
-  if (isNaN(value)) {
+  if (value != null && isNaN(value)) {
     return "";
   }
   value = value != null ? value + addNumber : value;

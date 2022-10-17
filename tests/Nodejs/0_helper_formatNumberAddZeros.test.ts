@@ -7,6 +7,11 @@ describe("Format Number: Add missing Zeros", () => {
     expect(result).toBe("");
   });
 
+  test("null, 2", (): void => {
+    const result = formatNumberAddZeros(undefined as unknown as number, 2);
+    expect(result).toBe("--");
+  });
+
   test("0, 2", (): void => {
     const result = formatNumberAddZeros(0, 2);
     expect(result).toBe("00");
@@ -35,6 +40,16 @@ describe("Format Number: Add missing Zeros", () => {
   test("100, 2", (): void => {
     const result = formatNumberAddZeros(100, 2);
     expect(result).toBe("100");
+  });
+
+  test("abc, 2", (): void => {
+    const result = formatNumberAddZeros("abc" as unknown as number, 2);
+    expect(result).toBe("");
+  });
+
+  test("null, 3", (): void => {
+    const result = formatNumberAddZeros(undefined as unknown as number, 3);
+    expect(result).toBe("---");
   });
 
   test("0, 3", (): void => {
