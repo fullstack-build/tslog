@@ -1,5 +1,6 @@
 import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError } from "./runtime/nodejs";
 import { formatTemplate } from "./formatTemplate";
+import { formatNumberAddZeros } from "./formatNumberAddZeros";
 import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces";
 export * from "./interfaces";
 
@@ -236,35 +237,18 @@ export class BaseLogger<LogObj> {
       placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     } else {
       placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
-      placeholderValues["mm"] = this.addMissingZeros(logObjMeta?.date?.getMonth(), 2, 1);
-      placeholderValues["dd"] = this.addMissingZeros(logObjMeta?.date?.getDate(), 2, 1);
-      placeholderValues["hh"] = this.addMissingZeros(logObjMeta?.date?.getHours(), 2);
-      placeholderValues["MM"] = this.addMissingZeros(logObjMeta?.date?.getMinutes(), 2);
-      placeholderValues["ss"] = this.addMissingZeros(logObjMeta?.date?.getSeconds(), 2);
-      placeholderValues["ms"] = this.addMissingZeros(logObjMeta?.date?.getMilliseconds(), 3);
+      placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
+      placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getDate(), 2, 1);
+      placeholderValues["hh"] = formatNumberAddZeros(logObjMeta?.date?.getHours(), 2);
+      placeholderValues["MM"] = formatNumberAddZeros(logObjMeta?.date?.getMinutes(), 2);
+      placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);
+      placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
     }
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
 
     return formatTemplate(this.settings, template, placeholderValues);
-  }
-
-  private addMissingZeros(value: number, digits = 2, addNumber = 0) {
-    value = value != null ? value + addNumber : value;
-    return digits === 2
-      ? value == null
-        ? "--"
-        : value < 10
-        ? "0" + value
-        : value
-      : value == null
-      ? "---"
-      : value < 10
-      ? "00" + value
-      : value < 100
-      ? "0" + value
-      : value;
   }
 }
 
