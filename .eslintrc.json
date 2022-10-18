@@ -11,7 +11,7 @@
     "sourceType": "module"
   },
   "plugins": ["@typescript-eslint"],
-  "ignorePatterns": ["dist/*", "*/dist/*", "/examples/browser/*", "tests/*", "*/tests/*", "build.js"],
+  "ignorePatterns": ["dist/*", "*/dist/*", "/examples/*", "tests/*", "*/tests/*", "build.js"],
   "rules": {
     "linebreak-style": ["error", "unix"],
     "quotes": ["error", "double"],

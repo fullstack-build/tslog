@@ -27,6 +27,7 @@
     "build-server": "tsc -b tsconfig.src.json tsconfig.example.json",
     "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
     "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
+    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/old_example.ts",
     "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",

@@ -161,10 +161,14 @@ export class BaseLogger<LogObj> {
     });
   }
 
-  private _maskValuesOfKeysRecursive<T>(obj: T, keys: (number | string)[]): T {
+  private _maskValuesOfKeysRecursive<T>(obj: T, keys: (number | string)[], seen: unknown[] = []): T {
     if (typeof obj !== "object" || obj == null) {
       return obj;
     }
+    if (seen.includes(obj)) {
+      return obj;
+    }
+    seen.push(obj);
 
     Object.keys(obj).map((key) => {
       const thisKey = this.settings.maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
@@ -180,7 +184,7 @@ export class BaseLogger<LogObj> {
       }
 
       if (typeof obj[key] === "object" && obj[key] !== null) {
-        this._maskValuesOfKeysRecursive(obj[key], keys);
+        this._maskValuesOfKeysRecursive(obj[key], keys, seen);
       }
     });
 

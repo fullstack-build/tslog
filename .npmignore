@@ -93,3 +93,6 @@ build.js
 typedoc.js
 .eslintrc.json
 tsconfig*
+
+# Ignore map files in npm
+*.js.map
