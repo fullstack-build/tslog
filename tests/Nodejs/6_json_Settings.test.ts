@@ -24,6 +24,19 @@ describe("JSON: Settings", () => {
     expect(getConsoleLog()).toContain('"_meta": {');
   });
 
+  test("minLevel", (): void => {
+    const logger = new Logger({
+      type: "json",
+      minLevel: 1,
+    });
+    const hiddenLog = logger.log(0, "testLevel", "hidden");
+    const visibleLog = logger.log(1, "testLevel", "visible");
+    expect(hiddenLog).toBeUndefined();
+    expect(visibleLog).toBeDefined();
+    expect(getConsoleLog()).not.toContain(`hidden`);
+    expect(getConsoleLog()).toContain(`visible`);
+  });
+
   test("argumentsArray", (): void => {
     const logger = new Logger({
       type: "json",

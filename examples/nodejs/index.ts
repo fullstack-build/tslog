@@ -1,46 +1,102 @@
-import { Logger, BaseLogger } from "../../src";
+import { Logger } from "../../src";
 
-const defaultLogObject: {
-  name: string;
-} = {
-  name: "test",
-};
+class MyClass {
+  private readonly _logger = new Logger({
+    type: "pretty",
+  });
 
-const logger = new Logger({}, defaultLogObject);
+  public constructor() {
+    this._logger.silly("I am a silly log.");
+  }
 
-logger.silly("silly foo", { bar: true, password: "123456" }, ["SECRET"]);
-logger.trace("trace foo", { bar: true });
-logger.debug("debug foo", { bar: true });
-logger.info("info foo", { bar: true });
-logger.warn("warn foo", { bar: true });
-logger.error("error foo", { bar: true });
-logger.fatal("fatal foo", { bar: true });
+  public myMethod(): void {
+    const jsonObj: any = {
+      name: "John Doe",
+      age: 30,
+      cars: {
+        car1: "Audi",
+        car2: "BMW",
+        car3: "Tesla",
+      },
+      obj: undefined,
+    };
+    jsonObj.obj = jsonObj;
 
-logger.fatal({ onlyOne: true });
+    this._logger.debug("I am a debug log.");
+    this._logger.info("I am an info log.");
+    this._logger.warn("I am a warn log with a json object:", jsonObj);
+    this._logger.error("I am an error log.");
+    try {
+      /* @ts-ignore */
+      null.foo();
+    } catch (err) {
+      this._logger.fatal(err);
+    }
+  }
+}
 
-logger.fatal("test1 %s test3", "test2");
+const myClass: MyClass = new MyClass();
+myClass.myMethod();
 
-console.log("###############");
+const log = new Logger({});
+log.silly("I am a silly log.");
+// log.trace("I am a trace log with a stack trace.");
+log.debug("I am a debug log.");
+log.info("I am an info log.");
+log.warn("I am a warn log with a json object:", { foo: "bar" });
+log.error("I am an error log.");
+log.fatal(new Error("I am a pretty Error with a stacktrace."));
 
-const baseLogger = new BaseLogger({}, defaultLogObject);
+/*
+ * Circular example
+ * */
+function Foo() {
+  /* @ts-ignore */
+  this.abc = "Hello";
+  /* @ts-ignore */
+  this.circular = this;
+}
+/* @ts-ignore */
+const foo = new Foo();
+const logMessage = log.debug(foo);
+console.log("JSON.stringify circular log message", logMessage);
 
-baseLogger.log(0, "test", "test base logger", { haha: true, password: "123456" }, ["SECRET"]);
+/* Child Logger Example */
 
-console.log("###############");
-
-const jsonLogger = new Logger({ type: "json" });
-jsonLogger.silly("test");
-jsonLogger.silly("test1", "test2");
-
-console.log("---------");
-
-jsonLogger.silly({ testObject: true });
-
-console.log("---------");
-
-const jsonLoggerArgumentsArray = new Logger({
-  type: "json",
-  argumentsArrayName: "argumentsArray",
+const mainLogger = new Logger({
+  prefix: ["main"],
 });
-jsonLoggerArgumentsArray.silly("test");
-jsonLoggerArgumentsArray.silly("test1", "test2");
+mainLogger.info("MainLogger initiated");
+
+const childLogger1 = mainLogger.getSubLogger({
+  prefix: ["child1"],
+});
+childLogger1.info("ChildLogger1 initiated");
+
+const childLogger1_1 = childLogger1.getSubLogger({
+  prefix: ["child1-1"],
+});
+childLogger1_1.info("ChildLogger1-1 initiated");
+childLogger1_1.silly("ChildLogger1-1 silly 1");
+childLogger1_1.silly("ChildLogger1-1 silly 2");
+childLogger1_1.silly("ChildLogger1-1 silly 3");
+
+childLogger1_1.silly("ChildLogger1-1 silly 4");
+childLogger1_1.silly("ChildLogger1-1 silly 5");
+
+childLogger1_1.silly("ChildLogger1-1 silly 6");
+childLogger1_1.debug("ChildLogger1-1 debug finish");
+const yetAnotherLogger = childLogger1_1.getSubLogger();
+yetAnotherLogger.info("Yet another Logger with a name function");
+
+/** Example: Hide Secrets */
+let verySecretiveObject = {
+  password: "swordfish",
+  Authorization: 1234567,
+  stringPwd: "swordfish",
+  nested: {
+    regularString: "I am just a regular string.",
+    otherString: "pass1234.567",
+  },
+};
+verySecretiveObject.nested["circular"] = verySecretiveObject;

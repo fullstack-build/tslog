@@ -19,10 +19,11 @@ export class BaseLogger<LogObj> {
 
     this.settings = {
       type: settings?.type ?? "pretty",
+      minLevel: settings?.minLevel ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
-      prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\n",
-      prettyErrorTemplate: settings?.prettyErrorTemplate ?? "{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
-      prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "• {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+      prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
+      prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\n\nerror stack:\n{{errorStack}}",
+      prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
       prettyLogStyles: settings?.prettyLogStyles ?? {
         logLevelName: {
@@ -72,9 +73,12 @@ export class BaseLogger<LogObj> {
    * @param logLevelId    - Log level ID e.g. 0
    * @param logLevelName  - Log level name e.g. silly
    * @param args          - Multiple log attributes that should be logged out.
-   * @return LogObject with meta property
+   * @return LogObject with meta property, when log level is >= minLevel
    */
-  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): LogObj & ILogObjMeta {
+  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
+    if (logLevelId < this.settings.minLevel) {
+      return;
+    }
     const logArgs = [...this.settings.prefix, ...args];
     const maskedArgs: unknown[] =
       this.settings.overwrite?.mask != null
@@ -129,7 +133,6 @@ export class BaseLogger<LogObj> {
    *  Attaches external Loggers, e.g. external log services, file system, database
    *
    * @param transportLogger - External logger to be attached. Must implement all log methods.
-   * @param minLevel        - Minimum log level to be forwarded to this attached transport logger. (e.g. debug)
    */
   public attachTransport(transportLogger: (transportLogger: LogObj & ILogObjMeta) => void): void {
     this.settings.attachedTransports.push(transportLogger);

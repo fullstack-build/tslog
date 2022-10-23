@@ -11,7 +11,7 @@ describe("Pretty: Settings", () => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain("testLevel");
-    expect(getConsoleLog()).toContain("]\nTest");
+    expect(getConsoleLog()).toContain("]\tTest");
   });
 
   test("two strings", (): void => {

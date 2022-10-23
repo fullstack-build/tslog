@@ -10,6 +10,7 @@ export type TStyle =
 
 export interface ISettingsParam<LogObj> {
   type?: "json" | "pretty" | "hidden";
+  minLevel?: number;
   argumentsArrayName?: string;
   prettyLogTemplate?: string;
   prettyErrorTemplate?: string;
@@ -52,6 +53,7 @@ export interface ISettingsParam<LogObj> {
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   type: "json" | "pretty" | "hidden";
+  minLevel: number;
   argumentsArrayName?: string;
   prettyLogTemplate: string;
   prettyErrorTemplate: string;

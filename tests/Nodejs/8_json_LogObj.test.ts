@@ -17,7 +17,7 @@ describe("JSON: LogObj", () => {
     };
     const logger = new BaseLogger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.log(1234, "testLevel", "Test");
-    expect(logMsg.name).toContain(defaultLogObject.name);
+    expect(logMsg?.name).toContain(defaultLogObject.name);
     expect(getConsoleLog()).toContain(`"name": "test",`);
     expect(getConsoleLog()).toContain(`"0": "Test",`);
   });
@@ -28,7 +28,7 @@ describe("JSON: LogObj", () => {
     };
     const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.log(1234, "testLevel", "Test");
-    expect(logMsg.name).toContain(defaultLogObject.name);
+    expect(logMsg?.name).toContain(defaultLogObject.name);
     expect(getConsoleLog()).toContain(`"name": "test",`);
     expect(getConsoleLog()).toContain(`"0": "Test",`);
   });
@@ -39,7 +39,7 @@ describe("JSON: LogObj", () => {
     };
     const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.silly("Test");
-    expect(logMsg.name).toContain(defaultLogObject.name);
+    expect(logMsg?.name).toContain(defaultLogObject.name);
     expect(getConsoleLog()).toContain(`"name": "test",`);
     expect(getConsoleLog()).toContain(`"0": "Test",`);
   });

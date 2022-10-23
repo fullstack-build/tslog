@@ -24,17 +24,19 @@
   "scripts": {
     "build": "npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
-    "build-server": "tsc -b tsconfig.src.json tsconfig.example.json",
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
-    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
-    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/old_example.ts",
-    "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index.js",
+    "build-server": "tsc -b tsconfig.src.json",
+    "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index2.js",
+    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
+    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
+    "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index2.js",
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
     "test-puppeteer-serve": "npm run build-browser && node tests/Browser/server/index.cjs -p 4444",
     "coverage": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest --coverage",
-    "typedoc": "typedoc",
+    "docsify-init": "docsify init ./docs",
+    "docsify-serve": "cd docs && docsify serve",
+    "pre-publish": "npm run build",
     "release": "np --any-branch"
   },
   "engines": {
@@ -70,6 +72,7 @@
     "@types/puppeteer": "^5.4.6",
     "@typescript-eslint/eslint-plugin": "^5.36.1",
     "@typescript-eslint/parser": "^5.36.1",
+    "docsify": "^4.11.4",
     "esbuild": "^0.15.5",
     "eslint": "^8.23.0",
     "eslint-config-prettier": "^8.5.0",
@@ -82,7 +85,6 @@
     "puppeteer": "^17.1.0",
     "ts-jest": "^28.0.8",
     "ts-node": "^10.9.1",
-    "typedoc": "^0.23.14",
     "typescript": "^4.7.4"
   },
   "sideEffects": false,
@@ -118,8 +120,5 @@
     "pretty json",
     "pretty-error",
     "sourcemap"
-  ],
-  "dependencies": {
-    "npm": "^8.19.2"
-  }
+  ]
 }

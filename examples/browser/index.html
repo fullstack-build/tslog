@@ -9,41 +9,66 @@
 
 <script src="../../dist/browser/index.js"></script>
 <script>
-    const defaultLogObject = {
-        name: "test"
-    };
+  class MyClass {
+    _logger = new tslog.Logger({
+      type: "pretty",
+    });
 
-    const logger = new tslog.Logger({}, defaultLogObject);
+    constructor() {
+      this._logger.silly("I am a silly log.");
+    }
 
-    logger.silly("silly foo", { bar: true, password: "123456" }, ["SECRET"]);
-    logger.trace("trace foo", { bar: true });
-    logger.debug("debug foo", { bar: true });
-    logger.info("info foo", { bar: true });
-    logger.warn("warn foo", { bar: true });
-    logger.error("error foo", { bar: true });
-    logger.fatal("fatal foo", { bar: true });
+    myMethod() {
+      const jsonObj = {
+        name: "John Doe",
+        age: 30,
+        cars: {
+          car1: "Audi",
+          car2: "BMW",
+          car3: "Tesla",
+        },
+        obj: undefined,
+      };
+      jsonObj.obj = jsonObj;
 
+      this._logger.debug("I am a debug log.");
+      this._logger.info("I am an info log.");
+      this._logger.warn("I am a warn log with a json object:", jsonObj);
+      this._logger.error("I am an error log.");
+      try {
+        /* @ts-ignore */
+        null.foo();
+      } catch (err) {
+        this._logger.fatal(err);
+      }
+    }
+  }
 
-    logger.fatal({ "onlyOne": true});
+  const myClass = new MyClass();
+  myClass.myMethod();
 
+  const log = new tslog.Logger({});
+  log.silly("I am a silly log.");
+  // log.trace("I am a trace log with a stack trace.");
+  log.debug("I am a debug log.");
+  log.info("I am an info log.");
+  log.warn("I am a warn log with a json object:", { foo: "bar" });
+  log.error("I am an error log.");
+  log.fatal(new Error("I am a pretty Error with a stacktrace."));
 
-    console.log('###############');
-
-    const baseLogger = new tslog.BaseLogger({}, defaultLogObject);
-
-    baseLogger.log(0, "test", "test base logger", { "haha": true, "password": "123456"}, ["SECRET"]);
-
-
-    console.log("####### Error: ########");
-
-    logger.fatal("test1", "test2", "test3");
-
-    logger.fatal("test1 %s test3", "test2");
-
-    logger.fatal(new Error("test"));
-
-    logger.fatal("test", new Error("test"));
-
+  /*
+   * Circular example
+   * */
+  function Foo() {
+    /* @ts-ignore */
+    this.abc = "Hello";
+    /* @ts-ignore */
+    this.circular = this;
+  }
+  /* @ts-ignore */
+  const foo = new Foo();
+  const logMessage = log.debug(foo);
+  console.log("JSON.stringify circular log message", logMessage);
 
 </script>
 <script src="example.js"></script>
