@@ -17,10 +17,10 @@
 
 ⚡ **fast and powerful**<br>
 🪶 **Lightweight and flexible**<br>
+🏗 **Isomorphic: Works in Browsers and Node.js**<br>
 👮‍️ **Fully typed with TypeScript support (native source maps)**<br>
 🗃 **_Pretty_ or `{} JSON` output**<br>
-📝 **Customizable log level**
-🏗 **Works in Browsers and Node.js**<br>
+📝 **Customizable log level**<br>
 ⭕️ **Supports _circular_ structures**<br>
 🦸 **Custom pluggable loggers**<br>
 💅 **Object and error interpolation**<br>
@@ -94,7 +94,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 - **Isomorphic:** Works in browsers and Node.js
 - **Tested:** 100% code coverage, CI
 - **Super customizable** Every aspect can be overwritten
-- **Fully typed:** Written in TypeScript, fully typed, <a href="https://github.com/microsoft/tsdoc" target="_blank">_TSDoc_</a> documented with native TypeScript support
+- **Fully typed:** Written in TypeScript, with native TypeScript support
 - **Default log level:** `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` (different colors)
 - **Customizable log level:** BaseLogger with configurable log level
 - **Pretty & JSON output:** Structured/_pretty_, `JSON` or suppressed output
@@ -115,9 +115,9 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 
 Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every steps can be overwritten and adjusted.  
 
-![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_lifecycle.png "tslog: life cycle of a log message")
+![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_lifesycle.png "tslog: life cycle of a log message")
 
-- **log message** Log message comes in through the BaseLogger.log() method
+- **log message** Log message comes in through the `BaseLogger.log()` method
 - **mask** If masking is configured, log message gets recursively masked
 - **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object will be merged.) Are there more than one, they will be pu into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.  
 - **addMetaToLogObj** Additional meta information, like the source code position of the log will be gathered and added to the `_meta` property or any other one configured with the setting `metaProperty`.
@@ -180,7 +180,6 @@ A `settings` object is the first parameter passed to the `tslog` constructor:
 const logger = new Logger<ILogObj>({ /* SETTINGS */ }, defaultLogObject);
 ```
 
-
 #### Type: pretty, json, hidden
 
 - `pretty` **Default setting** prints out a formatted structured "pretty" log entry. 
@@ -199,8 +198,106 @@ const jsonLogger = new Logger({type: "json"});
 
 // also pretty
 const hiddenLogger = new Logger({type: "hidden"});
+```
+
+#### minLevel
+
+You can ignore every log message from being processed until a certain severity.
+Default severities are:
+`0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
+
+```typescript
+
+const suppressSilly = new Logger({minLevel: 1 });
+suppressSilly.silly("Will be hidden");
+suppressSilly.trace("Will be visible");
+```
+
+#### argumentsArrayName
+
+`tslog` < 4 wrote all parameters into an arguments array. In `tslog` >= 4 the main object becomes home for all log parameters, and they get merged with the default `logObj`. 
+If you still want to put them into a separated parameter, you can do so by defining the `argumentsArrayName`.
+
+```typescript
+
+const logger = new Logger({
+  type: "json",
+  argumentsArrayName: "argumentsArray",
+});
+const logMsg = logger.silly("Test1", "Test2");
+
+//logMsg : {
+// argumentsArray: [ 'Test1', 'Test2' ],
+//   _meta: {
+//       [...]
+//     }
+//   }
+// }
 
 ```
+
+#### Pretty templates and styles (color settings)
+Enables you to overwrite the looks of a formatted _"pretty"_ log message by providing a template string.
+Following settings are available for styling:
+
+- **Templates:**
+  - `prettyLogTemplate: template string for logs message. Possible placeholder: 
+    - `{{yyyy}}`: year
+    - `{{mm}}`: month
+    - `{{dd}}`: day
+    - `{{hh}}`: hour
+    - `{{MM}}`: minute
+    - `{{ss}}`: seconds
+    - `{{ms}}`: milliseconds
+    - `{{dateIsoStr}}`: Shortcut for `{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}`
+    - `{{logLevelName}}`: name of the log level
+    - `{{fullFilePath}}`: a full path starting from `/` root
+    - `{{filePathWithLine}}`: a full path below the project path with line number
+  - `prettyErrorTemplate`: template string for error message. Possible placeholder:
+    - `{{errorName}}`: name of the error
+    - `{{errorMessage}}`: error message
+    - `{{errorStack}}`: Placeholder for all stack lines defined by `prettyErrorStackTemplate` 
+  - `prettyErrorStackTemplate`: template string for error stack trace lines. Possible placeholder:
+    - `{{fileName}}`: name of the file
+    - `{{filePathWithLine}}`: a full path below the project path with line number
+    - `{{method}}`: _optional_ name of the invoking method
+  - `prettyInspectOptions`: 
+  
+- **Styling:**
+  - `stylePrettyLogs`: defines whether logs should be styled and colorized
+  - `prettyLogStyles`: provides colors and styles for different placeholders and can also be dependent on the value (e.g. log level)
+    - Level 1: template placeholder (defines a style for a certain template placeholder, s. above, without brackets).
+    - Level 2: Either a string with one style (e.g. `white`), or an array of styles (e.g. `["bold", "white"]`), or a nested object with key being a value.  
+    - Level 3: Optional nested style based on placeholder values. Key is the value of the template placeholder and value is either a string of a style, or an array of styles (s. above), e.g. `{ SILLY: ["bold", "white"] }` which means: value "SILLY" should get a style of "bold" and "white". `*` means any value other than the defined. 
+  
+```typescript
+
+const logger = new Logger({
+  prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
+  prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\n\nerror stack:\n{{errorStack}}",
+  prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+  stylePrettyLogs: true,
+  prettyLogStyles: {
+    logLevelName: {
+      "*": ["bold", "black", "bgWhiteBright", "dim"],
+      SILLY: ["bold", "white"],
+      TRACE: ["bold", "whiteBright"],
+      DEBUG: ["bold", "green"],
+      INFO: ["bold", "blue"],
+      WARN: ["bold", "yellow"],
+      ERROR: ["bold", "red"],
+      FATAL: ["bold", "redBright"],
+    },
+    dateIsoStr: "white",
+    filePathWithLine: "white",
+    errorName: ["bold", "bgRedBright", "whiteBright"],
+    fileName: ["yellow"],
+  },
+});
+
+```
+
+#### Pretty templates and styles (color settings)
 
 ### Defining and accessing `logObj`
 As described in "Lifecycle of a log message", every log message goes through some lifecycle steps and becomes an object representation of the log with the name `logObj`.
