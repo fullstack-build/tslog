@@ -2,31 +2,20 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "compileOnSave": false,
   "compilerOptions": {
-    "lib": [
-      "es2019",
-      "esnext.bigint",
-      "es2020.string",
-      "es2020.symbol.wellknown",
-      "es2020.intl"
-    ],
-    "target": "es2019",
-    "module": "commonjs",
-    "types": ["jest", "node"],
-    "moduleResolution": "node",
+    "lib": ["es2020", "dom"],
+    "target": "es2020",
+    "module": "ES2020",
+    "types": ["node", "jest", "puppeteer", "jest-environment-puppeteer", "expect-puppeteer"],
+    "moduleResolution": "Node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "sourceMap": true,
     "strict": true,
+    "skipLibCheck": true,
     "suppressImplicitAnyIndexErrors": true,
     "allowSyntheticDefaultImports": true,
-    "outDir": "dist/cjs"
+    "removeComments": false,
+    "declaration": true
   },
-  "include": ["src/*.ts", "src/**/*.ts"],
-  "exclude": [
-    "node_modules",
-    "**/node_modules",
-    "**/dist",
-    "**/test",
-    "*.test.ts"
-  ]
+  "exclude": ["node_modules", "**/node_modules", "**/dist", "**/test", "*.test.ts", "examples"]
 }

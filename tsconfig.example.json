@@ -1,0 +1,8 @@
+{
+  "$schema": "http://json.schemastore.org/tsconfig",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "examples/dist"
+  },
+  "include": ["examples/nodejs/*.ts"]
+}
