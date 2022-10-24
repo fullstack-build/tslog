@@ -29,8 +29,8 @@ export interface ISettingsParam<LogObj> {
     filePath?: TStyle;
     fileLine?: TStyle;
   };
-  metaProperty?: string;
   prettyInspectOptions?: InspectOptions;
+  metaProperty?: string;
   maskPlaceholder?: string;
   maskValuesOfKeys?: string[];
   maskValuesOfKeysCaseInsensitive?: boolean;
@@ -76,8 +76,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     errorName?: TStyle;
     errorMessage?: TStyle;
   };
-  metaProperty: string;
   prettyInspectOptions: InspectOptions;
+  metaProperty: string;
   maskPlaceholder: string;
   maskValuesOfKeys: string[];
   maskValuesOfKeysCaseInsensitive: boolean;

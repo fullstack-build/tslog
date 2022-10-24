@@ -41,12 +41,12 @@ export class BaseLogger<LogObj> {
         errorName: ["bold", "bgRedBright", "whiteBright"],
         fileName: ["yellow"],
       },
-      metaProperty: settings?.metaProperty ?? "_meta",
       prettyInspectOptions: settings?.prettyInspectOptions ?? {
         colors: true,
         compact: false,
         depth: Infinity,
       },
+      metaProperty: settings?.metaProperty ?? "_meta",
       maskPlaceholder: settings?.maskPlaceholder ?? "[***]",
       maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
       maskValuesOfKeysCaseInsensitive: settings?.maskValuesOfKeysCaseInsensitive ?? false,
