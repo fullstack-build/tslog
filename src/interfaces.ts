@@ -34,6 +34,12 @@ export interface ISettingsParam<LogObj> {
   maskPlaceholder?: string;
   maskValuesOfKeys?: string[];
   maskValuesOfKeysCaseInsensitive?: boolean;
+  /** Mask all occurrences (case-sensitive) from values in logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  maskValuesRegEx?: RegExp[];
+  /**  Prefix every log message of this logger. */
+  prefix?: unknown[];
+  /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
+  attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[]) => LogObj;
@@ -43,12 +49,6 @@ export interface ISettingsParam<LogObj> {
     transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
     transportJSON?: (json: unknown) => void;
   };
-  /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
-  attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
-  /**  Prefix every log message of this logger. */
-  prefix?: unknown[];
-  /** Mask all occurrences (case-sensitive) from values in logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
-  maskValuesRegEx?: RegExp[];
 }
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
@@ -81,8 +81,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   maskPlaceholder: string;
   maskValuesOfKeys: string[];
   maskValuesOfKeysCaseInsensitive: boolean;
-  attachedTransports: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   prefix: unknown[];
+  attachedTransports: ((transportLogger: LogObj & ILogObjMeta) => void)[];
 }
 
 export interface ILogObj {

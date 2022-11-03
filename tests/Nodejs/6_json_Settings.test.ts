@@ -56,10 +56,27 @@ describe("JSON: Settings", () => {
     expect(getConsoleLog()).toContain('"_test": {');
   });
 
+  test("maskValuesOfKeys and maskValuesRegEx empty", (): void => {
+    const logger = new Logger({ type: "pretty", maskValuesOfKeys: [], maskValuesRegEx: undefined });
+    logger.log(1234, "testLevel", {
+      password: "pass123",
+      null: null,
+      obj: {
+        foo: "bar",
+      },
+    });
+    expect(getConsoleLog()).not.toContain('"password": "[***]"');
+    expect(getConsoleLog()).toContain("pass123");
+  });
+
   test("maskValuesOfKeys not set", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", {
       password: "pass123",
+      null: null,
+      obj: {
+        foo: "bar",
+      },
     });
     expect(getConsoleLog()).toContain('"password": "[***]"');
     expect(getConsoleLog()).not.toContain("pass123");

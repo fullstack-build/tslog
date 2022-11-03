@@ -241,7 +241,7 @@ Enables you to overwrite the looks of a formatted _"pretty"_ log message by prov
 Following settings are available for styling:
 
 - **Templates:**
-  - `prettyLogTemplate: template string for logs message. Possible placeholder: 
+  - `prettyLogTemplate`: template string for logs message. Possible placeholder: 
     - `{{yyyy}}`: year
     - `{{mm}}`: month
     - `{{dd}}`: day
@@ -268,8 +268,15 @@ Following settings are available for styling:
   - `prettyLogStyles`: provides colors and styles for different placeholders and can also be dependent on the value (e.g. log level)
     - Level 1: template placeholder (defines a style for a certain template placeholder, s. above, without brackets).
     - Level 2: Either a string with one style (e.g. `white`), or an array of styles (e.g. `["bold", "white"]`), or a nested object with key being a value.  
-    - Level 3: Optional nested style based on placeholder values. Key is the value of the template placeholder and value is either a string of a style, or an array of styles (s. above), e.g. `{ SILLY: ["bold", "white"] }` which means: value "SILLY" should get a style of "bold" and "white". `*` means any value other than the defined. 
-  
+    - Level 3: Optional nested style based on placeholder values. Key is the value of the template placeholder and value is either a string of a style, or an array of styles (s. above), e.g. `{ SILLY: ["bold", "white"] }` which means: value "SILLY" should get a style of "bold" and "white". `*` means any value other than the defined.
+  - `prettyInspectOptions`: When a (potentially nested) object is printed out in Node.js, we use `util.formatWithOptions` under the hood. With `prettyInspectOptions` you can define the output. [Possible values](https://nodejs.org/api/util.html#utilinspectobject-showhidden-depth-colors)
+
+#### Log meta information
+`tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`. 
+You can define the property containing this meta information with `metaProperty`, which is "_meta" per default.
+
+#### Pretty templates and styles (color settings)
+
 ```typescript
 
 const logger = new Logger({
@@ -297,7 +304,21 @@ const logger = new Logger({
 
 ```
 
-#### Pretty templates and styles (color settings)
+#### Masking secrets in logs
+One of the most common ways of a password/secret breach is through log files.
+Given the central position of `tslog` as the collecting hub of all application logs, it's only natural to use it as a filter.
+There are multiple ways of masking secrets, before they get exposed:
+
+- `maskPlaceholder`: Placeholder to replaced masked secrets with, Default: `[***]`
+- `maskValuesOfKeys`: Array of keys to replace the values with the placeholder (`maskPlaceholder`). Default: `["password"]`
+- `maskValuesOfKeysCaseInsensitive`: Should the keys be matched case insensitive (e.g. "password" would replace "password" as well as "Password", and "PASSWORD"). Default: `false`
+- `maskValuesRegEx`: For even more flexibility, you can also replace strings and object values with a RegEx.
+
+#### Prefixing logs
+Prefix every log message with an array of additional attributes.<br>
+Prefixes propagate to sub loggers and can help to follow a chain of promises.<br>
+In addition to <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">`AsyncLocalStorage`</a>, prefixes can help further distinguish different parts of a request.
+
 
 ### Defining and accessing `logObj`
 As described in "Lifecycle of a log message", every log message goes through some lifecycle steps and becomes an object representation of the log with the name `logObj`.

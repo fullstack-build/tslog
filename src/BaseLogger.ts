@@ -51,6 +51,8 @@ export class BaseLogger<LogObj> {
       maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
       maskValuesOfKeysCaseInsensitive: settings?.maskValuesOfKeysCaseInsensitive ?? false,
       maskValuesRegEx: settings?.maskValuesRegEx,
+      prefix: [...(settings?.prefix ?? [])],
+      attachedTransports: [...(settings?.attachedTransports ?? [])],
       overwrite: {
         mask: settings?.overwrite?.mask,
         toLogObj: settings?.overwrite?.toLogObj,
@@ -60,8 +62,6 @@ export class BaseLogger<LogObj> {
         transportFormatted: settings?.overwrite?.transportFormatted,
         transportJSON: settings?.overwrite?.transportJSON,
       },
-      attachedTransports: [...(settings?.attachedTransports ?? [])],
-      prefix: [...(settings?.prefix ?? [])],
     };
 
     // style only for server and blink browsers
@@ -174,13 +174,11 @@ export class BaseLogger<LogObj> {
     seen.push(obj);
 
     Object.keys(obj).map((key) => {
-      const thisKey = this.settings.maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
+      const thisKey = this.settings?.maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
 
-      if (this.settings.maskValuesRegEx != null && this.settings.maskValuesRegEx.length > 0) {
-        this.settings.maskValuesRegEx.forEach((regEx) => {
-          obj[key] = obj[key].replace(regEx, this.settings.maskPlaceholder);
-        });
-      }
+      this.settings?.maskValuesRegEx?.forEach((regEx) => {
+        obj[key] = obj[key].replace(regEx, this.settings.maskPlaceholder);
+      });
 
       if (keys.includes(thisKey)) {
         obj[key] = this.settings.maskPlaceholder;

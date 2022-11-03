@@ -44,3 +44,31 @@ const jsonLoggerArgumentsArray = new Logger({
 });
 jsonLoggerArgumentsArray.silly("test");
 jsonLoggerArgumentsArray.silly("test1", "test2");
+
+const logger2 = new Logger({
+  prefix: ["main", "parent"],
+});
+logger.info("MainLogger message");
+// Output:
+// INFO   [MainLogger]   main  parent  MainLogger message
+
+const childLogger = logger2.getSubLogger({
+  prefix: ["child1"],
+});
+childLogger.info("child1 message");
+// Output:
+// INFO   [FirstChild]   main  parent  child1  child1 message
+
+const grandchildLogger: Logger = childLogger.getChildLogger({
+  name: "GrandChild",
+  prefix: ["grandchild1"],
+});
+grandchildLogger.silly("grandchild1 message");
+// Output:
+// INFO   [GrandChild]   main  parent  child1  grandchild1 grandchild1 message
+
+// change settings during runtime
+childLogger.setSettings({ prefix: ["renamedChild1"] });
+grandchildLogger.silly("grandchild1 second message");
+// Output:
+// INFO   [GrandChild]   main  parent  renamedChild1     grandchild1 second message
