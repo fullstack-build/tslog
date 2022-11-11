@@ -319,9 +319,167 @@ Prefix every log message with an array of additional attributes.<br>
 Prefixes propagate to sub loggers and can help to follow a chain of promises.<br>
 In addition to <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">`AsyncLocalStorage`</a>, prefixes can help further distinguish different parts of a request.
 
+> **Hint:** A good example could be a GraphQL request, that by design could consist of multiple queries and/or mutations.
+
+**Example:**
+
+```typescript
+const logger = new Logger({
+  prefix: ["main-prefix", "parent-prefix"],
+});
+logger.info("MainLogger message");
+// Output:
+// main-prefix parent-prefix MainLogger message
+
+const childLogger = logger.getSubLogger({
+  prefix: ["child1-prefix"],
+});
+childLogger.info("child1 message");
+// Output:
+// main-prefix parent-prefix MainLogger message
+
+const grandchildLogger = childLogger.getSubLogger({
+  prefix: ["grandchild1-prefix"],
+});
+grandchildLogger.silly("grandchild1 message");
+// Output:
+// main-prefix parent-prefix child1-prefix grandchild1-prefix grandchild1 message
+```
+
+
+#### Attach additional transports
+
+`tslog` focuses on the one thing it does well: capturing logs.
+Therefore, there is no build-in _file system_ logging, _log rotation_, or similar.
+Per default all logs go to `console`, which can be overwritten (s. below).
+
+However, you can easily attach as many _transports_ as you wish, enabling you to do fancy stuff
+like sending messages to _Slack_ or _Telegram_ in case of an urgent error or forwarding them to a log aggregator service.
+
+**Attached transports are also inherited to child loggers.**
+
+##### Simple transport example
+
+Here is a very simple implementation used in our _jest_ tests. 
+This example with suppress logs from being send to `console` (`type: "hidden"`) and will instead collect them in an `array`.
+
+```typescript
+const transports: any[] = [];
+const logger = new Logger({ type: "hidden" });
+
+logger.attachTransport((logObj) => {
+  transports.push(logObj);
+});
+
+const logMsg = logger.info("Log message");
+```
+
+##### Storing logs in a file
+
+Here is an example how to store all logs in a file.
+
+```typescript
+import { Logger } from "tslog";
+import { appendFileSync } from "fs";
+
+const logger = new Logger();
+logger.attachTransport((logObj) => {
+  appendFileSync("logs.txt", JSON.stringify(logObj) + "\n");
+});
+
+logger.debug("I am a debug log.");
+logger.info("I am an info log.");
+logger.warn("I am a warn log with a json object:", { foo: "bar" });
+
+```
+
+##### Storing logs in file system with rotating files
+
+If you want to limit the file size of the stored logs, a good practice is to use file rotation, where old logs will be deleted automatically. 
+There is a great library called `rotating-file-stream` solving this problem for us and even adding features like compression, file size limit etc.
+
+1. First you need to install this library:  
+```bash
+  npm i rotating-file-stream
+```
+
+2. Combine it with `tslog`:
+
+```typescript
+import { Logger } from "tslog";
+import { createStream } from "rotating-file-stream";
+
+const stream = createStream("tslog.log", {
+  size: "10M", // rotate every 10 MegaBytes written
+  interval: "1d", // rotate daily
+  compress: "gzip", // compress rotated files
+});
+
+const logger = new Logger();
+logger.attachTransport((logObj) => {
+  stream.write(JSON.stringify(logObject) + "\n");
+});
+
+logger.debug("I am a debug log.");
+logger.info("I am an info log.");
+logger.warn("I am a warn log with a json object:", { foo: "bar" });
+
+```
+
+#### Overwriting default behavior 
+
+One of the key advantages of `tslog` >= 4 is that you can overwrite pretty much every aspect of the log processing described in <a href="#life_cycle">"Lifecycle of a log message"</a>.
+
+For every log:
+```typescript
+    const logger = new Logger({
+  overwrite: {
+    mask: (args: unknown[]): unknown[] => {
+      // mask and return an array of log attributes for further processing
+    },
+    toLogObj: (args: unknown[]): unknown => {
+      // convert the log attributes to a LogObj and return it
+    },
+    addMeta: (logObj: any, logLevelId: number, logLevelName: string) => {
+      // add meta information to the LogObj and return it
+    }
+
+  },
+});
+```
+
+For `pretty` logs log:
+```typescript
+    const logger = new Logger({
+      type: "pretty",
+      overwrite: {
+        formatMeta: (meta?: IMeta) => {
+          // format LogObj meta object to a string and return it
+        },
+        formatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => {
+            // format LogObj attributes to a string and return it
+        },
+        transportFormatted: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: unknown) => {
+          // overwrite the default transport for formatted (e.g. pretty) log levels. e.g. replace console with StdOut, write to file etc. 
+        },
+      },
+    });
+```
+
+For `JSON` logs log (no formatting happens here):
+```typescript
+    const logger = new Logger({
+      type: "pretty",
+      overwrite: {
+        transportJSON: (logObjWithMeta: any) => {
+          // transport the LogObj to console, StdOut, a file or an external service
+        },
+      },
+    });
+```
 
 ### Defining and accessing `logObj`
-As described in "Lifecycle of a log message", every log message goes through some lifecycle steps and becomes an object representation of the log with the name `logObj`.
+As described in <a href="#life_cycle">"Lifecycle of a log message"</a>, every log message goes through some lifecycle steps and becomes an object representation of the log with the name `logObj`.
 A default logObj can be passed to the `tslog` constructor and will be cloned and merged into the log message. This makes `tslog` >= 4 highly configurable and can contain any property needed for any type of 3rd party integration.
 The final `logObj` will be printed out in `JSON` mode and also returned by every log method.
 
