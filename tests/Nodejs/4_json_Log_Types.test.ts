@@ -35,10 +35,10 @@ describe("JSON: Log Types", () => {
   test("Array", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", [1, 2, 3, "test"]);
-    expect(getConsoleLog()).toContain('"0": 1');
-    expect(getConsoleLog()).toContain('"1": 2');
-    expect(getConsoleLog()).toContain('"2": 3');
-    expect(getConsoleLog()).toContain('"3": "test"');
+    expect(getConsoleLog()).toContain(`[
+    1,
+    2,
+    3,`);
   });
 
   test("Object", (): void => {

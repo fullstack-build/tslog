@@ -1,0 +1,22 @@
+{
+  "name": "server_example",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' index.ts"
+  },
+  "keywords": [],
+  "author": "Eugene Terehov",
+  "dependencies": {
+    "express": "^4.18.2",
+    "koa": "^2.13.4",
+    "nanoid": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.13.5",
+    "nodemon": "^2.0.20"
+  }
+}

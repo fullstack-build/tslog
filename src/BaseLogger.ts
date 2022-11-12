@@ -22,7 +22,7 @@ export class BaseLogger<LogObj> {
       minLevel: settings?.minLevel ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
       prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
-      prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\n\nerror stack:\n{{errorStack}}",
+      prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
       prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
       prettyLogStyles: settings?.prettyLogStyles ?? {
@@ -86,7 +86,10 @@ export class BaseLogger<LogObj> {
         : this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0
         ? this._mask(logArgs)
         : logArgs;
-    const logObj: LogObj = this.settings.overwrite?.toLogObj != null ? this.settings.overwrite?.toLogObj(maskedArgs) : this._toLogObj(maskedArgs);
+    // execute default LogObj functions for every log (e.g. requestId)
+    const thisLogObj: LogObj | undefined = this.logObj != null ? this._recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
+    const logObj: LogObj =
+      this.settings.overwrite?.toLogObj != null ? this.settings.overwrite?.toLogObj(maskedArgs, thisLogObj) : this._toLogObj(maskedArgs, thisLogObj);
     const logObjWithMeta: LogObj & ILogObjMeta =
       this.settings.overwrite?.addMeta != null
         ? this.settings.overwrite?.addMeta(logObj, logLevelId, logLevelName)
@@ -104,7 +107,7 @@ export class BaseLogger<LogObj> {
 
     if (this.settings.type === "pretty") {
       logMetaMarkup = this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
-      logArgsAndErrorsMarkup = prettyFormatLogObj(maskedArgs, this.settings);
+      logArgsAndErrorsMarkup = prettyFormatLogObj(thisLogObj, maskedArgs, this.settings);
     }
 
     if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {
@@ -151,7 +154,11 @@ export class BaseLogger<LogObj> {
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
 
-    const subLogger: BaseLogger<LogObj> = new (this.constructor as new (childSettings?: ISettingsParam<LogObj>) => this)(subLoggerSettings);
+    const subLogger: BaseLogger<LogObj> = new (this.constructor as new (
+      childSettings?: ISettingsParam<LogObj>,
+      logObj?: LogObj,
+      stackDepthLevel?: number
+    ) => this)(subLoggerSettings, this.logObj, this.stackDepthLevel);
     this.subLogger.push(subLogger);
     return subLogger;
   }
@@ -192,23 +199,37 @@ export class BaseLogger<LogObj> {
     return obj;
   }
 
-  private _toLogObj(args: unknown[]): LogObj {
-    let thisLogObj: LogObj = this.logObj != null ? structuredClone(this.logObj) : {};
+  private _recursiveCloneAndExecuteFunctions<T>(source: T): T {
+    return Array.isArray(source)
+      ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item))
+      : source instanceof Date
+      ? new Date(source.getTime())
+      : source && typeof source === "object"
+      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
+          // execute functions or clone
+          o[prop] = typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop]);
+          return o;
+        }, Object.create(Object.getPrototypeOf(source)))
+      : (source as T);
+  }
+
+  private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
     args = args?.map((arg) => (isError(arg) ? this._toErrorObject(arg as Error) : arg));
 
     if (this.settings.argumentsArrayName == null) {
       if (args.length === 1) {
-        thisLogObj = typeof args[0] === "object" ? { ...args[0], ...thisLogObj } : { 0: args[0], ...thisLogObj };
+        clonedLogObj = typeof args[0] === "object" && !Array.isArray(args[0]) ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
       } else {
-        thisLogObj = { ...thisLogObj, ...args };
+        clonedLogObj = { ...clonedLogObj, ...args };
       }
     } else {
-      thisLogObj = {
-        ...thisLogObj,
+      clonedLogObj = {
+        ...clonedLogObj,
         [this.settings.argumentsArrayName]: args,
       };
     }
-    return thisLogObj;
+    return clonedLogObj;
   }
 
   private _toErrorObject(error: Error): IErrorObject {
@@ -255,8 +276,4 @@ export class BaseLogger<LogObj> {
 
     return formatTemplate(this.settings, template, placeholderValues);
   }
-}
-
-function structuredClone(obj: unknown) {
-  return JSON.parse(JSON.stringify(obj));
 }

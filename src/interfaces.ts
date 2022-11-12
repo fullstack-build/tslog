@@ -42,7 +42,7 @@ export interface ISettingsParam<LogObj> {
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
     mask?: (args: unknown[]) => unknown[];
-    toLogObj?: (args: unknown[]) => LogObj;
+    toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
     formatMeta?: (meta?: IMeta) => string;
     formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };

@@ -132,8 +132,12 @@ export function isError(e: Error | unknown): boolean {
   return e instanceof Error;
 }
 
-export function prettyFormatLogObj<LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>): { args: unknown[]; errors: string[] } {
-  return maskedArgs.reduce(
+export function prettyFormatLogObj<LogObj>(
+  logObj: LogObj | undefined,
+  maskedArgs: unknown[],
+  settings: ISettings<LogObj>
+): { args: unknown[]; errors: string[] } {
+  return [logObj, ...maskedArgs].reduce(
     (result: { args: unknown[]; errors: string[] }, arg) => {
       isError(arg) ? result.errors.push(prettyFormatErrorObj(arg as Error, settings)) : result.args.push(arg);
       return result;
@@ -156,15 +160,10 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 }
 
 export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>): void {
-  if (typeof logArgs?.[0] === "string" && logArgs?.[0]?.match(/%\w/) != null) {
-    const str = logArgs.shift();
-    console.log(...[logMetaMarkup + str, ...logArgs, ...logErrors]);
-  } else {
-    const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
-    settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
-    logArgs = logArgs.map((arg) => (typeof arg === "object" ? inspect(arg, settings.prettyInspectOptions) : arg));
-    console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
-  }
+  const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
+  settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
+  logArgs = logArgs.map((arg) => (typeof arg === "object" ? inspect(arg, settings.prettyInspectOptions) : arg));
+  console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
 }
 
 export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {

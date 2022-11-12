@@ -11,7 +11,7 @@ describe("Pretty: Settings", () => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain("testLevel");
-    expect(getConsoleLog()).toContain("]\tTest");
+    expect(getConsoleLog()).toContain("Test");
   });
 
   test("two strings", (): void => {
@@ -153,7 +153,7 @@ describe("Pretty: Settings", () => {
     });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain(`**${new Date().toISOString().replace("T", " ").split(".")[0]}`);
-    expect(getConsoleLog()).toContain("**Test");
+    expect(getConsoleLog()).toContain("** Test");
   });
 
   test("stylePrettyLogs: false / prettyLogTemplate - no shortcut: {{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}", (): void => {
@@ -172,6 +172,6 @@ describe("Pretty: Settings", () => {
     const hh = dateHours == null ? "--" : dateHours < 10 ? "0" + dateHours : dateHours;
     const dateMinutes = new Date().getMinutes();
     const MM = dateMinutes == null ? "--" : dateMinutes < 10 ? "0" + dateMinutes : dateMinutes;
-    expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}**Test`);
+    expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}** Test`);
   });
 });
