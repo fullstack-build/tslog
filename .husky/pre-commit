@@ -4,3 +4,5 @@
 npm run test
 npm run format
 npm run lint
+npm run build
+npm run docsify-init

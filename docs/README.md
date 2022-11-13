@@ -17,11 +17,11 @@
 
 ## Highlights
 
-⚡ **fast and powerful**<br>
+⚡ **Fast and powerful**<br>
 🪶 **Lightweight and flexible**<br>
 🏗 **Isomorphic: Works in Browsers and Node.js**<br>
 👮‍️ **Fully typed with TypeScript support (native source maps)**<br>
-🗃 **_Pretty_ or `{} JSON` output**<br>
+🗃 **_Pretty_ or `JSON` output**<br>
 📝 **Customizable log level**<br>
 ⭕️ **Supports _circular_ structures**<br>
 🦸 **Custom pluggable loggers**<br>
@@ -82,26 +82,47 @@ Node.js with TypeScript (with ESM support):
 node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm
 ```
 
+Browser:
+```html
+<!doctype html>
+<html lang="en">
+<head>
+<title>tslog example</title>
+</head>
+<body>
+<h1>Example</h1>
+
+<script src="tslog.js"></script>
+
+<script>
+  const logger = new tslog.Logger({});
+  logger.silly("I am a silly log.");
+</script>
+
+</body>
+</html>
+```
+
 ## Simple example
 
 ```typescript
 import { Logger } from "tslog";
 
-const log: Logger = new Logger({ name: "myLogger" });
-log.silly("I am a silly log.");
-log.trace("I am a trace log.");
-log.debug("I am a debug log.");
-log.info("I am an info log.");
-log.warn("I am a warn log with a json object:", { foo: "bar" });
-log.error("I am an error log.");
-log.fatal(new Error("I am a pretty Error with a stacktrace."));
+const logger = new Logger({ name: "myLogger" });
+logger.silly("I am a silly log.");
+logger.trace("I am a trace log.");
+logger.debug("I am a debug log.");
+logger.info("I am an info log.");
+logger.warn("I am a warn log with a json object:", { foo: "bar" });
+logger.error("I am an error log.");
+logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
 
 ## All Features
 
-- **Isomorphic:** Works in browsers and Node.js
+- **Universal:** Works in browsers and Node.js
 - **Tested:** 100% code coverage, CI
-- **Super customizable** Every aspect can be overwritten
+- **Super customizable:** Every aspect can be overwritten
 - **Fully typed:** Written in TypeScript, with native TypeScript support
 - **Default log level:** `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` (different colors)
 - **Customizable log level:** BaseLogger with configurable log level
@@ -110,9 +131,9 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 - **Minimum log level per output:** `minLevel` level can be set individually per transport
 - **Native source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
 - **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
-- **ES Modules** import syntax with ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
+- **ES Modules:** import syntax with ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
 - **Object/JSON highlighting:** Nicely prints out an objects
-- **Sub Logger with inheritance** Powerful sub loggers with settings inheritance, also at runtime
+- **Sub Logger with inheritance:** Powerful sub loggers with settings inheritance, also at runtime
 - **Secrets masking:** Prevent passwords and secrets from sneaking into log files by masking them
 - **Short paths:** Paths are relative to the root of the application folder
 - **Prefixes:** Prefix log messages and bequeath prefixes to child loggers
@@ -195,16 +216,16 @@ const logger = new Logger<ILogObj>({ /* SETTINGS */ }, defaultLogObject);
 - `hidden` suppresses any output whatsoever and can be used with attached loggers for example.
 
 ```typescript
-// pretty
+// pretty output
 const defaultPrettyLogger = new Logger();
 
-// also pretty
+// also pretty output
 const prettyLogger = new Logger({type: "pretty"});
 
-// JSON
+// JSON output
 const jsonLogger = new Logger({type: "json"});
 
-// also pretty
+// hidden output
 const hiddenLogger = new Logger({type: "hidden"});
 ```
 
