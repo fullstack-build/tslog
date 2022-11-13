@@ -81,7 +81,7 @@ import { Logger } from "tslog";
 
 const log: Logger = new Logger({ name: "myLogger" });
 log.silly("I am a silly log.");
-log.trace("I am a trace log with a stack trace.");
+log.trace("I am a trace log.");
 log.debug("I am a debug log.");
 log.info("I am an info log.");
 log.warn("I am a warn log with a json object:", { foo: "bar" });
@@ -103,7 +103,7 @@ log.fatal(new Error("I am a pretty Error with a stacktrace."));
 - **Native source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
 - **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
 - **ES Modules** import syntax with ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
-- **Object/JSON highlighting:** Nicely prints out an object using native Node.js `utils.inspect` method
+- **Object/JSON highlighting:** Nicely prints out an objects
 - **Sub Logger with inheritance** Powerful sub loggers with settings inheritance, also at runtime
 - **Secrets masking:** Prevent passwords and secrets from sneaking into log files by masking them
 - **Short paths:** Paths are relative to the root of the application folder
@@ -281,7 +281,7 @@ You can define the property containing this meta information with `metaProperty`
 
 const logger = new Logger({
   prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
-  prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\n\nerror stack:\n{{errorStack}}",
+  prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
   prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
   stylePrettyLogs: true,
   prettyLogStyles: {
