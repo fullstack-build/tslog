@@ -30,7 +30,7 @@
 👨‍👧‍👦 **Sub logger with inheritance**<br>
 🙊 **Mask/hide secrets and keys**<br>
 📦 **ESM with tree shaking support**<br>
-✍️ **well documented and tested**<br>
+✍️ **Well documented and tested**<br>
 
 ## Example
 
@@ -132,8 +132,8 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 - **Native source maps lookup:** Shows exact position also in TypeScript code (compile-to-JS), one click to IDE position
 - **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
 - **ES Modules:** import syntax with ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
-- **Object/JSON highlighting:** Nicely prints out an objects
-- **Sub Logger with inheritance:** Powerful sub loggers with settings inheritance, also at runtime
+- **Object/JSON highlighting:** Nicely prints out objects
+- **Sub Logger with inheritance:** Powerful sub-loggers with settings inheritance, also at runtime
 - **Secrets masking:** Prevent passwords and secrets from sneaking into log files by masking them
 - **Short paths:** Paths are relative to the root of the application folder
 - **Prefixes:** Prefix log messages and bequeath prefixes to child loggers
@@ -142,13 +142,13 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 
 ### <a name="life_cycle"></a>Lifecycle of a log message
 
-Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every steps can be overwritten and adjusted.  
+Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every step can be overwritten and adjusted.  
 
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_lifesycle.png "tslog: life cycle of a log message")
 
 - **log message** Log message comes in through the `BaseLogger.log()` method
 - **mask** If masking is configured, log message gets recursively masked
-- **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object will be merged.) Are there more than one, they will be pu into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.  
+- **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object will be merged.) If there are more than one, they will be put into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.  
 - **addMetaToLogObj** Additional meta information, like the source code position of the log will be gathered and added to the `_meta` property or any other one configured with the setting `metaProperty`.
 - **format** In case of "pretty" configuration, a log object will be formatted based on the templates configured in settings. Meta will be formatted by the method `_prettyFormatLogObjMeta` and the actual log payload will be formatted by `prettyFormatLogObj`. Both steps can be overwritten with the settings `formatMeta` and `formatMeta`. 
 - **transport** Last step is to "transport" a log message to every attached transport from the setting `attachedTransports`. Last step is the actual transport, either JSON (`transportJSON`), formatted (`transportFormatted`) or omitted, if its set to "hidden". Both default transports can also be overwritten by the corresponding setting.  
@@ -178,7 +178,7 @@ In addition to the default log level, custom log level can be defined in the sam
 `log` method expects the following parameters:
 - logLevelId    - Log level ID e.g. 0
 - logLevelName  - Log level name e.g. silly
-- args          - Multiple log attributes that should be logged out.
+- args          - Multiple log attributes that should be logged.
 
 > **Tip:** Also the generic logging method (log()) returns a _JSON_ representation of the log message (`ILogObject`).
 
@@ -192,7 +192,7 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
 
   /**
    * Logs a _CUSTOM_ message.
-   * @param args  - Multiple log attributes that should be logged out.
+   * @param args  - Multiple log attributes that should be logged.
    */
   public custom(...args: unknown[]): LogObj & ILogObjMeta {
     return super.log(8, "CUSTOM", ...args);
@@ -202,7 +202,7 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
 ```
 
 ### Settings
-`tslog` is highly customizable and pretty much every aspect can bei either configured or overwritten. 
+`tslog` is highly customizable and pretty much every aspect can be either configured or overwritten. 
 A `settings` object is the first parameter passed to the `tslog` constructor:
 
 ```typescript 
@@ -270,7 +270,7 @@ Enables you to overwrite the looks of a formatted _"pretty"_ log message by prov
 Following settings are available for styling:
 
 - **Templates:**
-  - `prettyLogTemplate`: template string for logs message. Possible placeholder: 
+  - `prettyLogTemplate`: template string for log messages. Possible placeholders: 
     - `{{yyyy}}`: year
     - `{{mm}}`: month
     - `{{dd}}`: day
@@ -282,13 +282,13 @@ Following settings are available for styling:
     - `{{logLevelName}}`: name of the log level
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
-  - `prettyErrorTemplate`: template string for error message. Possible placeholder:
+  - `prettyErrorTemplate`: template string for error message. Possible placeholders:
     - `{{errorName}}`: name of the error
     - `{{errorMessage}}`: error message
     - `{{errorStack}}`: Placeholder for all stack lines defined by `prettyErrorStackTemplate` 
-  - `prettyErrorStackTemplate`: template string for error stack trace lines. Possible placeholder:
+  - `prettyErrorStackTemplate`: template string for error stack trace lines. Possible placeholders:
     - `{{fileName}}`: name of the file
-    - `{{filePathWithLine}}`: a full path below the project path with line number
+    - `{{filePathWithLine}}`: a full path below the project path with a line number
     - `{{method}}`: _optional_ name of the invoking method
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
   
@@ -302,7 +302,7 @@ Following settings are available for styling:
 
 #### Log meta information
 `tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`. 
-You can define the property containing this meta information with `metaProperty`, which is "_meta" per default.
+You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.
 
 #### Pretty templates and styles (color settings)
 
@@ -340,7 +340,7 @@ There are multiple ways of masking secrets, before they get exposed:
 
 - `maskPlaceholder`: Placeholder to replaced masked secrets with, Default: `[***]`
 - `maskValuesOfKeys`: Array of keys to replace the values with the placeholder (`maskPlaceholder`). Default: `["password"]`
-- `maskValuesOfKeysCaseInsensitive`: Should the keys be matched case insensitive (e.g. "password" would replace "password" as well as "Password", and "PASSWORD"). Default: `false`
+- `maskValuesOfKeysCaseInsensitive`: Should the keys be matched case-insensitive (e.g. "password" would replace "password" as well as "Password", and "PASSWORD"). Default: `false`
 - `maskValuesRegEx`: For even more flexibility, you can also replace strings and object values with a RegEx.
 
 #### Prefixing logs
