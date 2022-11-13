@@ -19,7 +19,7 @@
 
 ⚡ **Fast and powerful**<br>
 🪶 **Lightweight and flexible**<br>
-🏗 **Isomorphic: Works in Browsers and Node.js**<br>
+🏗 **Universal: Works in Browsers and Node.js**<br>
 👮‍️ **Fully typed with TypeScript support (native source maps)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
 📝 **Customizable log level**<br>
