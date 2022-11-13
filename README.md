@@ -290,7 +290,7 @@ Following settings are available for styling:
     - `{{fileName}}`: name of the file
     - `{{filePathWithLine}}`: a full path below the project path with line number
     - `{{method}}`: _optional_ name of the invoking method
-  - `prettyInspectOptions`: 
+  - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
   
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized
