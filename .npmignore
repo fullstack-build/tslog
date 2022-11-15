@@ -96,3 +96,6 @@ tsconfig*
 
 # Ignore map files in npm
 *.js.map
+
+# Ignore docs
+/docs*
