@@ -77,7 +77,7 @@ Node.js with JavaScript:
 node --enable-source-maps
 ```
 
-Node.js with TypeScript (with ESM support):
+Node.js with TypeScript and `ts-node` (with ESM support):
 ```bash
 node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm
 ```
@@ -140,6 +140,9 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 
 ## API documentation
 
+> **`tslog >= v4` is a major rewrite and introduces breaking changes.** <br> 
+> Please, follow this documentation when migrating. 
+
 ### <a name="life_cycle"></a>Lifecycle of a log message
 
 Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every step can be overwritten and adjusted.  
@@ -162,7 +165,7 @@ Every incoming log message runs through a number of steps before being displayed
 ```typescript
 import { Logger } from "tslog";
 
-const log: Logger = new Logger();
+const log = new Logger();
 log.silly("I am a silly log.");
 log.trace("I am a trace log.");
 log.debug("I am a debug log.");
@@ -547,8 +550,27 @@ const logMsg = logger.info("Test");
 //}
 ```
 
+## Backwards compatibility
 
-### Tip: RequestID: Mark a request (e.g. HTTP) call with AsyncLocalStorage and `tslog`
+> **`tslog` follows a semantic release policy.** A major version change indicates breaking changes.<br><br>
+> `tslog >=4` is less limiting when it comes to configuration. There are many use cases (especially when it comes to integration with 3rd party services) that now can be achieved elegantly and were not possible before.
+
+### Name and other constructor parameters
+
+`tslog` < 4 had a name parameter on the constructor. v4 removed all preconfigured parameters and allows you to create your own log object (s. "Defining and accessing `logObj`"). 
+
+**OLD:** `tslog` < 4
+```typescript
+const log: Logger = new Logger({ name: "myLogger" });
+```
+
+**NEW:** `tslog` >= 4
+```typescript
+const log = new Logger({ type: "json" }, { name: "DefaultLogger" });
+```
+
+
+### RequestID: Mark a request (e.g. HTTP) call with AsyncLocalStorage and `tslog`
 >**Node.js 13.10 introduced a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
 
 **❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).**

@@ -46,3 +46,7 @@ jsonLoggerArgumentsArray.silly("test");
 jsonLoggerArgumentsArray.silly("test1", "test2");
 
 ////////////////////////////
+
+const log = new Logger({ type: "json" }, { name: "DefaultLogger" });
+
+log.silly("foo bar");
