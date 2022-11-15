@@ -561,7 +561,7 @@ const logMsg = logger.info("Test");
 
 **OLD:** `tslog` < 4
 ```typescript
-const log: Logger = new Logger({ name: "myLogger" });
+const log: Logger = new Logger({ type: "json", name: "myLogger" });
 ```
 
 **NEW:** `tslog` >= 4
