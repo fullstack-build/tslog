@@ -9,7 +9,7 @@
     "moduleResolution": "Node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "sourceMap": true,
+    "inlineSourceMap": true,
     "strict": true,
     "skipLibCheck": true,
     "suppressImplicitAnyIndexErrors": true,

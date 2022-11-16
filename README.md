@@ -49,32 +49,51 @@ Donations help me allocate more time for my open source work.
 
 ## Install
 
+> ❗ **`tslog` is a native ES module.**   
+
 ```bash
 npm install tslog
 ```
 
-**Enable TypeScript source map support:**
+In order to run a native ES module in Node.js, you have to do two things:  
 
-This feature enables `tslog` to reference a correct line number in your TypeScript source code.
+1) Set `"type": "module` in `package.json`.
+2) Start with `--experimental-specifier-resolution=node`
 
-```json5
-// tsconfig.json
+Example `package.json`
+```json
 {
-  // ...
-  compilerOptions: {
-    // ...
-    sourceMap: true,
-    // we recommend using a current ES version
-    target: "es2020",
+  "name": "bot",
+  "version": "1.0.0",
+  "main": "dist/app.js",
+  "type": "module", // <-- here 
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node --enable-source-maps --experimental-specifier-resolution=node index.js" // <-- and here
   },
+  "dependencies": {
+    "tslog": "^4"
+  },
+  "devDependencies": {
+    "typescript": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=16"
+  }
 }
 ```
 
-And run with:
+With this `package.json` you can simply build and run it:
+```bash
+npm run build
+npm start
+```
+
+**Otherwise:**
 
 Node.js with JavaScript:
 ```bash
-node --enable-source-maps
+node --enable-source-maps --experimental-specifier-resolution=node
 ```
 
 Node.js with TypeScript and `ts-node` (with ESM support):
@@ -101,6 +120,23 @@ Browser:
 
 </body>
 </html>
+```
+
+**Enable TypeScript source map support:**
+
+This feature enables `tslog` to reference a correct line number in your TypeScript source code.
+
+```json5
+// tsconfig.json
+{
+  // ...
+  compilerOptions: {
+    // ...
+    "inlineSourceMap": true,  // <!-- here
+    // we recommend using a current ES version
+    target: "es2020",
+  },
+}
 ```
 
 ## Simple example
