@@ -114,7 +114,7 @@ Browser:
 <script src="tslog.js"></script>
 
 <script>
-  const logger = new tslog.Logger({});
+  const logger = new tslog.Logger();
   logger.silly("I am a silly log.");
 </script>
 
