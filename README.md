@@ -63,9 +63,9 @@ In order to run a native ES module in Node.js, you have to do two things:
 Example `package.json`
 ```json
 {
-  "name": "bot",
+  "name": "NAME",
   "version": "1.0.0",
-  "main": "dist/app.js",
+  "main": "index.js",
   "type": "module", // <-- here 
   "scripts": {
     "build": "tsc -p .",
@@ -75,7 +75,7 @@ Example `package.json`
     "tslog": "^4"
   },
   "devDependencies": {
-    "typescript": "^4.8.4"
+    "typescript": "^4"
   },
   "engines": {
     "node": ">=16"
