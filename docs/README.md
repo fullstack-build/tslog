@@ -57,8 +57,8 @@ npm install tslog
 
 In order to run a native ES module in Node.js, you have to do two things:  
 
-1) Set `"type": "module` in `package.json`.
-2) Start with `--experimental-specifier-resolution=node`
+1) Set `"type": "module"` in `package.json`.
+2) For now, start with `--experimental-specifier-resolution=node`
 
 Example `package.json`
 ```json
