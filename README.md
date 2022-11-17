@@ -273,7 +273,7 @@ const hiddenLogger = new Logger({type: "hidden"});
 ```
 
 
-#### Name
+#### name
 
 Each logger has an optional name. 
 You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
@@ -629,21 +629,6 @@ const logMsg = logger.info("Test");
 
 > **`tslog` follows a semantic release policy.** A major version change indicates breaking changes.<br><br>
 > `tslog >=4` is less limiting when it comes to configuration. There are many use cases (especially when it comes to integration with 3rd party services) that now can be achieved elegantly and were not possible before.
-
-### Name and other constructor parameters
-
-`tslog` < 4 had a name parameter on the constructor. v4 removed all preconfigured parameters and allows you to create your own log object (s. "Defining and accessing `logObj`"). 
-
-**OLD:** `tslog` < 4
-```typescript
-const log: Logger = new Logger({ type: "json", name: "myLogger" });
-```
-
-**NEW:** `tslog` >= 4
-```typescript
-const log = new Logger({ type: "json" }, { name: "DefaultLogger" });
-```
-
 
 ### RequestID: Mark a request (e.g. HTTP) call with AsyncLocalStorage and `tslog`
 >**Node.js 13.10 introduced a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
