@@ -275,8 +275,9 @@ const hiddenLogger = new Logger({type: "hidden"});
 
 #### Name
 
-Each logger has an optional name. You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
-Names get also inherited to sub loggers and can be found inside the `Meta`-object `parentNames` as well as printed out with a separator (e.g. `:`). 
+Each logger has an optional name. 
+You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
+Names get also inherited to sub loggers and can be found inside the `Meta`-object `parentNames` as well as printed out with a separator (e.g. `:`) in `pretty` mode. 
 
 Simple name example:
 ```typescript
@@ -296,7 +297,7 @@ secondSubLogger.silly("foo bar 2");
 ```
 
 Output: 
-```shell
+```bash
 2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]       foo bar
 2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger]        foo bar 1
 2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]        foo bar 2
