@@ -6,6 +6,8 @@ import { formatTemplate } from "../../formatTemplate";
 export { InspectOptions };
 
 export interface IMetaStatic {
+  name?: string;
+  parentNames?: string[];
   runtime: string;
   hostname: string;
 }
@@ -22,9 +24,11 @@ const meta: IMetaStatic = {
   hostname: hostname(),
 };
 
-export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number): IMeta {
+export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number, name?: string, parentNames?: string[]): IMeta {
   return {
     ...meta,
+    name,
+    parentNames,
     date: new Date(),
     logLevelId,
     logLevelName,

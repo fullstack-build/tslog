@@ -61,15 +61,17 @@ In order to run a native ES module in Node.js, you have to do two things:
 2) For now, start with `--experimental-specifier-resolution=node`
 
 Example `package.json`
-```json
+```json5
 {
   "name": "NAME",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "module", // <-- here 
+  // here:
+  "type": "module",
   "scripts": {
     "build": "tsc -p .",
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node index.js" // <-- and here
+    // and here:
+    "start": "node --enable-source-maps --experimental-specifier-resolution=node index.js"
   },
   "dependencies": {
     "tslog": "^4"
@@ -144,7 +146,7 @@ This feature enables `tslog` to reference a correct line number in your TypeScri
 ```typescript
 import { Logger } from "tslog";
 
-const logger = new Logger();
+const logger = new Logger({ name: "myLogger" });
 logger.silly("I am a silly log.");
 logger.trace("I am a trace log.");
 logger.debug("I am a debug log.");
@@ -169,6 +171,8 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 - **Pretty Error:** Errors and stack traces printed in a structured way and fully accessible through _JSON_ (e.g. external Log services)
 - **ES Modules:** import syntax with ([tree-shaking](https://webpack.js.org/guides/tree-shaking/))
 - **Object/JSON highlighting:** Nicely prints out objects
+- **Instance Name**: _(Server-side only)_ Logs capture instance name (default host name) making it easy to distinguish logs coming from different instances
+- **Named Logger:** Logger can be named (e.g. useful for packages/modules and monorepos)
 - **Sub Logger with inheritance:** Powerful sub-loggers with settings inheritance, also at runtime
 - **Secrets masking:** Prevent passwords and secrets from sneaking into log files by masking them
 - **Short paths:** Paths are relative to the root of the application folder
@@ -268,6 +272,36 @@ const jsonLogger = new Logger({type: "json"});
 const hiddenLogger = new Logger({type: "hidden"});
 ```
 
+
+#### Name
+
+Each logger has an optional name. You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
+Names get also inherited to sub loggers and can be found inside the `Meta`-object `parentNames` as well as printed out with a separator (e.g. `:`). 
+
+Simple name example:
+```typescript
+new Logger({ name: "myLogger" });
+```
+
+Sub-loggers with an inherited name: 
+```typescript
+const mainLogger = new Logger({ type: "pretty", name: "MainLogger" });
+mainLogger.silly("foo bar");
+
+const firstSubLogger = mainLogger.getSubLogger({ name: "FirstSubLogger" });
+firstSubLogger.silly("foo bar 1");
+
+const secondSubLogger = firstSubLogger.getSubLogger({ name: "SecondSubLogger" });
+secondSubLogger.silly("foo bar 2");
+```
+
+Output: 
+```shell
+2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]       foo bar
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger]        foo bar 1
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]        foo bar 2
+```
+
 #### minLevel
 
 You can ignore every log message from being processed until a certain severity.
@@ -276,7 +310,7 @@ Default severities are:
 
 ```typescript
 
-const suppressSilly = new Logger({minLevel: 1 });
+const suppressSilly = new Logger({ minLevel: 1 });
 suppressSilly.silly("Will be hidden");
 suppressSilly.trace("Will be visible");
 ```
@@ -319,6 +353,7 @@ Following settings are available for styling:
     - `{{ms}}`: milliseconds
     - `{{dateIsoStr}}`: Shortcut for `{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}`
     - `{{logLevelName}}`: name of the log level
+    - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:
@@ -329,6 +364,7 @@ Following settings are available for styling:
     - `{{fileName}}`: name of the file
     - `{{filePathWithLine}}`: a full path below the project path with a line number
     - `{{method}}`: _optional_ name of the invoking method
+  - `prettyErrorParentNamesSeparator`: separator to be used when joining names ot the parent logger, and the current one (default: `:`)
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
   
 - **Styling:**
@@ -348,9 +384,10 @@ You can define the property containing this meta information with `metaProperty`
 ```typescript
 
 const logger = new Logger({
-  prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
+  prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}{{name}}]\t",
   prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
   prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+  prettyErrorParentNamesSeparator: ":",
   stylePrettyLogs: true,
   prettyLogStyles: {
     logLevelName: {
@@ -365,6 +402,7 @@ const logger = new Logger({
     },
     dateIsoStr: "white",
     filePathWithLine: "white",
+    name: "white",
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
   },

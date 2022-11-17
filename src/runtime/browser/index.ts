@@ -3,6 +3,8 @@ import { formatTemplate } from "../../formatTemplate";
 import { inspect } from "./util.inspect.polyfil";
 
 export interface IMetaStatic {
+  name?: string;
+  parentNames?: string[];
   runtime: string;
   browser: string;
 }
@@ -19,9 +21,10 @@ const meta: IMetaStatic = {
   browser: window?.["navigator"].userAgent,
 };
 
-export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number): IMeta {
+export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number, name?: string): IMeta {
   return {
     ...meta,
+    name,
     date: new Date(),
     logLevelId,
     logLevelName,

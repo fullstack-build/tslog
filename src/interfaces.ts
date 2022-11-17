@@ -10,11 +10,14 @@ export type TStyle =
 
 export interface ISettingsParam<LogObj> {
   type?: "json" | "pretty" | "hidden";
+  name?: string;
+  parentNames?: string[];
   minLevel?: number;
   argumentsArrayName?: string;
   prettyLogTemplate?: string;
   prettyErrorTemplate?: string;
   prettyErrorStackTemplate?: string;
+  prettyErrorParentNamesSeparator?: string;
   stylePrettyLogs?: boolean;
   prettyLogStyles?: {
     yyyy?: TStyle;
@@ -53,11 +56,14 @@ export interface ISettingsParam<LogObj> {
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   type: "json" | "pretty" | "hidden";
+  name?: string;
+  parentNames?: string[];
   minLevel: number;
   argumentsArrayName?: string;
   prettyLogTemplate: string;
   prettyErrorTemplate: string;
   prettyErrorStackTemplate: string;
+  prettyErrorParentNamesSeparator: string;
   stylePrettyLogs: boolean;
   prettyLogStyles: {
     yyyy?: TStyle;
@@ -73,6 +79,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     filePath?: TStyle;
     fileLine?: TStyle;
     filePathWithLine?: TStyle;
+    name?: TStyle;
     errorName?: TStyle;
     errorMessage?: TStyle;
   };

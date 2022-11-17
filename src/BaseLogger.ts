@@ -19,11 +19,15 @@ export class BaseLogger<LogObj> {
 
     this.settings = {
       type: settings?.type ?? "pretty",
+      name: settings?.name,
+      parentNames: settings?.parentNames,
       minLevel: settings?.minLevel ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
-      prettyLogTemplate: settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t",
+      prettyLogTemplate:
+        settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}{{name}}]\t",
       prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
       prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+      prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
       prettyLogStyles: settings?.prettyLogStyles ?? {
         logLevelName: {
@@ -38,6 +42,7 @@ export class BaseLogger<LogObj> {
         },
         dateIsoStr: "white",
         filePathWithLine: "white",
+        name: "white",
         errorName: ["bold", "bgRedBright", "whiteBright"],
         fileName: ["yellow"],
       },
@@ -150,6 +155,13 @@ export class BaseLogger<LogObj> {
     const subLoggerSettings: ISettings<LogObj> = {
       ...this.settings,
       ...settings,
+      // collect parent names in Array
+      parentNames:
+        this.settings?.parentNames != null && this.settings?.name != null
+          ? [...this.settings.parentNames, this.settings.name]
+          : this.settings?.name != null
+          ? [this.settings.name]
+          : undefined,
       // merge all prefixes instead of overwriting them
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
@@ -244,7 +256,7 @@ export class BaseLogger<LogObj> {
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
     return {
       ...logObj,
-      [this.settings.metaProperty]: getMeta(logLevelId, logLevelName, this.stackDepthLevel),
+      [this.settings.metaProperty]: getMeta(logLevelId, logLevelName, this.stackDepthLevel, this.settings.name, this.settings.parentNames),
     };
   }
 
@@ -273,6 +285,10 @@ export class BaseLogger<LogObj> {
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
+    // name
+    let parentNamesString = this.settings.parentNames?.join(this.settings.prettyErrorParentNamesSeparator);
+    parentNamesString = parentNamesString != null && logObjMeta?.name != null ? parentNamesString + this.settings.prettyErrorParentNamesSeparator : undefined;
+    placeholderValues["name"] = logObjMeta?.name != null || parentNamesString != null ? " " + (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
 
     return formatTemplate(this.settings, template, placeholderValues);
   }
