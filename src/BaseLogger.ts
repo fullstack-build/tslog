@@ -7,7 +7,7 @@ export * from "./interfaces";
 export class BaseLogger<LogObj> {
   private readonly runtime: "browser" | "nodejs" | "unknown";
   private readonly settings: ISettings<LogObj>;
-  private subLogger: BaseLogger<LogObj>[] = [];
+  private subLoggers: BaseLogger<LogObj>[] = [];
 
   constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
@@ -171,7 +171,7 @@ export class BaseLogger<LogObj> {
       logObj?: LogObj,
       stackDepthLevel?: number
     ) => this)(subLoggerSettings, this.logObj, this.stackDepthLevel);
-    this.subLogger.push(subLogger);
+    this.subLoggers.push(subLogger);
     return subLogger;
   }
 

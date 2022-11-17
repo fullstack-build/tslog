@@ -20,6 +20,35 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain("Test1 Test2");
   });
 
+  test("name", (): void => {
+    const logger = new Logger({ type: "pretty", name: "logger" });
+    const log = logger.log(1, "testLevel", "foo bar");
+    expect(log).toBeDefined();
+    expect(log?._meta?.name).toBe("logger");
+    expect(getConsoleLog()).toContain(`logger`);
+  });
+
+  test("name with sub-logger inheritance", (): void => {
+    const logger1 = new Logger({ type: "pretty", name: "logger1" });
+    const logger2 = logger1.getSubLogger({ name: "logger2" });
+    const logger3 = logger2.getSubLogger({ name: "logger3" });
+
+    const log1 = logger1.log(1, "testLevel", "foo bar");
+    const log2 = logger2.log(1, "testLevel", "foo bar");
+    const log3 = logger3.log(1, "testLevel", "foo bar");
+    expect(log1).toBeDefined();
+    expect(log2).toBeDefined();
+    expect(log3).toBeDefined();
+
+    expect(log1?._meta?.name).toBe("logger1");
+    expect(log2?._meta?.name).toBe("logger2");
+    expect(log3?._meta?.name).toBe("logger3");
+
+    expect(getConsoleLog()).toContain(`logger1`);
+    expect(getConsoleLog()).toContain(`logger1:logger2`);
+    expect(getConsoleLog()).toContain(`logger1:logger2:logger3`);
+  });
+
   test("argumentsArray", (): void => {
     const logger = new Logger({
       type: "pretty",
