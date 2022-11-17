@@ -273,7 +273,7 @@ const hiddenLogger = new Logger({type: "hidden"});
 ```
 
 
-#### Name
+#### name
 
 Each logger has an optional name. 
 You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
