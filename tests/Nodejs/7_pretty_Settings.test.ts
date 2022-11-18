@@ -203,4 +203,27 @@ describe("Pretty: Settings", () => {
     const MM = dateMinutes == null ? "--" : dateMinutes < 10 ? "0" + dateMinutes : dateMinutes;
     expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}** Test`);
   });
+
+
+  test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{dateIsoStr}}", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      prettyLogTemplate: "**{{dateIsoStr}}**",
+      stylePrettyLogs: false,
+    });
+    logger.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().replace("T", " ").replace("Z", "").split(".")[0]}`);
+    expect(getConsoleLog()).toContain("** Test");
+  });
+
+  test("prettyLogTemplate - rawIsoStr", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      prettyLogTemplate: "**{{rawIsoStr}}**",
+      stylePrettyLogs: false,
+    });
+    logger.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
+    expect(getConsoleLog()).toContain("** Test");
+  });
 });

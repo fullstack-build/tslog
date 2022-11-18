@@ -18,6 +18,7 @@ export interface ISettingsParam<LogObj> {
   prettyErrorTemplate?: string;
   prettyErrorStackTemplate?: string;
   prettyErrorParentNamesSeparator?: string;
+  prettyErrorLoggerNameDelimiter?: string;
   stylePrettyLogs?: boolean;
   prettyLogStyles?: {
     yyyy?: TStyle;
@@ -64,6 +65,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   prettyErrorTemplate: string;
   prettyErrorStackTemplate: string;
   prettyErrorParentNamesSeparator: string;
+  prettyErrorLoggerNameDelimiter: string;
   stylePrettyLogs: boolean;
   prettyLogStyles: {
     yyyy?: TStyle;
