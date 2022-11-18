@@ -289,7 +289,7 @@ export class BaseLogger<LogObj> {
     // name
     let parentNamesString = this.settings.parentNames?.join(this.settings.prettyErrorParentNamesSeparator);
     parentNamesString = parentNamesString != null && logObjMeta?.name != null ? parentNamesString + this.settings.prettyErrorParentNamesSeparator : undefined;
-    placeholderValues["name"] = logObjMeta?.name != null || parentNamesString != null ? " " + (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
+    placeholderValues["name"] = logObjMeta?.name != null || parentNamesString != null ? (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
 
     return formatTemplate(this.settings, template, placeholderValues);
   }
