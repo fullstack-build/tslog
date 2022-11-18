@@ -89,8 +89,8 @@ export class BaseLogger<LogObj> {
       this.settings.overwrite?.mask != null
         ? this.settings.overwrite?.mask(logArgs)
         : this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0
-        ? this._mask(logArgs)
-        : logArgs;
+          ? this._mask(logArgs)
+          : logArgs;
     // execute default LogObj functions for every log (e.g. requestId)
     const thisLogObj: LogObj | undefined = this.logObj != null ? this._recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
     const logObj: LogObj =
@@ -124,8 +124,8 @@ export class BaseLogger<LogObj> {
       this.settings.overwrite?.transportJSON != null
         ? this.settings.overwrite?.transportJSON(logObjWithMeta)
         : this.settings.type !== "hidden"
-        ? transportJSON(logObjWithMeta)
-        : undefined;
+          ? transportJSON(logObjWithMeta)
+          : undefined;
     }
 
     if (this.settings.attachedTransports != null && this.settings.attachedTransports.length > 0) {
@@ -160,8 +160,8 @@ export class BaseLogger<LogObj> {
         this.settings?.parentNames != null && this.settings?.name != null
           ? [...this.settings.parentNames, this.settings.name]
           : this.settings?.name != null
-          ? [this.settings.name]
-          : undefined,
+            ? [this.settings.name]
+            : undefined,
       // merge all prefixes instead of overwriting them
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
@@ -215,15 +215,15 @@ export class BaseLogger<LogObj> {
     return Array.isArray(source)
       ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item))
       : source instanceof Date
-      ? new Date(source.getTime())
-      : source && typeof source === "object"
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
-          // execute functions or clone
-          o[prop] = typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop]);
-          return o;
-        }, Object.create(Object.getPrototypeOf(source)))
-      : (source as T);
+        ? new Date(source.getTime())
+        : source && typeof source === "object"
+          ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+            Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
+            // execute functions or clone
+            o[prop] = typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop]);
+            return o;
+          }, Object.create(Object.getPrototypeOf(source)))
+          : (source as T);
   }
 
   private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
@@ -272,7 +272,6 @@ export class BaseLogger<LogObj> {
     // date and time performance fix
     if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
       template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
-      placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     } else {
       placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
       placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
@@ -282,6 +281,7 @@ export class BaseLogger<LogObj> {
       placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);
       placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
     }
+    placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
