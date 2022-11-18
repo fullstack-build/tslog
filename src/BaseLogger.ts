@@ -272,7 +272,6 @@ export class BaseLogger<LogObj> {
     // date and time performance fix
     if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
       template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
-      placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     } else {
       placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
       placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
@@ -283,6 +282,7 @@ export class BaseLogger<LogObj> {
       placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
     }
     placeholderValues["rawIsoStr"] = logObjMeta?.date?.toISOString();
+    placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
