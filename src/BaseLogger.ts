@@ -281,6 +281,7 @@ export class BaseLogger<LogObj> {
       placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);
       placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
     }
+    placeholderValues["rawIsoStr"] = logObjMeta?.date?.toISOString();
     placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
