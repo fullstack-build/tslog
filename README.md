@@ -11,7 +11,7 @@
 
 
 > Powerful, fast and expressive logging for TypeScript and JavaScript
- 
+
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog.png "tslog pretty output in browser and Node.js")
 
 
@@ -49,13 +49,13 @@ Donations help me allocate more time for my open source work.
 
 ## Install
 
-> ❗ **`tslog` is a native ES module.**   
+> ❗ **`tslog` is a native ES module.**
 
 ```bash
 npm install tslog
 ```
 
-In order to run a native ES module in Node.js, you have to do two things:  
+In order to run a native ES module in Node.js, you have to do two things:
 
 1) Set `"type": "module"` in `package.json`.
 2) For now, start with `--experimental-specifier-resolution=node`
@@ -180,21 +180,21 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 
 ## API documentation
 
-> **`tslog >= v4` is a major rewrite and introduces breaking changes.** <br> 
-> Please, follow this documentation when migrating. 
+> **`tslog >= v4` is a major rewrite and introduces breaking changes.** <br>
+> Please, follow this documentation when migrating.
 
 ### <a name="life_cycle"></a>Lifecycle of a log message
 
-Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every step can be overwritten and adjusted.  
+Every incoming log message runs through a number of steps before being displayed or handed over to a "transport". Every step can be overwritten and adjusted.
 
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog_lifesycle.png "tslog: life cycle of a log message")
 
 - **log message** Log message comes in through the `BaseLogger.log()` method
 - **mask** If masking is configured, log message gets recursively masked
-- **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object) will be merged. If there are more than one, they will be put into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.  
+- **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object) will be merged. If there are more than one, they will be put into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.
 - **addMetaToLogObj** Additional meta information, like the source code position of the log will be gathered and added to the `_meta` property or any other one configured with the setting `metaProperty`.
-- **format** In case of "pretty" configuration, a log object will be formatted based on the templates configured in settings. Meta will be formatted by the method `_prettyFormatLogObjMeta` and the actual log payload will be formatted by `prettyFormatLogObj`. Both steps can be overwritten with the settings `formatMeta` and `formatMeta`. 
-- **transport** Last step is to "transport" a log message to every attached transport from the setting `attachedTransports`. Last step is the actual transport, either JSON (`transportJSON`), formatted (`transportFormatted`) or omitted, if its set to "hidden". Both default transports can also be overwritten by the corresponding setting.  
+- **format** In case of "pretty" configuration, a log object will be formatted based on the templates configured in settings. Meta will be formatted by the method `_prettyFormatLogObjMeta` and the actual log payload will be formatted by `prettyFormatLogObj`. Both steps can be overwritten with the settings `formatMeta` and `formatMeta`.
+- **transport** Last step is to "transport" a log message to every attached transport from the setting `attachedTransports`. Last step is the actual transport, either JSON (`transportJSON`), formatted (`transportFormatted`) or omitted, if its set to "hidden". Both default transports can also be overwritten by the corresponding setting.
 
 ### Default log level
 
@@ -245,16 +245,16 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
 ```
 
 ### Settings
-`tslog` is highly customizable and pretty much every aspect can be either configured or overwritten. 
+`tslog` is highly customizable and pretty much every aspect can be either configured or overwritten.
 A `settings` object is the first parameter passed to the `tslog` constructor:
 
-```typescript 
+```typescript
 const logger = new Logger<ILogObj>({ /* SETTINGS */ }, defaultLogObject);
 ```
 
 #### Type: pretty, json, hidden
 
-- `pretty` **Default setting** prints out a formatted structured "pretty" log entry. 
+- `pretty` **Default setting** prints out a formatted structured "pretty" log entry.
 - `json` prints out a `JSON` formatted log entry.
 - `hidden` suppresses any output whatsoever and can be used with attached loggers for example.
 
@@ -275,16 +275,16 @@ const hiddenLogger = new Logger({type: "hidden"});
 
 #### name
 
-Each logger has an optional name. 
-You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode. 
-Names get also inherited to sub loggers and can be found inside the `Meta`-object `parentNames` as well as printed out with a separator (e.g. `:`) in `pretty` mode. 
+Each logger has an optional name.
+You can find the name of the logger responsible for a log inside the `Meta`-object or printed in `pretty` mode.
+Names get also inherited to sub loggers and can be found inside the `Meta`-object `parentNames` as well as printed out with a separator (e.g. `:`) in `pretty` mode.
 
 Simple name example:
 ```typescript
 new Logger({ name: "myLogger" });
 ```
 
-Sub-loggers with an inherited name: 
+Sub-loggers with an inherited name:
 ```typescript
 const mainLogger = new Logger({ type: "pretty", name: "MainLogger" });
 mainLogger.silly("foo bar");
@@ -296,7 +296,7 @@ const secondSubLogger = firstSubLogger.getSubLogger({ name: "SecondSubLogger" })
 secondSubLogger.silly("foo bar 2");
 ```
 
-Output: 
+Output:
 ```bash
 2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]       foo bar
 2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger]        foo bar 1
@@ -318,7 +318,7 @@ suppressSilly.trace("Will be visible");
 
 #### argumentsArrayName
 
-`tslog` < 4 wrote all parameters into an arguments array. In `tslog` >= 4 the main object becomes home for all log parameters, and they get merged with the default `logObj`. 
+`tslog` < 4 wrote all parameters into an arguments array. In `tslog` >= 4 the main object becomes home for all log parameters, and they get merged with the default `logObj`.
 If you still want to put them into a separated parameter, you can do so by defining the `argumentsArrayName`.
 
 ```typescript
@@ -344,7 +344,7 @@ Enables you to overwrite the looks of a formatted _"pretty"_ log message by prov
 Following settings are available for styling:
 
 - **Templates:**
-  - `prettyLogTemplate`: template string for log messages. Possible placeholders: 
+  - `prettyLogTemplate`: template string for log messages. Possible placeholders:
     - `{{yyyy}}`: year
     - `{{mm}}`: month
     - `{{dd}}`: day
@@ -353,6 +353,7 @@ Following settings are available for styling:
     - `{{ss}}`: seconds
     - `{{ms}}`: milliseconds
     - `{{dateIsoStr}}`: Shortcut for `{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}`
+    - `{{rawIsoStr}}`: Renders the date and time in ISO format (e.g.: YYYY-MM-DDTHH:mm:ss.SSSZ)
     - `{{logLevelName}}`: name of the log level
     - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
     - `{{fullFilePath}}`: a full path starting from `/` root
@@ -360,24 +361,24 @@ Following settings are available for styling:
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:
     - `{{errorName}}`: name of the error
     - `{{errorMessage}}`: error message
-    - `{{errorStack}}`: Placeholder for all stack lines defined by `prettyErrorStackTemplate` 
+    - `{{errorStack}}`: Placeholder for all stack lines defined by `prettyErrorStackTemplate`
   - `prettyErrorStackTemplate`: template string for error stack trace lines. Possible placeholders:
     - `{{fileName}}`: name of the file
     - `{{filePathWithLine}}`: a full path below the project path with a line number
     - `{{method}}`: _optional_ name of the invoking method
   - `prettyErrorParentNamesSeparator`: separator to be used when joining names ot the parent logger, and the current one (default: `:`)
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
-  
+
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized
   - `prettyLogStyles`: provides colors and styles for different placeholders and can also be dependent on the value (e.g. log level)
     - Level 1: template placeholder (defines a style for a certain template placeholder, s. above, without brackets).
-    - Level 2: Either a string with one style (e.g. `white`), or an array of styles (e.g. `["bold", "white"]`), or a nested object with key being a value.  
+    - Level 2: Either a string with one style (e.g. `white`), or an array of styles (e.g. `["bold", "white"]`), or a nested object with key being a value.
     - Level 3: Optional nested style based on placeholder values. Key is the value of the template placeholder and value is either a string of a style, or an array of styles (s. above), e.g. `{ SILLY: ["bold", "white"] }` which means: value "SILLY" should get a style of "bold" and "white". `*` means any value other than the defined.
   - `prettyInspectOptions`: When a (potentially nested) object is printed out in Node.js, we use `util.formatWithOptions` under the hood. With `prettyInspectOptions` you can define the output. [Possible values](https://nodejs.org/api/util.html#utilinspectobject-showhidden-depth-colors)
 
 #### Log meta information
-`tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`. 
+`tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`.
 You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.
 
 #### Pretty templates and styles (color settings)
@@ -467,7 +468,7 @@ like sending messages to _Slack_ or _Telegram_ in case of an urgent error or for
 
 ##### Simple transport example
 
-Here is a very simple implementation used in our _jest_ tests. 
+Here is a very simple implementation used in our _jest_ tests.
 This example will suppress logs from being sent to `console` (`type: "hidden"`) and will instead collect them in an `array`.
 
 ```typescript
@@ -502,10 +503,10 @@ logger.warn("I am a warn log with a json object:", { foo: "bar" });
 
 ##### Storing logs in a file system with rotating files
 
-If you want to limit the file size of the stored logs, a good practice is to use file rotation, where old logs will be deleted automatically. 
+If you want to limit the file size of the stored logs, a good practice is to use file rotation, where old logs will be deleted automatically.
 There is a great library called `rotating-file-stream` solving this problem for us and even adding features like compression, file size limit etc.
 
-1. First you need to install this library:  
+1. First you need to install this library:
 ```bash
   npm i rotating-file-stream
 ```
@@ -533,7 +534,7 @@ logger.warn("I am a warn log with a json object:", { foo: "bar" });
 
 ```
 
-#### Overwriting default behavior 
+#### Overwriting default behavior
 
 One of the key advantages of `tslog` >= 4 is that you can overwrite pretty much every aspect of the log processing described in <a href="#life_cycle">"Lifecycle of a log message"</a>.
 
@@ -567,7 +568,7 @@ For `pretty` logs:
             // format LogObj attributes to a string and return it
         },
         transportFormatted: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: unknown) => {
-          // overwrite the default transport for formatted (e.g. pretty) log levels. e.g. replace console with StdOut, write to file etc. 
+          // overwrite the default transport for formatted (e.g. pretty) log levels. e.g. replace console with StdOut, write to file etc.
         },
       },
     });
@@ -590,7 +591,7 @@ As described in <a href="#life_cycle">"Lifecycle of a log message"</a>, every lo
 A default logObj can be passed to the `tslog` constructor and will be cloned and merged into the log message. This makes `tslog` >= 4 highly configurable and easy to integrate into any 3rd party service.
 The entire `logObj` will be printed out in `JSON` mode and also returned by every log method.
 
-> **Tip:** All properties of the default `LogObj` containing function calls will be executed for every log message making use cases possible like `requestId` (s. below). 
+> **Tip:** All properties of the default `LogObj` containing function calls will be executed for every log message making use cases possible like `requestId` (s. below).
 
 ```typescript
 interface ILogObj {
@@ -602,7 +603,7 @@ const defaultLogObject: ILogObj = {
 };
 
 const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
-const logMsg = logger.info("Test"); 
+const logMsg = logger.info("Test");
 
 // logMsg: {
 //  '0': 'Test',
@@ -648,24 +649,24 @@ Some providers (e.g. `Heroku`) already set a `X-Request-ID` header, which we are
   import Koa from "koa";
   import { customAlphabet } from "nanoid";
   import { Logger } from "tslog";
-  
+
   interface ILogObj {
     requestId?: string | (() => string | undefined);
   }
-  
+
   const asyncLocalStorage: AsyncLocalStorage<{ requestId: string }> = new AsyncLocalStorage();
-  
+
   const defaultLogObject: ILogObj = {
     requestId: () => asyncLocalStorage.getStore()?.requestId,
   };
-  
+
   const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
   export { logger };
-  
+
   logger.info("Test log without requestId");
-  
+
   const koaApp = new Koa();
-  
+
   /** START AsyncLocalStorage requestId middleware **/
   koaApp.use(async (ctx: Koa.Context, next: Koa.Next) => {
     // use x-request-id or fallback to a nanoid
@@ -676,21 +677,21 @@ Some providers (e.g. `Heroku`) already set a `X-Request-ID` header, which we are
     });
   });
   /** END AsyncLocalStorage requestId middleware **/
-  
+
   // example middleware
   koaApp.use(async (ctx: Koa.Context, next) => {
-      
+
     // log request
     logger.silly({ originalUrl: ctx.originalUrl, status: ctx.response.status, message: ctx.response.message });
-    
+
     // also works with a sub logger
     const subLogger = logger.getSubLogger();
     subLogger.info("Log containing requestId"); // <-- will contain a requestId
-  
+
     return await next();
   });
-  
+
   koaApp.listen(3000);
-  
+
   logger.info("Server running on port 3000");
 ```
