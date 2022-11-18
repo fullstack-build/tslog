@@ -298,9 +298,9 @@ secondSubLogger.silly("foo bar 2");
 
 Output:
 ```bash
-2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]       foo bar
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger]        foo bar 1
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]        foo bar 2
+2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51] MainLogger       foo bar
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54] MainLogger:FirstSubLogger        foo bar 1
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57] MainLogger:FirstSubLogger:SecondSubLogger        foo bar 2
 ```
 
 #### minLevel
@@ -367,6 +367,7 @@ Following settings are available for styling:
     - `{{filePathWithLine}}`: a full path below the project path with a line number
     - `{{method}}`: _optional_ name of the invoking method
   - `prettyErrorParentNamesSeparator`: separator to be used when joining names ot the parent logger, and the current one (default: `:`)
+  - `prettyErrorLoggerNameDelimiter`: if a logger name is set this delimiter will be added afterwards
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
 
 - **Styling:**
@@ -390,6 +391,7 @@ const logger = new Logger({
   prettyErrorTemplate: "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
   prettyErrorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
   prettyErrorParentNamesSeparator: ":",
+  prettyErrorLoggerNameDelimiter: "\t",
   stylePrettyLogs: true,
   prettyLogStyles: {
     logLevelName: {
@@ -404,7 +406,7 @@ const logger = new Logger({
     },
     dateIsoStr: "white",
     filePathWithLine: "white",
-    name: "white",
+    name: ["white", "bold"],
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
   },
