@@ -204,7 +204,6 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}** Test`);
   });
 
-
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{dateIsoStr}}", (): void => {
     const logger = new Logger({
       type: "pretty",
