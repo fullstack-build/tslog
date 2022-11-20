@@ -356,6 +356,8 @@ Following settings are available for styling:
     - `{{rawIsoStr}}`: Renders the date and time in ISO format (e.g.: YYYY-MM-DDTHH:mm:ss.SSSZ)
     - `{{logLevelName}}`: name of the log level
     - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
+    - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
+    - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:

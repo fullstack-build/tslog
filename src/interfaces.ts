@@ -30,8 +30,15 @@ export interface ISettingsParam<LogObj> {
     ms?: TStyle;
     dateIsoStr?: TStyle;
     logLevelName?: TStyle;
+    fileName?: TStyle;
     filePath?: TStyle;
     fileLine?: TStyle;
+    filePathWithLine?: TStyle;
+    name?: TStyle;
+    nameWithDelimiterPrefix?: TStyle;
+    nameWithDelimiterSuffix?: TStyle;
+    errorName?: TStyle;
+    errorMessage?: TStyle;
   };
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
@@ -82,6 +89,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     fileLine?: TStyle;
     filePathWithLine?: TStyle;
     name?: TStyle;
+    nameWithDelimiterPrefix?: TStyle;
+    nameWithDelimiterSuffix?: TStyle;
     errorName?: TStyle;
     errorMessage?: TStyle;
   };

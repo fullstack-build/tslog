@@ -298,9 +298,9 @@ secondSubLogger.silly("foo bar 2");
 
 Output:
 ```bash
-2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51] MainLogger       foo bar
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54] MainLogger:FirstSubLogger        foo bar 1
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57] MainLogger:FirstSubLogger:SecondSubLogger        foo bar 2
+2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]    foo bar
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger ]    foo bar 1
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]   foo bar 2
 ```
 
 #### minLevel
@@ -356,6 +356,8 @@ Following settings are available for styling:
     - `{{rawIsoStr}}`: Renders the date and time in ISO format (e.g.: YYYY-MM-DDTHH:mm:ss.SSSZ)
     - `{{logLevelName}}`: name of the log level
     - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
+    - `{{nameWithDelimiterPrefix}}`: optional name of the current logger (s. above) with a delimiter in the beginning
+    - `{{nameWithDelimiterSuffix}}`: optional name of the current logger (s. above) with a delimiter at the end
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:
@@ -407,6 +409,8 @@ const logger = new Logger({
     dateIsoStr: "white",
     filePathWithLine: "white",
     name: ["white", "bold"],
+    nameWithDelimiterPrefix: ["white", "bold"],
+    nameWithDelimiterSuffix: ["white", "bold"],
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
   },
