@@ -13,18 +13,26 @@
   "bugs": {
     "url": "https://github.com/fullstack-build/tslog/issues"
   },
-  "main": "./dist/nodejs/index.js",
+  "main": "./dist/nodejs/cjs/index.js",
+  "module": "./dist/nodejs/esm/index.js",
+  "types": "./dist/nodejs/types/index.d.ts",
+  "type": "module",
   "browser": {
     "tslog": "./dist/browser/index.js",
     "util": "",
     "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts"
   },
-  "type": "module",
-  "exports": "./dist/nodejs/index.js",
+  "exports": {
+    ".": {
+      "require": "./dist/nodejs/cjs/index.js",
+      "import": "./dist/nodejs/esm/index.js"
+    }
+  },
   "scripts": {
-    "build": "npm run build-server && npm run build-browser",
+    "build": "npm run build-types && npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
-    "build-server": "tsc -b tsconfig.src.json",
+    "build-types": "tsc -b tsconfig.types.json",
+    "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json",
     "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index2.js",
     "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
     "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
