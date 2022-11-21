@@ -29,7 +29,7 @@
 🤓 **Stack trace and pretty errors**<br>
 👨‍👧‍👦 **Sub logger with inheritance**<br>
 🙊 **Mask/hide secrets and keys**<br>
-📦 **ESM with tree shaking support**<br>
+📦 **CJS & ESM with tree shaking support**<br>
 ✍️ **Well documented and tested**<br>
 
 ## Example
@@ -93,14 +93,24 @@ npm start
 
 **Otherwise:**
 
-Node.js with JavaScript:
+ESM: Node.js with JavaScript:
 ```bash
 node --enable-source-maps --experimental-specifier-resolution=node
 ```
 
-Node.js with TypeScript and `ts-node` (with ESM support):
+CJS: Node.js with JavaScript:
+```bash
+node --enable-source-maps
+```
+
+ESM: Node.js with TypeScript and `ts-node`:
 ```bash
 node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm
+```
+
+CJS: Node.js with TypeScript and `ts-node`:
+```bash
+node --enable-source-maps --no-warnings --loader ts-node/cjs
 ```
 
 Browser:
