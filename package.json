@@ -19,7 +19,7 @@
   "type": "module",
   "browser": {
     "tslog": "./dist/browser/index.js",
-    "util": "",
+    "util": false,
     "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts"
   },
   "exports": {
