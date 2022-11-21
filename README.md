@@ -49,8 +49,6 @@ Donations help me allocate more time for my open source work.
 
 ## Install
 
-> ❗ **`tslog` is a native ES module.**
-
 ```bash
 npm install tslog
 ```
