@@ -41,6 +41,16 @@ describe("JSON: Log Types", () => {
     3,`);
   });
 
+  test("Buffer", (): void => {
+    const logger = new Logger({ type: "json" });
+    const buffer = Buffer.from("foo");
+    const log1 = logger.log(1234, "testLevel", buffer);
+    expect(getConsoleLog()).toContain(`"Buffer"`);
+    expect(log1?.["0"]).toBe(buffer);
+    const log2 = logger.log(1234, "testLevel", "1", buffer);
+    expect(log2?.["1"]).toBe(buffer);
+  });
+
   test("Object", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
@@ -50,6 +60,15 @@ describe("JSON: Log Types", () => {
     "1": false
   },
   "_meta": {`);
+  });
+
+  test("Date", (): void => {
+    const logger = new Logger({ type: "json" });
+    const date = new Date(0);
+    const log1 = logger.log(1234, "testLevel", date);
+    console.log("***" + log1?.["0"]);
+    expect(log1?.["0"]).toBe(date);
+    expect(getConsoleLog()).toContain(`"1970-01-01T00:00:00.000Z"`);
   });
 
   test("String, Object", (): void => {

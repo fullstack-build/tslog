@@ -172,3 +172,7 @@ export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unkno
 export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
   console.log(JSON.stringify(json, null, 2));
 }
+
+export function isBuffer(arg: unknown) {
+  return undefined;
+}

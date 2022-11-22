@@ -15,7 +15,7 @@
   },
   "main": "./dist/nodejs/cjs/index.js",
   "module": "./dist/nodejs/esm/index.js",
-  "types": "./dist/nodejs/types/index.d.ts",
+  "types": "./dist/types/index.d.ts",
   "browser": {
     "tslog": "./dist/browser/index.js",
     "util": false,

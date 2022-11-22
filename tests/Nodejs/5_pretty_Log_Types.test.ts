@@ -49,6 +49,15 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("\n]");
   });
 
+  test("Buffer", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const buffer = Buffer.from("foo");
+    logger.log(1234, "testLevel", buffer);
+    expect(getConsoleLog()).toContain(`<Buffer 66 6f 6f>`);
+    logger.log(1234, "testLevel", "1", buffer);
+    expect(getConsoleLog()).toContain(`1 <Buffer 66 6f 6f>`);
+  });
+
   test("Object", (): void => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
@@ -56,6 +65,13 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("test:");
     expect(getConsoleLog()).toContain(`  }
 }`);
+  });
+
+  test("Date", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const date = new Date(0);
+    logger.log(1234, "testLevel", date);
+    expect(getConsoleLog()).toContain("1970-01-01T00:00:00.000Z");
   });
 
   test("String, Object", (): void => {

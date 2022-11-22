@@ -1,4 +1,4 @@
-import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError } from "./runtime/nodejs";
+import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError, isBuffer } from "./runtime/nodejs";
 import { formatTemplate } from "./formatTemplate";
 import { formatNumberAddZeros } from "./formatNumberAddZeros";
 import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces";
@@ -233,10 +233,9 @@ export class BaseLogger<LogObj> {
 
   private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
     args = args?.map((arg) => (isError(arg) ? this._toErrorObject(arg as Error) : arg));
-
     if (this.settings.argumentsArrayName == null) {
-      if (args.length === 1) {
-        clonedLogObj = typeof args[0] === "object" && !Array.isArray(args[0]) ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
+      if (args.length === 1 && !Array.isArray(args[0]) && isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
+        clonedLogObj = typeof args[0] === "object" ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
       } else {
         clonedLogObj = { ...clonedLogObj, ...args };
       }

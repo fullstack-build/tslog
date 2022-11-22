@@ -162,3 +162,7 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
     );
   }
 }
+
+export function isBuffer(arg: unknown) {
+  return Buffer.isBuffer(arg);
+}
