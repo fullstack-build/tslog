@@ -29,7 +29,7 @@
 🤓 **Stack trace and pretty errors**<br>
 👨‍👧‍👦 **Sub logger with inheritance**<br>
 🙊 **Mask/hide secrets and keys**<br>
-📦 **ESM with tree shaking support**<br>
+📦 **CJS & ESM with tree shaking support**<br>
 ✍️ **Well documented and tested**<br>
 
 ## Example
@@ -48,8 +48,6 @@ Donations help me allocate more time for my open source work.
 
 
 ## Install
-
-> ❗ **`tslog` is a native ES module.**
 
 ```bash
 npm install tslog
@@ -93,14 +91,24 @@ npm start
 
 **Otherwise:**
 
-Node.js with JavaScript:
+ESM: Node.js with JavaScript:
 ```bash
 node --enable-source-maps --experimental-specifier-resolution=node
 ```
 
-Node.js with TypeScript and `ts-node` (with ESM support):
+CJS: Node.js with JavaScript:
+```bash
+node --enable-source-maps
+```
+
+ESM: Node.js with TypeScript and `ts-node`:
 ```bash
 node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm
+```
+
+CJS: Node.js with TypeScript and `ts-node`:
+```bash
+node --enable-source-maps --no-warnings --loader ts-node/cjs
 ```
 
 Browser:
@@ -252,6 +260,30 @@ A `settings` object is the first parameter passed to the `tslog` constructor:
 const logger = new Logger<ILogObj>({ /* SETTINGS */ }, defaultLogObject);
 ```
 
+##### Changing settings at runtime
+`settings` is a public property and can also be changed on runtime. 
+
+Example on changing `minLevel` on runtime:
+
+```typescript
+    const logger = new Logger({
+      minLevel: 1
+    });
+    
+    // visible
+    logger.log(1, "level_one", "LOG1");
+    // visible
+    logger.log(2, "level_two", "LOG2");
+    
+    // change minLevel to 2
+    logger.settings.minLevel = 2;
+
+    // hidden
+    logger.log(1, "level_one", "LOG3");
+    // visible
+    logger.log(2, "level_two", "LOG4");
+```
+
 #### Type: pretty, json, hidden
 
 - `pretty` **Default setting** prints out a formatted structured "pretty" log entry.
@@ -298,9 +330,9 @@ secondSubLogger.silly("foo bar 2");
 
 Output:
 ```bash
-2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51] MainLogger       foo bar
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54] MainLogger:FirstSubLogger        foo bar 1
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57] MainLogger:FirstSubLogger:SecondSubLogger        foo bar 2
+2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]    foo bar
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger ]    foo bar 1
+2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]   foo bar 2
 ```
 
 #### minLevel
@@ -356,6 +388,8 @@ Following settings are available for styling:
     - `{{rawIsoStr}}`: Renders the date and time in ISO format (e.g.: YYYY-MM-DDTHH:mm:ss.SSSZ)
     - `{{logLevelName}}`: name of the log level
     - `{{name}}`: optional name of the current logger and his parents (e.g. "ParentLogger:ThisLogger")
+    - `{{nameWithDelimiterPrefix}}`: optional name of the current logger (s. above) with a delimiter in the beginning
+    - `{{nameWithDelimiterSuffix}}`: optional name of the current logger (s. above) with a delimiter at the end
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:
@@ -407,6 +441,8 @@ const logger = new Logger({
     dateIsoStr: "white",
     filePathWithLine: "white",
     name: ["white", "bold"],
+    nameWithDelimiterPrefix: ["white", "bold"],
+    nameWithDelimiterSuffix: ["white", "bold"],
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
   },

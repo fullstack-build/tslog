@@ -204,7 +204,6 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}** Test`);
   });
 
-
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{dateIsoStr}}", (): void => {
     const logger = new Logger({
       type: "pretty",
@@ -225,5 +224,24 @@ describe("Pretty: Settings", () => {
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
     expect(getConsoleLog()).toContain("** Test");
+  });
+
+  test("Change settings: minLevel", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      minLevel: 1,
+    });
+    logger.log(1, "custom_level_one", "LOG1");
+    logger.log(2, "custom_level_two", "LOG2");
+
+    // change minLevel to 2
+    logger.settings.minLevel = 2;
+    logger.log(1, "custom_level_one", "LOG3");
+    logger.log(2, "custom_level_two", "LOG4");
+
+    expect(getConsoleLog()).toContain(`LOG1`);
+    expect(getConsoleLog()).toContain(`LOG2`);
+    expect(getConsoleLog()).not.toContain(`LOG3`);
+    expect(getConsoleLog()).toContain(`LOG4`);
   });
 });

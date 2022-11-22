@@ -2,9 +2,9 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "declaration": false,
+    "declaration": true,
     "declarationMap": false,
-    "outDir": "examples/dist"
-  },
-  "include": ["examples/nodejs/*.ts"]
+    "declarationDir": "dist/types",
+    "emitDeclarationOnly": true
+  }
 }

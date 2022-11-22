@@ -6,8 +6,9 @@ export * from "./interfaces";
 
 export class BaseLogger<LogObj> {
   private readonly runtime: "browser" | "nodejs" | "unknown";
-  private readonly settings: ISettings<LogObj>;
-  private subLoggers: BaseLogger<LogObj>[] = [];
+  public settings: ISettings<LogObj>;
+  // not needed yet
+  //private subLoggers: BaseLogger<LogObj>[] = [];
 
   constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
@@ -24,7 +25,8 @@ export class BaseLogger<LogObj> {
       minLevel: settings?.minLevel ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
       prettyLogTemplate:
-        settings?.prettyLogTemplate ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}]\t{{name}}",
+        settings?.prettyLogTemplate ??
+        "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}{{nameWithDelimiterPrefix}}]\t",
       prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
       prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
@@ -44,6 +46,8 @@ export class BaseLogger<LogObj> {
         dateIsoStr: "white",
         filePathWithLine: "white",
         name: ["white", "bold"],
+        nameWithDelimiterPrefix: ["white", "bold"],
+        nameWithDelimiterSuffix: ["white", "bold"],
         errorName: ["bold", "bgRedBright", "whiteBright"],
         fileName: ["yellow"],
       },
@@ -172,7 +176,7 @@ export class BaseLogger<LogObj> {
       logObj?: LogObj,
       stackDepthLevel?: number
     ) => this)(subLoggerSettings, this.logObj, this.stackDepthLevel);
-    this.subLoggers.push(subLogger);
+    //this.subLoggers.push(subLogger);
     return subLogger;
   }
 
@@ -290,8 +294,11 @@ export class BaseLogger<LogObj> {
     // name
     let parentNamesString = this.settings.parentNames?.join(this.settings.prettyErrorParentNamesSeparator);
     parentNamesString = parentNamesString != null && logObjMeta?.name != null ? parentNamesString + this.settings.prettyErrorParentNamesSeparator : undefined;
-    const nameStr = logObjMeta?.name != null || parentNamesString != null ? (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
-    placeholderValues["name"] = nameStr.length > 0 ? nameStr + this.settings.prettyErrorLoggerNameDelimiter : "";
+    placeholderValues["name"] = logObjMeta?.name != null || parentNamesString != null ? (parentNamesString ?? "") + logObjMeta?.name ?? "" : "";
+    placeholderValues["nameWithDelimiterPrefix"] =
+      placeholderValues["name"].length > 0 ? this.settings.prettyErrorLoggerNameDelimiter + placeholderValues["name"] : "";
+    placeholderValues["nameWithDelimiterSuffix"] =
+      placeholderValues["name"].length > 0 ? placeholderValues["name"] + this.settings.prettyErrorLoggerNameDelimiter : "";
 
     return formatTemplate(this.settings, template, placeholderValues);
   }
