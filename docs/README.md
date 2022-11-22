@@ -49,8 +49,6 @@ Donations help me allocate more time for my open source work.
 
 ## Install
 
-> ❗ **`tslog` is a native ES module.**
-
 ```bash
 npm install tslog
 ```
@@ -260,6 +258,30 @@ A `settings` object is the first parameter passed to the `tslog` constructor:
 
 ```typescript
 const logger = new Logger<ILogObj>({ /* SETTINGS */ }, defaultLogObject);
+```
+
+##### Changing settings at runtime
+`settings` is a public property and can also be changed on runtime. 
+
+Example on changing `minLevel` on runtime:
+
+```typescript
+    const logger = new Logger({
+      minLevel: 1
+    });
+    
+    // visible
+    logger.log(1, "level_one", "LOG1");
+    // visible
+    logger.log(2, "level_two", "LOG2");
+    
+    // change minLevel to 2
+    logger.settings.minLevel = 2;
+
+    // hidden
+    logger.log(1, "level_one", "LOG3");
+    // visible
+    logger.log(2, "level_two", "LOG4");
 ```
 
 #### Type: pretty, json, hidden
