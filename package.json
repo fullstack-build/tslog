@@ -14,14 +14,14 @@
     "url": "https://github.com/fullstack-build/tslog/issues"
   },
   "type": "module",
-  "main": "./dist/nodejs/cjs/index.js",
-  "module": "./dist/nodejs/esm/index.js",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "browser": {
     "tslog": "./dist/browser/index.js",
-    "./dist/nodejs/esm/runtime/nodejs/index.js": "./dist/nodejs/esm/runtime/browser/index.js",
-    "./dist/nodejs/cjs/runtime/nodejs/index.js": "./dist/nodejs/cjs/runtime/browser/index.js",
-    "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts",
+    "./dist/esm/runtime/nodejs/index.js": "./dist/esm/runtime/browser/index.js",
+    "./dist/cjs/runtime/nodejs/index.js": "./dist/cjs/runtime/browser/index.js",
+    "./src/runtime/nodejs/index.js": "./src/runtime/browser/index.js",
     "util": false
   },
   "exports": {
@@ -36,7 +36,7 @@
     "build": "npm run build-types && npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
     "build-types": "tsc -b tsconfig.types.json",
-    "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json",
+    "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json && cp ./src/package-cjs.json ./dist/cjs/package.json",
     "build-example": "tsc -b tsconfig.example.json",
     "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
     "start": "npm run build-example && node --experimental-specifier-resolution=node --enable-source-maps examples/dist/examples/nodejs/index2.js",
@@ -57,7 +57,8 @@
   },
   "jest": {
     "verbose": true,
-    "preset": "./jest-preset.cjs",
+    "preset": "./jest-preset",
+    "resolver": "ts-jest-resolver",
     "testTimeout": 100000,
     "testEnvironment": "node",
     "collectCoverage": true,
@@ -97,6 +98,7 @@
     "prettier": "^2.7.1",
     "puppeteer": "^17.1.0",
     "ts-jest": "^28.0.8",
+    "ts-jest-resolver": "^2.0.0",
     "ts-node": "^10.9.1",
     "typescript": "^4.7.4"
   },

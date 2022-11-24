@@ -1,8 +1,8 @@
-import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError, isBuffer } from "./runtime/nodejs";
-import { formatTemplate } from "./formatTemplate";
-import { formatNumberAddZeros } from "./formatNumberAddZeros";
-import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces";
-export * from "./interfaces";
+import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError, isBuffer } from "./runtime/nodejs/index.js";
+import { formatTemplate } from "./formatTemplate.js";
+import { formatNumberAddZeros } from "./formatNumberAddZeros.js";
+import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces.js";
+export * from "./interfaces.js";
 
 export class BaseLogger<LogObj> {
   private readonly runtime: "browser" | "nodejs" | "unknown";

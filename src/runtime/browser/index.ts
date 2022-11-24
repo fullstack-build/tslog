@@ -1,6 +1,6 @@
-import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces";
-import { formatTemplate } from "../../formatTemplate";
-import { inspect } from "./util.inspect.polyfil";
+import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { formatTemplate } from "../../formatTemplate.js";
+import { inspect } from "./util.inspect.polyfil.js";
 
 export interface IMetaStatic {
   name?: string;

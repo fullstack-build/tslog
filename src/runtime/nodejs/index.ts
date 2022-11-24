@@ -1,8 +1,8 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { types, inspect, InspectOptions } from "util";
-import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces";
-import { formatTemplate } from "../../formatTemplate";
+import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { formatTemplate } from "../../formatTemplate.js";
 export { InspectOptions };
 
 export interface IMetaStatic {

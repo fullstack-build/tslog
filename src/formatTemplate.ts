@@ -1,5 +1,5 @@
-import { ISettings, TStyle } from "./interfaces";
-import { prettyLogStyles } from "./prettyLogStyles";
+import { ISettings, TStyle } from "./interfaces.js";
+import { prettyLogStyles } from "./prettyLogStyles.js";
 
 export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: string, values: { [key: string]: string }, hideUnsetPlaceholder = false) {
   const templateString = String(template);

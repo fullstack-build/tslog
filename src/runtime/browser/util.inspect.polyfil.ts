@@ -1,5 +1,5 @@
 import { InspectOptions } from "util";
-import { prettyLogStyles } from "../../prettyLogStyles";
+import { prettyLogStyles } from "../../prettyLogStyles.js";
 
 interface ICtx {
   showHidden?: boolean | unknown;

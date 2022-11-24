@@ -1,0 +1,16 @@
+{
+  "name": "tslog-cjs-example",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "tsc && node .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "tslog": "^4.4.0-0"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.3"
+  }
+}
