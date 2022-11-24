@@ -14,7 +14,7 @@
     "skipLibCheck": true,
     "suppressImplicitAnyIndexErrors": true,
     "allowSyntheticDefaultImports": true,
-    "removeComments": true,
+    "removeComments": true
   },
   "exclude": ["node_modules", "**/node_modules", "**/dist", "**/tests", "*.test.ts"]
 }
