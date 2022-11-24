@@ -1,6 +1,6 @@
 import "ts-jest";
-import { Logger } from "../../src";
-import { getConsoleLog, mockConsoleLog } from "./helper";
+import { Logger } from "../../src/index.js";
+import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 const logger = new Logger({ type: "hidden" });
 describe("Hidden: Log level", () => {

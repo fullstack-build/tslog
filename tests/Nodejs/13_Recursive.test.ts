@@ -1,6 +1,6 @@
 import "ts-jest";
-import { Logger } from "../../src";
-import { mockConsoleLog } from "./helper";
+import { Logger } from "../../src/index.js";
+import { mockConsoleLog } from "./helper.js";
 
 describe("Recursive", () => {
   beforeEach(() => {
