@@ -252,6 +252,39 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
 }
 ```
 
+### Sub-logger
+
+Each `tslog`-Logger instance can create sub-loggers and bequeath its settings to a child.
+It is also possible to overwrite the `LogObj` when creating a child.<br>
+Sub-loggers are a powerful feature when building a modular application and due to its inheritance make it easy to configure the entire application.
+
+Use `getSubLogger()` to create a child logger based on the current instance.
+
+
+**Example:**
+
+```typescript
+const mainLogger = new Logger({ type: "pretty", name: "MainLogger" });
+mainLogger.silly("foo bar");
+
+const firstSubLogger = mainLogger.getSubLogger({ name: "FirstSubLogger" });
+firstSubLogger.silly("foo bar 1");
+```
+
+#### Sub-logger with `LogObj`
+You can also overwrite the `LogObj`(s. below), when you create a sub-logger:
+
+
+```typescript
+const mainLogObj = { main: true, sub: false };
+const mainLogger = new Logger({ type: "pretty", name: "MainLogger" }, mainLogObj);
+mainLogger.silly("foo bar");
+
+const subLogObj = { main: false, sub: true };
+const firstSubLogger = mainLogger.getSubLogger({ name: "FirstSubLogger" }, subLogObj);
+firstSubLogger.silly("foo bar 1");
+```
+
 ### Settings
 `tslog` is highly customizable and pretty much every aspect can be either configured or overwritten.
 A `settings` object is the first parameter passed to the `tslog` constructor:
