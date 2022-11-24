@@ -172,6 +172,26 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
 
+  test("maskValuesOfKeys and don't manipulate original", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      maskValuesOfKeys: ["password", "otherkey"],
+      maskValuesOfKeysCaseInsensitive: true,
+    });
+    const obj = {
+      password: "pass123",
+      otherKey: "otherKey456",
+    };
+    logger.log(1234, "testLevel", obj);
+    expect(getConsoleLog()).toContain("password:");
+    expect(getConsoleLog()).toContain("[***]");
+    expect(getConsoleLog()).not.toContain("pass123");
+    expect(getConsoleLog()).toContain("otherKey:");
+    expect(getConsoleLog()).not.toContain("otherKey456");
+    expect(obj.password).toBe("pass123");
+    expect(obj.otherKey).toBe("otherKey456");
+  });
+
   /* Additional pretty formatting tests */
 
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", (): void => {

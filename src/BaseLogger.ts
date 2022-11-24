@@ -155,8 +155,9 @@ export class BaseLogger<LogObj> {
    *  Returns a child logger based on the current instance with inherited settings
    *
    * @param settings - Overwrite settings inherited from parent logger
+   * @param logObj - Overwrite logObj for sub-logger
    */
-  public getSubLogger(settings?: ISettingsParam<LogObj>): BaseLogger<LogObj> {
+  public getSubLogger(settings?: ISettingsParam<LogObj>, logObj?: LogObj): BaseLogger<LogObj> {
     const subLoggerSettings: ISettings<LogObj> = {
       ...this.settings,
       ...settings,
@@ -175,7 +176,7 @@ export class BaseLogger<LogObj> {
       childSettings?: ISettingsParam<LogObj>,
       logObj?: LogObj,
       stackDepthLevel?: number
-    ) => this)(subLoggerSettings, this.logObj, this.stackDepthLevel);
+    ) => this)(subLoggerSettings, logObj ?? this.logObj, this.stackDepthLevel);
     //this.subLoggers.push(subLogger);
     return subLogger;
   }
@@ -184,48 +185,58 @@ export class BaseLogger<LogObj> {
     const maskValuesOfKeys =
       this.settings.maskValuesOfKeysCaseInsensitive !== true ? this.settings.maskValuesOfKeys : this.settings.maskValuesOfKeys.map((key) => key.toLowerCase());
     return args?.map((arg) => {
-      return this._maskValuesOfKeysRecursive(arg, maskValuesOfKeys);
+      return this._recursiveCloneAndMaskValuesOfKeys(arg, maskValuesOfKeys);
     });
   }
 
-  private _maskValuesOfKeysRecursive<T>(obj: T, keys: (number | string)[], seen: unknown[] = []): T {
-    if (typeof obj !== "object" || obj == null) {
-      return obj;
+  private _recursiveCloneAndMaskValuesOfKeys<T>(source: T, keys: (number | string)[], seen: unknown[] = []): T {
+    if (seen.includes(source)) {
+      return { ...source };
     }
-    if (seen.includes(obj)) {
-      return obj;
-    }
-    seen.push(obj);
+    seen.push(source);
 
-    Object.keys(obj).map((key) => {
-      const thisKey = this.settings?.maskValuesOfKeysCaseInsensitive !== true ? key : key.toLowerCase();
-
-      this.settings?.maskValuesRegEx?.forEach((regEx) => {
-        obj[key] = obj[key].replace(regEx, this.settings.maskPlaceholder);
-      });
-
-      if (keys.includes(thisKey)) {
-        obj[key] = this.settings.maskPlaceholder;
-      }
-
-      if (typeof obj[key] === "object" && obj[key] !== null) {
-        this._maskValuesOfKeysRecursive(obj[key], keys, seen);
-      }
-    });
-
-    return obj;
+    return isError(source)
+      ? source // dont copy Error
+      : isBuffer(source)
+      ? source // dont copy Buffer
+      : Array.isArray(source)
+      ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
+      : source instanceof Date
+      ? new Date(source.getTime())
+      : source && typeof source === "object"
+      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
+          // mask
+          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+            ? this.settings.maskPlaceholder
+            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
+          return o;
+        }, Object.create(Object.getPrototypeOf(source)))
+      : ((source: T): T => {
+          // mask regEx
+          this.settings?.maskValuesRegEx?.forEach((regEx) => {
+            source = (source as string).replace(regEx, this.settings.maskPlaceholder) as T;
+          });
+          return source;
+        })(source);
   }
 
-  private _recursiveCloneAndExecuteFunctions<T>(source: T): T {
+  private _recursiveCloneAndExecuteFunctions<T>(source: T, seen: unknown[] = []): T {
+    if (seen.includes(source)) {
+      return { ...source };
+    }
+    seen.push(source);
+
     return Array.isArray(source)
-      ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item))
+      ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen))
       : source instanceof Date
       ? new Date(source.getTime())
       : source && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
           Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
           // execute functions or clone
-          o[prop] = typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop]);
+          o[prop] =
+            typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop], seen);
           return o;
         }, Object.create(Object.getPrototypeOf(source)))
       : (source as T);

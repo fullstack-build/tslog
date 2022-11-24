@@ -4,7 +4,8 @@
   "compilerOptions": {
     "declaration": false,
     "declarationMap": false,
-    "outDir": "examples/dist"
+    "outDir": "examples/dist",
+    "moduleResolution": "node"
   },
   "include": ["examples/nodejs/*.ts"]
 }

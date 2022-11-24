@@ -66,8 +66,7 @@ describe("JSON: Log Types", () => {
     const logger = new Logger({ type: "json" });
     const date = new Date(0);
     const log1 = logger.log(1234, "testLevel", date);
-    console.log("***" + log1?.["0"]);
-    expect(log1?.["0"]).toBe(date);
+    expect(log1?.["0"]).toStrictEqual(date);
     expect(getConsoleLog()).toContain(`"1970-01-01T00:00:00.000Z"`);
   });
 

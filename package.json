@@ -13,18 +13,23 @@
   "bugs": {
     "url": "https://github.com/fullstack-build/tslog/issues"
   },
+  "type": "module",
   "main": "./dist/nodejs/cjs/index.js",
   "module": "./dist/nodejs/esm/index.js",
   "types": "./dist/types/index.d.ts",
   "browser": {
     "tslog": "./dist/browser/index.js",
-    "util": false,
-    "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts"
+    "./dist/nodejs/esm/runtime/nodejs/index.js": "./dist/nodejs/esm/runtime/browser/index.js",
+    "./dist/nodejs/cjs/runtime/nodejs/index.js": "./dist/nodejs/cjs/runtime/browser/index.js",
+    "./src/runtime/nodejs/index.ts": "./src/runtime/browser/index.ts",
+    "util": false
   },
   "exports": {
     ".": {
+      "types": "./dist/types/index.d.ts",
       "require": "./dist/nodejs/cjs/index.js",
-      "import": "./dist/nodejs/esm/index.js"
+      "import": "./dist/nodejs/esm/index.js",
+      "default": "./dist/nodejs/esm/index.js"
     }
   },
   "scripts": {
@@ -32,10 +37,11 @@
     "build-browser": "node build.js",
     "build-types": "tsc -b tsconfig.types.json",
     "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json",
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index2.js",
-    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
-    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
-    "dev-js": "tsc -b tsconfig.example.json && node --enable-source-maps --experimental-specifier-resolution=node examples/dist/examples/nodejs/index2.js",
+    "build-example": "tsc -b tsconfig.example.json",
+    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
+    "start": "npm run build-example && node --experimental-specifier-resolution=node --enable-source-maps examples/dist/examples/nodejs/index2.js",
+    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
+    "dev-js": "npm run build-example && node --experimental-specifier-resolution=node --enable-source-maps examples/dist/examples/nodejs/index2.js",
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
@@ -80,7 +86,7 @@
     "@typescript-eslint/eslint-plugin": "^5.36.1",
     "@typescript-eslint/parser": "^5.36.1",
     "docsify": "^4.11.4",
-    "esbuild": "^0.15.5",
+    "esbuild": "^0.15.15",
     "eslint": "^8.23.0",
     "eslint-config-prettier": "^8.5.0",
     "husky": "^8.0.1",

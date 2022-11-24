@@ -4,16 +4,17 @@
   "compilerOptions": {
     "lib": ["es2020", "dom"],
     "target": "es2020",
+    "module": "esnext",
     "moduleResolution": "Node",
     "types": ["node", "jest", "puppeteer", "jest-environment-puppeteer", "expect-puppeteer"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "inlineSourceMap": true,
+    "inlineSourceMap": false,
     "strict": true,
     "skipLibCheck": true,
     "suppressImplicitAnyIndexErrors": true,
     "allowSyntheticDefaultImports": true,
-    "removeComments": true
+    "removeComments": true,
   },
-  "exclude": ["node_modules", "**/node_modules", "**/dist", "**/tests", "*.test.ts", "examples"]
+  "exclude": ["node_modules", "**/node_modules", "**/dist", "**/tests", "*.test.ts"]
 }

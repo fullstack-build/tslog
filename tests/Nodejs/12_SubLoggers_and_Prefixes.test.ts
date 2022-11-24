@@ -24,4 +24,24 @@ describe("SubLoggers", () => {
     expect(subLogMsg?.["1"]).toBe("sub");
     expect(subLogMsg?.["2"]).toBe("test-sub");
   });
+
+  test("sub logger overwriting LogObj", (): void => {
+    const mainLogObj = {
+      main: true,
+      sub: false,
+    };
+    const mainLogger = new Logger({ type: "hidden" }, mainLogObj);
+    const logMsg = mainLogger.info("main logger");
+    expect(logMsg?.main).toBe(true);
+    expect(logMsg?.sub).toBe(false);
+
+    const subLogObj = {
+      main: false,
+      sub: true,
+    };
+    const subLogger = mainLogger.getSubLogger({ type: "hidden" }, subLogObj);
+    const subLogMsg = subLogger.info("test-sub");
+    expect(subLogMsg?.main).toBe(false);
+    expect(subLogMsg?.sub).toBe(true);
+  });
 });
