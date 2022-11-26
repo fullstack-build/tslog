@@ -274,7 +274,6 @@ firstSubLogger.silly("foo bar 1");
 #### Sub-logger with `LogObj`
 You can also overwrite the `LogObj`(s. below), when you create a sub-logger:
 
-
 ```typescript
 const mainLogObj = { main: true, sub: false };
 const mainLogger = new Logger({ type: "pretty", name: "MainLogger" }, mainLogObj);

@@ -76,6 +76,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
    *  Returns a child logger based on the current instance with inherited settings
    *
    * @param settings - Overwrite settings inherited from parent logger
+   * @param logObj - Overwrite logObj for sub-logger
    */
   public getSubLogger(settings?: ISettingsParam<LogObj>, logObj?: LogObj): Logger<LogObj> {
     return super.getSubLogger(settings, logObj) as Logger<LogObj>;

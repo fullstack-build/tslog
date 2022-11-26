@@ -28,7 +28,7 @@ export class BaseLogger<LogObj> {
         settings?.prettyLogTemplate ??
         "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}{{nameWithDelimiterPrefix}}]\t",
       prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
-      prettyErrorStackTemplate: settings?.prettyErrorTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+      prettyErrorStackTemplate: settings?.prettyErrorStackTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
       prettyErrorLoggerNameDelimiter: settings?.prettyErrorLoggerNameDelimiter ?? "\t",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
