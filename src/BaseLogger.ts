@@ -193,7 +193,9 @@ export class BaseLogger<LogObj> {
     if (seen.includes(source)) {
       return { ...source };
     }
-    seen.push(source);
+    if (typeof source === "object") {
+      seen.push(source);
+    }
 
     return isError(source)
       ? source // dont copy Error
@@ -203,7 +205,7 @@ export class BaseLogger<LogObj> {
       ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
       : source instanceof Date
       ? new Date(source.getTime())
-      : source && typeof source === "object"
+      : source != null && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
           Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
           // mask
@@ -225,7 +227,9 @@ export class BaseLogger<LogObj> {
     if (seen.includes(source)) {
       return { ...source };
     }
-    seen.push(source);
+    if (typeof source === "object") {
+      seen.push(source);
+    }
 
     return Array.isArray(source)
       ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen))
