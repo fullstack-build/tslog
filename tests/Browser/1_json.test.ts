@@ -55,4 +55,14 @@ describe("Browser: JSON: Log level", () => {
 
     expect(consoleOutput).toContain("Test");
   });
+
+  it("pretty no styles undefined", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.fatal("Test undefined", { test: undefined });
+    });
+
+    expect(consoleOutput).toContain("Test undefined");
+  });
 });

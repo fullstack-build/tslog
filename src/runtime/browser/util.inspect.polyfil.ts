@@ -60,7 +60,7 @@ function isBoolean(arg: unknown) {
 }
 
 function isUndefined(arg: unknown) {
-  return arg === void 0;
+  return arg == null;
 }
 
 function stylizeNoColor(str: string) {
@@ -70,7 +70,7 @@ function stylizeNoColor(str: string) {
 function stylizeWithColor(str: string, styleType: string) {
   const style = inspect.styles[styleType];
 
-  if (style) {
+  if (style != null && inspect?.colors?.[style]?.[0] != null && inspect?.colors?.[style]?.[1] != null) {
     return "\u001b[" + inspect.colors[style][0] + "m" + str + "\u001b[" + inspect.colors[style][1] + "m";
   } else {
     return str;
