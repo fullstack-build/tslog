@@ -294,7 +294,7 @@ export class BaseLogger<LogObj> {
     } else {
       placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
       placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
-      placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getDate(), 2, 1);
+      placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getDate(), 2);
       placeholderValues["hh"] = formatNumberAddZeros(logObjMeta?.date?.getHours(), 2);
       placeholderValues["MM"] = formatNumberAddZeros(logObjMeta?.date?.getMinutes(), 2);
       placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);

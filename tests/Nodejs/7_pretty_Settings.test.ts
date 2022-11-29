@@ -216,7 +216,7 @@ describe("Pretty: Settings", () => {
     const dateMonth = new Date().getMonth();
     const mm = dateMonth == null ? "--" : dateMonth < 9 ? "0" + (dateMonth + 1) : dateMonth + 1;
     const dateDay = new Date().getDate();
-    const dd = dateDay == null ? "--" : dateDay < 9 ? "0" + (dateDay + 1) : dateDay + 1;
+    const dd = dateDay == null ? "--" : dateDay < 10 ? "0" + dateDay : dateDay;
     const dateHours = new Date().getHours();
     const hh = dateHours == null ? "--" : dateHours < 10 ? "0" + dateHours : dateHours;
     const dateMinutes = new Date().getMinutes();
