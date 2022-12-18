@@ -1,42 +1,44 @@
-import { ok } from "assert";
 import "ts-jest";
+import { ok } from "assert";
 import { Logger } from "../../src/index.js";
-import { mockConsoleLog } from "./helper.js";
+import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 class MissingSetter {
-  get test(): string {
+  get testProp(): string {
     return "test";
   }
 }
 
 const missingSetter = {
-  get test(): string {
+  get testProp(): string {
     return "test";
-  }
-}
+  },
+};
 
 describe("Getters and setters", () => {
   beforeEach(() => {
     mockConsoleLog(true, false);
   });
-  test("[class] should not print getters", (): void => {
+
+  test("[class] should not print getters on class instance (prototype)", (): void => {
+    // Node.js issue: https://github.com/nodejs/node/issues/30183
     const logger = new Logger({
-      type: "hidden",
+      type: "pretty",
     });
     const missingSetterObj = new MissingSetter();
-
     const result = logger.info(missingSetterObj);
-
     ok(result);
-    Object.keys(result).forEach((key) => {
-      expect(key).not.toBe("test");
-    });
+    expect(Object.keys(result)).not.toContain("testProp");
+    expect(getConsoleLog()).not.toContain("testProp");
   });
+
   test("[object] should print getters", (): void => {
     const logger = new Logger({
-      type: "hidden",
+      type: "pretty",
     });
     const result = logger.info(missingSetter);
-    expect(result).toContain("test");
+    ok(result);
+    expect(Object.keys(result)).toContain("testProp");
+    expect(getConsoleLog()).toContain("testProp");
   });
 });
