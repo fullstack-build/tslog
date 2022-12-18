@@ -207,7 +207,6 @@ export class BaseLogger<LogObj> {
       ? new Date(source.getTime())
       : source != null && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
           // mask
           o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
             ? this.settings.maskPlaceholder
