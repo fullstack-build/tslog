@@ -169,8 +169,8 @@ export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unkno
   console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
 }
 
-export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
-  console.log(JSON.stringify(json, null, 2));
+export function transportJSON<LogObj>(json: LogObj & ILogObjMeta, settings?: Pick<ISettings<LogObj>, "jsonLogStyles">): void {
+  console.log(JSON.stringify(json, null, settings?.jsonLogStyles?.indentation ?? 2));
 }
 
 export function isBuffer(arg: unknown) {

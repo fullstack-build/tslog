@@ -40,6 +40,9 @@ export interface ISettingsParam<LogObj> {
     errorName?: TStyle;
     errorMessage?: TStyle;
   };
+  jsonLogStyles?: {
+    indentation?: number;
+  };
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
   maskPlaceholder?: string;
@@ -58,7 +61,7 @@ export interface ISettingsParam<LogObj> {
     formatMeta?: (meta?: IMeta) => string;
     formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
     transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
-    transportJSON?: (json: unknown) => void;
+    transportJSON?: (json: unknown, settings: Pick<ISettings<LogObj>, "jsonLogStyles">) => void;
   };
 }
 
@@ -93,6 +96,9 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     nameWithDelimiterSuffix?: TStyle;
     errorName?: TStyle;
     errorMessage?: TStyle;
+  };
+  jsonLogStyles?: {
+    indentation?: number;
   };
   prettyInspectOptions: InspectOptions;
   metaProperty: string;

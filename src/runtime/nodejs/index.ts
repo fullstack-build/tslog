@@ -140,7 +140,10 @@ export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unkno
   console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
 }
 
-export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
+export function transportJSON<LogObj>(
+  json: LogObj & ILogObjMeta,
+  settings?: Pick<ISettings<LogObj>, "jsonLogStyles">
+): void {
   console.log(jsonStringifyRecursive(json));
 
   function jsonStringifyRecursive(obj: unknown) {
@@ -158,7 +161,7 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
         }
         return value;
       },
-      2
+      settings?.jsonLogStyles?.indentation ?? 2
     );
   }
 }

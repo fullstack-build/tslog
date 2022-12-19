@@ -56,6 +56,9 @@ export class BaseLogger<LogObj> {
         compact: false,
         depth: Infinity,
       },
+      jsonLogStyles: settings?.jsonLogStyles ?? {
+        indentation: 2,
+      },
       metaProperty: settings?.metaProperty ?? "_meta",
       maskPlaceholder: settings?.maskPlaceholder ?? "[***]",
       maskValuesOfKeys: settings?.maskValuesOfKeys ?? ["password"],
@@ -127,9 +130,9 @@ export class BaseLogger<LogObj> {
     } else {
       // overwrite transport no matter what, hide only with default transport
       this.settings.overwrite?.transportJSON != null
-        ? this.settings.overwrite?.transportJSON(logObjWithMeta)
+        ? this.settings.overwrite?.transportJSON(logObjWithMeta, this.settings)
         : this.settings.type !== "hidden"
-        ? transportJSON(logObjWithMeta)
+        ? transportJSON(logObjWithMeta, this.settings)
         : undefined;
     }
 

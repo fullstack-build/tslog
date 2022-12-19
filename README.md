@@ -478,6 +478,9 @@ const logger = new Logger({
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
   },
+  jsonLogStyles: {
+    indentation: 2,
+  }
 });
 
 ```
