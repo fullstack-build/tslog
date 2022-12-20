@@ -24,4 +24,6 @@
   baseLogger.log(0, "test", "test base logger", { foo: true, password: "123456" }, ["SECRET"]);
 
   logger.fatal("test error", new Error("test example.js"));
+
+  logger.silly("Foo %s", "bar");
 })();

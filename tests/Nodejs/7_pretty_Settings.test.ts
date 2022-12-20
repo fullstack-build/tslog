@@ -192,12 +192,56 @@ describe("Pretty: Settings", () => {
     expect(obj.otherKey).toBe("otherKey456");
   });
 
+  test("maskValuesRegEx with different types and without manipulating the original object", (): void => {
+    const logger = new Logger({
+      type: "pretty",
+      stylePrettyLogs: false,
+      maskValuesRegEx: [new RegExp("otherKey", "g")],
+    });
+
+    const logObj = {
+      password: "pass123",
+      otherKey: "otherKey456",
+    };
+
+    logger.log(1234, "testLevel", logObj);
+
+    expect(getConsoleLog()).toContain("password: '[***]'");
+    expect(getConsoleLog()).not.toContain("pass123");
+    expect(getConsoleLog()).toContain("otherKey: '[***]456'");
+    expect(getConsoleLog()).not.toContain("otherKey456");
+
+    logger.log(4567, "testLevel", undefined);
+    expect(getConsoleLog()).toContain("undefined");
+    logger.log(4567, "testLevel", "string");
+    expect(getConsoleLog()).toContain("string");
+    logger.log(4567, "testLevel", 0);
+    expect(getConsoleLog()).toContain("0");
+    logger.log(4567, "testLevel", NaN);
+    expect(getConsoleLog()).toContain("NaN");
+    logger.log(4567, "testLevel", { object: true });
+    expect(getConsoleLog()).toContain(`{
+  object: 'true'
+}`);
+    logger.log(4567, "testLevel", new Date());
+    expect(getConsoleLog()).toContain("T");
+    expect(getConsoleLog()).toContain("Z");
+    logger.log(4567, "testLevel", Buffer.from("foo"));
+    expect(getConsoleLog()).toContain("<Buffer");
+    logger.log(4567, "testLevel", new Error("test"));
+    expect(getConsoleLog()).toContain("error stack");
+
+    // don't manipulate original object
+    expect(logObj.password).toBe("pass123");
+    expect(logObj.otherKey).toBe("otherKey456");
+  });
+
   /* Additional pretty formatting tests */
 
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}**",
+      prettyLogTemplate: "**{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}** ",
       stylePrettyLogs: false,
     });
     logger.log(1234, "testLevel", "Test");
@@ -208,7 +252,7 @@ describe("Pretty: Settings", () => {
   test("stylePrettyLogs: false / prettyLogTemplate - no shortcut: {{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}**",
+      prettyLogTemplate: "**{{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}** ",
       stylePrettyLogs: false,
     });
     logger.log(1234, "testLevel", "Test");
@@ -227,7 +271,7 @@ describe("Pretty: Settings", () => {
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{dateIsoStr}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{dateIsoStr}}**",
+      prettyLogTemplate: "**{{dateIsoStr}}** ",
       stylePrettyLogs: false,
     });
     logger.log(1234, "testLevel", "Test");
@@ -238,7 +282,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTemplate - rawIsoStr", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{rawIsoStr}}**",
+      prettyLogTemplate: "**{{rawIsoStr}}** ",
       stylePrettyLogs: false,
     });
     logger.log(1234, "testLevel", "Test");

@@ -117,7 +117,7 @@ export class BaseLogger<LogObj> {
 
     if (this.settings.type === "pretty") {
       logMetaMarkup = this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
-      logArgsAndErrorsMarkup = prettyFormatLogObj(thisLogObj, maskedArgs, this.settings);
+      logArgsAndErrorsMarkup = prettyFormatLogObj(maskedArgs, this.settings);
     }
 
     if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {
@@ -216,7 +216,7 @@ export class BaseLogger<LogObj> {
       : ((source: T): T => {
           // mask regEx
           this.settings?.maskValuesRegEx?.forEach((regEx) => {
-            source = (source as string)?.replace(regEx, this.settings.maskPlaceholder) as T;
+            source = (source as string)?.toString()?.replace(regEx, this.settings.maskPlaceholder) as T;
           });
           return source;
         })(source);
@@ -249,7 +249,7 @@ export class BaseLogger<LogObj> {
     args = args?.map((arg) => (isError(arg) ? this._toErrorObject(arg as Error) : arg));
     if (this.settings.argumentsArrayName == null) {
       if (args.length === 1 && !Array.isArray(args[0]) && isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
-        clonedLogObj = typeof args[0] === "object" ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
+        clonedLogObj = typeof args[0] === "object" && args[0] != null ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
       } else {
         clonedLogObj = { ...clonedLogObj, ...args };
       }

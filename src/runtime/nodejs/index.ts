@@ -1,6 +1,6 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
-import { types, inspect, InspectOptions } from "util";
+import { types, inspect, formatWithOptions, InspectOptions } from "util";
 import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
 export { InspectOptions };
@@ -106,12 +106,8 @@ export function isError(e: Error | unknown): boolean {
   return types?.isNativeError != null ? types.isNativeError(e) : e instanceof Error;
 }
 
-export function prettyFormatLogObj<LogObj>(
-  logObj: LogObj | undefined,
-  maskedArgs: unknown[],
-  settings: ISettings<LogObj>
-): { args: unknown[]; errors: string[] } {
-  return [logObj, ...maskedArgs].reduce(
+export function prettyFormatLogObj<LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>): { args: unknown[]; errors: string[] } {
+  return maskedArgs.reduce(
     (result: { args: unknown[]; errors: string[] }, arg) => {
       isError(arg) ? result.errors.push(prettyFormatErrorObj(arg as Error, settings)) : result.args.push(arg);
       return result;
@@ -136,8 +132,7 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>): void {
   const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
   settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
-  logArgs = logArgs.map((arg) => (typeof arg === "object" ? inspect(arg, settings.prettyInspectOptions) : arg));
-  console.log(logMetaMarkup + logArgs.join(" ") + logErrorsStr);
+  console.log(logMetaMarkup + formatWithOptions(settings.prettyInspectOptions, ...logArgs) + logErrorsStr);
 }
 
 export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {

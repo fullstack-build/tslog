@@ -187,19 +187,35 @@ describe("JSON: Settings", () => {
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
 
-  test("maskValuesRegEx", (): void => {
+  test("maskValuesRegEx with different types and without manipulating the original object", (): void => {
     const logger = new Logger({
       type: "json",
       maskValuesRegEx: [new RegExp("otherKey", "g")],
     });
-    logger.log(1234, "testLevel", {
+
+    const logObj = {
       password: "pass123",
       otherKey: "otherKey456",
-    });
+    };
+
+    logger.log(1234, "testLevel", logObj);
     expect(getConsoleLog()).toContain('"password":"[***]"');
     expect(getConsoleLog()).not.toContain("pass123");
     expect(getConsoleLog()).toContain('"otherKey":"[***]456"');
     expect(getConsoleLog()).not.toContain("otherKey456");
+
+    logger.log(4567, "testLevel", null);
+    logger.log(4567, "testLevel", "string");
+    logger.log(4567, "testLevel", 0);
+    logger.log(4567, "testLevel", NaN);
+    logger.log(4567, "testLevel", { object: true });
+    logger.log(4567, "testLevel", new Date());
+    logger.log(4567, "testLevel", Buffer.from("foo"));
+    logger.log(4567, "testLevel", new Error("test"));
+
+    // don't manipulate original object
+    expect(logObj.password).toBe("pass123");
+    expect(logObj.otherKey).toBe("otherKey456");
   });
 
   test("prefix", (): void => {

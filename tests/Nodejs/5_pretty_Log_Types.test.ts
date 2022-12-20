@@ -9,14 +9,14 @@ describe("Pretty: Log Types", () => {
 
   test("plain string", (): void => {
     const logger = new Logger({ type: "pretty" });
-    logger.log(1234, "testLevel", "Foo %s", "bar");
-    //expect(getConsoleLog()).toContain("Foo bar");
+    logger.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain("Test");
   });
 
   test("string interpolation", (): void => {
     const logger = new Logger({ type: "pretty" });
-    logger.log(1234, "testLevel", "Test");
-    expect(getConsoleLog()).toContain("Test");
+    logger.log(1234, "testLevel", "Foo %s", "bar");
+    expect(getConsoleLog()).toContain("Foo bar");
   });
 
   test("two plain string", (): void => {
