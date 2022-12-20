@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "4.4.5",
+  "version": "4.4.6",
   "description": "📝 Extensible TypeScript Logger for Node.js and Browser: Dependency free, Fully customizable, Pretty errors, stack traces, and JSON output to attachable transports.",
   "author": "Eugene <opensource@terehov.de> (http://fullstack.build/)",
   "license": "MIT",
