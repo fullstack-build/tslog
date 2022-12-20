@@ -216,7 +216,7 @@ export class BaseLogger<LogObj> {
       : ((source: T): T => {
           // mask regEx
           this.settings?.maskValuesRegEx?.forEach((regEx) => {
-            source = (source as string).replace(regEx, this.settings.maskPlaceholder) as T;
+            source = (source as string)?.replace(regEx, this.settings.maskPlaceholder) as T;
           });
           return source;
         })(source);
