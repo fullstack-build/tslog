@@ -26,14 +26,14 @@ describe("Browser: JSON: Log level", () => {
       logger.silly("Test");
     });
 
-    expect(consoleOutput).toContain('"0": "Test"');
-    expect(consoleOutput).toContain('"_meta": {');
-    expect(consoleOutput).toContain('"runtime": "Browser"');
-    expect(consoleOutput).toContain(`"date": "${new Date().toISOString().split(".")[0]}`); // ignore ms
-    expect(consoleOutput).toContain('"logLevelId": 0');
-    expect(consoleOutput).toContain('"logLevelName": "SILLY"');
-    expect(consoleOutput).toContain('"path": {');
-    expect(consoleOutput).toContain('"fileLine": "4"');
+    expect(consoleOutput).toContain('"0":"Test"');
+    expect(consoleOutput).toContain('"_meta":{');
+    expect(consoleOutput).toContain('"runtime":"Browser"');
+    expect(consoleOutput).toContain(`"date":"${new Date().toISOString().split(".")[0]}`); // ignore ms
+    expect(consoleOutput).toContain('"logLevelId":0');
+    expect(consoleOutput).toContain('"logLevelName":"SILLY"');
+    expect(consoleOutput).toContain('"path":{');
+    expect(consoleOutput).toContain('"fileLine":"4"');
   });
 
   it("pretty", async () => {

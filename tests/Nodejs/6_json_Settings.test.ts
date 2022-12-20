@@ -10,18 +10,18 @@ describe("JSON: Settings", () => {
   test("plain string", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test");
-    expect(getConsoleLog()).toContain('"0": "Test"');
-    expect(getConsoleLog()).toContain('"_meta": {');
-    expect(getConsoleLog()).toContain('"logLevelId": 1234');
-    expect(getConsoleLog()).toContain('"logLevelName": "testLevel"');
+    expect(getConsoleLog()).toContain('"0":"Test"');
+    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"logLevelId":1234');
+    expect(getConsoleLog()).toContain('"logLevelName":"testLevel"');
   });
 
   test("two strings", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test1", "Test2");
-    expect(getConsoleLog()).toContain('"0": "Test1"');
-    expect(getConsoleLog()).toContain('"1": "Test2"');
-    expect(getConsoleLog()).toContain('"_meta": {');
+    expect(getConsoleLog()).toContain('"0":"Test1"');
+    expect(getConsoleLog()).toContain('"1":"Test2"');
+    expect(getConsoleLog()).toContain('"_meta":{');
   });
 
   test("name", (): void => {
@@ -82,17 +82,14 @@ describe("JSON: Settings", () => {
       argumentsArrayName: "argumentsArray",
     });
     logger.log(1234, "testLevel", "Test1", "Test2");
-    expect(getConsoleLog()).toContain(`"argumentsArray": [
-    "Test1",
-    "Test2"
-  ]`);
-    expect(getConsoleLog()).toContain('"_meta": {');
+    expect(getConsoleLog()).toContain(`"argumentsArray":["Test1","Test2"]`);
+    expect(getConsoleLog()).toContain('"_meta":{');
   });
 
   test("metaProperty", (): void => {
     const logger = new Logger({ type: "json", metaProperty: "_test" });
     logger.log(1234, "testLevel", "Test");
-    expect(getConsoleLog()).toContain('"_test": {');
+    expect(getConsoleLog()).toContain('"_test":{');
   });
 
   test("maskValuesOfKeys and maskValuesRegEx empty", (): void => {
@@ -104,7 +101,7 @@ describe("JSON: Settings", () => {
         foo: "bar",
       },
     });
-    expect(getConsoleLog()).not.toContain('"password": "[***]"');
+    expect(getConsoleLog()).not.toContain('"password":"[***]"');
     expect(getConsoleLog()).toContain("pass123");
   });
 
@@ -117,7 +114,7 @@ describe("JSON: Settings", () => {
         foo: "bar",
       },
     });
-    expect(getConsoleLog()).toContain('"password": "[***]"');
+    expect(getConsoleLog()).toContain('"password":"[***]"');
     expect(getConsoleLog()).not.toContain("pass123");
   });
 
@@ -132,7 +129,7 @@ describe("JSON: Settings", () => {
       otherKey: "otherKey456",
     });
 
-    expect(getConsoleLog()).toContain('"otherKey": "[###]"');
+    expect(getConsoleLog()).toContain('"otherKey":"[###]"');
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
 
@@ -150,9 +147,9 @@ describe("JSON: Settings", () => {
       },
     });
 
-    expect(getConsoleLog()).toContain('"otherKey": "[###]"');
+    expect(getConsoleLog()).toContain('"otherKey":"[###]"');
     expect(getConsoleLog()).not.toContain("otherKey456");
-    expect(getConsoleLog()).toContain('"moviePassword": "[###]"');
+    expect(getConsoleLog()).toContain('"moviePassword":"[###]"');
     expect(getConsoleLog()).not.toContain("swordfish");
   });
 
@@ -167,11 +164,11 @@ describe("JSON: Settings", () => {
       otherKey: "otherKey456",
       yetAnotherKey: "otherKey789",
     });
-    expect(getConsoleLog()).toContain('"password": "[###]"');
+    expect(getConsoleLog()).toContain('"password":"[###]"');
     expect(getConsoleLog()).not.toContain("pass123");
-    expect(getConsoleLog()).toContain('"otherKey": "[###]"');
+    expect(getConsoleLog()).toContain('"otherKey":"[###]"');
     expect(getConsoleLog()).not.toContain("otherKey456");
-    expect(getConsoleLog()).toContain('"yetAnotherKey": "otherKey789"');
+    expect(getConsoleLog()).toContain('"yetAnotherKey":"otherKey789"');
   });
 
   test("maskValuesOfKeys and maskValuesOfKeysCaseInsensitive", (): void => {
@@ -184,9 +181,9 @@ describe("JSON: Settings", () => {
       password: "pass123",
       otherKey: "otherKey456",
     });
-    expect(getConsoleLog()).toContain('"password": "[***]"');
+    expect(getConsoleLog()).toContain('"password":"[***]"');
     expect(getConsoleLog()).not.toContain("pass123");
-    expect(getConsoleLog()).toContain('"otherKey": "[***]"');
+    expect(getConsoleLog()).toContain('"otherKey":"[***]"');
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
 
@@ -199,9 +196,9 @@ describe("JSON: Settings", () => {
       password: "pass123",
       otherKey: "otherKey456",
     });
-    expect(getConsoleLog()).toContain('"password": "[***]"');
+    expect(getConsoleLog()).toContain('"password":"[***]"');
     expect(getConsoleLog()).not.toContain("pass123");
-    expect(getConsoleLog()).toContain('"otherKey": "[***]456"');
+    expect(getConsoleLog()).toContain('"otherKey":"[***]456"');
     expect(getConsoleLog()).not.toContain("otherKey456");
   });
 
@@ -214,9 +211,9 @@ describe("JSON: Settings", () => {
       password: "pass123",
       otherKey: "otherKey456",
     });
-    expect(getConsoleLog()).toContain('"0": 1');
-    expect(getConsoleLog()).toContain('"1": 2');
-    expect(getConsoleLog()).toContain('"2": "test"');
-    expect(getConsoleLog()).toContain('"3": {');
+    expect(getConsoleLog()).toContain('"0":1');
+    expect(getConsoleLog()).toContain('"1":2');
+    expect(getConsoleLog()).toContain('"2":"test"');
+    expect(getConsoleLog()).toContain('"3":{');
   });
 });

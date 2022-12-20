@@ -170,7 +170,22 @@ export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unkno
 }
 
 export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
-  console.log(JSON.stringify(json, null, 2));
+  console.log(jsonStringifyRecursive(json));
+
+  function jsonStringifyRecursive(obj: unknown) {
+    const cache = new Set();
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (cache.has(value)) {
+          // Circular reference found, discard key
+          return "[Circular]";
+        }
+        // Store value in our collection
+        cache.add(value);
+      }
+      return value;
+    });
+  }
 }
 
 export function isBuffer(arg: unknown) {

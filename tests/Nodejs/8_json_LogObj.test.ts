@@ -19,8 +19,8 @@ describe("JSON: LogObj", () => {
     const logger = new BaseLogger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.log(1234, "testLevel", "Test");
     expect(logMsg?.name).toContain(defaultLogObject.name);
-    expect(getConsoleLog()).toContain(`"name": "test",`);
-    expect(getConsoleLog()).toContain(`"0": "Test",`);
+    expect(getConsoleLog()).toContain(`"name":"test",`);
+    expect(getConsoleLog()).toContain(`"0":"Test",`);
   });
 
   test("Logger with LogObj", (): void => {
@@ -30,8 +30,8 @@ describe("JSON: LogObj", () => {
     const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.log(1234, "testLevel", "Test");
     expect(logMsg?.name).toContain(defaultLogObject.name);
-    expect(getConsoleLog()).toContain(`"name": "test",`);
-    expect(getConsoleLog()).toContain(`"0": "Test",`);
+    expect(getConsoleLog()).toContain(`"name":"test",`);
+    expect(getConsoleLog()).toContain(`"0":"Test",`);
   });
 
   test("Logger with LogObj: silly", (): void => {
@@ -41,8 +41,8 @@ describe("JSON: LogObj", () => {
     const logger = new Logger<ILogObj>({ type: "json" }, defaultLogObject);
     const logMsg = logger.silly("Test");
     expect(logMsg?.name).toContain(defaultLogObject.name);
-    expect(getConsoleLog()).toContain(`"name": "test",`);
-    expect(getConsoleLog()).toContain(`"0": "Test",`);
+    expect(getConsoleLog()).toContain(`"name":"test",`);
+    expect(getConsoleLog()).toContain(`"0":"Test",`);
   });
 
   test("Logger with LogObj: function call", (): void => {
@@ -54,9 +54,9 @@ describe("JSON: LogObj", () => {
     const logMsg = logger.silly("Test");
     expect(logMsg?.name).toContain(defaultLogObject.name);
     expect(logMsg?.functionCall).toContain("test");
-    expect(getConsoleLog()).toContain(`"name": "test",`);
-    expect(getConsoleLog()).toContain(`"0": "Test",`);
-    expect(getConsoleLog()).toContain(`"functionCall": "test",`);
+    expect(getConsoleLog()).toContain(`"name":"test",`);
+    expect(getConsoleLog()).toContain(`"0":"Test",`);
+    expect(getConsoleLog()).toContain(`"functionCall":"test",`);
   });
 
   test("Logger with LogObj as an Array", (): void => {
@@ -64,8 +64,8 @@ describe("JSON: LogObj", () => {
     const logger = new Logger<string[]>({ type: "json" }, defaultLogObject);
     const logMsg = logger.silly("Test");
     expect(logMsg?.[0]).toContain(defaultLogObject[0]);
-    expect(getConsoleLog()).toContain(`"0": "1",`);
-    expect(getConsoleLog()).toContain(`"1": "2",`);
-    expect(getConsoleLog()).toContain(`"2": "3"`);
+    expect(getConsoleLog()).toContain(`"0":"1",`);
+    expect(getConsoleLog()).toContain(`"1":"2",`);
+    expect(getConsoleLog()).toContain(`"2":"3"`);
   });
 });

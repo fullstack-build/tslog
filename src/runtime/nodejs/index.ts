@@ -145,21 +145,17 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
 
   function jsonStringifyRecursive(obj: unknown) {
     const cache = new Set();
-    return JSON.stringify(
-      obj,
-      (key, value) => {
-        if (typeof value === "object" && value !== null) {
-          if (cache.has(value)) {
-            // Circular reference found, discard key
-            return "[Circular]";
-          }
-          // Store value in our collection
-          cache.add(value);
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof value === "object" && value !== null) {
+        if (cache.has(value)) {
+          // Circular reference found, discard key
+          return "[Circular]";
         }
-        return value;
-      },
-      2
-    );
+        // Store value in our collection
+        cache.add(value);
+      }
+      return value;
+    });
   }
 }
 
