@@ -322,6 +322,8 @@ Example on changing `minLevel` on runtime:
 - `json` prints out a `JSON` formatted log entry.
 - `hidden` suppresses any output whatsoever and can be used with attached loggers for example.
 
+> Hint: Each JSON log is printed in one line, making it easily parsable by external services.
+
 ```typescript
 // pretty output
 const defaultPrettyLogger = new Logger();
