@@ -118,8 +118,8 @@ export class BaseLogger<LogObj> {
     }
 
     if (this.settings.type === "pretty") {
-      logMetaMarkup = this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
-      logArgsAndErrorsMarkup = prettyFormatLogObj(maskedArgs, this.settings);
+      logMetaMarkup = logMetaMarkup ?? this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
+      logArgsAndErrorsMarkup = logArgsAndErrorsMarkup ?? prettyFormatLogObj(maskedArgs, this.settings);
     }
 
     if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {

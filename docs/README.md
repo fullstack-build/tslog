@@ -426,12 +426,14 @@ Following settings are available for styling:
     - `{{nameWithDelimiterSuffix}}`: optional name of the current logger (s. above) with a delimiter at the end
     - `{{fullFilePath}}`: a full path starting from `/` root
     - `{{filePathWithLine}}`: a full path below the project path with line number
+    - `{{fileNameWithLine}}`: file name with line number
   - `prettyErrorTemplate`: template string for error message. Possible placeholders:
     - `{{errorName}}`: name of the error
     - `{{errorMessage}}`: error message
     - `{{errorStack}}`: Placeholder for all stack lines defined by `prettyErrorStackTemplate`
   - `prettyErrorStackTemplate`: template string for error stack trace lines. Possible placeholders:
     - `{{fileName}}`: name of the file
+    - `{{fileNameWithLine}}`: file name with line number
     - `{{filePathWithLine}}`: a full path below the project path with a line number
     - `{{method}}`: _optional_ name of the invoking method
   - `prettyErrorParentNamesSeparator`: separator to be used when joining names ot the parent logger, and the current one (default: `:`)
@@ -483,6 +485,7 @@ const logger = new Logger({
     nameWithDelimiterSuffix: ["white", "bold"],
     errorName: ["bold", "bgRedBright", "whiteBright"],
     fileName: ["yellow"],
+    fileNameWithLine: "white",
   },
 });
 
