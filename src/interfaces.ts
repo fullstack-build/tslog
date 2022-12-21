@@ -87,6 +87,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     dateIsoStr?: TStyle;
     logLevelName?: TStyle;
     fileName?: TStyle;
+    fileNameWithLine?: TStyle;
     filePath?: TStyle;
     fileLine?: TStyle;
     filePathWithLine?: TStyle;
@@ -116,6 +117,7 @@ export interface ILogObjMeta {
 export interface IStackFrame {
   fullFilePath?: string;
   fileName?: string;
+  fileNameWithLine?: string;
   filePath?: string;
   fileLine?: string;
   fileColumn?: string;

@@ -63,11 +63,13 @@ export function getCallerStackFrame(stackDepthLevel: number): IStackFrame {
       const fileLine = pathArray?.pop();
       const filePath = pathArray?.pop()?.split("?")?.[0];
       const fileName = filePath?.split("/").pop();
-      const filePathWithLine = `${href}${filePath}:${fileLine}`;
+      const fileNameWithLine = `${fileName}:${fileLine}`;
+      const filePathWithLine = `${filePath}:${fileLine}`;
       const errorStackLine = fullFilePath?.split(" (");
       return {
         fullFilePath,
         fileName,
+        fileNameWithLine,
         fileColumn,
         fileLine,
         filePath,
@@ -79,6 +81,7 @@ export function getCallerStackFrame(stackDepthLevel: number): IStackFrame {
     return {
       fullFilePath: undefined,
       fileName: undefined,
+      fileNameWithLine: undefined,
       fileColumn: undefined,
       fileLine: undefined,
       filePath: undefined,
@@ -114,12 +117,14 @@ export function getErrorTrace(error: Error): IStackFrame[] {
       const fileLine = pathArray?.pop();
       const filePath = pathArray?.pop()?.split("?")[0];
       const fileName = filePath?.split("/")?.pop()?.split("?")[0];
+      const fileNameWithLine = `${fileName}:${fileLine}`;
       const filePathWithLine = `${filePath}:${fileLine}`;
 
       if (filePath != null && filePath.length > 0) {
         result.push({
           fullFilePath,
           fileName,
+          fileNameWithLine,
           fileColumn,
           fileLine,
           filePath,

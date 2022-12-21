@@ -51,6 +51,7 @@ export class BaseLogger<LogObj> {
         nameWithDelimiterSuffix: ["white", "bold"],
         errorName: ["bold", "bgRedBright", "whiteBright"],
         fileName: ["yellow"],
+        fileNameWithLine: "white",
       },
       prettyInspectOptions: settings?.prettyInspectOptions ?? {
         colors: true,
@@ -315,6 +316,7 @@ export class BaseLogger<LogObj> {
     placeholderValues["rawIsoStr"] = dateInSettingsTimeZone?.toISOString();
     placeholderValues["dateIsoStr"] = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
+    placeholderValues["fileNameWithLine"] = logObjMeta?.path?.fileNameWithLine;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
     // name
