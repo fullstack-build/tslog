@@ -32,6 +32,7 @@ export class BaseLogger<LogObj> {
       prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
       prettyErrorLoggerNameDelimiter: settings?.prettyErrorLoggerNameDelimiter ?? "\t",
       stylePrettyLogs: settings?.stylePrettyLogs ?? true,
+      prettyLogTimeZone: settings?.prettyLogTimeZone ?? "UTC",
       prettyLogStyles: settings?.prettyLogStyles ?? {
         logLevelName: {
           "*": ["bold", "black", "bgWhiteBright", "dim"],
@@ -291,16 +292,28 @@ export class BaseLogger<LogObj> {
     if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
       template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
     } else {
-      placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
-      placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
-      placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getDate(), 2);
-      placeholderValues["hh"] = formatNumberAddZeros(logObjMeta?.date?.getHours(), 2);
-      placeholderValues["MM"] = formatNumberAddZeros(logObjMeta?.date?.getMinutes(), 2);
-      placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);
-      placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
+      if (this.settings.prettyLogTimeZone === "UTC") {
+        placeholderValues["yyyy"] = logObjMeta?.date?.getUTCFullYear() ?? "----";
+        placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getUTCMonth(), 2, 1);
+        placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getUTCDate(), 2);
+        placeholderValues["hh"] = formatNumberAddZeros(logObjMeta?.date?.getUTCHours(), 2);
+        placeholderValues["MM"] = formatNumberAddZeros(logObjMeta?.date?.getUTCMinutes(), 2);
+        placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getUTCSeconds(), 2);
+        placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getUTCMilliseconds(), 3);
+      } else {
+        placeholderValues["yyyy"] = logObjMeta?.date?.getFullYear() ?? "----";
+        placeholderValues["mm"] = formatNumberAddZeros(logObjMeta?.date?.getMonth(), 2, 1);
+        placeholderValues["dd"] = formatNumberAddZeros(logObjMeta?.date?.getDate(), 2);
+        placeholderValues["hh"] = formatNumberAddZeros(logObjMeta?.date?.getHours(), 2);
+        placeholderValues["MM"] = formatNumberAddZeros(logObjMeta?.date?.getMinutes(), 2);
+        placeholderValues["ss"] = formatNumberAddZeros(logObjMeta?.date?.getSeconds(), 2);
+        placeholderValues["ms"] = formatNumberAddZeros(logObjMeta?.date?.getMilliseconds(), 3);
+      }
     }
-    placeholderValues["rawIsoStr"] = logObjMeta?.date?.toISOString();
-    placeholderValues["dateIsoStr"] = logObjMeta?.date?.toISOString().replace("T", " ").replace("Z", "");
+    const dateInSettingsTimeZone =
+      this.settings.prettyLogTimeZone === "UTC" ? logObjMeta?.date : new Date(logObjMeta?.date?.getTime() - logObjMeta?.date?.getTimezoneOffset() * 60000);
+    placeholderValues["rawIsoStr"] = dateInSettingsTimeZone?.toISOString();
+    placeholderValues["dateIsoStr"] = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
     placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
     placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;

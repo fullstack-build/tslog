@@ -446,6 +446,9 @@ Following settings are available for styling:
     - Level 3: Optional nested style based on placeholder values. Key is the value of the template placeholder and value is either a string of a style, or an array of styles (s. above), e.g. `{ SILLY: ["bold", "white"] }` which means: value "SILLY" should get a style of "bold" and "white". `*` means any value other than the defined.
   - `prettyInspectOptions`: When a (potentially nested) object is printed out in Node.js, we use `util.formatWithOptions` under the hood. With `prettyInspectOptions` you can define the output. [Possible values](https://nodejs.org/api/util.html#utilinspectobject-showhidden-depth-colors)
 
+- **Time zone support:**
+  - `prettyLogTimeZone`: Set timezone of pretty log messages to either `UTC` (default) or `local` (based on your server/browser configuration)
+
 #### Log meta information
 `tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`.
 You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.
@@ -461,6 +464,7 @@ const logger = new Logger({
   prettyErrorParentNamesSeparator: ":",
   prettyErrorLoggerNameDelimiter: "\t",
   stylePrettyLogs: true,
+  prettyLogTimeZone: "UTC",
   prettyLogStyles: {
     logLevelName: {
       "*": ["bold", "black", "bgWhiteBright", "dim"],

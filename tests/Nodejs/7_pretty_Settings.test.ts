@@ -256,14 +256,14 @@ describe("Pretty: Settings", () => {
       stylePrettyLogs: false,
     });
     logger.log(1234, "testLevel", "Test");
-    const yyyy = new Date().getFullYear();
-    const dateMonth = new Date().getMonth();
+    const yyyy = new Date().getUTCFullYear();
+    const dateMonth = new Date().getUTCMonth();
     const mm = dateMonth == null ? "--" : dateMonth < 9 ? "0" + (dateMonth + 1) : dateMonth + 1;
-    const dateDay = new Date().getDate();
+    const dateDay = new Date().getUTCDate();
     const dd = dateDay == null ? "--" : dateDay < 10 ? "0" + dateDay : dateDay;
-    const dateHours = new Date().getHours();
+    const dateHours = new Date().getUTCHours();
     const hh = dateHours == null ? "--" : dateHours < 10 ? "0" + dateHours : dateHours;
-    const dateMinutes = new Date().getMinutes();
+    const dateMinutes = new Date().getUTCMinutes();
     const MM = dateMinutes == null ? "--" : dateMinutes < 10 ? "0" + dateMinutes : dateMinutes;
     expect(getConsoleLog()).toContain(`**${dd}.${mm}.${yyyy} ${hh}:${MM}** Test`);
   });
@@ -288,6 +288,76 @@ describe("Pretty: Settings", () => {
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
     expect(getConsoleLog()).toContain("** Test");
+  });
+
+  test("prettyLogTimeZone - rawIsoStr - UTC (default)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTemplate: "**{{rawIsoStr}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
+  });
+
+  test("prettyLogTimeZone - rawIsoStr - UTC (configured)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTimeZone: "UTC",
+      prettyLogTemplate: "**{{rawIsoStr}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
+  });
+
+  test("prettyLogTimeZone - rawIsoStr - local (configured)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTimeZone: "local",
+      prettyLogTemplate: "**{{rawIsoStr}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split(".")[0]}`);
+  });
+
+  test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - UTC (default)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
+  });
+
+  test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - UTC (configured)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTimeZone: "UTC",
+      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date().toISOString().split(".")[0]}`);
+  });
+
+  test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - local (configured)", (): void => {
+    const loggerShortcut = new Logger({
+      type: "pretty",
+      prettyLogTimeZone: "local",
+      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
+      stylePrettyLogs: false,
+    });
+
+    loggerShortcut.log(1234, "testLevel", "Test");
+    expect(getConsoleLog()).toContain(`**${new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split(".")[0]}`);
   });
 
   test("Change settings: minLevel", (): void => {

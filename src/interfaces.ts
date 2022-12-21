@@ -20,6 +20,7 @@ export interface ISettingsParam<LogObj> {
   prettyErrorParentNamesSeparator?: string;
   prettyErrorLoggerNameDelimiter?: string;
   stylePrettyLogs?: boolean;
+  prettyLogTimeZone?: "UTC" | "local";
   prettyLogStyles?: {
     yyyy?: TStyle;
     mm?: TStyle;
@@ -74,6 +75,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   prettyErrorParentNamesSeparator: string;
   prettyErrorLoggerNameDelimiter: string;
   stylePrettyLogs: boolean;
+  prettyLogTimeZone: "UTC" | "local";
   prettyLogStyles: {
     yyyy?: TStyle;
     mm?: TStyle;
