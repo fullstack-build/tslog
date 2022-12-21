@@ -1,6 +1,7 @@
 import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
-import { inspect } from "./util.inspect.polyfil.js";
+import { formatWithOptions } from "./util.inspect.polyfil.js";
+import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
 
 export interface IMetaStatic {
   name?: string;
@@ -113,7 +114,7 @@ export function getErrorTrace(error: Error): IStackFrame[] {
       const fileLine = pathArray?.pop();
       const filePath = pathArray?.pop()?.split("?")[0];
       const fileName = filePath?.split("/")?.pop()?.split("?")[0];
-      const filePathWithLine = `${href}${filePath}:${fileLine}`;
+      const filePathWithLine = `${filePath}:${fileLine}`;
 
       if (filePath != null && filePath.length > 0) {
         result.push({
@@ -161,27 +162,11 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 export function transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>): void {
   const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
   settings.prettyInspectOptions.colors = settings.stylePrettyLogs;
-  logArgs = logArgs.map((arg) => (typeof arg !== "string" ? inspect(arg, settings.prettyInspectOptions) : arg));
-  console.log(logMetaMarkup + logArgs.shift() + logErrorsStr, ...logArgs);
+  console.log(logMetaMarkup + formatWithOptions(settings.prettyInspectOptions, ...logArgs) + logErrorsStr);
 }
 
 export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
   console.log(jsonStringifyRecursive(json));
-
-  function jsonStringifyRecursive(obj: unknown) {
-    const cache = new Set();
-    return JSON.stringify(obj, (key, value) => {
-      if (typeof value === "object" && value !== null) {
-        if (cache.has(value)) {
-          // Circular reference found, discard key
-          return "[Circular]";
-        }
-        // Store value in our collection
-        cache.add(value);
-      }
-      return value;
-    });
-  }
 }
 
 export function isBuffer(arg: unknown) {

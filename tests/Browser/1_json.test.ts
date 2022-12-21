@@ -2,6 +2,8 @@
  * @jest-environment puppeteer
  */
 import "expect-puppeteer";
+import { Logger } from "../../src";
+import { getConsoleLog } from "../Nodejs/helper";
 
 let consoleOutput = "";
 describe("Browser: JSON: Log level", () => {
@@ -64,5 +66,15 @@ describe("Browser: JSON: Log level", () => {
     });
 
     expect(consoleOutput).toContain("Test undefined");
+  });
+
+  it("pretty string interpolation", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.info("Foo %s", "bar");
+    });
+
+    expect(consoleOutput).toContain("Foo bar");
   });
 });
