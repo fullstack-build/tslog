@@ -200,9 +200,15 @@ Every incoming log message runs through a number of steps before being displayed
 - **log message** Log message comes in through the `BaseLogger.log()` method
 - **mask** If masking is configured, log message gets recursively masked
 - **toLogObj** Log message gets transformed into a log object: A default typed log object can be passed to constructor as a second parameter and will be cloned and enriched with the incoming log parameters. Error properties will be handled accordingly. If there is only one log property, and it's an object, both objects (cloned default `logObj` as well as the log property object) will be merged. If there are more than one, they will be put into properties called "0", "1", ... and so on. Alternatively, log message properties can be put into a property with a name configured with the `argumentsArrayName` setting.
-- **addMetaToLogObj** Additional meta information, like the source code position of the log will be gathered and added to the `_meta` property or any other one configured with the setting `metaProperty`.
+- **addMetaToLogObj** Additional meta information, like date, runtime and source code position of the log will be gathered and added to the `_meta` property or any other one configured with the setting `metaProperty`.
 - **format** In case of "pretty" configuration, a log object will be formatted based on the templates configured in settings. Meta will be formatted by the method `_prettyFormatLogObjMeta` and the actual log payload will be formatted by `prettyFormatLogObj`. Both steps can be overwritten with the settings `formatMeta` and `formatLogObj`.
 - **transport** Last step is to "transport" a log message to every attached transport from the setting `attachedTransports`. Last step is the actual transport, either JSON (`transportJSON`), formatted (`transportFormatted`) or omitted, if its set to "hidden". Both default transports can also be overwritten by the corresponding setting.
+
+### ❗Performance
+
+By default, `tslog is optimized for the best developer experience and includes some default settings that may impact performance in production environments. `
+To ensure optimal performance in production, we recommend modifying these settings, such as `hideLogPositionForProduction`(s. below), as needed.  
+
 
 ### Default log level
 
@@ -404,6 +410,13 @@ const logMsg = logger.silly("Test1", "Test2");
 // }
 
 ```
+
+
+#### hideLogPositionForProduction (default: `false`)
+
+By default, `tslog` gathers and includes the log code position in the meta information of a `logObj to improve the developer experience. `
+However, this can significantly impact performance and slow down execution times in production. 
+To improve performance, you can disable this functionality by setting the option `hideLogPositionForProduction` to `true`.
 
 #### Pretty templates and styles (color settings)
 Enables you to overwrite the looks of a formatted _"pretty"_ log message by providing a template string.
@@ -713,7 +726,7 @@ const logMsg = logger.info("Test");
 ### RequestID: Mark a request (e.g. HTTP) call with AsyncLocalStorage and `tslog`
 >**Node.js 13.10 introduced a new feature called <a href="https://nodejs.org/api/async_hooks.html#async_hooks_class_asynclocalstorage" target="_blank">AsyncLocalStorage.</a>**<br>
 
-**❗ Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).**
+** Keep track of all subsequent calls and promises originated from a single request (e.g. HTTP).**
 
 In a real world application a call to an API would lead to many logs produced across the entire application.
 When debugging it can be quite handy to be able to group all logs based on a unique identifier, e.g.  `requestId`.

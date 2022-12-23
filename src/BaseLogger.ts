@@ -24,9 +24,10 @@ export class BaseLogger<LogObj> {
       parentNames: settings?.parentNames,
       minLevel: settings?.minLevel ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
+      hideLogPositionForProduction: settings?.hideLogPositionForProduction ?? false,
       prettyLogTemplate:
         settings?.prettyLogTemplate ??
-        "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t[{{filePathWithLine}}{{nameWithDelimiterPrefix}}]\t",
+        "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t{{filePathWithLine}}{{nameWithDelimiterPrefix}}\t",
       prettyErrorTemplate: settings?.prettyErrorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
       prettyErrorStackTemplate: settings?.prettyErrorStackTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
       prettyErrorParentNamesSeparator: settings?.prettyErrorParentNamesSeparator ?? ":",
@@ -175,7 +176,7 @@ export class BaseLogger<LogObj> {
     };
 
     const subLogger: BaseLogger<LogObj> = new (this.constructor as new (
-      childSettings?: ISettingsParam<LogObj>,
+      subLoggerSettings?: ISettingsParam<LogObj>,
       logObj?: LogObj,
       stackDepthLevel?: number
     ) => this)(subLoggerSettings, logObj ?? this.logObj, this.stackDepthLevel);
@@ -238,7 +239,7 @@ export class BaseLogger<LogObj> {
       ? new Date(source.getTime())
       : source && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop)!);
+          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop) as PropertyDescriptor);
           // execute functions or clone
           o[prop] =
             typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop], seen);
@@ -276,7 +277,14 @@ export class BaseLogger<LogObj> {
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
     return {
       ...logObj,
-      [this.settings.metaProperty]: getMeta(logLevelId, logLevelName, this.stackDepthLevel, this.settings.name, this.settings.parentNames),
+      [this.settings.metaProperty]: getMeta(
+        logLevelId,
+        logLevelName,
+        this.stackDepthLevel,
+        this.settings.hideLogPositionForProduction,
+        this.settings.name,
+        this.settings.parentNames
+      ),
     };
   }
 
@@ -316,9 +324,9 @@ export class BaseLogger<LogObj> {
     placeholderValues["rawIsoStr"] = dateInSettingsTimeZone?.toISOString();
     placeholderValues["dateIsoStr"] = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "");
     placeholderValues["logLevelName"] = logObjMeta?.logLevelName;
-    placeholderValues["fileNameWithLine"] = logObjMeta?.path?.fileNameWithLine;
-    placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine;
-    placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath;
+    placeholderValues["fileNameWithLine"] = logObjMeta?.path?.fileNameWithLine ?? "";
+    placeholderValues["filePathWithLine"] = logObjMeta?.path?.filePathWithLine ?? "";
+    placeholderValues["fullFilePath"] = logObjMeta?.path?.fullFilePath ?? "";
     // name
     let parentNamesString = this.settings.parentNames?.join(this.settings.prettyErrorParentNamesSeparator);
     parentNamesString = parentNamesString != null && logObjMeta?.name != null ? parentNamesString + this.settings.prettyErrorParentNamesSeparator : undefined;

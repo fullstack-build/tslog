@@ -14,6 +14,7 @@ export interface ISettingsParam<LogObj> {
   parentNames?: string[];
   minLevel?: number;
   argumentsArrayName?: string;
+  hideLogPositionForProduction?: boolean;
   prettyLogTemplate?: string;
   prettyErrorTemplate?: string;
   prettyErrorStackTemplate?: string;
@@ -69,6 +70,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   parentNames?: string[];
   minLevel: number;
   argumentsArrayName?: string;
+  hideLogPositionForProduction: boolean;
   prettyLogTemplate: string;
   prettyErrorTemplate: string;
   prettyErrorStackTemplate: string;

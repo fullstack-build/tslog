@@ -99,3 +99,6 @@ tsconfig*
 
 # Ignore docs
 /docs*
+
+# Ignore banchmarks for now
+/benchmarks/*

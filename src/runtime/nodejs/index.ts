@@ -1,6 +1,6 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
-import { types, inspect, formatWithOptions, InspectOptions } from "util";
+import { types, formatWithOptions, InspectOptions } from "util";
 import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
 export { InspectOptions };
@@ -9,6 +9,7 @@ export interface IMetaStatic {
   name?: string;
   parentNames?: string[];
   runtime: string;
+  runtimeVersion: string;
   hostname: string;
 }
 
@@ -21,87 +22,78 @@ export interface IMeta extends IMetaStatic {
 
 const meta: IMetaStatic = {
   runtime: "Nodejs",
+  runtimeVersion: process.version,
   hostname: hostname(),
 };
 
-export function getMeta(logLevelId: number, logLevelName: string, stackDepthLevel: number, name?: string, parentNames?: string[]): IMeta {
-  return {
-    ...meta,
+export function getMeta(
+  logLevelId: number,
+  logLevelName: string,
+  stackDepthLevel: number,
+  hideLogPositionForPerformance: boolean,
+  name?: string,
+  parentNames?: string[]
+): IMeta {
+  // faster than spread operator
+  return Object.assign({}, meta, {
     name,
     parentNames,
     date: new Date(),
     logLevelId,
     logLevelName,
-    path: getCallerStackFrame(stackDepthLevel),
-  };
+    path: !hideLogPositionForPerformance ? getCallerStackFrame(stackDepthLevel) : undefined,
+  }) as IMeta;
 }
 
-export function getCallerStackFrame(stackDepthLevel: number, error?: Error): IStackFrame {
-  try {
-    throw error == null ? new Error("getStackTrace") : error;
-  } catch (e: unknown) {
-    const line: string | undefined = (e as Error | undefined)?.stack?.split("\n")?.filter((thisLine: string) => thisLine.includes("    at "))?.[
-      stackDepthLevel
-    ];
+export function getCallerStackFrame(stackDepthLevel: number, error: Error = Error()): IStackFrame {
+  return stackLineToStackFrame((error as Error | undefined)?.stack?.split("\n")?.filter((thisLine: string) => thisLine.includes("    at "))?.[stackDepthLevel]);
+}
 
-    let fullFilePath = line?.replace(/^\s+at\s+/gm, ""); // remove prefix text ' at '
-    if (fullFilePath?.slice(-1) === ")") {
-      fullFilePath = fullFilePath?.match(/\(([^)]+)\)/)?.[1];
+export function getErrorTrace(error: Error): IStackFrame[] {
+  return (error as Error)?.stack?.split("\n")?.reduce((result: IStackFrame[], line: string) => {
+    if (line.includes("    at ")) {
+      result.push(stackLineToStackFrame(line));
     }
+    return result;
+  }, []) as IStackFrame[];
+}
 
-    const errorStackLine = line?.split(" (");
+function stackLineToStackFrame(line?: string): IStackFrame {
+  const pathResult: IStackFrame = {
+    fullFilePath: undefined,
+    fileName: undefined,
+    fileNameWithLine: undefined,
+    fileColumn: undefined,
+    fileLine: undefined,
+    filePath: undefined,
+    filePathWithLine: undefined,
+    method: undefined,
+  };
+  if (line != null && line.includes("    at ")) {
+    line = line.replace(/^\s+at\s+/gm, "");
+    const errorStackLine = line.split(" (");
+    const fullFilePath = line?.slice(-1) === ")" ? line?.match(/\(([^)]+)\)/)?.[1] : line;
     const pathArray = fullFilePath?.includes(":") ? fullFilePath?.replace("file://", "")?.replace(process.cwd(), "")?.split(":") : undefined;
     // order plays a role, runs from the back: column, line, path
     const fileColumn = pathArray?.pop();
     const fileLine = pathArray?.pop();
     const filePath = pathArray?.pop();
     const filePathWithLine = fileNormalize(`${filePath}:${fileLine}`);
-    const fileName = filePath?.split("/").pop();
+    const fileName = filePath?.split("/")?.pop();
     const fileNameWithLine = `${fileName}:${fileLine}`;
 
-    return {
-      fullFilePath,
-      fileName,
-      fileNameWithLine,
-      fileColumn,
-      fileLine,
-      filePath,
-      filePathWithLine,
-      method: errorStackLine?.[0],
-    };
-  }
-}
-
-export function getErrorTrace(error: Error): IStackFrame[] {
-  return (error as Error)?.stack?.split("\n")?.reduce((result: IStackFrame[], line: string) => {
-    if (line.includes("    at ")) {
-      line = line.replace(/^\s+at\s+/gm, "");
-      const errorStackLine = line.split(" (");
-      const fullFilePath = line?.slice(-1) === ")" ? line?.match(/\(([^)]+)\)/)?.[1] : line;
-      const pathArray = fullFilePath?.includes(":") ? fullFilePath?.replace("file://", "")?.replace(process.cwd(), "")?.split(":") : undefined;
-      // order plays a role, runs from the back: column, line, path
-      const fileColumn = pathArray?.pop();
-      const fileLine = pathArray?.pop();
-      const filePath = pathArray?.pop();
-      const filePathWithLine = fileNormalize(`${filePath}:${fileLine}`);
-      const fileName = filePath?.split("/")?.pop();
-      const fileNameWithLine = `${fileName}:${fileLine}`;
-
-      if (filePath != null && filePath.length > 0) {
-        result.push({
-          fullFilePath,
-          fileName,
-          fileNameWithLine,
-          fileColumn,
-          fileLine,
-          filePath,
-          filePathWithLine,
-          method: errorStackLine?.[1] != null ? errorStackLine?.[0] : undefined,
-        });
-      }
+    if (filePath != null && filePath.length > 0) {
+      pathResult.fullFilePath = fullFilePath;
+      pathResult.fileName = fileName;
+      pathResult.fileNameWithLine = fileNameWithLine;
+      pathResult.fileColumn = fileColumn;
+      pathResult.fileLine = fileLine;
+      pathResult.filePath = filePath;
+      pathResult.filePathWithLine = filePathWithLine;
+      pathResult.method = errorStackLine?.[1] != null ? errorStackLine?.[0] : undefined;
     }
-    return result;
-  }, []) as IStackFrame[];
+  }
+  return pathResult;
 }
 
 export function isError(e: Error | unknown): boolean {

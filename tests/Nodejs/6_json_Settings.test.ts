@@ -37,7 +37,7 @@ describe("JSON: Settings", () => {
 
   test("name with sub-logger inheritance", (): void => {
     const logger1 = new Logger({
-      type: "json",
+      type: "pretty",
       name: "logger1",
     });
     const logger2 = logger1.getSubLogger({ name: "logger2" });
@@ -84,6 +84,24 @@ describe("JSON: Settings", () => {
     logger.log(1234, "testLevel", "Test1", "Test2");
     expect(getConsoleLog()).toContain(`"argumentsArray":["Test1","Test2"]`);
     expect(getConsoleLog()).toContain('"_meta":{');
+  });
+
+  test("hideLogPositionForProduction", (): void => {
+    const loggerNormal = new Logger({
+      type: "json",
+      hideLogPositionForProduction: false,
+      stylePrettyLogs: false,
+    });
+    const loggerProduction = new Logger({
+      type: "json",
+      hideLogPositionForProduction: true,
+      stylePrettyLogs: false,
+    });
+
+    loggerProduction.log(1234, "testLevel", "Production log");
+    expect(getConsoleLog()).not.toContain('"fileName":"6_json_Settings.test.ts"');
+    loggerNormal.log(1234, "testLevel", "Normal log");
+    expect(getConsoleLog()).toContain('"fileName":"6_json_Settings.test.ts"');
   });
 
   test("metaProperty", (): void => {

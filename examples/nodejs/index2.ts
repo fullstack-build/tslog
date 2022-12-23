@@ -55,3 +55,11 @@ firstSubLogger.silly("foo bar 1");
 
 const secondSubLogger = firstSubLogger.getSubLogger({ name: "SecondSubLogger" });
 secondSubLogger.silly("foo bar 2");
+
+////////////////////////////
+
+const performanceLogger = new Logger({
+  hideLogPositionForProduction: true,
+});
+
+performanceLogger.silly("log without code position information");

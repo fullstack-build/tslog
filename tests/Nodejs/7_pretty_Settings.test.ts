@@ -58,6 +58,24 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain("Test1 Test2");
   });
 
+  test("hideLogPositionForProduction", (): void => {
+    const loggerNormal = new Logger({
+      type: "pretty",
+      hideLogPositionForProduction: false,
+      stylePrettyLogs: false,
+    });
+    const loggerProduction = new Logger({
+      type: "pretty",
+      hideLogPositionForProduction: true,
+      stylePrettyLogs: false,
+    });
+
+    loggerNormal.log(1234, "testLevel", "Normal log");
+    loggerProduction.log(1234, "testLevel", "Production log");
+    expect(getConsoleLog()).toContain("testLevel\t/tests/Nodejs/7_pretty_Settings.test.ts:73\tNormal log");
+    expect(getConsoleLog()).toContain("testLevel\t\tProduction log");
+  });
+
   test("metaProperty", (): void => {
     const logger = new Logger({ type: "pretty", metaProperty: "_test" });
     logger.log(1234, "testLevel", "Test");

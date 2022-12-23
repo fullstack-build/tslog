@@ -83,3 +83,6 @@ bower_components
 # Vuepress
 .temp
 .cache
+
+# Ignore banchmarks for now
+/benchmarks/*
