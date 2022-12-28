@@ -14,7 +14,7 @@ export interface IMeta extends IMetaStatic {
   date: Date;
   logLevelId: number;
   logLevelName: string;
-  path: IStackFrame;
+  path?: IStackFrame;
 }
 
 const meta: IMetaStatic = {
