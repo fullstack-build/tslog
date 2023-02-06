@@ -196,7 +196,7 @@ export class BaseLogger<LogObj> {
     if (seen.includes(source)) {
       return { ...source };
     }
-    if (typeof source === "object") {
+    if (typeof source === "object" && source != null) {
       seen.push(source);
     }
 
