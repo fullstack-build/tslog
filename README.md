@@ -536,7 +536,7 @@ const childLogger = logger.getSubLogger({
 });
 childLogger.info("child1 message");
 // Output:
-// main-prefix parent-prefix MainLogger message
+// main-prefix parent-prefix child1-prefix MainLogger message
 
 const grandchildLogger = childLogger.getSubLogger({
   prefix: ["grandchild1-prefix"],
