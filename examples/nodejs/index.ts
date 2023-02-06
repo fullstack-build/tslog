@@ -1,7 +1,7 @@
-import { Logger } from "../../src";
+import { Logger, ILogObj } from "../../src";
 
 class MyClass {
-  private readonly _logger = new Logger({
+  private readonly _logger: Logger<ILogObj> = new Logger({
     type: "pretty",
   });
 

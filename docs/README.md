@@ -35,9 +35,9 @@
 ## Example
 
 ```typescript
-import { Logger } from "tslog";
+import { Logger, ILogObj } from "tslog";
 
-const log: Logger = new Logger();
+const log: Logger<ILogObj> = new Logger();
 log.silly("I am a silly log.");
 ```
 
@@ -206,7 +206,7 @@ Every incoming log message runs through a number of steps before being displayed
 
 ### ❗Performance
 
-By default, `tslog is optimized for the best developer experience and includes some default settings that may impact performance in production environments. `
+By default, `tslog` is optimized for the best developer experience and includes some default settings that may impact performance in production environments.
 To ensure optimal performance in production, we recommend modifying these settings, such as `hideLogPositionForProduction`(s. below), as needed.  
 
 
@@ -414,7 +414,7 @@ const logMsg = logger.silly("Test1", "Test2");
 
 #### hideLogPositionForProduction (default: `false`)
 
-By default, `tslog` gathers and includes the log code position in the meta information of a `logObj to improve the developer experience. `
+By default, `tslog` gathers and includes the log code position in the meta information of a `logObj` o improve the developer experience. 
 However, this can significantly impact performance and slow down execution times in production. 
 To improve performance, you can disable this functionality by setting the option `hideLogPositionForProduction` to `true`.
 
@@ -536,7 +536,7 @@ const childLogger = logger.getSubLogger({
 });
 childLogger.info("child1 message");
 // Output:
-// main-prefix parent-prefix MainLogger message
+// main-prefix parent-prefix child1-prefix MainLogger message
 
 const grandchildLogger = childLogger.getSubLogger({
   prefix: ["grandchild1-prefix"],
