@@ -1,10 +1,10 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger.js";
+import { BaseLogger, ISettingsParam, ILogObj, ILogObjMeta } from "./BaseLogger.js";
 export { ISettingsParam, BaseLogger, ILogObj };
 
-export class Logger<LogObj> extends BaseLogger<LogObj> {
-  constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    super(settings, logObj, 5);
-  }
+
+export declare class Logger<LogObj> extends BaseLogger<LogObj> {
+  constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj);
+
 
   /**
    * Logs a message with a custom log level.
@@ -12,65 +12,49 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
    * @param logLevelName  - Log level name e.g. silly
    * @param args          - Multiple log attributes that should be logged out.
    */
-  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): (LogObj & ILogObjMeta & ILogObj) | undefined {
-    return super.log(logLevelId, logLevelName, ...args);
-  }
+  public log(logLevelId: number, logLevelName: string, ...args: unknown[]): (LogObj & ILogObjMeta & ILogObj) | undefined;
 
   /**
    * Logs a silly message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public silly(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(0, "SILLY", ...args);
-  }
+  public silly(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs a trace message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public trace(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(1, "TRACE", ...args);
-  }
+  public trace(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs a debug message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public debug(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(2, "DEBUG", ...args);
-  }
+  public debug(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs an info message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public info(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(3, "INFO", ...args);
-  }
+  public info(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs a warn message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public warn(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(4, "WARN", ...args);
-  }
+  public warn(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs an error message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public error(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(5, "ERROR", ...args);
-  }
+  public error(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    * Logs a fatal message.
    * @param args  - Multiple log attributes that should be logged out.
    */
-  public fatal(...args: unknown[]): (LogObj & ILogObjMeta) | undefined {
-    return super.log(6, "FATAL", ...args);
-  }
+  public fatal(...args: unknown[]): (LogObj & ILogObjMeta) | undefined;
 
   /**
    *  Returns a child logger based on the current instance with inherited settings
@@ -78,7 +62,5 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
    * @param settings - Overwrite settings inherited from parent logger
    * @param logObj - Overwrite logObj for sub-logger
    */
-  public getSubLogger(settings?: ISettingsParam<LogObj>, logObj?: LogObj): Logger<LogObj> {
-    return super.getSubLogger(settings, logObj) as Logger<LogObj>;
-  }
+  public getSubLogger(settings?: ISettingsParam<LogObj>, logObj?: LogObj): Logger<LogObj>;
 }
