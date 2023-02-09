@@ -6,7 +6,15 @@ export { ISettingsParam, BaseLogger, ILogObj };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    super(BrowserRuntime, settings, logObj, 5);
+    const isBrowser = ![typeof window, typeof document].includes("undefined");
+    const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && Intl?.["v8BreakIterator"])) && "CSS" in window) != null : false;
+    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
+
+    settings = settings || {};
+    // style only for blink browsers
+    settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
+
+    super(BrowserRuntime, settings, logObj, isSafari ? 4 : 5);
   }
 
   /**
