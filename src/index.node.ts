@@ -6,7 +6,7 @@ export { ISettingsParam, BaseLogger, ILogObj };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    super(NodeRuntime, settings, logObj);
+    super(NodeRuntime, settings, logObj, 5);
   }
 
   /**
