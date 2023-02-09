@@ -17,13 +17,8 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
-  "browser": {
-    "tslog": "./dist/browser/index.js",
-    "./dist/esm/runtime/nodejs/index.js": "./dist/esm/runtime/browser/index.js",
-    "./dist/cjs/runtime/nodejs/index.js": "./dist/cjs/runtime/browser/index.js",
-    "./src/runtime/nodejs/index.js": "./src/runtime/browser/index.js",
-    "util": false
-  },
+  "browser": "./dist/browser/index.js",
+  "react-native": "./dist/cjs/index.browser.js",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",

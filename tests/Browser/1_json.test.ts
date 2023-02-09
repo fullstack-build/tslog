@@ -33,7 +33,7 @@ describe("Browser: JSON: Log level", () => {
     expect(consoleOutput).toContain('"logLevelId":0');
     expect(consoleOutput).toContain('"logLevelName":"SILLY"');
     expect(consoleOutput).toContain('"path":{');
-    expect(consoleOutput).toContain('"fileLine":"22"');
+    expect(consoleOutput).toContain('"fileLine":"5"');
   });
 
   it("pretty", async () => {

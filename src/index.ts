@@ -1,9 +1,9 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger.js";
+import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj, Runtime } from "./BaseLogger.js";
 export { ISettingsParam, BaseLogger, ILogObj };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
-  constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    super(settings, logObj, 5);
+  constructor(runtime: Runtime, settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
+    super(runtime, settings, logObj, 5);
   }
 
   /**

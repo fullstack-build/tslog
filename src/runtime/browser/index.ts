@@ -1,7 +1,19 @@
-import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { ILogObjMeta, ISettings, IStackFrame, Runtime } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
 import { formatWithOptions } from "./util.inspect.polyfil.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
+
+export default {
+  getCallerStackFrame,
+  getErrorTrace,
+  getMeta,
+  transportJSON,
+  transportFormatted,
+  isBuffer,
+  isError,
+  prettyFormatLogObj,
+  prettyFormatErrorObj,
+} as Runtime;
 
 export interface IMetaStatic {
   name?: string;
@@ -59,7 +71,8 @@ export function getErrorTrace(error: Error): IStackFrame[] {
 }
 
 function stackLineToStackFrame(line?: string): IStackFrame {
-  const href = window.location.origin;
+  // react-native does not have window.location
+  const href = window?.location?.origin;
   const pathResult: IStackFrame = {
     fullFilePath: undefined,
     fileName: undefined,
@@ -125,5 +138,5 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
 }
 
 export function isBuffer(arg?: unknown) {
-  return arg ? undefined : undefined;
+  return arg ? false : false;
 }

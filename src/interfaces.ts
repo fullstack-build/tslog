@@ -1,4 +1,4 @@
-import { IMeta, InspectOptions } from "./runtime/nodejs/index.js";
+import type { InspectOptions } from "util";
 
 export type TStyle =
   | null
@@ -164,4 +164,34 @@ export interface IErrorObject {
   nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
+}
+
+/*
+  RUNTIME TYPES
+*/
+
+
+export interface IMetaStatic {
+  name?: string;
+  parentNames?: string[];
+  runtime: string;
+}
+
+export interface IMeta extends IMetaStatic {
+  date: Date;
+  logLevelId: number;
+  logLevelName: string;
+  path?: IStackFrame;
+}
+
+export interface Runtime {
+  getMeta: (logLevelId: number, logLevelName: string, stackDepthLevel: number, hideLogPositionForPerformance: boolean, name?: string, parentNames?: string[]) => IMeta;
+  getCallerStackFrame: (stackDepthLevel: number, error: Error) => IStackFrame;
+  getErrorTrace: (error: Error) => IStackFrame[];
+  isError: (e: Error | unknown) => boolean;
+  prettyFormatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[], errors: string[] };
+  prettyFormatErrorObj: <LogObj>(error: Error, settings: ISettings<LogObj>) => string;
+  transportFormatted: <LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
+  transportJSON: <LogObj>(json: LogObj & ILogObjMeta) => void;
+  isBuffer: (b: unknown) => boolean;
 }
