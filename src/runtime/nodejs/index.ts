@@ -58,6 +58,7 @@ export function getMeta(
 }
 
 export function getCallerStackFrame(stackDepthLevel: number, error: Error = Error()): IStackFrame {
+  // console.log(error.stack);
   return stackLineToStackFrame((error as Error | undefined)?.stack?.split("\n")?.filter((thisLine: string) => thisLine.includes("    at "))?.[stackDepthLevel]);
 }
 
