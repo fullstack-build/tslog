@@ -200,9 +200,7 @@ export class BaseLogger<LogObj> {
       seen.push(source);
     }
 
-    return isError(source)
-      ? source // dont copy Error
-      : isBuffer(source)
+    return isBuffer(source)
       ? source // dont copy Buffer
       : source instanceof Map ?
         new Map(source)
@@ -212,6 +210,14 @@ export class BaseLogger<LogObj> {
       ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
       : source instanceof Date
       ? new Date(source.getTime())
+      : isError(source)
+        ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+          // mask
+          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+            ? this.settings.maskPlaceholder
+            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
+          return o;
+        }, source)
       : source != null && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
           // mask
