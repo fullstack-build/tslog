@@ -63,3 +63,10 @@ const performanceLogger = new Logger({
 });
 
 performanceLogger.silly("log without code position information");
+
+////////////////////////////
+const loggerMap = new Logger({ name: 'mapLogger'});
+
+let map = new Map();
+map.set('foo', 'bar');
+loggerMap.debug('My Map: ', map) // prints in console "DEBUG myLogger My Map: {}"

@@ -204,6 +204,10 @@ export class BaseLogger<LogObj> {
       ? source // dont copy Error
       : isBuffer(source)
       ? source // dont copy Buffer
+      : source instanceof Map ?
+        new Map(source)
+      : source instanceof Set ?
+        new Set(source)
       : Array.isArray(source)
       ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
       : source instanceof Date
