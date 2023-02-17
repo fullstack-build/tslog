@@ -33,6 +33,7 @@
     }
   },
   "scripts": {
+    "prepare": "husky install",
     "build": "npm run build-types && npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
     "build-types": "tsc -b tsconfig.types.json",
