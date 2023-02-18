@@ -65,29 +65,28 @@ const performanceLogger = new Logger({
 performanceLogger.silly("log without code position information");
 
 ////////////////////////////
-const loggerMap = new Logger({ name: 'mapLogger'});
+const loggerMap = new Logger({ name: "mapLogger" });
 
 let map = new Map();
-map.set('foo', 'bar');
-loggerMap.debug('My Map: ', map) // prints in console "DEBUG myLogger My Map: {}"
-
+map.set("foo", "bar");
+loggerMap.debug("My Map: ", map); // prints in console "DEBUG myLogger My Map: {}"
 
 ////////////////////////////
 
 const error = new TypeError();
 Object.assign(error, {
   extensions: {
-    serviceName: 'upstream-service',
+    serviceName: "upstream-service",
     variables: {
-      firstName: 'foo',
-      phoneNumber: 'bar'
-    }
-  }
+      firstName: "foo",
+      phoneNumber: "bar",
+    },
+  },
 });
 
 const log = new Logger({
   maskValuesOfKeys: ["firstName", "phoneNumber"],
-  type: "json"
-})
+  type: "json",
+});
 
 log.info(error);
