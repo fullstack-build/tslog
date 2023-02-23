@@ -94,3 +94,18 @@ const log = new Logger({
 log.info(error);
 
 ////////////////////////////
+
+function createReadonlyError(message: string, property: string) {
+  const error = new Error(message);
+  Object.defineProperty(error, "property", {
+    value: property,
+    writable: false,
+    enumerable: true,
+    configurable: false,
+  });
+  return error;
+}
+
+const e = createReadonlyError("message", "property");
+
+logger.error(e);

@@ -217,7 +217,7 @@ export class BaseLogger<LogObj> {
             ? this.settings.maskPlaceholder
             : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
           return o;
-        }, source)
+        }, this._cloneError(source as Error))
       : source != null && typeof source === "object"
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
           // mask
@@ -273,6 +273,21 @@ export class BaseLogger<LogObj> {
       };
     }
     return clonedLogObj;
+  }
+
+  private _cloneError<T extends Error>(error: T): T {
+    const ErrorConstructor = error.constructor as new (message?: string) => T;
+    const newError = new ErrorConstructor(error.message);
+    Object.assign(newError, error);
+    const propertyNames = Object.getOwnPropertyNames(newError);
+    for (const propName of propertyNames) {
+      const propDesc = Object.getOwnPropertyDescriptor(newError, propName);
+      if (propDesc) {
+        propDesc.writable = true;
+        Object.defineProperty(newError, propName, propDesc);
+      }
+    }
+    return newError;
   }
 
   private _toErrorObject(error: Error): IErrorObject {
