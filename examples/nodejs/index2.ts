@@ -1,5 +1,7 @@
 import { Logger, BaseLogger } from "../../src/index.js";
 
+import { formatValue } from "../../src/runtime/browser/util.inspect.polyfil";
+
 const defaultLogObject: {
   name: string;
 } = {
@@ -90,3 +92,5 @@ const log = new Logger({
 });
 
 log.info(error);
+
+////////////////////////////
