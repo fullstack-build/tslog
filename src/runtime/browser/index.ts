@@ -19,7 +19,7 @@ export interface IMeta extends IMetaStatic {
 
 const meta: IMetaStatic = {
   runtime: "Browser",
-  browser: window?.["navigator"].userAgent,
+  browser: globalThis?.["navigator"].userAgent,
 };
 
 const pathRegex = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+){2,})(?::(\d+))?(?::(\d+))?/;
@@ -59,7 +59,7 @@ export function getErrorTrace(error: Error): IStackFrame[] {
 }
 
 function stackLineToStackFrame(line?: string): IStackFrame {
-  const href = window.location.origin;
+  const href = globalThis.location.origin;
   const pathResult: IStackFrame = {
     fullFilePath: undefined,
     fileName: undefined,
