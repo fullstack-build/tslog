@@ -1,6 +1,4 @@
-import { Logger, BaseLogger } from "../../src/index.js";
-
-import { formatValue } from "../../src/runtime/browser/util.inspect.polyfil";
+import { Logger, BaseLogger, IMeta } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;
@@ -109,3 +107,5 @@ function createReadonlyError(message: string, property: string) {
 const e = createReadonlyError("message", "property");
 
 logger.error(e);
+
+///////////////////////////

@@ -1,4 +1,5 @@
 import { IMeta, InspectOptions } from "./runtime/nodejs/index.js";
+export { IMeta, InspectOptions };
 
 export type TStyle =
   | null

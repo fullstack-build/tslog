@@ -1,5 +1,5 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger.js";
-export { ISettingsParam, BaseLogger, ILogObj };
+import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj, IMeta } from "./BaseLogger.js";
+export { ISettingsParam, BaseLogger, ILogObj, IMeta };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
