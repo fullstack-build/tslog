@@ -15,7 +15,7 @@ export class BaseLogger<LogObj> {
     const isNode = Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]";
     this.runtime = isBrowser ? "browser" : isNode ? "nodejs" : "unknown";
     const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && Intl?.["v8BreakIterator"])) && "CSS" in window) != null : false;
-    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
+    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator?.userAgent) : false;
     this.stackDepthLevel = isSafari ? 4 : this.stackDepthLevel;
 
     this.settings = {

@@ -6,7 +6,7 @@ import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
 export interface IMetaStatic {
   name?: string;
   parentNames?: string[];
-  runtime: string;
+  runtime: "Nodejs" | "Browser" | "Generic";
   browser: string;
 }
 
@@ -18,8 +18,8 @@ export interface IMeta extends IMetaStatic {
 }
 
 const meta: IMetaStatic = {
-  runtime: "Browser",
-  browser: globalThis?.["navigator"].userAgent,
+  runtime: ![typeof window, typeof document].includes("undefined") ? "Browser" : "Generic",
+  browser: globalThis?.["navigator"]?.userAgent,
 };
 
 const pathRegex = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+){2,})(?::(\d+))?(?::(\d+))?/;
