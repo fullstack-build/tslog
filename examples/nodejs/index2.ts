@@ -109,3 +109,13 @@ const e = createReadonlyError("message", "property");
 logger.error(e);
 
 ///////////////////////////
+
+class CustomError extends Error {
+  constructor(message1: string, message2: string) {
+    super(message1);
+    console.log("***", message1, message2);
+  }
+}
+
+const err = new CustomError("a", "b");
+logger.error(err);

@@ -276,11 +276,14 @@ export class BaseLogger<LogObj> {
   }
 
   private _cloneError<T extends Error>(error: T): T {
-    const ErrorConstructor = error.constructor as new (message?: string) => T;
-    const newError = new ErrorConstructor(error.message);
+    const ErrorConstructor = error.constructor as new (...args: any[]) => T;
+    const errorProperties = Object.getOwnPropertyNames(error);
+    const errorArgs = errorProperties.map((propName) => error[propName]);
+
+    const newError = new ErrorConstructor(...errorArgs);
     Object.assign(newError, error);
-    const propertyNames = Object.getOwnPropertyNames(newError);
-    for (const propName of propertyNames) {
+
+    for (const propName of errorProperties) {
       const propDesc = Object.getOwnPropertyDescriptor(newError, propName);
       if (propDesc) {
         propDesc.writable = true;
