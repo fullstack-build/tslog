@@ -55,6 +55,7 @@ export interface ISettingsParam<LogObj> {
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
+    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;

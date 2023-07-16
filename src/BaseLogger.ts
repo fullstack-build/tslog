@@ -70,6 +70,7 @@ export class BaseLogger<LogObj> {
         mask: settings?.overwrite?.mask,
         toLogObj: settings?.overwrite?.toLogObj,
         addMeta: settings?.overwrite?.addMeta,
+        addPlaceholders: settings?.overwrite?.addPlaceholders,
         formatMeta: settings?.overwrite?.formatMeta,
         formatLogObj: settings?.overwrite?.formatLogObj,
         transportFormatted: settings?.overwrite?.transportFormatted,
@@ -276,6 +277,7 @@ export class BaseLogger<LogObj> {
   }
 
   private _cloneError<T extends Error>(error: T): T {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ErrorConstructor = error.constructor as new (...args: any[]) => T;
     const errorProperties = Object.getOwnPropertyNames(error);
     const errorArgs = errorProperties.map((propName) => error[propName]);
@@ -363,6 +365,10 @@ export class BaseLogger<LogObj> {
       placeholderValues["name"].length > 0 ? this.settings.prettyErrorLoggerNameDelimiter + placeholderValues["name"] : "";
     placeholderValues["nameWithDelimiterSuffix"] =
       placeholderValues["name"].length > 0 ? placeholderValues["name"] + this.settings.prettyErrorLoggerNameDelimiter : "";
+
+    if (this.settings.overwrite?.addPlaceholders != null) {
+      this.settings.overwrite?.addPlaceholders(logObjMeta, placeholderValues);
+    }
 
     return formatTemplate(this.settings, template, placeholderValues);
   }
