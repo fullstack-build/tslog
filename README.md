@@ -467,6 +467,7 @@ Following settings are available for styling:
     },
   });
   ```
+  this would yield in the token {{custom}} being replaced with "test"
 
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized
