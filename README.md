@@ -453,6 +453,21 @@ Following settings are available for styling:
   - `prettyErrorLoggerNameDelimiter`: if a logger name is set this delimiter will be added afterwards
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
 
+  ### Customizing template tokens
+  It's possible to add user defined tokes, by overwrting the `addPlaceholders` in the `settings.overwrite`. this callback allows to add or overwrite tokens in the `placeholderValues`.
+  for example, to add the token: {{custom}};
+  ```javascript
+  const logger = new Logger({
+    type: "pretty",
+    prettyLogTemplate: "{{custom}} ",
+    overwrite: {
+      addPlaceholders: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => {
+        placeholderValues["custom"] = "test";
+      },
+    },
+  });
+  ```
+
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized
   - `prettyLogStyles`: provides colors and styles for different placeholders and can also be dependent on the value (e.g. log level)
