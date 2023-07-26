@@ -150,7 +150,7 @@ function formatError(value: Error): string {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
+export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   // Provide a hook for user-specified inspect functions.
   // Check that value is an object with an inspect function on it
   if (
@@ -162,6 +162,9 @@ function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
     // Also filter out any prototype objects using the circular check.
     !(value?.constructor && value?.constructor.prototype === value)
   ) {
+    if (typeof value.inspect !== "function" && value.toString != null) {
+      return value.toString();
+    }
     let ret = value?.inspect(recurseTimes, ctx);
     if (!isString(ret)) {
       ret = formatValue(ctx, ret, recurseTimes);
@@ -194,18 +197,22 @@ function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   // Some type of object without properties can be shortcutted.
   if (keys.length === 0) {
-    if (isFunction(value)) {
-      const name = value.name ? ": " + value.name : "";
-      return ctx.stylize("[Function" + name + "]", "special");
-    }
-    if (isRegExp(value)) {
-      return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
-    }
-    if (isDate(value)) {
-      return ctx.stylize(Date.prototype.toString.call(value), "date");
-    }
-    if (isError(value)) {
-      return formatError(value as Error);
+    if (isFunction(ctx.stylize)) {
+      if (isFunction(value)) {
+        const name = value.name ? ": " + value.name : "";
+        return ctx.stylize("[Function" + name + "]", "special");
+      }
+      if (isRegExp(value)) {
+        return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
+      }
+      if (isDate(value)) {
+        return ctx.stylize(Date.prototype.toString.call(value), "date");
+      }
+      if (isError(value)) {
+        return formatError(value as Error);
+      }
+    } else {
+      return value;
     }
   }
 

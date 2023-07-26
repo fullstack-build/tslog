@@ -1,4 +1,4 @@
-import { Logger, BaseLogger } from "../../src/index.js";
+import { Logger, BaseLogger, IMeta } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;
@@ -63,3 +63,59 @@ const performanceLogger = new Logger({
 });
 
 performanceLogger.silly("log without code position information");
+
+////////////////////////////
+const loggerMap = new Logger({ name: "mapLogger" });
+
+let map = new Map();
+map.set("foo", "bar");
+loggerMap.debug("My Map: ", map); // prints in console "DEBUG myLogger My Map: {}"
+
+////////////////////////////
+
+const error = new TypeError();
+Object.assign(error, {
+  extensions: {
+    serviceName: "upstream-service",
+    variables: {
+      firstName: "foo",
+      phoneNumber: "bar",
+    },
+  },
+});
+
+const log = new Logger({
+  maskValuesOfKeys: ["firstName", "phoneNumber"],
+  type: "json",
+});
+
+log.info(error);
+
+////////////////////////////
+
+function createReadonlyError(message: string, property: string) {
+  const error = new Error(message);
+  Object.defineProperty(error, "property", {
+    value: property,
+    writable: false,
+    enumerable: true,
+    configurable: false,
+  });
+  return error;
+}
+
+const e = createReadonlyError("message", "property");
+
+logger.error(e);
+
+///////////////////////////
+
+class CustomError extends Error {
+  constructor(message1: string, message2: string) {
+    super(message1);
+    console.log("***", message1, message2);
+  }
+}
+
+const err = new CustomError("a", "b");
+logger.error(err);
