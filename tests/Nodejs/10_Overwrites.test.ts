@@ -1,7 +1,6 @@
 import "ts-jest";
-import { Logger } from "../../src/index.js";
-import { IMeta } from "../../src/runtime/nodejs/index.js";
-import { ISettings } from "../../src/interfaces.js";
+import { Logger } from "../../src/index.node";
+import { ISettings, IMeta} from "../../src/interfaces.js";
 
 describe("Overwrites", () => {
   test("mask", (): void => {

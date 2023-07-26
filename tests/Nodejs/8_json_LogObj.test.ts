@@ -1,6 +1,7 @@
 import "ts-jest";
-import { Logger, BaseLogger } from "../../src/index.js";
+import { Logger, BaseLogger } from "../../src/index.node";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
+import NodeRuntime from "../../src/runtime/nodejs/index";
 
 interface ILogObj {
   name: string;
@@ -16,7 +17,7 @@ describe("JSON: LogObj", () => {
     const defaultLogObject: ILogObj = {
       name: "test",
     };
-    const logger = new BaseLogger<ILogObj>({ type: "json" }, defaultLogObject);
+    const logger = new BaseLogger<ILogObj>(NodeRuntime, { type: "json" }, defaultLogObject);
     const logMsg = logger.log(1234, "testLevel", "Test");
     expect(logMsg?.name).toContain(defaultLogObject.name);
     expect(getConsoleLog()).toContain(`"name":"test",`);
