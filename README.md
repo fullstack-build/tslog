@@ -454,8 +454,8 @@ Following settings are available for styling:
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
 
   ### Customizing template tokens
-  It's possible to add user defined tokes, by overwrting the `addPlaceholders` in the `settings.overwrite`. this callback allows to add or overwrite tokens in the `placeholderValues`.
-  for example, to add the token: {{custom}};
+  It's possible to add user defined tokes, by overwriting the `addPlaceholders` in the `settings.overwrite`. this callback allows to add or overwrite tokens in the `placeholderValues`.
+  for example, to add the token: `{{custom}}`;
   ```javascript
   const logger = new Logger({
     type: "pretty",
@@ -467,7 +467,7 @@ Following settings are available for styling:
     },
   });
   ```
-  this would yield in the token {{custom}} being replaced with "test"
+  this would yield in the token `{{custom}}` being replaced with `"test"`
 
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized
