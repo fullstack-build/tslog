@@ -1,5 +1,5 @@
 import "ts-jest";
-import { IMeta, Logger } from "../../src/index.js";
+import { IMeta, Logger } from "../../src/index.node";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 describe("Placeholders", () => {

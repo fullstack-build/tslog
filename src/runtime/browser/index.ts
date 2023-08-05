@@ -1,7 +1,9 @@
 import { ILogObjMeta, ISettings, IStackFrame, Runtime } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
-import { formatWithOptions } from "./util.inspect.polyfil.js";
+import { formatWithOptions, InspectOptions } from "./util.inspect.polyfil.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
+
+export { InspectOptions };
 
 export default {
   getCallerStackFrame,

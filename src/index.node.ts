@@ -2,7 +2,7 @@ import { BaseLogger } from "./BaseLogger";
 import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces";
 import NodeRuntime from "./runtime/nodejs/index";
 
-export { ISettingsParam, BaseLogger, ILogObj };
+export * from "./BaseLogger";
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {

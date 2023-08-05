@@ -1,4 +1,6 @@
-import { Logger, BaseLogger, IMeta } from "../../src/index.js";
+import { BaseLogger } from "../../src/index.js";
+import { Logger } from "../../src/index.node.js";
+import NodeRuntime from "../../src/runtime/nodejs/index";
 
 const defaultLogObject: {
   name: string;
@@ -22,7 +24,7 @@ logger.fatal("test1 %s test3", "test2");
 
 console.log("###############");
 
-const baseLogger = new BaseLogger({}, defaultLogObject);
+const baseLogger = new BaseLogger(NodeRuntime, {}, defaultLogObject);
 
 baseLogger.log(0, "test", "test base logger", { haha: true, password: "123456" }, ["SECRET"]);
 

@@ -1,6 +1,8 @@
-import { InspectOptions } from "util";
+import { InspectOptions } from "./InspectOptions.interface";
 import { prettyLogStyles } from "../../prettyLogStyles.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
+
+export { InspectOptions };
 
 interface ICtx {
   showHidden?: boolean | unknown;

@@ -1,10 +1,8 @@
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj, IMeta } from "./BaseLogger.js";
-export { ISettingsParam, BaseLogger, ILogObj, IMeta };
-
+import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger.js";
+export * from "./BaseLogger.js";
 
 export declare class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj);
-
 
   /**
    * Logs a message with a custom log level.

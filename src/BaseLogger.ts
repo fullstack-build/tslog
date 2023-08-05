@@ -89,8 +89,8 @@ export class BaseLogger<LogObj> {
       this.settings.overwrite?.mask != null
         ? this.settings.overwrite?.mask(logArgs)
         : this.settings.maskValuesOfKeys != null && this.settings.maskValuesOfKeys.length > 0
-        ? this._mask(logArgs)
-        : logArgs;
+          ? this._mask(logArgs)
+          : logArgs;
     // execute default LogObj functions for every log (e.g. requestId)
     const thisLogObj: LogObj | undefined = this.logObj != null ? this._recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
     const logObj: LogObj =
@@ -124,8 +124,8 @@ export class BaseLogger<LogObj> {
       this.settings.overwrite?.transportJSON != null
         ? this.settings.overwrite?.transportJSON(logObjWithMeta)
         : this.settings.type !== "hidden"
-        ? this.runtime.transportJSON(logObjWithMeta)
-        : undefined;
+          ? this.runtime.transportJSON(logObjWithMeta)
+          : undefined;
     }
 
     if (this.settings.attachedTransports != null && this.settings.attachedTransports.length > 0) {
@@ -161,8 +161,8 @@ export class BaseLogger<LogObj> {
         this.settings?.parentNames != null && this.settings?.name != null
           ? [...this.settings.parentNames, this.settings.name]
           : this.settings?.name != null
-          ? [this.settings.name]
-          : undefined,
+            ? [this.settings.name]
+            : undefined,
       // merge all prefixes instead of overwriting them
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
@@ -195,38 +195,38 @@ export class BaseLogger<LogObj> {
     return this.runtime.isError(source)
       ? source // dont copy Error
       : this.runtime.isBuffer(source)
-      ? source // dont copy Buffer
-      : source instanceof Map
-      ? new Map(source)
-      : source instanceof Set
-      ? new Set(source)
-      : Array.isArray(source)
-      ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
-      : source instanceof Date
-      ? new Date(source.getTime())
-      : isError(source)
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          // mask
-          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
-            ? this.settings.maskPlaceholder
-            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
-          return o;
-        }, this._cloneError(source as Error))
-      : source != null && typeof source === "object"
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          // mask
-          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
-            ? this.settings.maskPlaceholder
-            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
-          return o;
-        }, Object.create(Object.getPrototypeOf(source)))
-      : ((source: T): T => {
-          // mask regEx
-          this.settings?.maskValuesRegEx?.forEach((regEx) => {
-            source = (source as string)?.toString()?.replace(regEx, this.settings.maskPlaceholder) as T;
-          });
-          return source;
-        })(source);
+        ? source // dont copy Buffer
+        : source instanceof Map
+          ? new Map(source)
+          : source instanceof Set
+            ? new Set(source)
+            : Array.isArray(source)
+              ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
+              : source instanceof Date
+                ? new Date(source.getTime())
+                : this.runtime.isError(source)
+                  ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+                    // mask
+                    o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+                      ? this.settings.maskPlaceholder
+                      : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
+                    return o;
+                  }, this._cloneError(source as Error))
+                  : source != null && typeof source === "object"
+                    ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+                      // mask
+                      o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+                        ? this.settings.maskPlaceholder
+                        : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
+                      return o;
+                    }, Object.create(Object.getPrototypeOf(source)))
+                    : ((source: T): T => {
+                      // mask regEx
+                      this.settings?.maskValuesRegEx?.forEach((regEx) => {
+                        source = (source as string)?.toString()?.replace(regEx, this.settings.maskPlaceholder) as T;
+                      });
+                      return source;
+                    })(source);
   }
 
   private _recursiveCloneAndExecuteFunctions<T>(source: T, seen: unknown[] = []): T {
@@ -240,16 +240,16 @@ export class BaseLogger<LogObj> {
     return Array.isArray(source)
       ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen))
       : source instanceof Date
-      ? new Date(source.getTime())
-      : source && typeof source === "object"
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop) as PropertyDescriptor);
-          // execute functions or clone
-          o[prop] =
-            typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop], seen);
-          return o;
-        }, Object.create(Object.getPrototypeOf(source)))
-      : (source as T);
+        ? new Date(source.getTime())
+        : source && typeof source === "object"
+          ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
+            Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop) as PropertyDescriptor);
+            // execute functions or clone
+            o[prop] =
+              typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop], seen);
+            return o;
+          }, Object.create(Object.getPrototypeOf(source)))
+          : (source as T);
   }
 
   private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
@@ -270,8 +270,7 @@ export class BaseLogger<LogObj> {
   }
 
   private _cloneError<T extends Error>(error: T): T {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ErrorConstructor = error.constructor as new (...args: any[]) => T;
+    const ErrorConstructor = error.constructor as new (...args: unknown[]) => T;
     const errorProperties = Object.getOwnPropertyNames(error);
     const errorArgs = errorProperties.map((propName) => error[propName]);
 
