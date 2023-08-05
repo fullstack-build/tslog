@@ -1,22 +1,16 @@
-import { getMeta, getErrorTrace, transportFormatted, transportJSON, prettyFormatLogObj, IMeta, isError, isBuffer } from "./runtime/nodejs/index.js";
 import { formatTemplate } from "./formatTemplate.js";
 import { formatNumberAddZeros } from "./formatNumberAddZeros.js";
-import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject } from "./interfaces.js";
+import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject, Runtime, IMeta } from "./interfaces.js";
 export * from "./interfaces.js";
 
 export class BaseLogger<LogObj> {
-  private readonly runtime: "browser" | "nodejs" | "unknown";
+  private readonly runtime: Runtime;
   public settings: ISettings<LogObj>;
   // not needed yet
   //private subLoggers: BaseLogger<LogObj>[] = [];
 
-  constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
-    const isBrowser = ![typeof window, typeof document].includes("undefined");
-    const isNode = Object.prototype.toString.call(typeof process !== "undefined" ? process : 0) === "[object process]";
-    this.runtime = isBrowser ? "browser" : isNode ? "nodejs" : "unknown";
-    const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && Intl?.["v8BreakIterator"])) && "CSS" in window) != null : false;
-    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator?.userAgent) : false;
-    this.stackDepthLevel = isSafari ? 4 : this.stackDepthLevel;
+  constructor(runtime: Runtime, settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
+    this.runtime = runtime;
 
     this.settings = {
       type: settings?.type ?? "pretty",
@@ -70,15 +64,13 @@ export class BaseLogger<LogObj> {
         mask: settings?.overwrite?.mask,
         toLogObj: settings?.overwrite?.toLogObj,
         addMeta: settings?.overwrite?.addMeta,
+        addPlaceholders: settings?.overwrite?.addPlaceholders,
         formatMeta: settings?.overwrite?.formatMeta,
         formatLogObj: settings?.overwrite?.formatLogObj,
         transportFormatted: settings?.overwrite?.transportFormatted,
         transportJSON: settings?.overwrite?.transportJSON,
       },
     };
-
-    // style only for server and blink browsers
-    this.settings.stylePrettyLogs = this.settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : this.settings.stylePrettyLogs;
   }
 
   /**
@@ -120,19 +112,19 @@ export class BaseLogger<LogObj> {
 
     if (this.settings.type === "pretty") {
       logMetaMarkup = logMetaMarkup ?? this._prettyFormatLogObjMeta(logObjWithMeta?.[this.settings.metaProperty]);
-      logArgsAndErrorsMarkup = logArgsAndErrorsMarkup ?? prettyFormatLogObj(maskedArgs, this.settings);
+      logArgsAndErrorsMarkup = logArgsAndErrorsMarkup ?? this.runtime.prettyFormatLogObj(maskedArgs, this.settings);
     }
 
     if (logMetaMarkup != null && logArgsAndErrorsMarkup != null) {
       this.settings.overwrite?.transportFormatted != null
         ? this.settings.overwrite?.transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings)
-        : transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings);
+        : this.runtime.transportFormatted(logMetaMarkup, logArgsAndErrorsMarkup.args, logArgsAndErrorsMarkup.errors, this.settings);
     } else {
       // overwrite transport no matter what, hide only with default transport
       this.settings.overwrite?.transportJSON != null
         ? this.settings.overwrite?.transportJSON(logObjWithMeta)
         : this.settings.type !== "hidden"
-        ? transportJSON(logObjWithMeta)
+        ? this.runtime.transportJSON(logObjWithMeta)
         : undefined;
     }
 
@@ -200,7 +192,9 @@ export class BaseLogger<LogObj> {
       seen.push(source);
     }
 
-    return isBuffer(source)
+    return this.runtime.isError(source)
+      ? source // dont copy Error
+      : this.runtime.isBuffer(source)
       ? source // dont copy Buffer
       : source instanceof Map
       ? new Map(source)
@@ -210,7 +204,7 @@ export class BaseLogger<LogObj> {
       ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
       : source instanceof Date
       ? new Date(source.getTime())
-      : isError(source)
+      : this.runtime.isError(source)
       ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
           // mask
           o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
@@ -259,9 +253,9 @@ export class BaseLogger<LogObj> {
   }
 
   private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
-    args = args?.map((arg) => (isError(arg) ? this._toErrorObject(arg as Error) : arg));
+    args = args?.map((arg) => (this.runtime.isError(arg) ? this._toErrorObject(arg as Error) : arg));
     if (this.settings.argumentsArrayName == null) {
-      if (args.length === 1 && !Array.isArray(args[0]) && isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
+      if (args.length === 1 && !Array.isArray(args[0]) && this.runtime.isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
         clonedLogObj = typeof args[0] === "object" && args[0] != null ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
       } else {
         clonedLogObj = { ...clonedLogObj, ...args };
@@ -276,7 +270,7 @@ export class BaseLogger<LogObj> {
   }
 
   private _cloneError<T extends Error>(error: T): T {
-    const ErrorConstructor = error.constructor as new (...args: any[]) => T;
+    const ErrorConstructor = error.constructor as new (...args: unknown[]) => T;
     const errorProperties = Object.getOwnPropertyNames(error);
     const errorArgs = errorProperties.map((propName) => error[propName]);
 
@@ -298,14 +292,14 @@ export class BaseLogger<LogObj> {
       nativeError: error,
       name: error.name ?? "Error",
       message: error.message,
-      stack: getErrorTrace(error),
+      stack: this.runtime.getErrorTrace(error),
     };
   }
 
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
     return {
       ...logObj,
-      [this.settings.metaProperty]: getMeta(
+      [this.settings.metaProperty]: this.runtime.getMeta(
         logLevelId,
         logLevelName,
         this.stackDepthLevel,
@@ -363,6 +357,10 @@ export class BaseLogger<LogObj> {
       placeholderValues["name"].length > 0 ? this.settings.prettyErrorLoggerNameDelimiter + placeholderValues["name"] : "";
     placeholderValues["nameWithDelimiterSuffix"] =
       placeholderValues["name"].length > 0 ? placeholderValues["name"] + this.settings.prettyErrorLoggerNameDelimiter : "";
+
+    if (this.settings.overwrite?.addPlaceholders != null) {
+      this.settings.overwrite?.addPlaceholders(logObjMeta, placeholderValues);
+    }
 
     return formatTemplate(this.settings, template, placeholderValues);
   }

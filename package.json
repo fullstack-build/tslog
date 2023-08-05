@@ -2,7 +2,7 @@
   "name": "tslog",
   "version": "4.8.2",
   "description": "📝 Extensible TypeScript Logger for Node.js and Browser: Dependency free, Fully customizable, Pretty errors, stack traces, and JSON output to attachable transports.",
-  "author": "Eugene <opensource@terehov.de> (http://fullstack.build/)",
+  "author": "Eugene <opensource@terehov.de> (https://fullstack.build)",
   "license": "MIT",
   "funding": "https://github.com/fullstack-build/tslog?sponsor=1",
   "homepage": "https://tslog.js.org",
@@ -17,13 +17,8 @@
   "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
-  "browser": {
-    "tslog": "./dist/browser/index.js",
-    "./dist/esm/runtime/nodejs/index.js": "./dist/esm/runtime/browser/index.js",
-    "./dist/cjs/runtime/nodejs/index.js": "./dist/cjs/runtime/browser/index.js",
-    "./src/runtime/nodejs/index.js": "./src/runtime/browser/index.js",
-    "util": false
-  },
+  "browser": "./dist/browser/index.js",
+  "react-native": "./dist/cjs/index.browser.js",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
@@ -120,8 +115,6 @@
     "log4ts",
     "print",
     "logging",
-    "bunyan",
-    "winston",
     "stack",
     "trace",
     "pretty print",

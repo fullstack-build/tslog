@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../../src/index.js";
+import { Logger } from "../../src/index.node";
 
 describe("SubLoggers", () => {
   test("one sub logger", (): void => {

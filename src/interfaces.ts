@@ -1,5 +1,5 @@
-import { IMeta, InspectOptions } from "./runtime/nodejs/index.js";
-export { IMeta, InspectOptions };
+import { InspectOptions } from "./runtime/browser/index.js";
+export { InspectOptions };
 
 export type TStyle =
   | null
@@ -55,6 +55,7 @@ export interface ISettingsParam<LogObj> {
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
+    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
@@ -165,4 +166,39 @@ export interface IErrorObject {
   nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
+}
+
+/*
+  RUNTIME TYPES
+*/
+export interface IMetaStatic {
+  name?: string;
+  parentNames?: string[];
+  runtime: string;
+}
+
+export interface IMeta extends IMetaStatic {
+  date: Date;
+  logLevelId: number;
+  logLevelName: string;
+  path?: IStackFrame;
+}
+
+export interface Runtime {
+  getMeta: (
+    logLevelId: number,
+    logLevelName: string,
+    stackDepthLevel: number,
+    hideLogPositionForPerformance: boolean,
+    name?: string,
+    parentNames?: string[]
+  ) => IMeta;
+  getCallerStackFrame: (stackDepthLevel: number, error: Error) => IStackFrame;
+  getErrorTrace: (error: Error) => IStackFrame[];
+  isError: (e: Error | unknown) => boolean;
+  prettyFormatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
+  prettyFormatErrorObj: <LogObj>(error: Error, settings: ISettings<LogObj>) => string;
+  transportFormatted: <LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
+  transportJSON: <LogObj>(json: LogObj & ILogObjMeta) => void;
+  isBuffer: (b: unknown) => boolean;
 }

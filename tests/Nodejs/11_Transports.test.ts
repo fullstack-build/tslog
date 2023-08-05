@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../../src/index.js";
+import { Logger } from "../../src/index.node";
 
 describe("Transports", () => {
   test("attach one transport", (): void => {
