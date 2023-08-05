@@ -1,4 +1,4 @@
-import { Logger, ILogObj } from "../../src/index.node";
+import { Logger, ILogObj } from "../../src/index";
 
 class MyClass {
   private readonly _logger: Logger<ILogObj> = new Logger({

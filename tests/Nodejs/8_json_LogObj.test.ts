@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger, BaseLogger } from "../../src/index.node";
+import { Logger, BaseLogger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 import NodeRuntime from "../../src/runtime/nodejs/index";
 

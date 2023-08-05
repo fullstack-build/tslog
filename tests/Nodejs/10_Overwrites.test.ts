@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../../src/index.node";
+import { Logger } from "../../src";
 import { ISettings, IMeta } from "../../src/interfaces.js";
 
 describe("Overwrites", () => {
@@ -67,7 +67,7 @@ describe("Overwrites", () => {
         addMeta: (logObj: any, logLevelId: number, logLevelName: string) => {
           return (result = logObj);
         },
-        transportFormatted: () => {},
+        transportFormatted: () => { },
       },
     });
 

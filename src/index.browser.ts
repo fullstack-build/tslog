@@ -2,7 +2,9 @@ import { BaseLogger } from "./BaseLogger";
 import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces";
 import BrowserRuntime from "./runtime/browser/index";
 
-export { ISettingsParam, BaseLogger, ILogObj };
+export * from "./interfaces";
+export * from "./BaseLogger";
+export { BrowserRuntime };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {

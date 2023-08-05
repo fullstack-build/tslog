@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../../src/index.node";
+import { Logger } from "../../src";
 import { mockConsoleLog } from "./helper.js";
 
 describe("Recursive", () => {

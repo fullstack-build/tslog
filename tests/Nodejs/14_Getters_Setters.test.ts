@@ -1,6 +1,6 @@
 import "ts-jest";
 import { ok } from "assert";
-import { Logger } from "../../src/index.node";
+import { Logger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 class MissingSetter {

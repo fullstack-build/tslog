@@ -1,7 +1,7 @@
 module.exports = {
   launch: {
     dumpio: true,
-    headless: process.env.HEADLESS !== "false",
+    headless: "new",
   },
   server: {
     command: "npm run test-puppeteer-serve",
