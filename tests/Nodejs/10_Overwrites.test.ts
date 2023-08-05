@@ -67,7 +67,7 @@ describe("Overwrites", () => {
         addMeta: (logObj: any, logLevelId: number, logLevelName: string) => {
           return (result = logObj);
         },
-        transportFormatted: () => { },
+        transportFormatted: () => {},
       },
     });
 
