@@ -22,7 +22,7 @@ export interface IMetaStatic {
   parentNames?: string[];
   runtime: string;
   runtimeVersion: string;
-  hostname: string;
+  hostname?: string;
 }
 
 export interface IMeta extends IMetaStatic {
@@ -34,8 +34,8 @@ export interface IMeta extends IMetaStatic {
 
 const meta: IMetaStatic = {
   runtime: "Nodejs",
-  runtimeVersion: (typeof process !== 'undefined') ? process.version : null,
-  hostname: hostname ? hostname() : null,
+  runtimeVersion: process?.version,
+  hostname: hostname ? hostname() : undefined,
 };
 
 export function getMeta(
