@@ -17,7 +17,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     // style only for blink browsers
     settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
 
-    super(isBrowser && typeof('process') === 'undefined' ? BrowserRuntime : NodeRuntime, settings, logObj, isSafari ? 4 : 5);
+    super(isBrowser && typeof(process) === 'undefined' ? BrowserRuntime : NodeRuntime, settings, logObj, isSafari ? 4 : 5);
   }
 
   /**
