@@ -1,10 +1,10 @@
-import { BaseLogger } from "./BaseLogger";
-import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces";
-import BrowserRuntime from "./runtime/browser/";
-import NodeRuntime from "./runtime/nodejs/";
+import { BaseLogger } from "./BaseLogger.js";
+import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
+import BrowserRuntime from "./runtime/browser/index.js";
+import NodeRuntime from "./runtime/nodejs/index.js";
 
-export * from "./interfaces";
-export * from "./BaseLogger";
+export * from "./interfaces.js";
+export * from "./BaseLogger.js";
 export { BrowserRuntime, NodeRuntime };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
