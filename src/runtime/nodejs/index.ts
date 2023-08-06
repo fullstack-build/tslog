@@ -34,7 +34,7 @@ export interface IMeta extends IMetaStatic {
 
 const meta: IMetaStatic = {
   runtime: "Nodejs",
-  runtimeVersion: (typeof process != 'undefined') ? process.version : null,
+  runtimeVersion: (typeof process !== 'undefined') ? process.version : null,
   hostname: hostname ? hostname() : null,
 };
 
