@@ -1,5 +1,5 @@
 import { Logger, BaseLogger } from "../../src/index.js";
-import { NodeRuntime } from "../../src/index";
+import { NodeRuntime } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;

@@ -186,70 +186,84 @@ export class BaseLogger<LogObj> {
 
   private _recursiveCloneAndMaskValuesOfKeys<T>(source: T, keys: (number | string)[], seen: unknown[] = []): T {
     if (seen.includes(source)) {
-      return { ...source };
+      return { ...source } as T;
     }
-    if (typeof source === "object" && source != null) {
+    if (typeof source === "object" && source !== null) {
       seen.push(source);
     }
 
-    return this.runtime.isError(source)
-      ? source // dont copy Error
-      : this.runtime.isBuffer(source)
-      ? source // dont copy Buffer
-      : source instanceof Map
-      ? new Map(source)
-      : source instanceof Set
-      ? new Set(source)
-      : Array.isArray(source)
-      ? source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen))
-      : source instanceof Date
-      ? new Date(source.getTime())
-      : this.runtime.isError(source)
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          // mask
-          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
-            ? this.settings.maskPlaceholder
-            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
-          return o;
-        }, this._cloneError(source as Error))
-      : source != null && typeof source === "object"
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          // mask
-          o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
-            ? this.settings.maskPlaceholder
-            : this._recursiveCloneAndMaskValuesOfKeys((source as { [key: string]: unknown })[prop], keys, seen);
-          return o;
-        }, Object.create(Object.getPrototypeOf(source)))
-      : ((source: T): T => {
-          // mask regEx
-          this.settings?.maskValuesRegEx?.forEach((regEx) => {
-            source = (source as string)?.toString()?.replace(regEx, this.settings.maskPlaceholder) as T;
-          });
-          return source;
-        })(source);
+    if (this.runtime.isError(source) || this.runtime.isBuffer(source)) {
+      return source as T;
+    } else if (source instanceof Map) {
+      return new Map(source) as T;
+    } else if (source instanceof Set) {
+      return new Set(source) as T;
+    } else if (Array.isArray(source)) {
+      return source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen)) as unknown as T;
+    } else if (source instanceof Date) {
+      return new Date(source.getTime()) as T;
+    } else if (source !== null && typeof source === "object") {
+      const baseObject = this.runtime.isError(source) ? this._cloneError(source as unknown as Error) : Object.create(Object.getPrototypeOf(source));
+      return Object.getOwnPropertyNames(source).reduce((o, prop) => {
+        o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
+          ? this.settings.maskPlaceholder
+          : this._recursiveCloneAndMaskValuesOfKeys((source as Record<string, unknown>)[prop], keys, seen);
+        return o;
+      }, baseObject) as T;
+    } else {
+      if (typeof source === "string") {
+        let modifiedSource: string = source;
+        for (const regEx of this.settings?.maskValuesRegEx || []) {
+          modifiedSource = modifiedSource.replace(regEx, this.settings?.maskPlaceholder || "");
+        }
+        return modifiedSource as unknown as T;
+      }
+      return source;
+    }
   }
 
-  private _recursiveCloneAndExecuteFunctions<T>(source: T, seen: unknown[] = []): T {
-    if (seen.includes(source)) {
-      return { ...source };
+  private _recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | Array<unknown>)[] = []): T {
+    if (this.isObjectOrArray(source) && seen.includes(source)) {
+      return this.shallowCopy(source);
     }
-    if (typeof source === "object") {
+
+    if (this.isObjectOrArray(source)) {
       seen.push(source);
     }
 
-    return Array.isArray(source)
-      ? source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen))
-      : source instanceof Date
-      ? new Date(source.getTime())
-      : source && typeof source === "object"
-      ? Object.getOwnPropertyNames(source).reduce((o, prop) => {
-          Object.defineProperty(o, prop, Object.getOwnPropertyDescriptor(source, prop) as PropertyDescriptor);
-          // execute functions or clone
-          o[prop] =
-            typeof source[prop] === "function" ? source[prop]() : this._recursiveCloneAndExecuteFunctions((source as { [key: string]: unknown })[prop], seen);
-          return o;
-        }, Object.create(Object.getPrototypeOf(source)))
-      : (source as T);
+    if (Array.isArray(source)) {
+      return source.map((item) => this._recursiveCloneAndExecuteFunctions(item, seen)) as unknown as T;
+    } else if (source instanceof Date) {
+      return new Date(source.getTime()) as unknown as T;
+    } else if (this.isObject(source)) {
+      return Object.getOwnPropertyNames(source).reduce((o, prop) => {
+        const descriptor = Object.getOwnPropertyDescriptor(source, prop);
+        if (descriptor) {
+          Object.defineProperty(o, prop, descriptor);
+          const value = (source as Record<string, unknown>)[prop];
+          o[prop] = typeof value === "function" ? value() : this._recursiveCloneAndExecuteFunctions(value, seen);
+        }
+        return o;
+      }, Object.create(Object.getPrototypeOf(source))) as T;
+    } else {
+      return source;
+    }
+  }
+
+  private isObjectOrArray(value: unknown): value is object | unknown[] {
+    return typeof value === "object" && value !== null;
+  }
+
+  private isObject(value: unknown): value is object {
+    return typeof value === "object" && !Array.isArray(value) && value !== null;
+  }
+
+  private shallowCopy<T>(source: T): T {
+    if (Array.isArray(source)) {
+      return [...source] as unknown as T;
+    } else {
+      return { ...source } as unknown as T;
+    }
   }
 
   private _toLogObj(args: unknown[], clonedLogObj: LogObj = {} as LogObj): LogObj {
@@ -270,8 +284,9 @@ export class BaseLogger<LogObj> {
   }
 
   private _cloneError<T extends Error>(error: T): T {
+    type ErrorProperties = keyof Error;
     const ErrorConstructor = error.constructor as new (...args: unknown[]) => T;
-    const errorProperties = Object.getOwnPropertyNames(error);
+    const errorProperties = Object.getOwnPropertyNames(error) as ErrorProperties[];
     const errorArgs = errorProperties.map((propName) => error[propName]);
 
     const newError = new ErrorConstructor(...errorArgs);
@@ -317,7 +332,7 @@ export class BaseLogger<LogObj> {
 
     let template = this.settings.prettyLogTemplate;
 
-    const placeholderValues = {};
+    const placeholderValues: Record<string, string | number> = {};
 
     // date and time performance fix
     if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {

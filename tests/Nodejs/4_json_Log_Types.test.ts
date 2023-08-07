@@ -83,7 +83,7 @@ describe("JSON: Log Types", () => {
     expect(getConsoleLog()).toContain('"filePath":"/tests/Nodejs/4_json_Log_Types.test.ts",');
     expect(getConsoleLog()).toContain('"method":"Object.<anonymous>"');
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
-    expect(errorLog?.stack[0]?.fileName).toBe("4_json_Log_Types.test.ts");
+    expect((errorLog?.stack as any)[0]?.fileName).toBe("4_json_Log_Types.test.ts");
   });
 
   test("string and Error", (): void => {

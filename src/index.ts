@@ -7,10 +7,20 @@ export * from "./interfaces.js";
 export * from "./BaseLogger.js";
 export { BrowserRuntime, NodeRuntime };
 
+declare global {
+  interface Window {
+    chrome?: unknown;
+  }
+
+  interface Intl {
+    v8BreakIterator?: unknown;
+  }
+}
+
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    const isBrowser = ![typeof window, typeof document].includes("undefined");
-    const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && Intl?.["v8BreakIterator"])) && "CSS" in window) != null : false;
+    const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
+    const isBrowserBlinkEngine = isBrowser ? window.chrome !== undefined && window.CSS !== undefined && window.CSS.supports("color", "green") : false;
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
 
     settings = settings || {};

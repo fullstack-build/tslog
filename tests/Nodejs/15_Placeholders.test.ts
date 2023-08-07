@@ -12,7 +12,7 @@ describe("Placeholders", () => {
       type: "pretty",
       prettyLogTemplate: "{{custom}} ",
       overwrite: {
-        addPlaceholders: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => {
+        addPlaceholders: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => {
           placeholderValues["custom"] = "test";
         },
       },

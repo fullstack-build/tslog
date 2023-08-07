@@ -101,7 +101,7 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("5_pretty_Log_Types.test.ts");
     expect(getConsoleLog()).toContain("Object.<anonymous>");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
-    expect(errorLog?.stack[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
 
   test("string and Error", (): void => {

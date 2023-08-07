@@ -239,7 +239,7 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLog()).toContain("NaN");
     logger.log(4567, "testLevel", { object: true });
     expect(getConsoleLog()).toContain(`{
-  object: 'true'
+  object: true
 }`);
     logger.log(4567, "testLevel", new Date());
     expect(getConsoleLog()).toContain("T");

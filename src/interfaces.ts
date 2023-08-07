@@ -9,6 +9,27 @@ export type TStyle =
       [value: string]: null | string | string[];
     };
 
+export interface IPrettyLogStyles {
+  yyyy?: TStyle;
+  mm?: TStyle;
+  dd?: TStyle;
+  hh?: TStyle;
+  MM?: TStyle;
+  ss?: TStyle;
+  ms?: TStyle;
+  dateIsoStr?: TStyle;
+  logLevelName?: TStyle;
+  fileName?: TStyle;
+  filePath?: TStyle;
+  fileLine?: TStyle;
+  filePathWithLine?: TStyle;
+  name?: TStyle;
+  nameWithDelimiterPrefix?: TStyle;
+  nameWithDelimiterSuffix?: TStyle;
+  errorName?: TStyle;
+  errorMessage?: TStyle;
+}
+
 export interface ISettingsParam<LogObj> {
   type?: "json" | "pretty" | "hidden";
   name?: string;
@@ -23,26 +44,7 @@ export interface ISettingsParam<LogObj> {
   prettyErrorLoggerNameDelimiter?: string;
   stylePrettyLogs?: boolean;
   prettyLogTimeZone?: "UTC" | "local";
-  prettyLogStyles?: {
-    yyyy?: TStyle;
-    mm?: TStyle;
-    dd?: TStyle;
-    hh?: TStyle;
-    MM?: TStyle;
-    ss?: TStyle;
-    ms?: TStyle;
-    dateIsoStr?: TStyle;
-    logLevelName?: TStyle;
-    fileName?: TStyle;
-    filePath?: TStyle;
-    fileLine?: TStyle;
-    filePathWithLine?: TStyle;
-    name?: TStyle;
-    nameWithDelimiterPrefix?: TStyle;
-    nameWithDelimiterSuffix?: TStyle;
-    errorName?: TStyle;
-    errorMessage?: TStyle;
-  };
+  prettyLogStyles?: IPrettyLogStyles;
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
   maskPlaceholder?: string;
@@ -55,7 +57,7 @@ export interface ISettingsParam<LogObj> {
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
-    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => void;
+    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;

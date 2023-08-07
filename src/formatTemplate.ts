@@ -1,7 +1,7 @@
-import { ISettings, TStyle } from "./interfaces.js";
+import { ISettings, TStyle, IPrettyLogStyles } from "./interfaces.js";
 import { prettyLogStyles } from "./prettyLogStyles.js";
 
-export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: string, values: { [key: string]: string }, hideUnsetPlaceholder = false) {
+export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: string, values: Record<string, string | number>, hideUnsetPlaceholder = false) {
   const templateString = String(template);
   const ansiColorWrap = (placeholderValue: string, code: [number, number]) => `\u001b[${code[0]}m${placeholderValue}\u001b[${code[1]}m`;
 
@@ -21,8 +21,11 @@ export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: st
     }
   };
 
+  const defaultStyle: TStyle = null;
   return templateString.replace(/{{(.+?)}}/g, (_, placeholder) => {
-    const value = values[placeholder] != null ? values[placeholder] : hideUnsetPlaceholder ? "" : _;
-    return settings.stylePrettyLogs ? styleWrap(value, settings?.prettyLogStyles?.[placeholder]) + ansiColorWrap("", prettyLogStyles.reset) : value;
+    const value = values[placeholder] != null ? String(values[placeholder]) : hideUnsetPlaceholder ? "" : _;
+    return settings.stylePrettyLogs
+      ? styleWrap(value, settings?.prettyLogStyles?.[placeholder as keyof IPrettyLogStyles] ?? defaultStyle) + ansiColorWrap("", prettyLogStyles.reset)
+      : value;
   });
 }
