@@ -1,6 +1,7 @@
 import "ts-jest";
 import { Logger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
+import { stdout } from "process";
 
 describe("Pretty: Log Types", () => {
   beforeEach(() => {
@@ -80,6 +81,10 @@ describe("Pretty: Log Types", () => {
     logger.log(1234, "testLevel", url);
     expect(getConsoleLog()).toContain("https://example.com/");
     expect(getConsoleLog()).toContain("protocol:");
+    const url2 = new URL("https://example2.com");
+    logger.log(1234, "testLevel", { url2 });
+    expect(getConsoleLog()).toContain("url2: {");
+    expect(getConsoleLog()).toContain("https://example2.com/");
   });
 
   test("String, Object", (): void => {
