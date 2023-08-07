@@ -1,19 +1,14 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
-import BrowserRuntime from "./runtime/browser/index.js";
-import NodeRuntime from "./runtime/nodejs/index.js";
+import Runtime from "./runtime/nodejs/index.js";
 
 export * from "./interfaces.js";
 export * from "./BaseLogger.js";
-export { BrowserRuntime, NodeRuntime };
+export { Runtime };
 
 declare global {
   interface Window {
     chrome?: unknown;
-  }
-
-  interface Intl {
-    v8BreakIterator?: unknown;
   }
 }
 
@@ -27,7 +22,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     // style only for blink browsers
     settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
 
-    super(isBrowser || process == undefined ? BrowserRuntime : NodeRuntime, settings, logObj, isSafari ? 4 : 5);
+    super(Runtime, settings, logObj, isSafari ? 4 : 5);
   }
 
   /**

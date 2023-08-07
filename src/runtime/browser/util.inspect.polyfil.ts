@@ -208,7 +208,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
         return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
       }
       if (isDate(value)) {
-        return ctx.stylize(Date.prototype.toString.call(value), "date");
+        return ctx.stylize(Date.prototype.toISOString.call(value), "date");
       }
       if (isError(value)) {
         return formatError(value as Error);
