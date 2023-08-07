@@ -74,6 +74,14 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("1970-01-01T00:00:00.000Z");
   });
 
+  test("URL", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const url = new URL("https://example.com");
+    logger.log(1234, "testLevel", url);
+    expect(getConsoleLog()).toContain("https://example.com/");
+    expect(getConsoleLog()).toContain("protocol:");
+  });
+
   test("String, Object", (): void => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });

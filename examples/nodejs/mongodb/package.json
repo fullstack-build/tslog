@@ -1,0 +1,18 @@
+{
+  "name": "test-mongo-tslog",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "type": "module",
+  "dependencies": {
+    "mongodb": "^4.4.0",
+    "tslog": "^4.8.2",
+    "typescript": "^5.1.6"
+  },
+  "scripts": {
+    "start": "node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm index.ts"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.1"
+  }
+}

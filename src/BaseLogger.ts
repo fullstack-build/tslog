@@ -1,6 +1,7 @@
 import { formatTemplate } from "./formatTemplate.js";
 import { formatNumberAddZeros } from "./formatNumberAddZeros.js";
 import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject, Runtime, IMeta } from "./interfaces.js";
+import { urlToObject } from "./urlToObj.js";
 export * from "./interfaces.js";
 
 export class BaseLogger<LogObj> {
@@ -202,6 +203,8 @@ export class BaseLogger<LogObj> {
       return source.map((item) => this._recursiveCloneAndMaskValuesOfKeys(item, keys, seen)) as unknown as T;
     } else if (source instanceof Date) {
       return new Date(source.getTime()) as T;
+    } else if (source instanceof URL) {
+      return urlToObject(source) as T;
     } else if (source !== null && typeof source === "object") {
       const baseObject = this.runtime.isError(source) ? this._cloneError(source as unknown as Error) : Object.create(Object.getPrototypeOf(source));
       return Object.getOwnPropertyNames(source).reduce((o, prop) => {
