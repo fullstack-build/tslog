@@ -3,6 +3,7 @@ import { normalize as fileNormalize } from "path";
 import { types, formatWithOptions, InspectOptions } from "util";
 import { Runtime, ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
+import { stdout } from "process";
 export { InspectOptions };
 
 export default {
@@ -132,7 +133,14 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 
   const placeholderValuesError = {
     errorName: ` ${error.name} `,
-    errorMessage: error.message,
+    errorMessage: Object.getOwnPropertyNames(error)
+      .reduce((result: string[], key) => {
+        if (key !== "stack") {
+          result.push((error as any)[key]);
+        }
+        return result;
+      }, [])
+      .join(", "),
     errorStack: errorStackStr.join("\n"),
   };
   return formatTemplate(settings, settings.prettyErrorTemplate, placeholderValuesError);

@@ -3,6 +3,13 @@ import { Logger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 import { stdout } from "process";
 
+class CustomError extends Error {
+  constructor(message: string, public extraInfo: string) {
+    super(message);
+    Object.setPrototypeOf(this, CustomError.prototype);
+  }
+}
+
 describe("Pretty: Log Types", () => {
   beforeEach(() => {
     mockConsoleLog(true, false);
@@ -108,6 +115,20 @@ describe("Pretty: Log Types", () => {
   test("Error", (): void => {
     const logger = new Logger({ type: "pretty" });
     const errorLog = logger.log(1234, "testLevel", new Error("test"));
+    expect(getConsoleLog()).toContain("Error");
+    expect(getConsoleLog()).toContain("test");
+    expect(getConsoleLog()).toContain("error stack:\n");
+    expect(getConsoleLog()).toContain("5_pretty_Log_Types.test.ts");
+    expect(getConsoleLog()).toContain("Object.<anonymous>");
+    expect(errorLog?.nativeError).toBeInstanceOf(Error);
+    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+  });
+
+  test("Error with multiple parameters", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const errorLog = logger.log(1234, "testLevel", new CustomError("Something went wrong", "Additional info"));
+    expect(getConsoleLog()).toContain("Something went wrong");
+    expect(getConsoleLog()).toContain("Additional info");
     expect(getConsoleLog()).toContain("Error");
     expect(getConsoleLog()).toContain("test");
     expect(getConsoleLog()).toContain("error stack:\n");

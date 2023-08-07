@@ -123,7 +123,14 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 
   const placeholderValuesError = {
     errorName: ` ${error.name} `,
-    errorMessage: error.message,
+    errorMessage: Object.getOwnPropertyNames(error)
+      .reduce((result: string[], key) => {
+        if (key !== "stack") {
+          result.push((error as any)[key]);
+        }
+        return result;
+      }, [])
+      .join(", "),
     errorStack: errorStackStr.join("\n"),
   };
   return formatTemplate(settings, settings.prettyErrorTemplate, placeholderValuesError);
