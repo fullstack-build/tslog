@@ -9,7 +9,9 @@ export { BrowserRuntime };
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
-    const isBrowserBlinkEngine = isBrowser ? ((window?.["chrome"] || (window.Intl && ((Intl as unknown as { v8BreakIterator: unknown })?.v8BreakIterator))) && "CSS" in window) != null : false;
+    const isBrowserBlinkEngine = isBrowser
+      ? ((window?.["chrome"] || (window.Intl && (Intl as unknown as { v8BreakIterator: unknown })?.v8BreakIterator)) && "CSS" in window) != null
+      : false;
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
 
     settings = settings || {};
