@@ -250,8 +250,9 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
   /**
    * Logs a _CUSTOM_ message.
    * @param args  - Multiple log attributes that should be logged.
+   * @return LogObject with meta property, when log level is >= minLevel
    */
-  public custom(...args: unknown[]): LogObj & ILogObjMeta {
+  public custom(...args: unknown[]): LogObj & ILogObjMeta | undefined {
     return super.log(8, "CUSTOM", ...args);
   }
 
@@ -452,6 +453,22 @@ Following settings are available for styling:
   - `prettyErrorParentNamesSeparator`: separator to be used when joining names ot the parent logger, and the current one (default: `:`)
   - `prettyErrorLoggerNameDelimiter`: if a logger name is set this delimiter will be added afterwards
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
+
+  ### Customizing template tokens
+  It's possible to add user defined tokes, by overwriting the `addPlaceholders` in the `settings.overwrite`. this callback allows to add or overwrite tokens in the `placeholderValues`.
+  for example, to add the token: `{{custom}}`;
+  ```javascript
+  const logger = new Logger({
+    type: "pretty",
+    prettyLogTemplate: "{{custom}} ",
+    overwrite: {
+      addPlaceholders: (logObjMeta: IMeta, placeholderValues: Record<string, string>) => {
+        placeholderValues["custom"] = "test";
+      },
+    },
+  });
+  ```
+  this would yield in the token `{{custom}}` being replaced with `"test"`
 
 - **Styling:**
   - `stylePrettyLogs`: defines whether logs should be styled and colorized

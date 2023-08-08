@@ -1,5 +1,5 @@
-import { IMeta, InspectOptions } from "./runtime/nodejs/index.js";
-export { IMeta, InspectOptions };
+import { InspectOptions } from "./runtime/browser/index.js";
+export { InspectOptions };
 
 export type TStyle =
   | null
@@ -8,6 +8,27 @@ export type TStyle =
   | {
       [value: string]: null | string | string[];
     };
+
+export interface IPrettyLogStyles {
+  yyyy?: TStyle;
+  mm?: TStyle;
+  dd?: TStyle;
+  hh?: TStyle;
+  MM?: TStyle;
+  ss?: TStyle;
+  ms?: TStyle;
+  dateIsoStr?: TStyle;
+  logLevelName?: TStyle;
+  fileName?: TStyle;
+  filePath?: TStyle;
+  fileLine?: TStyle;
+  filePathWithLine?: TStyle;
+  name?: TStyle;
+  nameWithDelimiterPrefix?: TStyle;
+  nameWithDelimiterSuffix?: TStyle;
+  errorName?: TStyle;
+  errorMessage?: TStyle;
+}
 
 export interface ISettingsParam<LogObj> {
   type?: "json" | "pretty" | "hidden";
@@ -23,26 +44,7 @@ export interface ISettingsParam<LogObj> {
   prettyErrorLoggerNameDelimiter?: string;
   stylePrettyLogs?: boolean;
   prettyLogTimeZone?: "UTC" | "local";
-  prettyLogStyles?: {
-    yyyy?: TStyle;
-    mm?: TStyle;
-    dd?: TStyle;
-    hh?: TStyle;
-    MM?: TStyle;
-    ss?: TStyle;
-    ms?: TStyle;
-    dateIsoStr?: TStyle;
-    logLevelName?: TStyle;
-    fileName?: TStyle;
-    filePath?: TStyle;
-    fileLine?: TStyle;
-    filePathWithLine?: TStyle;
-    name?: TStyle;
-    nameWithDelimiterPrefix?: TStyle;
-    nameWithDelimiterSuffix?: TStyle;
-    errorName?: TStyle;
-    errorMessage?: TStyle;
-  };
+  prettyLogStyles?: IPrettyLogStyles;
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
   maskPlaceholder?: string;
@@ -55,6 +57,7 @@ export interface ISettingsParam<LogObj> {
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   overwrite?: {
+    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
@@ -165,4 +168,39 @@ export interface IErrorObject {
   nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
+}
+
+/*
+  RUNTIME TYPES
+*/
+export interface IMetaStatic {
+  name?: string;
+  parentNames?: string[];
+  runtime: string;
+}
+
+export interface IMeta extends IMetaStatic {
+  date: Date;
+  logLevelId: number;
+  logLevelName: string;
+  path?: IStackFrame;
+}
+
+export interface IRuntime {
+  getMeta: (
+    logLevelId: number,
+    logLevelName: string,
+    stackDepthLevel: number,
+    hideLogPositionForPerformance: boolean,
+    name?: string,
+    parentNames?: string[]
+  ) => IMeta;
+  getCallerStackFrame: (stackDepthLevel: number, error: Error) => IStackFrame;
+  getErrorTrace: (error: Error) => IStackFrame[];
+  isError: (e: Error | unknown) => boolean;
+  prettyFormatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
+  prettyFormatErrorObj: <LogObj>(error: Error, settings: ISettings<LogObj>) => string;
+  transportFormatted: <LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
+  transportJSON: <LogObj>(json: LogObj & ILogObjMeta) => void;
+  isBuffer: (b: unknown) => boolean;
 }

@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger } from "../../src/index.js";
+import { Logger } from "../../src";
 import { mockConsoleLog } from "./helper.js";
 
 describe("Recursive", () => {
@@ -23,7 +23,7 @@ describe("Recursive", () => {
     const foo = new Foo();
     const logMsg = mainLogger.info("circular", foo);
     expect(logMsg?.["0"]).toBe("circular");
-    expect(logMsg?.["1"]["circular"]).toEqual(logMsg?.["1"]);
+    expect((logMsg?.["1"] as any)["circular"]).toEqual(logMsg?.["1"]);
   });
 
   test("json", (): void => {
@@ -42,7 +42,7 @@ describe("Recursive", () => {
     const foo = new Foo();
     const logMsg = mainLogger.info("circular", foo);
     expect(logMsg?.["0"]).toBe("circular");
-    expect(logMsg?.["1"]["circular"]).toEqual(logMsg?.["1"]);
+    expect((logMsg?.["1"] as any)["circular"]).toEqual(logMsg?.["1"]);
   });
 
   test("pretty", (): void => {
@@ -61,7 +61,7 @@ describe("Recursive", () => {
     const foo = new Foo();
     const logMsg = mainLogger.info("circular", foo);
     expect(logMsg?.["0"]).toBe("circular");
-    expect(logMsg?.["1"]["circular"]).toEqual(logMsg?.["1"]);
+    expect((logMsg?.["1"] as any)["circular"]).toEqual(logMsg?.["1"]);
   });
 
   test("pretty recursive LogObj function", (): void => {

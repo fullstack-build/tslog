@@ -1,6 +1,8 @@
-import { InspectOptions } from "util";
+import { InspectOptions } from "./InspectOptions.interface.js";
 import { prettyLogStyles } from "../../prettyLogStyles.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
+
+export { InspectOptions };
 
 interface ICtx {
   showHidden?: boolean | unknown;
@@ -69,7 +71,7 @@ function stylizeNoColor(str: string) {
 }
 
 function stylizeWithColor(str: string, styleType: string) {
-  const style = inspect.styles[styleType];
+  const style = inspect.styles[styleType as keyof typeof inspect.styles];
 
   if (style != null && inspect?.colors?.[style]?.[0] != null && inspect?.colors?.[style]?.[1] != null) {
     return "\u001b[" + inspect.colors[style][0] + "m" + str + "\u001b[" + inspect.colors[style][1] + "m";
@@ -119,7 +121,7 @@ function objectToString(o: unknown) {
 }
 
 function arrayToHash(array: unknown[]): { [key: string]: unknown } {
-  const hash = {};
+  const hash: { [key: string]: boolean } = {};
 
   array.forEach((val: unknown) => {
     hash[val as string] = true;
@@ -128,7 +130,7 @@ function arrayToHash(array: unknown[]): { [key: string]: unknown } {
   return hash;
 }
 
-function formatArray(ctx: ICtx, value: unknown[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, keys: string[]): string[] {
+function formatArray(ctx: ICtx, value: string[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, keys: string[]): string[] {
   const output = [];
   for (let i = 0, l = value.length; i < l; ++i) {
     if (hasOwn(value, String(i))) {
@@ -206,7 +208,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
         return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
       }
       if (isDate(value)) {
-        return ctx.stylize(Date.prototype.toString.call(value), "date");
+        return ctx.stylize(Date.prototype.toISOString.call(value), "date");
       }
       if (isError(value)) {
         return formatError(value as Error);
@@ -275,13 +277,13 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   return reduceToSingleString(output, base, braces);
 }
 
-function formatProperty(ctx: ICtx, value: unknown[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, key: string, array: boolean): string {
-  let name, str, desc;
-  desc = { value: void 0 };
+function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, key: string, array: boolean): string {
+  let name, str;
+  let desc: PropertyDescriptor = { value: void 0 };
   try {
     // ie6 › navigator.toString
     // throws Error: Object doesn't support this property or method
-    desc.value = value[key];
+    desc.value = value[key as unknown as number];
   } catch (e) {
     // ignore
   }
@@ -379,10 +381,13 @@ function _extend(origin: object, add: object) {
   // Don't do anything if add isn't an object
   if (!add || !isObject(add)) return origin;
 
+  const clonedOrigin = { ...origin } as { [key: string]: unknown };
+  const clonedAdd = { ...add } as { [key: string]: unknown };
+
   const keys = Object.keys(add);
   let i = keys.length;
   while (i--) {
-    origin[keys[i]] = add[keys[i]];
+    clonedOrigin[keys[i]] = clonedAdd[keys[i]];
   }
   return origin;
 }

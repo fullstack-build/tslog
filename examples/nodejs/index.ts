@@ -1,4 +1,4 @@
-import { Logger, ILogObj } from "../../src";
+import { Logger, ILogObj } from "../../src/index.js";
 
 class MyClass {
   private readonly _logger: Logger<ILogObj> = new Logger({

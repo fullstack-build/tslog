@@ -1,16 +1,28 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { types, formatWithOptions, InspectOptions } from "util";
-import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { IRuntime, ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
 export { InspectOptions };
+
+export default {
+  getCallerStackFrame,
+  getErrorTrace,
+  getMeta,
+  transportJSON,
+  transportFormatted,
+  isBuffer,
+  isError,
+  prettyFormatLogObj,
+  prettyFormatErrorObj,
+} as IRuntime;
 
 export interface IMetaStatic {
   name?: string;
   parentNames?: string[];
   runtime: string;
   runtimeVersion: string;
-  hostname: string;
+  hostname?: string;
 }
 
 export interface IMeta extends IMetaStatic {
@@ -22,8 +34,8 @@ export interface IMeta extends IMetaStatic {
 
 const meta: IMetaStatic = {
   runtime: "Nodejs",
-  runtimeVersion: process.version,
-  hostname: hostname(),
+  runtimeVersion: process?.version,
+  hostname: hostname ? hostname() : undefined,
 };
 
 export function getMeta(
@@ -120,7 +132,14 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 
   const placeholderValuesError = {
     errorName: ` ${error.name} `,
-    errorMessage: error.message,
+    errorMessage: Object.getOwnPropertyNames(error)
+      .reduce((result: string[], key) => {
+        if (key !== "stack") {
+          result.push((error as any)[key]);
+        }
+        return result;
+      }, [])
+      .join(", "),
     errorStack: errorStackStr.join("\n"),
   };
   return formatTemplate(settings, settings.prettyErrorTemplate, placeholderValuesError);

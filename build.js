@@ -1,7 +1,7 @@
 import { build } from "esbuild";
 
 build({
-  entryPoints: ["src/index.ts"],
+  entryPoints: ["src/index.browser.ts"],
   outfile: "dist/browser/index.js",
   platform: "browser",
   bundle: true,

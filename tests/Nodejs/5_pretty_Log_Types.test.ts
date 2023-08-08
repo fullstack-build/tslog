@@ -1,6 +1,14 @@
 import "ts-jest";
-import { Logger } from "../../src/index.js";
+import { Logger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
+import { stdout } from "process";
+
+class CustomError extends Error {
+  constructor(message: string, public extraInfo: string) {
+    super(message);
+    Object.setPrototypeOf(this, CustomError.prototype);
+  }
+}
 
 describe("Pretty: Log Types", () => {
   beforeEach(() => {
@@ -74,6 +82,18 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("1970-01-01T00:00:00.000Z");
   });
 
+  test("URL", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const url = new URL("https://example.com");
+    logger.log(1234, "testLevel", url);
+    expect(getConsoleLog()).toContain("https://example.com/");
+    expect(getConsoleLog()).toContain("protocol:");
+    const url2 = new URL("https://example2.com");
+    logger.log(1234, "testLevel", { url2 });
+    expect(getConsoleLog()).toContain("url2: {");
+    expect(getConsoleLog()).toContain("https://example2.com/");
+  });
+
   test("String, Object", (): void => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
@@ -101,7 +121,21 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("5_pretty_Log_Types.test.ts");
     expect(getConsoleLog()).toContain("Object.<anonymous>");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
-    expect(errorLog?.stack[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+  });
+
+  test("Error with multiple parameters", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const errorLog = logger.log(1234, "testLevel", new CustomError("Something went wrong", "Additional info"));
+    expect(getConsoleLog()).toContain("Something went wrong");
+    expect(getConsoleLog()).toContain("Additional info");
+    expect(getConsoleLog()).toContain("Error");
+    expect(getConsoleLog()).toContain("test");
+    expect(getConsoleLog()).toContain("error stack:\n");
+    expect(getConsoleLog()).toContain("5_pretty_Log_Types.test.ts");
+    expect(getConsoleLog()).toContain("Object.<anonymous>");
+    expect(errorLog?.nativeError).toBeInstanceOf(Error);
+    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
 
   test("string and Error", (): void => {

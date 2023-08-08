@@ -1,8 +1,8 @@
 {
   "name": "tslog",
-  "version": "4.8.2",
-  "description": "📝 Extensible TypeScript Logger for Node.js and Browser: Dependency free, Fully customizable, Pretty errors, stack traces, and JSON output to attachable transports.",
-  "author": "Eugene <opensource@terehov.de> (http://fullstack.build/)",
+  "version": "4.9.1",
+  "description": "Extensible TypeScript Logger for Node.js and Browser.",
+  "author": "Eugene <opensource@terehov.de> (https://fullstack.build)",
   "license": "MIT",
   "funding": "https://github.com/fullstack-build/tslog?sponsor=1",
   "homepage": "https://tslog.js.org",
@@ -24,6 +24,7 @@
     "./src/runtime/nodejs/index.js": "./src/runtime/browser/index.js",
     "util": false
   },
+  "react-native": "./dist/cjs/index.js",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
@@ -39,10 +40,8 @@
     "build-types": "tsc -b tsconfig.types.json",
     "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json && cp ./src/package-cjs.json ./dist/cjs/package.json",
     "build-example": "tsc -b tsconfig.example.json",
-    "dev-ts": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm' examples/nodejs/index2.ts",
-    "start": "npm run build-example && node --experimental-specifier-resolution=node --enable-source-maps examples/dist/examples/nodejs/index2.js",
-    "dev-ts-old-example": "nodemon --watch './**/*.ts' --exec 'node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm' examples/nodejs/index.ts",
-    "dev-js": "npm run build-example && node --experimental-specifier-resolution=node --enable-source-maps examples/dist/examples/nodejs/index2.js",
+    "dev-ts": "nodemon examples/nodejs/index2.ts",
+    "dev-ts-old-example": "nodemon examples/nodejs/index.ts",
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
@@ -69,7 +68,9 @@
       "**/tests/**/*.test.js"
     ],
     "coveragePathIgnorePatterns": [
-      "<rootDir>/tests/"
+      "<rootDir>/node-modules/",
+      "<rootDir>/tests/",
+      "<rootDir>/src/runtime/browser/"
     ]
   },
   "np": {
@@ -78,6 +79,12 @@
   },
   "publishConfig": {
     "access": "public"
+  },
+  "nodemonConfig": {
+    "watch": [
+      "./**/*.ts"
+    ],
+    "exec": "node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm"
   },
   "devDependencies": {
     "@jest/types": "^28.1.3",
@@ -97,11 +104,11 @@
     "nodemon": "^2.0.19",
     "np": "^7.6.2",
     "prettier": "^2.7.1",
-    "puppeteer": "^17.1.0",
+    "puppeteer": "^21.0.1",
     "ts-jest": "^28.0.8",
     "ts-jest-resolver": "^2.0.0",
     "ts-node": "^10.9.1",
-    "typescript": "^4.7.4"
+    "typescript": "^5.1.6"
   },
   "sideEffects": false,
   "keywords": [
@@ -120,8 +127,6 @@
     "log4ts",
     "print",
     "logging",
-    "bunyan",
-    "winston",
     "stack",
     "trace",
     "pretty print",

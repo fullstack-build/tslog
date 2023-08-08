@@ -1,4 +1,4 @@
-import { Logger, BaseLogger, IMeta } from "../../src/index.js";
+import { Logger, BaseLogger } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;

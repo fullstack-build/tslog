@@ -1,5 +1,5 @@
 import "ts-jest";
-import { Logger, BaseLogger } from "../../src/index.js";
+import { Logger, BaseLogger } from "../../src";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 interface ILogObj {

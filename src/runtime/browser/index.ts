@@ -1,7 +1,21 @@
-import { ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { ILogObjMeta, ISettings, IStackFrame, IRuntime } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
-import { formatWithOptions } from "./util.inspect.polyfil.js";
+import { formatWithOptions, InspectOptions } from "./util.inspect.polyfil.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
+
+export { InspectOptions };
+
+export default {
+  getCallerStackFrame,
+  getErrorTrace,
+  getMeta,
+  transportJSON,
+  transportFormatted,
+  isBuffer,
+  isError,
+  prettyFormatLogObj,
+  prettyFormatErrorObj,
+} as IRuntime;
 
 export interface IMetaStatic {
   name?: string;
@@ -59,7 +73,8 @@ export function getErrorTrace(error: Error): IStackFrame[] {
 }
 
 function stackLineToStackFrame(line?: string): IStackFrame {
-  const href = globalThis.location.origin;
+  const href = globalThis?.location?.origin;
+
   const pathResult: IStackFrame = {
     fullFilePath: undefined,
     fileName: undefined,
@@ -108,7 +123,14 @@ export function prettyFormatErrorObj<LogObj>(error: Error, settings: ISettings<L
 
   const placeholderValuesError = {
     errorName: ` ${error.name} `,
-    errorMessage: error.message,
+    errorMessage: Object.getOwnPropertyNames(error)
+      .reduce((result: string[], key) => {
+        if (key !== "stack") {
+          result.push((error as any)[key]);
+        }
+        return result;
+      }, [])
+      .join(", "),
     errorStack: errorStackStr.join("\n"),
   };
   return formatTemplate(settings, settings.prettyErrorTemplate, placeholderValuesError);
@@ -125,5 +147,5 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
 }
 
 export function isBuffer(arg?: unknown) {
-  return arg ? undefined : undefined;
+  return arg ? false : false;
 }

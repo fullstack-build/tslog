@@ -1,18 +1,15 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
+
 export * from "./interfaces.js";
 export * from "./BaseLogger.js";
 
-declare global {
-  interface Window {
-    chrome?: unknown;
-  }
-}
-
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
-    const isBrowserBlinkEngine = isBrowser ? window.chrome !== undefined && window.CSS !== undefined && window.CSS.supports("color", "green") : false;
+    const isBrowser = ![typeof window, typeof document].includes("undefined");
+    const isBrowserBlinkEngine = isBrowser
+      ? ((window?.["chrome"] || (window.Intl && (Intl as unknown as { v8BreakIterator: unknown })?.v8BreakIterator)) && "CSS" in window) != null
+      : false;
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
 
     settings = settings || {};
