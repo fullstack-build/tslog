@@ -250,8 +250,9 @@ export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
   /**
    * Logs a _CUSTOM_ message.
    * @param args  - Multiple log attributes that should be logged.
+   * @return LogObject with meta property, when log level is >= minLevel
    */
-  public custom(...args: unknown[]): LogObj & ILogObjMeta {
+  public custom(...args: unknown[]): LogObj & ILogObjMeta | undefined {
     return super.log(8, "CUSTOM", ...args);
   }
 
