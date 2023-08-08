@@ -1,4 +1,4 @@
-import { ILogObjMeta, ISettings, IStackFrame, Runtime } from "../../interfaces.js";
+import { ILogObjMeta, ISettings, IStackFrame, IRuntime } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
 import { formatWithOptions, InspectOptions } from "./util.inspect.polyfil.js";
 import { jsonStringifyRecursive } from "./helper.jsonStringifyRecursive.js";
@@ -15,7 +15,7 @@ export default {
   isError,
   prettyFormatLogObj,
   prettyFormatErrorObj,
-} as Runtime;
+} as IRuntime;
 
 export interface IMetaStatic {
   name?: string;

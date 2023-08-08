@@ -186,7 +186,7 @@ export interface IMeta extends IMetaStatic {
   path?: IStackFrame;
 }
 
-export interface Runtime {
+export interface IRuntime {
   getMeta: (
     logLevelId: number,
     logLevelName: string,

@@ -1,9 +1,8 @@
 import { hostname } from "os";
 import { normalize as fileNormalize } from "path";
 import { types, formatWithOptions, InspectOptions } from "util";
-import { Runtime, ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
+import { IRuntime, ILogObjMeta, ISettings, IStackFrame } from "../../interfaces.js";
 import { formatTemplate } from "../../formatTemplate.js";
-import { stdout } from "process";
 export { InspectOptions };
 
 export default {
@@ -16,7 +15,7 @@ export default {
   isError,
   prettyFormatLogObj,
   prettyFormatErrorObj,
-} as Runtime;
+} as IRuntime;
 
 export interface IMetaStatic {
   name?: string;

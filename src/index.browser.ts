@@ -1,10 +1,8 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
-import BrowserRuntime from "./runtime/browser/index.js";
 
 export * from "./interfaces.js";
 export * from "./BaseLogger.js";
-export { BrowserRuntime };
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
@@ -18,7 +16,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     // style only for blink browsers
     settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
 
-    super(BrowserRuntime, settings, logObj, isSafari ? 4 : 5);
+    super(settings, logObj, isSafari ? 4 : 5);
   }
 
   /**

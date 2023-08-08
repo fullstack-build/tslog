@@ -1,17 +1,20 @@
 import { formatTemplate } from "./formatTemplate.js";
 import { formatNumberAddZeros } from "./formatNumberAddZeros.js";
-import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject, Runtime, IMeta } from "./interfaces.js";
+import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject, IRuntime, IMeta } from "./interfaces.js";
 import { urlToObject } from "./urlToObj.js";
+import Runtime from "./runtime/nodejs/index.js";
+
 export * from "./interfaces.js";
+export { Runtime };
 
 export class BaseLogger<LogObj> {
-  private readonly runtime: Runtime;
+  private readonly runtime: IRuntime;
   public settings: ISettings<LogObj>;
   // not needed yet
   //private subLoggers: BaseLogger<LogObj>[] = [];
 
-  constructor(runtime: Runtime, settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
-    this.runtime = runtime;
+  constructor(settings?: ISettingsParam<LogObj>, private logObj?: LogObj, private stackDepthLevel: number = 4) {
+    this.runtime = Runtime;
 
     this.settings = {
       type: settings?.type ?? "pretty",

@@ -1,5 +1,4 @@
 import { Logger, BaseLogger } from "../../src/index.js";
-import { Runtime } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;
@@ -23,7 +22,7 @@ logger.fatal("test1 %s test3", "test2");
 
 console.log("###############");
 
-const baseLogger = new BaseLogger(Runtime, {}, defaultLogObject);
+const baseLogger = new BaseLogger({}, defaultLogObject);
 
 baseLogger.log(0, "test", "test base logger", { haha: true, password: "123456" }, ["SECRET"]);
 
