@@ -76,6 +76,24 @@ describe("Browser: JSON: Log level", () => {
     expect(consoleOutput).toContain("Foo bar");
   });
 
+  it("pretty undefined", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.info(undefined);
+    });
+    expect(consoleOutput).toContain("undefined");
+  });
+
+  it("pretty null", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.info(null);
+    });
+    expect(consoleOutput).toContain("null");
+  });
+
   it("pretty nullish", async () => {
     await page.evaluate(() => {
       // @ts-ignore

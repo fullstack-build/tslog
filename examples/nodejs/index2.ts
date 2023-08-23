@@ -119,3 +119,14 @@ class CustomError extends Error {
 
 const err = new CustomError("a", "b");
 logger.error(err);
+
+console.log("***********");
+logger.debug(null);
+logger.debug(undefined);
+logger.debug("*", undefined);
+console.log("###############");
+//jsonLogger.debug(null);
+jsonLogger.debug(undefined);
+//jsonLogger.debug('*', undefined);
+console.log("###############");
+logger.debug(new URL("https://www.test.de"));

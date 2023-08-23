@@ -165,6 +165,9 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
         // Store value in our collection
         cache.add(value);
       }
+      if (typeof value === "undefined") {
+        return "[undefined]";
+      }
       return value;
     });
   }
