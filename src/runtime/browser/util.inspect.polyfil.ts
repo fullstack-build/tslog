@@ -63,7 +63,7 @@ function isBoolean(arg: unknown) {
 }
 
 function isUndefined(arg: unknown) {
-  return arg == null;
+  return arg === undefined;
 }
 
 function stylizeNoColor(str: string) {

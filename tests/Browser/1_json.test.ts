@@ -75,4 +75,14 @@ describe("Browser: JSON: Log level", () => {
 
     expect(consoleOutput).toContain("Foo bar");
   });
+
+  it("pretty nullish", async () => {
+    await page.evaluate(() => {
+      // @ts-ignore
+      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+      logger.info({ foo: null, bar: undefined });
+    });
+    expect(consoleOutput).toContain("null");
+    expect(consoleOutput).toContain("undefined");
+  });
 });

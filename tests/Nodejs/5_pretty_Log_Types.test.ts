@@ -45,6 +45,12 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("555");
   });
 
+  test("null", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    logger.log(1234, "testLevel", null);
+    expect(getConsoleLog()).toContain("null");
+  });
+
   test("Array, stylePrettyLogs: false", (): void => {
     const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
     logger.log(1234, "testLevel", [1, 2, 3, "test"]);
