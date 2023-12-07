@@ -686,7 +686,7 @@ For `pretty` logs:
 For `JSON` logs (no formatting happens here):
 ```typescript
     const logger = new Logger({
-      type: "pretty",
+      type: "json",
       overwrite: {
         transportJSON: (logObjWithMeta: any) => {
           // transport the LogObj to console, StdOut, a file or an external service
