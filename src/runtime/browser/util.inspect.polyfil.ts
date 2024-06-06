@@ -381,13 +381,12 @@ function _extend(origin: object, add: object) {
   // Don't do anything if add isn't an object
   if (!add || !isObject(add)) return origin;
 
-  const clonedOrigin = { ...origin } as { [key: string]: unknown };
   const clonedAdd = { ...add } as { [key: string]: unknown };
 
   const keys = Object.keys(add);
   let i = keys.length;
   while (i--) {
-    clonedOrigin[keys[i]] = clonedAdd[keys[i]];
+    origin[keys[i]] = clonedAdd[keys[i]];
   }
   return origin;
 }
