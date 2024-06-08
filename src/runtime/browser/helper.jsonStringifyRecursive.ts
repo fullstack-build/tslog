@@ -9,6 +9,9 @@ export function jsonStringifyRecursive(obj: unknown) {
       // Store value in our collection
       cache.add(value);
     }
+    if (typeof value === "bigint") {
+      return `${value}`;
+    }
     return value;
   });
 }
