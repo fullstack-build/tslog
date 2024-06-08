@@ -33,6 +33,28 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLog()).toContain("Test1 Test2");
   });
 
+  it("pretty undefined", async () => {
+    const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+    logger.info(undefined);
+
+    expect(getConsoleLog()).toContain("undefined");
+  });
+
+  it("pretty null", async () => {
+    const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+    logger.info(null);
+
+    expect(getConsoleLog()).toContain("null");
+  });
+
+  it("pretty nullish", async () => {
+    const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+    logger.info({ foo: null, bar: undefined });
+
+    expect(getConsoleLog()).toContain("null");
+    expect(getConsoleLog()).toContain("undefined");
+  });
+
   test("boolean", (): void => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", true);
@@ -43,6 +65,12 @@ describe("Pretty: Log Types", () => {
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", 555);
     expect(getConsoleLog()).toContain("555");
+  });
+
+  test("null", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    logger.log(1234, "testLevel", null);
+    expect(getConsoleLog()).toContain("null");
   });
 
   test("Array, stylePrettyLogs: false", (): void => {
@@ -92,6 +120,27 @@ describe("Pretty: Log Types", () => {
     logger.log(1234, "testLevel", { url2 });
     expect(getConsoleLog()).toContain("url2: {");
     expect(getConsoleLog()).toContain("https://example2.com/");
+  });
+
+  test("Date", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const date = new Date(0);
+    logger.log(1234, "testLevel", date);
+    expect(getConsoleLog()).toContain("1970-01-01T00:00:00.000Z");
+  });
+
+  test("Map", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const map = new Map();
+    logger.log(1234, "testLevel", map);
+    expect(getConsoleLog()).toContain("Map(0) {}");
+  });
+
+  test("Set", (): void => {
+    const logger = new Logger({ type: "pretty" });
+    const set = new Set();
+    logger.log(1234, "testLevel", set);
+    expect(getConsoleLog()).toContain("Set(0) {}");
   });
 
   test("String, Object", (): void => {

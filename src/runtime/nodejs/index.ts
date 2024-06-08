@@ -168,6 +168,9 @@ export function transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
       if (typeof value === "bigint") {
         return `${value}`;
       }
+      if (typeof value === "undefined") {
+        return "[undefined]";
+      }
       return value;
     });
   }

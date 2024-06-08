@@ -167,7 +167,7 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 ## All Features
 
 - **Universal:** Works in browsers and Node.js
-- **Tested:** 100% code coverage, CI
+- **Tested:** Great code coverage, CI
 - **Super customizable:** Every aspect can be overwritten
 - **Fully typed:** Written in TypeScript, with native TypeScript support
 - **Default log level:** `silly`, `trace`, `debug`, `info`, `warn`, `error`, `fatal` (different colors)
@@ -686,7 +686,7 @@ For `pretty` logs:
 For `JSON` logs (no formatting happens here):
 ```typescript
     const logger = new Logger({
-      type: "pretty",
+      type: "json",
       overwrite: {
         transportJSON: (logObjWithMeta: any) => {
           // transport the LogObj to console, StdOut, a file or an external service

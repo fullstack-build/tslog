@@ -20,6 +20,26 @@ describe("JSON: Log Types", () => {
     expect(getConsoleLog()).toContain('"1":"Test2"');
   });
 
+  it("pretty undefined", async () => {
+    const logger = new Logger({ type: "json" });
+    logger.info(undefined);
+    expect(getConsoleLog()).toContain('"0":"[undefined]"');
+  });
+
+  it("pretty null", async () => {
+    const logger = new Logger({ type: "json" });
+    logger.info(null);
+    expect(getConsoleLog()).toContain('"0":null');
+  });
+
+  it("pretty nullish", async () => {
+    const logger = new Logger({ type: "json" });
+    logger.info({ foo: null, bar: undefined });
+
+    expect(getConsoleLog()).toContain('"foo":null');
+    expect(getConsoleLog()).toContain('"bar":"[undefined]"');
+  });
+
   test("boolean", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", true);

@@ -62,8 +62,7 @@ export function getCallerStackFrame(stackDepthLevel: number, error: Error = Erro
 }
 
 export function getErrorTrace(error: Error): IStackFrame[] {
-  return (error as Error)?.stack
-    ?.split("\n")
+  return ((error as Error)?.stack?.split("\n") ?? [])
     ?.filter((line: string) => !line.includes("Error: "))
     ?.reduce((result: IStackFrame[], line: string) => {
       result.push(stackLineToStackFrame(line));
