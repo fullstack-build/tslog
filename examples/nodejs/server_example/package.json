@@ -11,7 +11,7 @@
   "keywords": [],
   "author": "Eugene Terehov",
   "dependencies": {
-    "express": "^4.18.2",
+    "express": "^4.19.2",
     "koa": "^2.13.4",
     "nanoid": "^4.0.0"
   },
