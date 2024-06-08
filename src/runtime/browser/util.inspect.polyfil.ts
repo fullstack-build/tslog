@@ -377,7 +377,8 @@ function reduceToSingleString(output: string[], base: string, braces: string[]):
   return braces[0] + (base === "" ? "" : base + "\n") + "  " + output.join(",\n  ") + " " + braces[1];
 }
 
-function _extend(origin: object, add: object) {
+function _extend(origin: object, add: object): object {
+  const typedOrigin = { ...origin } as { [key: string]: unknown };
   // Don't do anything if add isn't an object
   if (!add || !isObject(add)) return origin;
 
@@ -386,9 +387,9 @@ function _extend(origin: object, add: object) {
   const keys = Object.keys(add);
   let i = keys.length;
   while (i--) {
-    origin[keys[i]] = clonedAdd[keys[i]];
+    typedOrigin[keys[i]] = clonedAdd[keys[i]];
   }
-  return origin;
+  return typedOrigin;
 }
 
 export function formatWithOptions(inspectOptions: InspectOptions, ...args: unknown[]) {
