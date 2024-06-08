@@ -213,13 +213,13 @@ export class BaseLogger<LogObj> {
       return Object.getOwnPropertyNames(source).reduce((o, prop) => {
         o[prop] = keys.includes(this.settings?.maskValuesOfKeysCaseInsensitive !== true ? prop : prop.toLowerCase())
           ? this.settings.maskPlaceholder
-          : (()=>{
-            try{
-              return this._recursiveCloneAndMaskValuesOfKeys((source as Record<string, unknown>)[prop], keys, seen);
-            }catch(e){
-              return null;
-            }
-        })();
+          : (() => {
+              try {
+                return this._recursiveCloneAndMaskValuesOfKeys((source as Record<string, unknown>)[prop], keys, seen);
+              } catch (e) {
+                return null;
+              }
+            })();
         return o;
       }, baseObject) as T;
     } else {
