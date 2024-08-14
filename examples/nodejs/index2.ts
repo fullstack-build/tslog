@@ -1,4 +1,4 @@
-import { Logger, BaseLogger } from "../../src/index.js";
+import { Logger, BaseLogger, ILogObj, ILogObjMeta, IMeta } from "../../src/index.js";
 
 const defaultLogObject: {
   name: string;
@@ -130,3 +130,26 @@ jsonLogger.debug(undefined);
 //jsonLogger.debug('*', undefined);
 console.log("###############");
 logger.debug(new URL("https://www.test.de"));
+
+interface IRequestMeta extends IMeta {
+  requestId: string;
+}
+
+const newLogger = new Logger({
+  type: "json",
+  metaProperty: "_meta",
+  overwrite: {
+    addMeta: (logObj: ILogObj, logLevelId: number, logLevelName: string, defaultMeta?: IMeta): ILogObj & ILogObjMeta => {
+      const meta = (defaultMeta || {}) as IRequestMeta;
+      meta.requestId = "0000-aaaaa-bbbbb-1111";
+
+      return {
+        ...logObj,
+        _meta: meta,
+      };
+    },
+    includeDefaultMetaInAddMeta: true,
+  },
+});
+
+newLogger.info("Testing with metadata");

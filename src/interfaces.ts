@@ -60,7 +60,8 @@ export interface ISettingsParam<LogObj> {
     addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
-    addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
+    addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => LogObj & ILogObjMeta;
+    includeDefaultMetaInAddMeta?: boolean;
     formatMeta?: (meta?: IMeta) => string;
     formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
     transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;

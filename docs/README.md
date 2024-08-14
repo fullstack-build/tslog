@@ -657,8 +657,10 @@ For every log:
     toLogObj: (args: unknown[], clonesLogObj?: LogObj): unknown => {
       // convert the log attributes to a LogObj and return it
     },
-    addMeta: (logObj: any, logLevelId: number, logLevelName: string) => {
+    addMeta: (logObj: any, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => {
       // add meta information to the LogObj and return it
+      // defaultMeta is populated with the runtime's default meta if
+      // `settings.includeDefaultMetaInAddMeta` is set to true, otherwise is undefined
     }
 
   },
@@ -693,6 +695,40 @@ For `JSON` logs (no formatting happens here):
         },
       },
     });
+```
+
+#### Adding custom values to `_meta`
+
+In many instances it is desireable to add additional information to the `_meta` property, such as a request/correlation id
+to help group logs from the one request cycle together.
+
+The `addMeta` overwrite method allows you to either extend the base runtime's default meta, or replace it entirely with your
+own meta.
+
+To extend it with your own values, set the `includeDefaultMetaInAddMeta` setting to `true`. Once set to true, the `defaultMeta`
+attribute fo the `addMeta` method will include the runtime's meta that you can extend:
+
+```typescript
+  interface IMetaWithRequest extends IMeta {
+    requestId: string
+  };
+
+  const logger = new Logger({
+    includeDefaultMetaInAddMeta: true,
+    type: 'json',
+    metaProperty: "_meta",
+    overwrite: {
+      addMeta: (logObj: any, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => {
+        const meta = (defaultMeta || {}) as IMetaWithRequest;
+        meta.requestId = "0000-aaaaa-bbbbb-1111";
+
+        return {
+          ...logObj,
+          _meta: meta,
+        };
+      } 
+    },
+  });
 ```
 
 ### Defining and accessing `logObj`
