@@ -634,7 +634,7 @@ const stream = createStream("tslog.log", {
 
 const logger = new Logger();
 logger.attachTransport((logObj) => {
-  stream.write(JSON.stringify(logObject) + "\n");
+  stream.write(JSON.stringify(logObj) + "\n");
 });
 
 logger.debug("I am a debug log.");
