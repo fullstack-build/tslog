@@ -695,6 +695,37 @@ For `JSON` logs (no formatting happens here):
     });
 ```
 
+##### Example of sending logs to console instead of the standard output.
+
+```typescript
+    const logger = new Logger({
+      type: "pretty",
+      overwrite: {
+        transportFormatted: (logMetaMarkup, logArgs, logErrors) => {
+          // Send different log levels to appropriate console methods
+          const logLevel = logMetaMarkup.trim().split("\t")[1]; // Extract log level from the markup
+          switch (logLevel) {
+            case "WARN":
+              console.warn(logMetaMarkup, ...logArgs, ...logErrors);
+              break;
+            case "ERROR":
+            case "FATAL":
+              console.error(logMetaMarkup, ...logArgs, ...logErrors);
+              break;
+            case "INFO":
+              console.info(logMetaMarkup, ...logArgs, ...logErrors);
+              break;
+            case "DEBUG":
+            case "TRACE":
+            case "SILLY":
+            default:
+              console.log(logMetaMarkup, ...logArgs, ...logErrors);
+              break;
+          },
+      },
+    });
+```
+
 ### Defining and accessing `logObj`
 As described in <a href="#life_cycle">"Lifecycle of a log message"</a>, every log message goes through some lifecycle steps and becomes an object representation of the log with the name `logObj`.
 A default logObj can be passed to the `tslog` constructor and will be cloned and merged into the log message. This makes `tslog` >= 4 highly configurable and easy to integrate into any 3rd party service.
