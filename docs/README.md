@@ -212,7 +212,7 @@ To ensure optimal performance in production, we recommend modifying these settin
 
 ### Default log level
 
-`tslog` comes with default log level `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`.
+`tslog` comes with default log levels (`DefaultLogLevels`): `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`.
 
 > **Tip:** Each logging method has a return type, which is a _JSON_ representation of the log message (`ILogObj`).
 
@@ -379,7 +379,7 @@ Output:
 #### minLevel
 
 You can ignore every log message from being processed until a certain severity.
-Default severities are:
+Default severities (`DefaultLogLevels`) are:
 `0: silly`, `1: trace`, `2: debug`, `3: info`, `4: warn`, `5: error`, `6: fatal`
 
 ```typescript
