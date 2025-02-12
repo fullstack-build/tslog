@@ -240,7 +240,7 @@ In addition to the default log level, custom log level can be defined in the sam
 > **Tip:** Also the generic logging method (log()) returns a _JSON_ representation of the log message (`ILogObject`).
 
 ```typescript
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger";
+import { BaseLogger, ILogObjMeta, ISettingsParam } from "tslog";
 
 export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
