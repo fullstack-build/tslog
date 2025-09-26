@@ -19,7 +19,7 @@
 
 ⚡ **Fast and powerful**<br>
 🪶 **Lightweight and flexible**<br>
-🏗 **Universal: Works in Browsers and Node.js**<br>
+🏗 **Universal: Works in Browsers, Node.js, Deno and Bun**<br>
 👮‍️ **Fully typed with TypeScript support (native source maps)**<br>
 🗃 **_Pretty_ or `JSON` output**<br>
 📝 **Customizable log level**<br>
@@ -53,62 +53,65 @@ Donations help me allocate more time for my open source work.
 npm install tslog
 ```
 
-In order to run a native ES module in Node.js, you have to do two things:
+### Node.js
 
-1) Set `"type": "module"` in `package.json`.
-2) For now, start with `--experimental-specifier-resolution=node`
+Enable native ESM by setting `"type": "module"` and run Node with source maps for accurate stack traces:
 
-Example `package.json`
 ```json5
 {
   "name": "NAME",
   "version": "1.0.0",
-  "main": "index.js",
-  // here:
   "type": "module",
   "scripts": {
     "build": "tsc -p .",
-    // and here:
-    "start": "node --enable-source-maps --experimental-specifier-resolution=node index.js"
+    "start": "node --enable-source-maps dist/index.js"
   },
   "dependencies": {
     "tslog": "^4"
-  },
-  "devDependencies": {
-    "typescript": "^4"
-  },
-  "engines": {
-    "node": ">=16"
   }
 }
 ```
 
-With this `package.json` you can simply build and run it:
+After building (`npm run build`), start your app with:
+
 ```bash
-npm run build
 npm start
 ```
 
-**Otherwise:**
+Other handy entry points:
 
-ESM: Node.js with JavaScript:
-```bash
-node --enable-source-maps --experimental-specifier-resolution=node
+- `node --enable-source-maps dist/index.cjs` – run the CommonJS bundle.
+- `node --enable-source-maps --loader ts-node/esm src/index.ts` – execute TypeScript via `ts-node` in ESM mode.
+- `node --enable-source-maps --require ts-node/register src/index.ts` – execute TypeScript via `ts-node` in CommonJS mode.
+
+### Deno
+
+```ts
+// main.ts
+import { Logger } from "npm:tslog";
+
+const logger = new Logger();
+logger.info("Hello from Deno");
 ```
 
-CJS: Node.js with JavaScript:
 ```bash
-node --enable-source-maps
+deno run main.ts
+# grant optional metadata access: deno run --allow-env main.ts
 ```
 
-ESM: Node.js with TypeScript and `ts-node`:
-```bash
-node --enable-source-maps --experimental-specifier-resolution=node --no-warnings --loader ts-node/esm
+### Bun
+
+```ts
+// main.ts
+import { Logger } from "tslog";
+
+const logger = new Logger();
+logger.info("Hello from Bun");
 ```
 
-CJS: Node.js with TypeScript and `ts-node`:
 ```bash
-node --enable-source-maps --no-warnings --loader ts-node/cjs
+bun run main.ts
+# or add "dev": "bun run src/main.ts" to package.json scripts
 ```
 
 Browser:
@@ -166,7 +169,7 @@ logger.fatal(new Error("I am a pretty Error with a stacktrace."));
 
 ## All Features
 
-- **Universal:** Works in browsers and Node.js
+- **Universal:** Works in browsers, Node.js, Deno, and Bun
 - **Tested:** Great code coverage, CI
 - **Super customizable:** Every aspect can be overwritten
 - **Fully typed:** Written in TypeScript, with native TypeScript support
@@ -240,7 +243,7 @@ In addition to the default log level, custom log level can be defined in the sam
 > **Tip:** Also the generic logging method (log()) returns a _JSON_ representation of the log message (`ILogObject`).
 
 ```typescript
-import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "./BaseLogger";
+import { BaseLogger, ILogObjMeta, ISettingsParam, ILogObj } from "tslog";
 
 export class CustomLogger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
@@ -371,9 +374,9 @@ secondSubLogger.silly("foo bar 2");
 
 Output:
 ```bash
-2022-11-17 10:45:47.705 SILLY   [/examples/nodejs/index2.ts:51 MainLogger]    foo bar
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:54 MainLogger:FirstSubLogger ]    foo bar 1
-2022-11-17 10:45:47.706 SILLY   [/examples/nodejs/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]   foo bar 2
+2022-11-17 10:45:47.705 SILLY   [/examples/server/index2.ts:51 MainLogger]    foo bar
+2022-11-17 10:45:47.706 SILLY   [/examples/server/index2.ts:54 MainLogger:FirstSubLogger ]    foo bar 1
+2022-11-17 10:45:47.706 SILLY   [/examples/server/index2.ts:57 MainLogger:FirstSubLogger:SecondSubLogger]   foo bar 2
 ```
 
 #### minLevel
@@ -455,8 +458,8 @@ Following settings are available for styling:
   - `prettyInspectOptions`: <a href="https://nodejs.org/api/util.html#utilinspectobject-options" target="_blank">Available options</a>
 
   ### Customizing template tokens
-  It's possible to add user defined tokes, by overwriting the `addPlaceholders` in the `settings.overwrite`. this callback allows to add or overwrite tokens in the `placeholderValues`.
-  for example, to add the token: `{{custom}}`;
+  You can add your own template tokens by overriding `settings.overwrite.addPlaceholders`. The callback receives the current metadata object and the placeholder map so you can add or overwrite entries.
+  For example, to add the token `{{custom}}`:
   ```javascript
   const logger = new Logger({
     type: "pretty",
@@ -468,10 +471,10 @@ Following settings are available for styling:
     },
   });
   ```
-  this would yield in the token `{{custom}}` being replaced with `"test"`
+  This replaces `{{custom}}` with the string `"test"` in the rendered output.
 
 - **Styling:**
-  - `stylePrettyLogs`: defines whether logs should be styled and colorized
+  - `stylePrettyLogs`: defines whether logs should be styled and colorized (ANSI in server runtimes, CSS in browsers that support it)
   - `prettyLogStyles`: provides colors and styles for different placeholders and can also be dependent on the value (e.g. log level)
     - Level 1: template placeholder (defines a style for a certain template placeholder, s. above, without brackets).
     - Level 2: Either a string with one style (e.g. `white`), or an array of styles (e.g. `["bold", "white"]`), or a nested object with key being a value.
@@ -484,6 +487,8 @@ Following settings are available for styling:
 #### Log meta information
 `tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`.
 You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.
+
+`tslog` automatically determines the first caller frame outside of the library, even in bundled environments such as Vite or Next.js. If you need to override the detected frame, provide `stackDepthLevel` when constructing a `Logger`.
 
 #### Pretty templates and styles (color settings)
 
@@ -676,12 +681,20 @@ For `pretty` logs:
         formatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => {
             // format LogObj attributes to a string and return it
         },
-        transportFormatted: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: unknown) => {
+        transportFormatted: (
+          logMetaMarkup: string,
+          logArgs: unknown[],
+          logErrors: string[],
+          logMeta?: IMeta,
+          settings?: ISettings<LogObj>
+        ) => {
           // overwrite the default transport for formatted (e.g. pretty) log levels. e.g. replace console with StdOut, write to file etc.
         },
       },
     });
 ```
+
+> **Note:** `transportFormatted` receives the resolved log meta as an optional fourth argument and the active settings as an optional fifth argument. Handlers that still accept only three arguments continue to work unchanged.
 
 For `JSON` logs (no formatting happens here):
 ```typescript
@@ -701,9 +714,9 @@ For `JSON` logs (no formatting happens here):
     const logger = new Logger({
       type: "pretty",
       overwrite: {
-        transportFormatted: (logMetaMarkup, logArgs, logErrors) => {
+        transportFormatted: (logMetaMarkup, logArgs, logErrors, logMeta) => {
           // Send different log levels to appropriate console methods
-          const logLevel = logMetaMarkup.trim().split("\t")[1]; // Extract log level from the markup
+          const logLevel = logMeta?.logLevelName ?? logMetaMarkup.trim().split("\t")[1];
           switch (logLevel) {
             case "WARN":
               console.warn(logMetaMarkup, ...logArgs, ...logErrors);
@@ -749,18 +762,18 @@ const logMsg = logger.info("Test");
 //  '0': 'Test',
 //  foo: 'bar',
 //  _meta: {
-//    runtime: 'Nodejs',
+//    runtime: 'server',
 //    hostname: 'Eugenes-MBP.local',
 //    date: 2022-10-23T10:51:08.857Z,
 //    logLevelId: 3,
 //    logLevelName: 'INFO',
 //    path: {
-//      fullFilePath: 'file:///[...]/tslog/examples/nodejs/index.ts:113:23',
+//      fullFilePath: 'file:///[...]/tslog/examples/server/index.ts:113:23',
 //      fileName: 'index.ts',
 //      fileColumn: '23',
 //      fileLine: '113',
-//      filePath: '/examples/nodejs/index.ts',
-//      filePathWithLine: '/examples/nodejs/index.ts:113'
+//      filePath: '/examples/server/index.ts',
+//      filePathWithLine: '/examples/server/index.ts:113'
 //    }
 //  }
 //}

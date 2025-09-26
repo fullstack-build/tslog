@@ -3,7 +3,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist/esm",
-    "module": "ES2020"
+    "module": "NodeNext"
   },
   "include": ["src/*.ts", "src/**/*.ts"]
 }

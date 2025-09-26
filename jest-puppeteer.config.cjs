@@ -6,7 +6,8 @@ module.exports = {
   server: {
     command: "npm run test-puppeteer-serve",
     port: 4444,
-    launchTimeout: 10000,
+    launchTimeout: 120000,
     debug: true,
+    usedPortAction: "kill",
   },
 };

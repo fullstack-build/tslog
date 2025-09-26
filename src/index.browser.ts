@@ -7,16 +7,15 @@ export * from "./BaseLogger.js";
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
-    const isBrowserBlinkEngine = isBrowser
-      ? ((window?.["chrome"] || (window.Intl && (Intl as unknown as { v8BreakIterator: unknown })?.v8BreakIterator)) && "CSS" in window) != null
-      : false;
     const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
 
-    settings = settings || {};
-    // style only for blink browsers
-    settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
+    const normalizedSettings = settings ? { ...settings } : {};
 
-    super(settings, logObj, isSafari ? 4 : 5);
+    if (isBrowser && normalizedSettings.stylePrettyLogs == null) {
+      normalizedSettings.stylePrettyLogs = true;
+    }
+
+    super(normalizedSettings, logObj, isSafari ? 4 : 5);
   }
 
   /**

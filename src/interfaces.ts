@@ -1,5 +1,5 @@
-import { InspectOptions } from "./runtime/browser/index.js";
-export { InspectOptions };
+import type { InspectOptions } from "./internal/InspectOptions.interface.js";
+export type { InspectOptions };
 
 export type TStyle =
   | null
@@ -63,7 +63,7 @@ export interface ISettingsParam<LogObj> {
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string) => LogObj & ILogObjMeta;
     formatMeta?: (meta?: IMeta) => string;
     formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
-    transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
+    transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], logMeta?: IMeta, settings?: ISettings<LogObj>) => void;
     transportJSON?: (json: unknown) => void;
   };
 }
@@ -144,6 +144,8 @@ export interface IErrorObject {
   nativeError: Error;
   /** Stack trace of the error */
   stack: IStackFrame[];
+  /** Optional nested cause chain */
+  cause?: IErrorObject;
 }
 
 /**
@@ -153,21 +155,7 @@ export interface IErrorObject {
 export interface IErrorObjectStringifiable extends IErrorObject {
   nativeError: never;
   errorString: string;
-}
-
-/**
- * Object representing an error with a stack trace
- * @public
- */
-export interface IErrorObject {
-  /** Name of the error*/
-  name: string;
-  /** Error message */
-  message: string;
-  /** native Error object */
-  nativeError: Error;
-  /** Stack trace of the error */
-  stack: IStackFrame[];
+  cause?: IErrorObjectStringifiable;
 }
 
 /*
@@ -184,23 +172,4 @@ export interface IMeta extends IMetaStatic {
   logLevelId: number;
   logLevelName: string;
   path?: IStackFrame;
-}
-
-export interface IRuntime {
-  getMeta: (
-    logLevelId: number,
-    logLevelName: string,
-    stackDepthLevel: number,
-    hideLogPositionForPerformance: boolean,
-    name?: string,
-    parentNames?: string[]
-  ) => IMeta;
-  getCallerStackFrame: (stackDepthLevel: number, error: Error) => IStackFrame;
-  getErrorTrace: (error: Error) => IStackFrame[];
-  isError: (e: Error | unknown) => boolean;
-  prettyFormatLogObj: <LogObj>(maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
-  prettyFormatErrorObj: <LogObj>(error: Error, settings: ISettings<LogObj>) => string;
-  transportFormatted: <LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], settings: ISettings<LogObj>) => void;
-  transportJSON: <LogObj>(json: LogObj & ILogObjMeta) => void;
-  isBuffer: (b: unknown) => boolean;
 }
