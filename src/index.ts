@@ -12,14 +12,13 @@ declare global {
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
     const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
-    const isBrowserBlinkEngine = isBrowser ? window.chrome !== undefined && window.CSS !== undefined && window.CSS.supports("color", "green") : false;
-    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
+    const normalizedSettings: ISettingsParam<LogObj> = { ...(settings ?? {}) };
 
-    settings = settings || {};
-    // style only for blink browsers
-    settings.stylePrettyLogs = settings.stylePrettyLogs && isBrowser && !isBrowserBlinkEngine ? false : settings.stylePrettyLogs;
+    if (isBrowser) {
+      normalizedSettings.stylePrettyLogs = settings?.stylePrettyLogs ?? true;
+    }
 
-    super(settings, logObj, isSafari ? 4 : 5);
+    super(normalizedSettings, logObj, Number.NaN);
   }
 
   /**

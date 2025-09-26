@@ -3,7 +3,7 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist/cjs",
-    "module": "commonjs"
+    "module": "NodeNext"
   },
   "include": ["src/*.ts", "src/**/*.ts"]
 }
