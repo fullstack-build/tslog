@@ -57,7 +57,7 @@
   },
   "np": {
     "yarn": false,
-    "contents": "./dist"
+    "contents": "dist"
   },
   "publishConfig": {
     "access": "public"
