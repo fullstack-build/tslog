@@ -80,5 +80,7 @@ const main = async () => {
 
 main().catch((error) => {
   console.error("Failed to prepare dist package:", error);
-  process.exitCode = 1;
+  if (globalThis.process) {
+    globalThis.process.exitCode = 1;
+  }
 });
