@@ -32,7 +32,7 @@
   },
   "scripts": {
     "prepare": "simple-git-hooks",
-    "build": "npm run build-types && npm run build-server && npm run build-browser",
+    "build": "npm run build-types && npm run build-server && npm run build-browser && npm run prepare-publish",
     "build-browser": "node build.js",
     "build-types": "tsc -b tsconfig.types.json",
     "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json && cp ./src/package-cjs.json ./dist/cjs/package.json",
@@ -49,14 +49,15 @@
     "docsify-serve": "cd docs && docsify serve",
     "pre-publish": "npm run build",
     "release": "np --any-branch",
-    "pre-commit-hook": "bash ./scripts/pre-commit.sh"
+    "pre-commit-hook": "bash ./scripts/pre-commit.sh",
+    "prepare-publish": "node scripts/prepare-publish.mjs"
   },
   "engines": {
     "node": ">=16"
   },
   "np": {
     "yarn": false,
-    "contents": "."
+    "contents": "./dist"
   },
   "publishConfig": {
     "access": "public"
