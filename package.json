@@ -31,7 +31,7 @@
     }
   },
   "scripts": {
-    "prepare": "husky install",
+    "prepare": "simple-git-hooks",
     "build": "npm run build-types && npm run build-server && npm run build-browser",
     "build-browser": "node build.js",
     "build-types": "tsc -b tsconfig.types.json",
@@ -42,34 +42,17 @@
     "lint": "eslint --ext .js,.ts .",
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "pretest": "node scripts/free-test-port.cjs",
-    "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest",
+    "test": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest --config ./jest.config.cjs",
     "test-puppeteer-serve": "npm run build-browser && node tests/support/browser/server/index.cjs -p 4444",
-    "coverage": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest --coverage",
+    "coverage": "JEST_PUPPETEER_CONFIG=jest-puppeteer.config.cjs jest --config ./jest.config.cjs --coverage",
     "docsify-init": "docsify init ./docs",
     "docsify-serve": "cd docs && docsify serve",
     "pre-publish": "npm run build",
-    "release": "np --any-branch"
+    "release": "np --any-branch",
+    "pre-commit-hook": "bash ./scripts/pre-commit.sh"
   },
   "engines": {
     "node": ">=16"
-  },
-  "jest": {
-    "verbose": true,
-    "preset": "./jest-preset",
-    "resolver": "ts-jest-resolver",
-    "testTimeout": 100000,
-    "testEnvironment": "node",
-    "collectCoverage": true,
-    "clearMocks": true,
-    "testMatch": [
-      "**/tests/**/*.test.ts",
-      "**/tests/**/*.test.js"
-    ],
-    "coveragePathIgnorePatterns": [
-      "<rootDir>/node-modules/",
-      "<rootDir>/tests/",
-      "<rootDir>/src/internal/util.inspect.polyfill.ts"
-    ]
   },
   "np": {
     "yarn": false,
@@ -84,6 +67,9 @@
     ],
     "exec": "node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm"
   },
+  "simple-git-hooks": {
+    "pre-commit": "npm run pre-commit-hook"
+  },
   "devDependencies": {
     "@jest/types": "^30.0.5",
     "@types/expect-puppeteer": "^5.0.6",
@@ -95,7 +81,6 @@
     "esbuild": "^0.25.10",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
-    "husky": "^9.1.7",
     "jest": "^30.1.3",
     "jest-puppeteer": "^11.0.0",
     "kill-port": "^2.0.1",
@@ -103,6 +88,7 @@
     "np": "^10.2.0",
     "prettier": "^3.6.2",
     "puppeteer": "^24.22.3",
+    "simple-git-hooks": "^2.13.1",
     "ts-jest": "^29.4.4",
     "ts-jest-resolver": "^2.0.1",
     "ts-node": "^10.9.2",
