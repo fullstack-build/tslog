@@ -2,9 +2,8 @@
   "$schema": "http://json.schemastore.org/tsconfig",
   "extends": "./tsconfig.json",
   "compilerOptions": {
-    "outDir": "dist/cjs",
+    "isolatedModules": true,
     "module": "CommonJS",
-    "moduleResolution": "Node10"
-  },
-  "include": ["src/*.ts", "src/**/*.ts"]
+    "moduleResolution": "node10"
+  }
 }

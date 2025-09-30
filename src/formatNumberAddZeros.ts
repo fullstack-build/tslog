@@ -7,13 +7,13 @@ export function formatNumberAddZeros(value: number, digits = 2, addNumber = 0): 
     ? value == null
       ? "--"
       : value < 10
-      ? "0" + value
-      : value.toString()
+        ? "0" + value
+        : value.toString()
     : value == null
-    ? "---"
-    : value < 10
-    ? "00" + value
-    : value < 100
-    ? "0" + value
-    : value.toString();
+      ? "---"
+      : value < 10
+        ? "00" + value
+        : value < 100
+          ? "0" + value
+          : value.toString();
 }

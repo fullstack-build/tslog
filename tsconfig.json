@@ -4,7 +4,7 @@
   "compilerOptions": {
     "lib": ["es2020", "dom"],
     "target": "es2020",
-    "module": "esnext",
+    "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "types": ["node", "jest", "puppeteer", "jest-environment-puppeteer", "expect-puppeteer"],
     "emitDecoratorMetadata": true,
