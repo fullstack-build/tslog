@@ -9,4 +9,18 @@ if [ -f "$SIMPLE_GIT_HOOKS_RC" ]; then
     . "$SIMPLE_GIT_HOOKS_RC"
 fi
 
+if ! command -v npm >/dev/null 2>&1; then
+    NVM_DIR="${NVM_DIR:-"$HOME/.nvm"}"
+    if [ -s "$NVM_DIR/nvm.sh" ]; then
+        # shellcheck disable=SC1090
+        . "$NVM_DIR/nvm.sh"
+        nvm use --silent >/dev/null 2>&1 || nvm use >/dev/null 2>&1
+    fi
+fi
+
+if ! command -v npm >/dev/null 2>&1; then
+    echo "[ERROR] pre-commit hook requires npm in PATH. Install Node.js or configure your shell." >&2
+    exit 127
+fi
+
 npm run pre-commit-hook

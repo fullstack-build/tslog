@@ -3,14 +3,13 @@ const puppeteerPreset = require("jest-puppeteer/jest-preset.js");
 
 const baseConfig = {
     verbose: true,
-    resolver: require.resolve("ts-jest-resolver"),
     testTimeout: 100000,
     testEnvironment: "node",
     collectCoverage: true,
     clearMocks: true,
     transform: {
         "^.+\\.m?tsx?$": [
-            "ts-jest",
+            require.resolve("ts-jest"),
             {
                 useESM: false,
                 tsconfig: "./tsconfig.jest.json",
