@@ -76,6 +76,17 @@ const main = async () => {
 
   const licensePath = path.join(rootDir, "LICENSE");
   await copyFile(licensePath, path.join(distDir, "LICENSE"));
+
+  const readmePath = path.join(rootDir, "README.md");
+  try {
+    await copyFile(readmePath, path.join(distDir, "README.md"));
+  } catch (error) {
+    if (error && error.code === "ENOENT") {
+      console.warn("README.md not found; skipping copy to dist.");
+    } else {
+      throw error;
+    }
+  }
 };
 
 main().catch((error) => {
