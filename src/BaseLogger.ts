@@ -707,7 +707,7 @@ type RuntimeMeta = IMeta & {
   browser?: string;
 };
 
-const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+){2,})(?::(\d+))?(?::(\d+))?/;
+const BROWSER_PATH_REGEX = /(?:(?:https?|file|global code):\/\/[^\s)]+\/)?((?:\/|[A-Za-z]:\/)[^:\s)]+?\.\w+(?:\?\S+)?):(\d+):(\d+)/;
 
 const runtime = createLoggerEnvironment();
 
