@@ -105,6 +105,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
       const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
       const sanitizedMetaMarkup = stripAnsi(logMetaMarkup);
       const metaMarkupForText = prettyLogs ? logMetaMarkup : sanitizedMetaMarkup;
+      const log = getPrettyLogMethod(logMeta?.logLevelName, settings.prettyLogLevelMethod)
 
       if (shouldUseCss(prettyLogs)) {
         settings.prettyInspectOptions.colors = false;
@@ -115,16 +116,16 @@ export function createLoggerEnvironment(): LoggerEnvironment {
         const output = metaOutput + formattedArgs + logErrorsStr;
 
         if (hasCssMeta) {
-          console.log(output, ...cssMeta.styles);
+          log(output, ...cssMeta.styles);
         } else {
-          console.log(output);
+          log(output);
         }
         return;
       }
 
       settings.prettyInspectOptions.colors = prettyLogs;
       const formattedArgs = formatWithOptionsSafe(settings.prettyInspectOptions, logArgs);
-      console.log(metaMarkupForText + formattedArgs + logErrorsStr);
+      log(metaMarkupForText + formattedArgs + logErrorsStr);
     },
     transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
       console.log(jsonStringifyRecursive(json));
@@ -267,6 +268,19 @@ export function createLoggerEnvironment(): LoggerEnvironment {
 
   function stripAnsi(value: string): string {
     return value.replace(ANSI_REGEX, "");
+  }
+
+  function getPrettyLogMethod(
+    logLevelName: string | undefined,
+    prettyLogLevelMethod: Record<string, (...args: unknown[]) => void> | undefined
+  ): (...args: unknown[]) => void {
+    if (logLevelName && prettyLogLevelMethod?.[logLevelName]) {
+      return prettyLogLevelMethod[logLevelName];
+    }
+    if (prettyLogLevelMethod?.["*"]) {
+      return prettyLogLevelMethod["*"];
+    }
+    return console.log;
   }
 
   function buildCssMetaOutput<LogObj>(settings: ISettings<LogObj>, metaValue: IMeta | undefined): { text: string; styles: string[] } {
@@ -770,6 +784,7 @@ export class BaseLogger<LogObj> {
         fileName: ["yellow"],
         fileNameWithLine: "white",
       },
+      prettyLogLevelMethod: settings?.prettyLogLevelMethod ?? {},
       prettyInspectOptions: settings?.prettyInspectOptions ?? {
         colors: true,
         compact: false,

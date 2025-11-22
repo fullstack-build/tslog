@@ -45,6 +45,7 @@ export interface ISettingsParam<LogObj> {
   stylePrettyLogs?: boolean;
   prettyLogTimeZone?: "UTC" | "local";
   prettyLogStyles?: IPrettyLogStyles;
+  prettyLogLevelMethod?: {[logLevelName: string]: (...args: unknown[]) => void}
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
   maskPlaceholder?: string;
@@ -103,6 +104,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
     errorName?: TStyle;
     errorMessage?: TStyle;
   };
+  prettyLogLevelMethod: {[logLevelName: string]: (...args: unknown[]) => void}
   prettyInspectOptions: InspectOptions;
   metaProperty: string;
   maskPlaceholder: string;

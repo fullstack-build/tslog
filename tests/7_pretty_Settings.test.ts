@@ -417,3 +417,51 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLogStripped()).toContain(`LOG4`);
   });
 });
+
+test("prettyLogLevelMethod: dispatches to correct console method per level", (): void => {
+  const traceSpy = jest.fn();
+  const debugSpy = jest.fn();
+  const infoSpy = jest.fn();
+  const warnSpy = jest.fn();
+  const errorSpy = jest.fn();
+  const fallbackSpy = jest.fn();
+
+  const logger = new Logger({
+    type: "pretty",
+    prettyLogLevelMethod: {
+      TRACE: traceSpy,
+      DEBUG: debugSpy,
+      INFO: infoSpy,
+      WARN: warnSpy,
+      ERROR: errorSpy,
+      FATAL: errorSpy,
+      "*": fallbackSpy,
+    },
+  });
+
+  logger.trace("trace message")
+  expect(traceSpy).toHaveBeenCalledWith(expect.stringContaining("trace message"));
+  expect(traceSpy).toHaveBeenCalledTimes(1);
+
+  logger.debug("debug message")
+  expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining("debug message"));
+  expect(debugSpy).toHaveBeenCalledTimes(1);
+
+  logger.info("info message");
+  expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining("info message"));
+  expect(infoSpy).toHaveBeenCalledTimes(1);
+
+  logger.warn("warn message");
+  expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("warn message"));
+  expect(warnSpy).toHaveBeenCalledTimes(1);
+
+  logger.error("error message");
+  expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("error message"));
+  logger.fatal("fatal message");
+  expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("fatal message"));
+  expect(errorSpy).toHaveBeenCalledTimes(2);
+
+  logger.silly("silly message");
+  expect(fallbackSpy).toHaveBeenCalledWith(expect.stringContaining("silly message"));
+  expect(fallbackSpy).toHaveBeenCalledTimes(1);
+});
