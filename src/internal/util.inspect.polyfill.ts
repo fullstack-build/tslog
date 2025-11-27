@@ -378,7 +378,7 @@ function reduceToSingleString(output: string[], base: string, braces: string[]):
 }
 
 function _extend(origin: object, add: object): object {
-  const typedOrigin = { ...origin } as { [key: string]: unknown };
+  const typedOrigin = origin as { [key: string]: unknown };
   // Don't do anything if add isn't an object
   if (!add || !isObject(add)) return origin;
 
