@@ -582,7 +582,7 @@ like sending messages to _Slack_ or _Telegram_ in case of an urgent error or for
 
 ##### Simple transport example
 
-Here is a very simple implementation used in our _jest_ tests.
+Here is a very simple implementation used in our _vitest_ tests.
 This example will suppress logs from being sent to `console` (`type: "hidden"`) and will instead collect them in an `array`.
 
 ```typescript
@@ -639,7 +639,7 @@ const stream = createStream("tslog.log", {
 
 const logger = new Logger();
 logger.attachTransport((logObj) => {
-  stream.write(JSON.stringify(logObject) + "\n");
+  stream.write(JSON.stringify(logObj) + "\n");
 });
 
 logger.debug("I am a debug log.");
@@ -734,7 +734,7 @@ For `JSON` logs (no formatting happens here):
             default:
               console.log(logMetaMarkup, ...logArgs, ...logErrors);
               break;
-          },
+          }
       },
     });
 ```
@@ -762,7 +762,7 @@ const logMsg = logger.info("Test");
 //  '0': 'Test',
 //  foo: 'bar',
 //  _meta: {
-//    runtime: 'server',
+//    runtime: 'node',
 //    hostname: 'Eugenes-MBP.local',
 //    date: 2022-10-23T10:51:08.857Z,
 //    logLevelId: 3,
