@@ -7,7 +7,7 @@ export function mockConsoleLog(resetConsoleOutput = false, printConsole = false)
     }
     consoleOutput += inputs;
   };
-  console["log"] = jest.fn(storeLog);
+  console["log"] = vi.fn(storeLog);
   if (resetConsoleOutput) {
     consoleOutput = "";
   }

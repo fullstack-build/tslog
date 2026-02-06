@@ -25,9 +25,13 @@ jobs:
               with:
                   node-version: ${{ matrix.node-version }}
             - run: npm ci
+            - name: Install Playwright browsers
+              run: npx playwright install --with-deps chromium
 
             # Coverage.
             - name: Run coverage
               run: npm run coverage
+            - name: Run browser tests
+              run: npm run test:browser
             - name: Report coverage
               uses: codecov/codecov-action@v3

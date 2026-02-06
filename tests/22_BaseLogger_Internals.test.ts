@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { IErrorObject } from "../src/interfaces.js";
 
@@ -227,7 +226,7 @@ describe("BaseLogger internals", () => {
       _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
     };
     const maskKeys = internals._getMaskKeys();
-    const spy = jest.spyOn(Object, "getOwnPropertyNames").mockImplementationOnce(() => [123 as unknown as string] as unknown as string[]);
+    const spy = vi.spyOn(Object, "getOwnPropertyNames").mockImplementationOnce(() => [123 as unknown as string] as unknown as string[]);
 
     const result = internals._recursiveCloneAndMaskValuesOfKeys({ [123]: "value" } as Record<string, unknown>, maskKeys) as Record<string, unknown>;
 
@@ -280,7 +279,7 @@ describe("BaseLogger internals", () => {
       maskValuesOfKeysCaseInsensitive: false,
     });
 
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     const log = logger.log(1, "test", { token: "foo", other: "bar" });
     expect(log?.token).toBe("[***]");
@@ -320,7 +319,7 @@ describe("BaseLogger internals", () => {
     };
 
     const errorLike = { message: "boom" };
-    const isErrorSpy = jest.spyOn(runtimeInternals.runtime, "isError");
+    const isErrorSpy = vi.spyOn(runtimeInternals.runtime, "isError");
     isErrorSpy
       .mockImplementationOnce(() => false)
       .mockImplementationOnce(() => true)

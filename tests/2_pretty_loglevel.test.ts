@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
@@ -21,7 +20,7 @@ describe("Pretty: Log level", () => {
     expect(getConsoleLog()).toContain("SILLY");
     expect(getConsoleLog()).toContain("Test");
     expect(getConsoleLog()).toContain(`${new Date().toISOString().replace("T", " ")[0]}`); // ignore time
-    expect(getConsoleLog()).toContain("/2_pretty_loglevel.test.ts:20");
+    expect(getConsoleLog()).toContain("/2_pretty_loglevel.test.ts:19");
   });
 
   test("trace (console)", (): void => {

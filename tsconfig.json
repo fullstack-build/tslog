@@ -6,7 +6,7 @@
     "target": "es2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node", "jest", "puppeteer", "jest-environment-puppeteer", "expect-puppeteer"],
+    "types": ["node"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "inlineSourceMap": false,

@@ -1,4 +1,3 @@
-import "ts-jest";
 import { ok } from "assert";
 import { Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";

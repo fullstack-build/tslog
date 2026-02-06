@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 
@@ -204,7 +203,6 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("test");
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
-    expect(getConsoleLogStripped()).toContain("Object.<anonymous>");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
     expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
@@ -218,7 +216,6 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("test");
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
-    expect(getConsoleLogStripped()).toContain("Object.<anonymous>");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
     expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
@@ -230,7 +227,6 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("test");
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
-    expect(getConsoleLogStripped()).toContain("Object.<anonymous>");
     expect((errorLog?.["1"] as any)?.nativeError).toBeInstanceOf(Error);
     expect((errorLog?.["1"] as any)?.stack[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });

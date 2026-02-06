@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { createLoggerEnvironment, loggerEnvironment } from "../src/BaseLogger.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
@@ -54,7 +53,7 @@ registerUniversalRuntimeTests({
 
     globalAny.window = {};
     globalAny.document = {};
-    globalAny.navigator = { userAgent: "Mozilla/5.0 (Simulated)" };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Simulated)" });
     globalAny.location = { origin: "http://localhost" };
 
     const wrapped = wrapEnvironment(createLoggerEnvironment());
@@ -71,11 +70,7 @@ registerUniversalRuntimeTests({
       } else {
         globalAny.document = originalDocument;
       }
-      if (originalNavigator === undefined) {
-        delete globalAny.navigator;
-      } else {
-        globalAny.navigator = originalNavigator;
-      }
+      vi.unstubAllGlobals();
       if (originalLocation === undefined) {
         delete globalAny.location;
       } else {
@@ -173,27 +168,24 @@ describe("Node runtime specifics", () => {
   });
 
   test("defensively handles stack parsers receiving undefined entries", async () => {
-    const sharedModulePath = require.resolve("../src/internal/stackTrace.js");
+    vi.resetModules();
 
-    jest.resetModules();
-    jest.isolateModules(() => {
-      jest.doMock(sharedModulePath, () => {
-        const actual = jest.requireActual(sharedModulePath);
-        return {
-          ...actual,
-          buildStackTrace: (_error: Error, parseLine: (line: string) => unknown) => {
-            const maybeFrame = parseLine(undefined as unknown as string);
-            return maybeFrame != null ? [maybeFrame] : [];
-          },
-        };
-      });
-
-      const { createLoggerEnvironment: freshCreate } = require("../src/BaseLogger.js");
-      const env = freshCreate();
-      expect(env.getErrorTrace(new Error("boom"))).toEqual([]);
+    vi.doMock("../src/internal/stackTrace.js", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../src/internal/stackTrace.js")>();
+      return {
+        ...actual,
+        buildStackTrace: (_error: Error, parseLine: (line: string) => unknown) => {
+          const maybeFrame = parseLine(undefined as unknown as string);
+          return maybeFrame != null ? [maybeFrame] : [];
+        },
+      };
     });
 
-    jest.dontMock(sharedModulePath);
+    const { createLoggerEnvironment: freshCreate } = await import("../src/BaseLogger.js");
+    const env = freshCreate();
+    expect(env.getErrorTrace(new Error("boom"))).toEqual([]);
+
+    vi.doUnmock("../src/internal/stackTrace.js");
   });
 
   test("pretty error formatting omits function properties", () => {
@@ -297,32 +289,31 @@ describe("Node runtime specifics", () => {
     }
   });
 
-  test("transportFormatted falls back when util formatting fails", () => {
+  test("transportFormatted falls back when util formatting fails", async () => {
     const originalConsoleLog = console.log;
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    jest.resetModules();
-    jest.isolateModules(() => {
-      jest.doMock("../src/internal/util.inspect.polyfill.js", () => ({
-        formatWithOptions: () => {
-          throw new Error("boom");
-        },
-      }));
+    vi.resetModules();
 
-      const { createLoggerEnvironment: freshCreate } = require("../src/BaseLogger.js");
-      const env = freshCreate();
-      const circular: Record<string, unknown> = {};
-      circular.self = circular;
-      env.transportFormatted("meta", [circular], [], undefined, {
-        stylePrettyLogs: false,
-        prettyInspectOptions: { colors: false, depth: 2, compact: false },
-      } as unknown as Parameters<typeof env.transportFormatted>[4]);
+    vi.doMock("../src/internal/util.inspect.polyfill.js", () => ({
+      formatWithOptions: () => {
+        throw new Error("boom");
+      },
+    }));
 
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[object Object]"));
-    });
+    const { createLoggerEnvironment: freshCreate } = await import("../src/BaseLogger.js");
+    const env = freshCreate();
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    env.transportFormatted("meta", [circular], [], undefined, {
+      stylePrettyLogs: false,
+      prettyInspectOptions: { colors: false, depth: 2, compact: false },
+    } as unknown as Parameters<typeof env.transportFormatted>[4]);
+
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[object Object]"));
 
     consoleSpy.mockRestore();
     console.log = originalConsoleLog;
-    jest.dontMock("../src/internal/util.inspect.polyfill.js");
+    vi.doUnmock("../src/internal/util.inspect.polyfill.js");
   });
 });

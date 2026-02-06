@@ -1,4 +1,3 @@
-import "ts-jest";
 import { safeGetCwd, consoleSupportsCssStyling } from "../src/internal/environment.js";
 
 describe("environment helpers", () => {
@@ -6,9 +5,9 @@ describe("environment helpers", () => {
   const originalDeno = (globalThis as Record<string, unknown>).Deno;
   const originalWindow = (globalThis as Record<string, unknown>).window;
   const originalDocument = (globalThis as Record<string, unknown>).document;
-  const originalNavigator = (globalThis as Record<string, unknown>).navigator;
 
   afterEach(() => {
+    vi.unstubAllGlobals();
     globalThis.process = originalProcess;
     if (originalDeno === undefined) {
       delete (globalThis as Record<string, unknown>).Deno;
@@ -25,15 +24,10 @@ describe("environment helpers", () => {
     } else {
       (globalThis as Record<string, unknown>).document = originalDocument;
     }
-    if (originalNavigator === undefined) {
-      delete (globalThis as Record<string, unknown>).navigator;
-    } else {
-      (globalThis as Record<string, unknown>).navigator = originalNavigator;
-    }
   });
 
   test("returns process cwd when available", () => {
-    const cwdMock = jest.fn(() => "/tmp/process");
+    const cwdMock = vi.fn(() => "/tmp/process");
     // @ts-expect-error - building mock process object
     globalThis.process = { cwd: cwdMock };
 
@@ -42,12 +36,12 @@ describe("environment helpers", () => {
   });
 
   test("falls back to Deno cwd when process cwd fails", () => {
-    const cwdMock = jest.fn(() => {
+    const cwdMock = vi.fn(() => {
       throw new Error("no permission");
     });
     // @ts-expect-error - building mock process object
     globalThis.process = { cwd: cwdMock };
-    const denoCwd = jest.fn(() => "/deno/cwd");
+    const denoCwd = vi.fn(() => "/deno/cwd");
     (globalThis as Record<string, unknown>).Deno = { cwd: denoCwd };
 
     expect(safeGetCwd()).toBe("/deno/cwd");
@@ -66,18 +60,18 @@ describe("environment helpers", () => {
   test("consoleSupportsCssStyling detects capabilities", () => {
     (globalThis as Record<string, unknown>).window = {};
     (globalThis as Record<string, unknown>).document = {};
-    (globalThis as Record<string, unknown>).navigator = { userAgent: "Firefox" };
+    vi.stubGlobal("navigator", { userAgent: "Firefox" });
     expect(consoleSupportsCssStyling()).toBe(true);
 
-    (globalThis as Record<string, unknown>).navigator = { userAgent: "Safari" };
+    vi.stubGlobal("navigator", { userAgent: "Safari" });
     (globalThis as Record<string, unknown>).window = {};
-    (globalThis as Record<string, unknown>).CSS = { supports: jest.fn(() => false) };
+    (globalThis as Record<string, unknown>).CSS = { supports: vi.fn(() => false) };
     expect(consoleSupportsCssStyling()).toBe(true);
 
-    (globalThis as Record<string, unknown>).navigator = { userAgent: "Chrome" };
+    vi.stubGlobal("navigator", { userAgent: "Chrome" });
     (globalThis as Record<string, unknown>).window = {};
     (globalThis as Record<string, unknown>).document = {};
-    (globalThis as Record<string, unknown>).CSS = { supports: jest.fn(() => true) };
+    (globalThis as Record<string, unknown>).CSS = { supports: vi.fn(() => true) };
     expect(consoleSupportsCssStyling()).toBe(true);
 
     delete (globalThis as Record<string, unknown>).window;

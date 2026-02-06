@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { ISettings, IMeta } from "../src/interfaces.js";
 

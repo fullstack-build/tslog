@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src";
 
 describe("Transports", () => {

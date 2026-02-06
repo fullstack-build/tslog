@@ -1,4 +1,3 @@
-import "ts-jest";
 import { urlToObject } from "../src/urlToObj.js";
 
 describe("urlToObject", () => {

@@ -1,36 +1,33 @@
-import "ts-jest";
 const originalConsoleLog = console.log;
 
 describe("transport behaviour", () => {
   afterEach(() => {
     console.log = originalConsoleLog;
-    jest.resetModules();
+    vi.unstubAllGlobals();
+    vi.resetModules();
   });
 
-  test("pretty transport uses CSS styling when supported", () => {
+  test("pretty transport uses CSS styling when supported", async () => {
     const globalAny = globalThis as unknown as {
       window?: unknown;
       document?: unknown;
-      navigator?: { userAgent?: string };
       CSS?: { supports?: (property: string, value: string) => boolean };
     };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
-    const originalNavigator = globalAny.navigator;
     const originalCSS = globalAny.CSS;
 
     globalAny.window = {};
     globalAny.document = {};
-    globalAny.navigator = { userAgent: "Mozilla/5.0 Firefox" };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox" });
     globalAny.CSS = { supports: () => true };
 
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    jest.isolateModules(() => {
-      const { Logger } = require("../src/index.js") as typeof import("../src/index.js");
-      const logger = new Logger({ type: "pretty" });
-      logger.info("styled output");
-    });
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty" });
+    logger.info("styled output");
 
     expect(consoleSpy).toHaveBeenCalled();
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%c"));
@@ -49,11 +46,6 @@ describe("transport behaviour", () => {
     } else {
       globalAny.document = originalDocument;
     }
-    if (originalNavigator === undefined) {
-      delete globalAny.navigator;
-    } else {
-      globalAny.navigator = originalNavigator;
-    }
     if (originalCSS === undefined) {
       delete globalAny.CSS;
     } else {
@@ -61,14 +53,13 @@ describe("transport behaviour", () => {
     }
   });
 
-  test("json transport stringifies undefined values", () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+  test("json transport stringifies undefined values", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    jest.isolateModules(() => {
-      const { Logger } = require("../src/index.js") as typeof import("../src/index.js");
-      const logger = new Logger({ type: "json" });
-      logger.info({ value: undefined });
-    });
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "json" });
+    logger.info({ value: undefined });
 
     expect(consoleSpy).toHaveBeenCalled();
     const payload = String(consoleSpy.mock.calls[0]?.[0] ?? "");
@@ -77,39 +68,35 @@ describe("transport behaviour", () => {
     consoleSpy.mockRestore();
   });
 
-  test("runtime marks objects with Error-like names as errors", () => {
-    jest.isolateModules(() => {
-      const { createLoggerEnvironment } = require("../src/BaseLogger.js") as typeof import("../src/BaseLogger.js");
-      const env = createLoggerEnvironment();
-      const errorLike = { name: "CustomError" };
-      expect(env.isError(errorLike)).toBe(true);
-    });
+  test("runtime marks objects with Error-like names as errors", async () => {
+    vi.resetModules();
+    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
+    const env = createLoggerEnvironment();
+    const errorLike = { name: "CustomError" };
+    expect(env.isError(errorLike)).toBe(true);
   });
 
-  test("pretty transport falls back to sanitized output when no CSS metadata", () => {
+  test("pretty transport falls back to sanitized output when no CSS metadata", async () => {
     const globalAny = globalThis as unknown as {
       window?: unknown;
       document?: unknown;
-      navigator?: { userAgent?: string };
       CSS?: { supports?: (property: string, value: string) => boolean };
     };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
-    const originalNavigator = globalAny.navigator;
     const originalCSS = globalAny.CSS;
 
     globalAny.window = {};
     globalAny.document = {};
-    globalAny.navigator = { userAgent: "Mozilla/5.0 Firefox" };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox" });
     globalAny.CSS = { supports: () => true };
 
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    jest.isolateModules(() => {
-      const { Logger } = require("../src/index.js") as typeof import("../src/index.js");
-      const logger = new Logger({ type: "pretty", prettyLogTemplate: "static output" });
-      logger.info("unstyled");
-    });
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", prettyLogTemplate: "static output" });
+    logger.info("unstyled");
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("static output"));
     expect(call).toBeDefined();
@@ -127,11 +114,6 @@ describe("transport behaviour", () => {
     } else {
       globalAny.document = originalDocument;
     }
-    if (originalNavigator === undefined) {
-      delete globalAny.navigator;
-    } else {
-      globalAny.navigator = originalNavigator;
-    }
     if (originalCSS === undefined) {
       delete globalAny.CSS;
     } else {
@@ -139,38 +121,35 @@ describe("transport behaviour", () => {
     }
   });
 
-  test("collectStyleTokens handles nested style definitions", () => {
+  test("collectStyleTokens handles nested style definitions", async () => {
     const globalAny = globalThis as unknown as {
       window?: unknown;
       document?: unknown;
-      navigator?: { userAgent?: string };
       CSS?: { supports?: (property: string, value: string) => boolean };
     };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
-    const originalNavigator = globalAny.navigator;
     const originalCSS = globalAny.CSS;
 
     globalAny.window = {};
     globalAny.document = {};
-    globalAny.navigator = { userAgent: "Mozilla/5.0 Firefox" };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox" });
     globalAny.CSS = { supports: () => true };
 
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation(() => undefined);
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    jest.isolateModules(() => {
-      const { Logger } = require("../src/index.js") as typeof import("../src/index.js");
-      const logger = new Logger({ type: "pretty" });
-      logger.settings.prettyLogTemplate = "{{logLevelName}}";
-      logger.settings.prettyLogStyles = {
-        ...logger.settings.prettyLogStyles,
-        logLevelName: {
-          INFO: ["bold", "underline", "hidden", "dim", "italic"],
-          "*": ["italic"],
-        },
-      };
-      logger.info("styled");
-    });
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty" });
+    logger.settings.prettyLogTemplate = "{{logLevelName}}";
+    logger.settings.prettyLogStyles = {
+      ...logger.settings.prettyLogStyles,
+      logLevelName: {
+        INFO: ["bold", "underline", "hidden", "dim", "italic"],
+        "*": ["italic"],
+      },
+    };
+    logger.info("styled");
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%cINFO%c"));
     expect(call).toBeDefined();
@@ -193,11 +172,6 @@ describe("transport behaviour", () => {
     } else {
       globalAny.document = originalDocument;
     }
-    if (originalNavigator === undefined) {
-      delete globalAny.navigator;
-    } else {
-      globalAny.navigator = originalNavigator;
-    }
     if (originalCSS === undefined) {
       delete globalAny.CSS;
     } else {
@@ -205,29 +179,26 @@ describe("transport behaviour", () => {
     }
   });
 
-  test("browser stack parser ignores malformed matches", () => {
+  test("browser stack parser ignores malformed matches", async () => {
     const globalAny = globalThis as unknown as {
       window?: unknown;
       document?: unknown;
-      navigator?: { userAgent?: string };
       location?: { origin?: string };
     };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
-    const originalNavigator = globalAny.navigator;
     const originalLocation = globalAny.location;
 
     globalAny.window = {};
     globalAny.document = {};
-    globalAny.navigator = { userAgent: "Mozilla/5.0" };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" });
     globalAny.location = { origin: "http://localhost" };
 
-    jest.isolateModules(() => {
-      const { createLoggerEnvironment } = require("../src/BaseLogger.js") as typeof import("../src/BaseLogger.js");
-      const env = createLoggerEnvironment();
-      const frames = env.getErrorTrace({ stack: "Error\ngarbage frame" } as Error);
-      expect(frames).toEqual([]);
-    });
+    vi.resetModules();
+    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
+    const env = createLoggerEnvironment();
+    const frames = env.getErrorTrace({ stack: "Error\ngarbage frame" } as Error);
+    expect(frames).toEqual([]);
 
     if (originalWindow === undefined) {
       delete globalAny.window;
@@ -238,11 +209,6 @@ describe("transport behaviour", () => {
       delete globalAny.document;
     } else {
       globalAny.document = originalDocument;
-    }
-    if (originalNavigator === undefined) {
-      delete globalAny.navigator;
-    } else {
-      globalAny.navigator = originalNavigator;
     }
     if (originalLocation === undefined) {
       delete globalAny.location;

@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 import { relative } from "path";
@@ -80,7 +79,7 @@ describe("Pretty: Settings", () => {
     expect(entries.length).toBe(2);
 
     const [normalEntry, productionEntry] = entries;
-    const relativePath = relative(process.cwd(), __filename).replace(/\\/g, "/");
+    const relativePath = relative(process.cwd(), import.meta.filename).replace(/\\/g, "/");
 
     const pathMatch = normalEntry.match(new RegExp(`${escapeRegExp(relativePath)}:(\\d+)`));
     expect(pathMatch).not.toBeNull();

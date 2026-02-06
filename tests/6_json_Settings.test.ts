@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
@@ -253,12 +252,12 @@ describe("JSON: Settings", () => {
 
   test("lazy arguments run only when emitted", (): void => {
     const eagerLogger = new Logger({ type: "json" });
-    const executed = jest.fn(() => "value");
+    const executed = vi.fn(() => "value");
     eagerLogger.info(() => [executed()]);
     expect(executed).toHaveBeenCalledTimes(1);
 
     const quietLogger = new Logger({ type: "json", minLevel: 5 });
-    const skipped = jest.fn(() => "skip");
+    const skipped = vi.fn(() => "skip");
     quietLogger.debug(() => [skipped()]);
     expect(skipped).not.toHaveBeenCalled();
   });

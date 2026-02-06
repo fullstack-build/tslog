@@ -86,3 +86,10 @@ bower_components
 
 # Ignore banchmarks for now
 /benchmarks/*
+
+# Playwright test results
+/test-results/
+
+# Agent config
+AGENTS.md
+CLAUDE.md

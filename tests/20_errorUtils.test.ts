@@ -1,4 +1,3 @@
-import "ts-jest";
 import { collectErrorCauses, toError, toErrorObject } from "../src/internal/errorUtils.js";
 import { IStackFrame } from "../src/interfaces.js";
 

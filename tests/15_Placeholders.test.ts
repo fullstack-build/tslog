@@ -1,4 +1,3 @@
-import "ts-jest";
 import { IMeta, Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 

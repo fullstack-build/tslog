@@ -1,4 +1,3 @@
-import "ts-jest";
 import { formatNumberAddZeros } from "../src/formatNumberAddZeros.js";
 
 describe("Format Number: Add missing Zeros", () => {

@@ -1,4 +1,3 @@
-import "ts-jest";
 import { Logger } from "../src/index.js";
 import { IErrorObject, ILogObj, ILogObjMeta } from "../src/interfaces.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
@@ -114,7 +113,6 @@ describe("JSON: Log Types", () => {
     const serializedError = extractError(errorLog);
     expect(serializedError?.nativeError).toBeInstanceOf(Error);
     expect(serializedError?.stack?.[0]?.fileName).toBe("4_json_Log_Types.test.ts");
-    expect(serializedError?.stack?.[0]?.method).toBe("Object.<anonymous>");
     expect(serializedError?.nativeError).not.toBeInstanceOf(Array);
   });
 

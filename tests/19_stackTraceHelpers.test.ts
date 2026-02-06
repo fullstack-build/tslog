@@ -1,4 +1,3 @@
-import "ts-jest";
 import {
   findFirstExternalFrameIndex,
   sanitizeStackLines,

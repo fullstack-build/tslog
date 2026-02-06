@@ -1,4 +1,3 @@
-import "ts-jest";
 import { relative } from "path";
 import { Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
@@ -26,7 +25,7 @@ describe("JSON: Log level", () => {
     expect(getConsoleLog()).toContain(`"date":"${new Date().toISOString().split("T")[0]}`); // ignore time
     expect(getConsoleLog()).toContain('"logLevelId":0');
     expect(getConsoleLog()).toContain('"logLevelName":"SILLY"');
-    const relativePath = relative(process.cwd(), __filename).replace(/\\/g, "/");
+    const relativePath = relative(process.cwd(), import.meta.filename).replace(/\\/g, "/");
     const filePathWithLine = result?._meta?.path?.filePathWithLine?.replace(/^[\\/]+/, "");
     expect(filePathWithLine?.startsWith(relativePath)).toBe(true);
     const line = Number(filePathWithLine?.split(":").pop());
