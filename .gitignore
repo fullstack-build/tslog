@@ -93,3 +93,4 @@ bower_components
 # Agent config
 AGENTS.md
 CLAUDE.md
+.claude/

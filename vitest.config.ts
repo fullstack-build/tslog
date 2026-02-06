@@ -11,12 +11,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      exclude: [
-        "src/internal/util.inspect.polyfill.ts",
-        "src/interfaces.ts",
-        "src/internal/InspectOptions.interface.ts",
-        "src/index.browser.ts",
-      ],
+      exclude: ["src/internal/util.inspect.polyfill.ts", "src/interfaces.ts", "src/internal/InspectOptions.interface.ts", "src/index.browser.ts"],
       reporter: ["text", "lcov", "clover", "json"],
     },
   },
