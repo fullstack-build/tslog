@@ -124,7 +124,6 @@ Deno.test("circular reference handled gracefully in JSON mode", () => {
 Deno.test("regex masking", () => {
   const logger = new Logger({
     type: "hidden",
-    maskValuesOfKeys: [],
     maskValuesRegEx: [/\d{3}-\d{2}-\d{4}/],
   });
 
