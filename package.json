@@ -43,6 +43,8 @@
     "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\"",
     "test": "vitest run",
     "test:browser": "npx playwright test",
+    "test:bun": "bunx vitest run",
+    "test:deno": "npm run build && deno test --allow-read --allow-env tests/deno_runner.ts",
     "test:all": "vitest run && npx playwright test",
     "test-puppeteer-serve": "npm run build-browser && node tests/support/browser/server/index.cjs -p 4444",
     "coverage": "vitest run --coverage",
