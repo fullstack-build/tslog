@@ -1,15 +1,15 @@
+import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { IStackFrame } from "../src/interfaces.js";
 import {
-  findFirstExternalFrameIndex,
-  sanitizeStackLines,
-  splitStackLines,
-  getDefaultIgnorePatterns,
   clampIndex,
-  pickCallerStackFrame,
+  findFirstExternalFrameIndex,
+  getDefaultIgnorePatterns,
   getFrameAt,
   isIgnorableFrame,
+  pickCallerStackFrame,
+  sanitizeStackLines,
+  splitStackLines,
 } from "../src/internal/stackTrace.js";
-import { IStackFrame } from "../src/interfaces.js";
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
 
 describe("stack trace helpers", () => {
   test("split and sanitize stack lines", () => {

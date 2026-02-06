@@ -1,5 +1,5 @@
-import type { InspectOptions } from "./InspectOptions.interface.js";
 import { prettyLogStyles } from "../prettyLogStyles.js";
+import type { InspectOptions } from "./InspectOptions.interface.js";
 import { jsonStringifyRecursive } from "./jsonStringifyRecursive.js";
 
 export type { InspectOptions };
@@ -74,7 +74,7 @@ function stylizeWithColor(str: string, styleType: string) {
   const style = inspect.styles[styleType as keyof typeof inspect.styles];
 
   if (style != null && inspect?.colors?.[style]?.[0] != null && inspect?.colors?.[style]?.[1] != null) {
-    return "\u001b[" + inspect.colors[style][0] + "m" + str + "\u001b[" + inspect.colors[style][1] + "m";
+    return `\u001b[${inspect.colors[style][0]}m${str}\u001b[${inspect.colors[style][1]}m`;
   } else {
     return str;
   }
@@ -97,6 +97,7 @@ function isNull(arg: unknown) {
 }
 
 function hasOwn(obj: unknown, prop: string) {
+  // biome-ignore lint/suspicious/noPrototypeBuiltins: Object.hasOwn requires ES2022, project targets ES2020
   return Object.prototype.hasOwnProperty.call(obj, prop);
 }
 
@@ -148,10 +149,10 @@ function formatArray(ctx: ICtx, value: string[], recurseTimes: number, visibleKe
 }
 
 function formatError(value: Error): string {
-  return "[" + Error.prototype.toString.call(value) + "]";
+  return `[${Error.prototype.toString.call(value)}]`;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: util.inspect polyfill compatibility
 export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   // Provide a hook for user-specified inspect functions.
   // Check that value is an object with an inspect function on it
@@ -201,8 +202,8 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   if (keys.length === 0) {
     if (isFunction(ctx.stylize)) {
       if (isFunction(value)) {
-        const name = value.name ? ": " + value.name : "";
-        return ctx.stylize("[Function" + name + "]", "special");
+        const name = value.name ? `: ${value.name}` : "";
+        return ctx.stylize(`[Function${name}]`, "special");
       }
       if (isRegExp(value)) {
         return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
@@ -230,26 +231,26 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   // Make functions say that they are functions
   if (isFunction(value)) {
-    const n = value.name ? ": " + value.name : "";
-    base = " [Function" + n + "]";
+    const n = value.name ? `: ${value.name}` : "";
+    base = ` [Function${n}]`;
   }
 
   // Make RegExps say that they are RegExps
   if (isRegExp(value)) {
-    base = " " + RegExp.prototype.toString.call(value);
+    base = ` ${RegExp.prototype.toString.call(value)}`;
   }
 
   // Make dates with properties first say the date
   if (isDate(value)) {
-    base = " " + Date.prototype.toUTCString.call(value);
+    base = ` ${Date.prototype.toUTCString.call(value)}`;
   }
 
   // Make error with message first say the error
   if (isError(value)) {
-    base = " " + formatError(value);
+    base = ` ${formatError(value)}`;
   }
 
-  if (keys.length === 0 && (!array || value.length == 0)) {
+  if (keys.length === 0 && (!array || value.length === 0)) {
     return braces[0] + base + braces[1];
   }
 
@@ -263,7 +264,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   ctx.seen.push(value);
 
-  let output;
+  let output: string[];
   if (array) {
     output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
   } else {
@@ -278,7 +279,8 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 }
 
 function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, key: string, array: boolean): string {
-  let name, str;
+  let name: string | undefined;
+  let str: string | undefined;
   let desc: PropertyDescriptor = { value: void 0 };
   try {
     // ie6 › navigator.toString
@@ -308,7 +310,7 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
     }
   }
   if (!hasOwn(visibleKeys, key)) {
-    name = "[" + key + "]";
+    name = `[${key}]`;
   }
   if (!str) {
     if (ctx.seen.indexOf(desc.value) < 0) {
@@ -322,7 +324,7 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
           str = str
             .split("\n")
             .map((line: string) => {
-              return "  " + line;
+              return `  ${line}`;
             })
             .join("\n")
             .substr(2);
@@ -332,7 +334,7 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
             str
               .split("\n")
               .map((line: string) => {
-                return "   " + line;
+                return `   ${line}`;
               })
               .join("\n");
         }
@@ -345,7 +347,7 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
     if (array && key.match(/^\d+$/)) {
       return str;
     }
-    name = JSON.stringify("" + key);
+    name = JSON.stringify(`${key}`);
     if (name.match(/^"([a-zA-Z_][a-zA-Z_0-9]*)"$/)) {
       name = name.substr(1, name.length - 2);
       name = ctx.stylize(name, "name");
@@ -358,23 +360,23 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
     }
   }
 
-  return name + ": " + str;
+  return `${name}: ${str}`;
 }
 
 function formatPrimitive(ctx: ICtx, value: unknown) {
   if (isUndefined(value)) return ctx.stylize("undefined", "undefined");
   if (isString(value)) {
-    const simple = "'" + JSON.stringify(value).replace(/^"|"$/g, "").replace(/'/g, "\\'").replace(/\\"/g, "\\'") + "'";
+    const simple = `'${JSON.stringify(value).replace(/^"|"$/g, "").replace(/'/g, "\\'").replace(/\\"/g, "\\'")}'`;
     return ctx.stylize(simple, "string");
   }
-  if (isNumber(value)) return ctx.stylize("" + value, "number");
-  if (isBoolean(value)) return ctx.stylize("" + value, "boolean");
+  if (isNumber(value)) return ctx.stylize(`${value}`, "number");
+  if (isBoolean(value)) return ctx.stylize(`${value}`, "boolean");
   // For some reason typeof null is "object", so special case here.
   if (isNull(value)) return ctx.stylize("null", "null");
 }
 
 function reduceToSingleString(output: string[], base: string, braces: string[]): string {
-  return braces[0] + (base === "" ? "" : base + "\n") + "  " + output.join(",\n  ") + " " + braces[1];
+  return `${braces[0] + (base === "" ? "" : `${base}\n`)}  ${output.join(",\n  ")} ${braces[1]}`;
 }
 
 function _extend(origin: object, add: object): object {
@@ -413,7 +415,7 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
     if (args.length === 1) {
       return first;
     }
-    let tempStr;
+    let tempStr: string | undefined;
     let lastPos = 0;
 
     for (let i = 0; i < first.length - 1; i++) {
@@ -475,7 +477,7 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
               } else if (typeof tempInteger === "symbol") {
                 tempStr = "NaN";
               } else {
-                tempStr = formatPrimitive(ctx, parseInt(tempStr as string));
+                tempStr = formatPrimitive(ctx, parseInt(tempStr as string, 10));
               }
               break;
             }
@@ -485,7 +487,7 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
               if (typeof tempFloat === "symbol") {
                 tempStr = "NaN";
               } else {
-                tempStr = formatPrimitive(ctx, parseInt(tempFloat as string));
+                tempStr = formatPrimitive(ctx, parseInt(tempFloat as string, 10));
               }
               break;
             }

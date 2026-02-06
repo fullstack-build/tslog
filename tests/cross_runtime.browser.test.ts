@@ -1,4 +1,4 @@
-import { test, expect, type ConsoleMessage } from "@playwright/test";
+import { type ConsoleMessage, expect, test } from "@playwright/test";
 
 let consoleMessages: string[] = [];
 

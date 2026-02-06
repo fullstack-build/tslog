@@ -1,4 +1,4 @@
-import { Logger, BaseLogger } from "../src/index.js";
+import { BaseLogger, Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 interface ILogObj {

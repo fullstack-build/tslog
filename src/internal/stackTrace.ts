@@ -1,4 +1,4 @@
-import { IStackFrame } from "../interfaces.js";
+import type { IStackFrame } from "../interfaces.js";
 
 const DEFAULT_IGNORE_PATTERNS = [
   /(?:^|[\\/])node_modules[\\/].*tslog/i,

@@ -1,8 +1,8 @@
 import { BaseLogger } from "./BaseLogger.js";
-import { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
+import type { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
 
-export * from "./interfaces.js";
 export * from "./BaseLogger.js";
+export * from "./interfaces.js";
 
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {

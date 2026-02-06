@@ -1,5 +1,5 @@
-import { Logger } from "../src/index.js";
 import { createLoggerEnvironment, loggerEnvironment } from "../src/BaseLogger.js";
+import { Logger } from "../src/index.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
 import { registerUniversalRuntimeTests } from "./shared/runtimeHarness.js";
 

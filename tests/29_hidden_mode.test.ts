@@ -1,5 +1,5 @@
 import { Logger } from "../src/index.js";
-import { mockConsoleLog, getConsoleLog } from "./helper.js";
+import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 describe("Hidden mode", () => {
   beforeEach(() => mockConsoleLog(true, false));

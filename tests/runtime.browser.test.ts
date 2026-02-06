@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import type { IMeta, IStackFrame } from "../src/interfaces.js";
 import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../src/internal/stackTrace.js";
 

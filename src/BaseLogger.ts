@@ -1,13 +1,13 @@
-import { ISettingsParam, ISettings, ILogObjMeta, ILogObj, IErrorObject, IMeta, IMetaStatic, IStackFrame } from "./interfaces.js";
-import { urlToObject } from "./urlToObj.js";
-import { buildPrettyMeta } from "./internal/metaFormatting.js";
-import { toError, collectErrorCauses } from "./internal/errorUtils.js";
 import { formatTemplate } from "./formatTemplate.js";
-import { formatWithOptions } from "./internal/util.inspect.polyfill.js";
+import type { IErrorObject, ILogObj, ILogObjMeta, IMeta, IMetaStatic, ISettings, ISettingsParam, IStackFrame } from "./interfaces.js";
+import { consoleSupportsCssStyling, isBrowserEnvironment, safeGetCwd } from "./internal/environment.js";
+import { collectErrorCauses, toError } from "./internal/errorUtils.js";
 import type { InspectOptions } from "./internal/InspectOptions.interface.js";
-import { buildStackTrace, findFirstExternalFrameIndex, clampIndex, getDefaultIgnorePatterns } from "./internal/stackTrace.js";
-import { safeGetCwd, consoleSupportsCssStyling, isBrowserEnvironment } from "./internal/environment.js";
 import { jsonStringifyRecursive } from "./internal/jsonStringifyRecursive.js";
+import { buildPrettyMeta } from "./internal/metaFormatting.js";
+import { buildStackTrace, clampIndex, findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "./internal/stackTrace.js";
+import { formatWithOptions } from "./internal/util.inspect.polyfill.js";
+import { urlToObject } from "./urlToObj.js";
 
 type RuntimeName = "browser" | "node" | "deno" | "bun" | "worker" | "unknown";
 
@@ -281,6 +281,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
     const placeholderRegex = /{{(.+?)}}/g;
     let match: RegExpExecArray | null;
 
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
     while ((match = placeholderRegex.exec(template)) != null) {
       if (match.index > lastIndex) {
         parts.push(template.slice(lastIndex, match.index));
@@ -630,7 +631,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
   }
 }
 
-// eslint-disable-next-line no-control-regex
+// biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escape codes
 const ANSI_REGEX = /\u001b\[[0-9;]*m/g;
 
 const COLOR_TOKENS: Record<string, string> = {
@@ -827,8 +828,8 @@ export class BaseLogger<LogObj> {
     const logMeta = logObjWithMeta?.[this.settings.metaProperty] as IMeta | undefined;
 
     // overwrite no matter what, should work for any type (pretty, json, ...)
-    let logMetaMarkup;
-    let logArgsAndErrorsMarkup: { args: unknown[]; errors: string[] } | undefined = undefined;
+    let logMetaMarkup: string | undefined;
+    let logArgsAndErrorsMarkup: { args: unknown[]; errors: string[] } | undefined;
     if (this.settings.overwrite?.formatMeta != null) {
       logMetaMarkup = this.settings.overwrite?.formatMeta(logObjWithMeta?.[this.settings.metaProperty]);
     }
@@ -903,11 +904,13 @@ export class BaseLogger<LogObj> {
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
     };
 
-    const subLogger: BaseLogger<LogObj> = new (this.constructor as new (
-      subLoggerSettings?: ISettingsParam<LogObj>,
-      logObj?: LogObj,
-      stackDepthLevel?: number,
-    ) => this)(subLoggerSettings, logObj ?? this.logObj, this.stackDepthLevel);
+    const subLogger: BaseLogger<LogObj> = new (
+      this.constructor as new (
+        subLoggerSettings?: ISettingsParam<LogObj>,
+        logObj?: LogObj,
+        stackDepthLevel?: number,
+      ) => this
+    )(subLoggerSettings, logObj ?? this.logObj, this.stackDepthLevel);
     //this.subLoggers.push(subLogger);
     return subLogger;
   }

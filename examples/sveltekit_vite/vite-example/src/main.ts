@@ -1,7 +1,8 @@
 import "./app.css";
-import App from "./App.svelte";
 
 import { Logger } from "../../../../";
+import App from "./App.svelte";
+
 const log: Logger<any> = new Logger();
 log.silly("I am a silly log.");
 

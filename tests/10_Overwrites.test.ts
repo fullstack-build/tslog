@@ -1,5 +1,5 @@
 import { Logger } from "../src/index.js";
-import { ISettings, IMeta } from "../src/interfaces.js";
+import { IMeta, ISettings } from "../src/interfaces.js";
 
 describe("Overwrites", () => {
   test("mask", (): void => {

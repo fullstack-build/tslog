@@ -91,7 +91,8 @@ jspm_packages/
 jest-puppeteer.config.cjs
 build.js
 typedoc.js
-.eslintrc.json
+biome.json
+eslint.config.js
 tsconfig*
 
 # Ignore map files in npm

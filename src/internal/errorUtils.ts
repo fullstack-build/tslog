@@ -1,4 +1,4 @@
-import { IErrorObject, IStackFrame } from "../interfaces.js";
+import type { IErrorObject, IStackFrame } from "../interfaces.js";
 import { buildStackTrace } from "./stackTrace.js";
 
 type StackParser = (line: string) => IStackFrame | undefined;

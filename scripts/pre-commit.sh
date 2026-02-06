@@ -17,7 +17,5 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 npm run test
-npm run format
-npm run lint
+npm run check
 npm run build
-npm run docsify-init

@@ -1,5 +1,5 @@
-import { collectErrorCauses, toError, toErrorObject } from "../src/internal/errorUtils.js";
 import { IStackFrame } from "../src/interfaces.js";
+import { collectErrorCauses, toError, toErrorObject } from "../src/internal/errorUtils.js";
 
 describe("error utils", () => {
   test("collectErrorCauses respects depth and cycles", () => {

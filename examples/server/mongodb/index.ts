@@ -1,5 +1,5 @@
 import { MongoClient } from "mongodb";
-import { Logger, ILogObj } from "tslog";
+import { ILogObj, Logger } from "tslog";
 
 interface ITestData {
   _id: string;

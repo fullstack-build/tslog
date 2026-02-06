@@ -1,4 +1,4 @@
-import { safeGetCwd, consoleSupportsCssStyling } from "../src/internal/environment.js";
+import { consoleSupportsCssStyling, safeGetCwd } from "../src/internal/environment.js";
 
 describe("environment helpers", () => {
   const originalProcess = globalThis.process;

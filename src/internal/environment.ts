@@ -9,7 +9,7 @@ export function safeGetCwd(): string | undefined {
   }
 
   try {
-    const deno: { cwd?: () => string } | undefined = (globalThis as Record<string, unknown>)?.["Deno"] as { cwd?: () => string } | undefined;
+    const deno: { cwd?: () => string } | undefined = (globalThis as Record<string, unknown>)?.Deno as { cwd?: () => string } | undefined;
     if (typeof deno?.cwd === "function") {
       return deno.cwd();
     }

@@ -1,6 +1,6 @@
+import { relative } from "path";
 import { Logger } from "../src/index.js";
 import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
-import { relative } from "path";
 
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
