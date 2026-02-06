@@ -84,12 +84,16 @@
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
     "nodemon": "^3.1.10",
-    "np": "^10.2.0",
+    "np": "^11.0.2",
     "playwright": "^1.50.0",
     "prettier": "^3.6.2",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
     "vitest": "^3.0.0"
+  },
+  "overrides": {
+    "marked": "^15.0.7",
+    "tmp": "^0.2.5"
   },
   "sideEffects": false,
   "keywords": [
