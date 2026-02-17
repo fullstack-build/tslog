@@ -1,0 +1,326 @@
+/*
+ * tslog docs — docsify vue theme replica
+ * White background, green (#42b983) accents, left-side TOC navigation.
+ */
+
+/* ── Vue-green accent ── */
+:root,
+:root[data-theme="light"],
+:root[data-theme="dark"] {
+  --sl-color-accent-low: hsl(153, 47%, 92%);
+  --sl-color-accent: hsl(153, 47%, 42%);
+  --sl-color-accent-high: hsl(153, 47%, 18%);
+  --sl-color-text-accent: hsl(153, 47%, 35%);
+
+  /*
+   * Starlight light-mode mapping:
+   *   white → text (dark), black → background (light)
+   *   gray-1 (near white/text, dark) → gray-7 (near black/bg, light)
+   */
+  --sl-color-white: hsl(0, 0%, 13%);
+  --sl-color-black: hsl(0, 0%, 100%);
+  --sl-color-gray-1: hsl(0, 0%, 17%);
+  --sl-color-gray-2: hsl(0, 0%, 25%);
+  --sl-color-gray-3: hsl(0, 0%, 45%);
+  --sl-color-gray-4: hsl(0, 0%, 62%);
+  --sl-color-gray-5: hsl(0, 0%, 80%);
+  --sl-color-gray-6: hsl(0, 0%, 90%);
+  --sl-color-gray-7: hsl(0, 0%, 96%);
+
+  /* Typography — match docsify's system font stack */
+  --sl-font: "Helvetica Neue", Helvetica, "Source Sans Pro", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --sl-font-system-mono: "Roboto Mono", Monaco, courier, monospace;
+
+  /* Layout */
+  --sl-nav-height: 0rem;
+  --sl-sidebar-width: 16rem;
+  --sl-content-width: 55rem;
+
+  color-scheme: light;
+}
+
+/* ── Hide header entirely (docsify has no top bar) ── */
+header.header {
+  display: none !important;
+}
+
+/* Hide theme toggle */
+starlight-theme-select {
+  display: none !important;
+}
+
+/* ── Page layout: no top padding since header is hidden ── */
+.page {
+  padding-top: 0 !important;
+}
+
+/* ── Left sidebar (Starlight's nav sidebar) — hide it (single-page doc) ── */
+nav.sidebar,
+.sidebar-pane {
+  display: none !important;
+}
+
+.main-frame {
+  padding-inline-start: 0 !important;
+}
+
+/* ── Right sidebar (TOC) — restyle to match docsify's left sidebar ── */
+/* Move the TOC to the left by reordering the grid */
+@media (min-width: 72rem) {
+  .main-pane {
+    flex-direction: row-reverse !important;
+  }
+
+  .right-sidebar-container {
+    order: -1 !important;
+    position: relative !important;
+    width: var(--sl-sidebar-width) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .right-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    width: var(--sl-sidebar-width) !important;
+    height: 100vh !important;
+    border-inline-start: none !important;
+    border-inline-end: 1px solid hsl(0, 0%, 90%) !important;
+    padding-top: 1.5rem !important;
+    background: var(--sl-color-black) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Content panel fills the rest */
+  .content-panel {
+    flex: 1 !important;
+    min-width: 0 !important;
+  }
+}
+
+/* ── TOC styling to match docsify sidebar ── */
+.right-sidebar-panel h2 {
+  display: none !important;
+}
+
+/* Add the "tslog" title at the top of the TOC */
+.right-sidebar::before {
+  content: "\01F4DD tslog";
+  display: block;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--sl-color-white);
+  padding-bottom: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.right-sidebar a {
+  font-size: 0.875rem !important;
+  color: hsl(0, 0%, 25%) !important;
+  text-decoration: none !important;
+  padding: 0.25rem 0 !important;
+  display: block !important;
+  line-height: 1.6 !important;
+  transition: color 0.15s ease, border-color 0.15s ease !important;
+}
+
+.right-sidebar a:hover,
+.right-sidebar a[aria-current="true"] {
+  color: #42b983 !important;
+}
+
+.right-sidebar a[aria-current="true"] {
+  border-inline-start: 3px solid #42b983 !important;
+  padding-inline-start: 0.5rem !important;
+  font-weight: 500 !important;
+}
+
+/* ── Content area ── */
+.sl-markdown-content {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  color: hsl(0, 0%, 20%);
+  max-width: 50rem;
+}
+
+/* Main title */
+.content-panel h1 {
+  font-size: 2rem !important;
+  font-weight: 300 !important;
+  color: hsl(0, 0%, 20%) !important;
+}
+
+.sl-markdown-content h2 {
+  font-size: 1.75rem !important;
+  font-weight: 300 !important;
+  margin-top: 2.5rem !important;
+  padding-bottom: 0.5rem !important;
+  border-bottom: none !important;
+  color: hsl(0, 0%, 20%) !important;
+}
+
+.sl-markdown-content h3 {
+  font-size: 1.375rem !important;
+  font-weight: 400 !important;
+  color: hsl(0, 0%, 20%) !important;
+}
+
+.sl-markdown-content h4 {
+  font-size: 1.125rem !important;
+  font-weight: 600 !important;
+  color: hsl(0, 0%, 20%) !important;
+}
+
+/* Links — vue green */
+.sl-markdown-content a {
+  color: #42b983 !important;
+  text-decoration: none !important;
+  font-weight: 600 !important;
+}
+
+.sl-markdown-content a:hover {
+  text-decoration: underline !important;
+}
+
+/* ── Inline code — green text on very light bg (docsify style) ── */
+.sl-markdown-content :not(pre) > code {
+  background: #f8f8f8 !important;
+  color: #e96900 !important;
+  border-radius: 2px !important;
+  padding: 0.15em 0.4em !important;
+  font-size: 0.85em !important;
+  white-space: nowrap !important;
+  border: none !important;
+}
+
+/* ── Code blocks — light gray bg with subtle border (docsify-like) ── */
+.expressive-code .frame {
+  border-radius: 4px !important;
+  border: 1px solid hsl(0, 0%, 90%) !important;
+  box-shadow: none !important;
+  background: #f8f8f8 !important;
+}
+
+.expressive-code pre {
+  font-size: 0.85rem !important;
+  line-height: 1.6 !important;
+  padding: 1rem 1.5rem !important;
+  background: #f8f8f8 !important;
+}
+
+.expressive-code .header {
+  background: #f8f8f8 !important;
+  border-bottom: 1px solid hsl(0, 0%, 90%) !important;
+}
+
+/* ── Blockquotes — green left border ── */
+.sl-markdown-content blockquote {
+  border-inline-start: 4px solid #42b983 !important;
+  color: hsl(0, 0%, 40%) !important;
+  padding: 0.5rem 1rem !important;
+  background: transparent !important;
+}
+
+/* ── Headings anchor icon ── */
+.sl-heading-wrapper .sl-anchor-icon {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.sl-heading-wrapper:hover .sl-anchor-icon {
+  opacity: 0.4;
+}
+
+/* ── Images ── */
+.sl-markdown-content img {
+  border-radius: 0;
+  border: none;
+}
+
+/* Badge images: force inline so they flow on one line */
+.sl-markdown-content img[src*="shields.io"],
+.sl-markdown-content img[src*="badge.svg"],
+.sl-markdown-content img[src*="codecov.io"],
+.sl-markdown-content img[src*="coverage.svg"] {
+  display: inline !important;
+  vertical-align: middle !important;
+  height: 20px !important;
+  margin: 0 2px !important;
+}
+
+/* ── Pagination links — hide (docsify doesn't have these) ── */
+.pagination-links {
+  display: none !important;
+}
+
+/* ── Footer / mobile preferences — hide ── */
+.mobile-preferences {
+  display: none !important;
+}
+
+/* ── Smooth scrolling ── */
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Hide mobile menu button ── */
+starlight-menu-button {
+  display: none !important;
+}
+
+/* ── Selection highlight ── */
+::selection {
+  background: hsla(153, 47%, 42%, 0.2);
+}
+
+/* ── Search — hide ── */
+site-search {
+  display: none !important;
+}
+
+/* ── Skip to content link — hide ── */
+a[href="#_top"] {
+  display: none !important;
+}
+
+/* ── GitHub corner badge (top-right octocat) ── */
+.github-corner svg {
+  fill: #42b983;
+  color: #fff;
+  position: fixed;
+  top: 0;
+  right: 0;
+  border: 0;
+  z-index: 9999;
+  width: 80px;
+  height: 80px;
+}
+
+.github-corner:hover .octo-arm {
+  animation: octocat-wave 560ms ease-in-out;
+}
+
+@keyframes octocat-wave {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  20%,
+  60% {
+    transform: rotate(-25deg);
+  }
+  40%,
+  80% {
+    transform: rotate(10deg);
+  }
+}
+
+@media (max-width: 500px) {
+  .github-corner:hover .octo-arm {
+    animation: none;
+  }
+  .github-corner .octo-arm {
+    animation: octocat-wave 560ms ease-in-out;
+  }
+}

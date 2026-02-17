@@ -19,9 +19,9 @@ jobs:
             COVERAGE: ${{ matrix.node-version == '20.x' && true || false }}
 
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v4
             - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node-version }}
             - run: npm ci
@@ -34,13 +34,13 @@ jobs:
             - name: Run browser tests
               run: npm run test:browser
             - name: Report coverage
-              uses: codecov/codecov-action@v3
+              uses: codecov/codecov-action@v4
 
     test-bun:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
-            - uses: actions/setup-node@v3
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
               with:
                   node-version: 20.x
             - uses: oven-sh/setup-bun@v2
@@ -53,8 +53,8 @@ jobs:
     test-deno:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
-            - uses: actions/setup-node@v3
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
               with:
                   node-version: 20.x
             - uses: denoland/setup-deno@v2

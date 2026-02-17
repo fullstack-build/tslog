@@ -94,3 +94,7 @@ bower_components
 AGENTS.md
 CLAUDE.md
 .claude/
+
+# Astro (docs)
+docs/.astro/
+docs/src/content/docs/

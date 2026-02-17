@@ -1,0 +1,14 @@
+{
+  "name": "tslog-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/sync-readme.mjs && astro dev",
+    "build": "node scripts/sync-readme.mjs && astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.34",
+    "astro": "^5.7"
+  }
+}
