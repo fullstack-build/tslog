@@ -9,8 +9,15 @@ export default defineConfig({
       description:
         "Beautiful logging experience for TypeScript and JavaScript.",
       tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 4 },
+      components: { PageTitle: "./src/overrides/PageTitle.astro" },
       customCss: ["./src/styles/custom.css"],
       head: [
+        // Override <title> (replaces Starlight's auto-generated "{page} | {site}" title)
+        {
+          tag: "title",
+          content:
+            "tslog: Beautiful logging experience for TypeScript and JavaScript",
+        },
         // Force light mode
         {
           tag: "script",

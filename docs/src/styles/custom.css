@@ -40,19 +40,19 @@
   color-scheme: light;
 }
 
-/* ── Hide header entirely (docsify has no top bar) ── */
+/* ── Hide header (docsify has no top bar) ── */
 header.header {
-  display: none !important;
-}
-
-/* Hide theme toggle */
-starlight-theme-select {
   display: none !important;
 }
 
 /* ── Page layout: no top padding since header is hidden ── */
 .page {
   padding-top: 0 !important;
+}
+
+/* Hide theme toggle */
+starlight-theme-select {
+  display: none !important;
 }
 
 /* ── Left sidebar (Starlight's nav sidebar) — hide it (single-page doc) ── */
@@ -85,9 +85,9 @@ nav.sidebar,
     width: var(--sl-sidebar-width) !important;
     height: 100vh !important;
     border-inline-start: none !important;
-    border-inline-end: 1px solid hsl(0, 0%, 90%) !important;
+    border-inline-end: none !important;
     padding-top: 1.5rem !important;
-    background: var(--sl-color-black) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
     overflow-y: auto !important;
   }
 
@@ -257,6 +257,23 @@ nav.sidebar,
 /* ── Footer / mobile preferences — hide ── */
 .mobile-preferences {
   display: none !important;
+}
+
+/* ── Background — soft ambient glow across the full viewport ── */
+body::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse 100% 60% at 50% 0%,
+    hsla(153, 47%, 72%, 0.4),
+    transparent
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 /* ── Smooth scrolling ── */
