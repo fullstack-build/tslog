@@ -255,7 +255,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
         if (typeof value === "function") {
           return result;
         }
-        result.push(String(value));
+        result.push(stringifyFallback(value));
         return result;
       }, [])
       .join(", ");
