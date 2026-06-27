@@ -484,6 +484,29 @@ Following settings are available for styling:
 - **Time zone support:**
   - `prettyLogTimeZone`: Set timezone of pretty log messages to either `UTC` (default) or `local` (based on your server/browser configuration)
 
+#### prettyLogLevelMethod
+
+Map log levels to specific console methods.  
+
+This lets you route each log level to a different output method (e.g., `console.warn`, `console.error`).
+
+```javascript
+const logger = new Logger({
+  type: "pretty",
+  prettyLogLevelMethod: {
+    TRACE: console.trace,
+    DEBUG: console.debug,
+    INFO: console.info,
+    WARN: console.warn,
+    ERROR: console.error,
+    FATAL: console.error,
+    "*": console.log
+  }
+});
+```
+
+If a level is not specified, `*` is used. If that is not set, then it falls back to `console.log`
+
 #### Log meta information
 `tslog` collects meta information for every log, like runtime, code position etc. The meta information collected depends on the runtime (browser or Node.js) and is accessible through the `LogObj`.
 You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.

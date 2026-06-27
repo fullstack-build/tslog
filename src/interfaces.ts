@@ -9,6 +9,11 @@ export type TStyle =
       [value: string]: null | string | string[];
     };
 
+/** Maps a log level name (e.g. "WARN") or "*" to the console method used to output it. */
+export type TPrettyLogLevelMethod = {
+  [logLevelName: string]: (...args: unknown[]) => void;
+};
+
 export interface IPrettyLogStyles {
   yyyy?: TStyle;
   mm?: TStyle;
@@ -46,6 +51,7 @@ export interface ISettingsParam<LogObj> {
   stylePrettyLogs?: boolean;
   prettyLogTimeZone?: "UTC" | "local";
   prettyLogStyles?: IPrettyLogStyles;
+  prettyLogLevelMethod?: TPrettyLogLevelMethod;
   prettyInspectOptions?: InspectOptions;
   metaProperty?: string;
   maskPlaceholder?: string;
@@ -84,6 +90,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   stylePrettyLogs: boolean;
   prettyLogTimeZone: "UTC" | "local";
   prettyLogStyles: IPrettyLogStyles;
+  prettyLogLevelMethod: TPrettyLogLevelMethod;
   prettyInspectOptions: InspectOptions;
   metaProperty: string;
   maskPlaceholder: string;
