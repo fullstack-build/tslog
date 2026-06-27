@@ -1,4 +1,5 @@
 import { Logger } from "../src/index.js";
+import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 
 class HttpError extends Error {
   status: number;
@@ -122,5 +123,48 @@ describe("Advanced error handling", () => {
 
     const rangeErr = logger.info(new RangeError("out of range"));
     expect(rangeErr?.name).toBe("RangeError");
+  });
+
+  describe("pretty error message with non-primitive property values", () => {
+    beforeEach(() => {
+      mockConsoleLog(true, false);
+    });
+
+    test("error property with null-prototype object does not throw", () => {
+      const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+      const err = new Error("boom") as Error & { details: unknown };
+      // Object.create(null) has no prototype, so String(value) throws
+      // "Cannot convert object to primitive value".
+      err.details = Object.create(null);
+
+      expect(() => logger.error(err)).not.toThrow();
+      expect(getConsoleLogStripped()).toContain("boom");
+    });
+
+    test("error property with throwing toString does not throw", () => {
+      const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+      const err = new Error("kaboom") as Error & { payload: unknown };
+      err.payload = {
+        toString() {
+          throw new Error("toString blew up");
+        },
+      };
+
+      expect(() => logger.error(err)).not.toThrow();
+      expect(getConsoleLogStripped()).toContain("kaboom");
+    });
+
+    test("error property with Symbol.toPrimitive returning object does not throw", () => {
+      const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+      const err = new Error("oops") as Error & { weird: unknown };
+      err.weird = {
+        [Symbol.toPrimitive]() {
+          return {} as unknown as string;
+        },
+      };
+
+      expect(() => logger.error(err)).not.toThrow();
+      expect(getConsoleLogStripped()).toContain("oops");
+    });
   });
 });
