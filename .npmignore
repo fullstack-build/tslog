@@ -87,8 +87,6 @@ jspm_packages/
 
 # Ignore other config files
 .editorconfig
- jest-preset.cjs
-jest-puppeteer.config.cjs
 build.js
 typedoc.js
 biome.json

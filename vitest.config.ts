@@ -5,7 +5,7 @@ export default defineConfig({
     globals: true,
     environment: "node",
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/1_json.browser.test.ts", "tests/runtime.browser.test.ts", "tests/cross_runtime.browser.test.ts"],
+    exclude: ["tests/**/*.browser.test.ts"],
     testTimeout: 100_000,
     clearMocks: true,
     coverage: {

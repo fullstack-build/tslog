@@ -13,9 +13,17 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
+      name: "webkit",
+      use: { ...devices["Desktop Safari"] },
+    },
   ],
   webServer: {
-    command: "npm run test-puppeteer-serve",
+    command: "npm run test-browser-serve",
     port: 4444,
     timeout: 120_000,
     reuseExistingServer: !process.env.CI,
