@@ -4,7 +4,7 @@ on:
   push:
     branches: [master, v4, development]
   pull_request:
-    branches: [master]
+    branches: [master, development]
 
 jobs:
     build:
@@ -25,16 +25,31 @@ jobs:
               with:
                   node-version: ${{ matrix.node-version }}
             - run: npm ci
-            - name: Install Playwright browsers
-              run: npx playwright install --with-deps chromium firefox webkit
 
-            # Coverage.
+            # Node test suite + coverage.
             - name: Run coverage
               run: npm run coverage
-            - name: Run browser tests
-              run: npm run test:browser
             - name: Report coverage
               uses: codecov/codecov-action@v4
+
+    test-browser:
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                browser: [chromium, firefox, webkit]
+        env:
+            CI: true
+        steps:
+            - uses: actions/checkout@v4
+            - uses: actions/setup-node@v4
+              with:
+                  node-version: 20.x
+            - run: npm ci
+            - name: Install Playwright ${{ matrix.browser }}
+              run: npx playwright install --with-deps ${{ matrix.browser }}
+            - name: Run browser tests (${{ matrix.browser }})
+              run: npx playwright test --project=${{ matrix.browser }}
 
     test-bun:
         runs-on: ubuntu-latest
