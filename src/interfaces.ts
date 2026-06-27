@@ -20,6 +20,7 @@ export interface IPrettyLogStyles {
   dateIsoStr?: TStyle;
   logLevelName?: TStyle;
   fileName?: TStyle;
+  fileNameWithLine?: TStyle;
   filePath?: TStyle;
   fileLine?: TStyle;
   filePathWithLine?: TStyle;
@@ -82,27 +83,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   prettyErrorLoggerNameDelimiter: string;
   stylePrettyLogs: boolean;
   prettyLogTimeZone: "UTC" | "local";
-  prettyLogStyles: {
-    yyyy?: TStyle;
-    mm?: TStyle;
-    dd?: TStyle;
-    hh?: TStyle;
-    MM?: TStyle;
-    ss?: TStyle;
-    ms?: TStyle;
-    dateIsoStr?: TStyle;
-    logLevelName?: TStyle;
-    fileName?: TStyle;
-    fileNameWithLine?: TStyle;
-    filePath?: TStyle;
-    fileLine?: TStyle;
-    filePathWithLine?: TStyle;
-    name?: TStyle;
-    nameWithDelimiterPrefix?: TStyle;
-    nameWithDelimiterSuffix?: TStyle;
-    errorName?: TStyle;
-    errorMessage?: TStyle;
-  };
+  prettyLogStyles: IPrettyLogStyles;
   prettyInspectOptions: InspectOptions;
   metaProperty: string;
   maskPlaceholder: string;
