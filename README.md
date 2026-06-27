@@ -685,9 +685,13 @@ For every log:
     toLogObj: (args: unknown[], clonesLogObj?: LogObj): unknown => {
       // convert the log attributes to a LogObj and return it
     },
-    addMeta: (logObj: any, logLevelId: number, logLevelName: string) => {
-      // add meta information to the LogObj and return it
-    }
+    addMeta: (logObj: any, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => {
+      // add meta information to the LogObj and return it.
+      // Set overwrite.includeDefaultMetaInAddMeta = true to receive the default
+      // runtime meta as `defaultMeta`, so you can extend it instead of replacing it.
+    },
+    // pass the default meta to addMeta (default: false)
+    includeDefaultMetaInAddMeta: true,
 
   },
 });

@@ -808,6 +808,7 @@ export class BaseLogger<LogObj> {
         mask: settings?.overwrite?.mask,
         toLogObj: settings?.overwrite?.toLogObj,
         addMeta: settings?.overwrite?.addMeta,
+        includeDefaultMetaInAddMeta: settings?.overwrite?.includeDefaultMetaInAddMeta ?? false,
         addPlaceholders: settings?.overwrite?.addPlaceholders,
         formatMeta: settings?.overwrite?.formatMeta,
         formatLogObj: settings?.overwrite?.formatLogObj,
@@ -844,7 +845,15 @@ export class BaseLogger<LogObj> {
       this.settings.overwrite?.toLogObj != null ? this.settings.overwrite?.toLogObj(maskedArgs, thisLogObj) : this._toLogObj(maskedArgs, thisLogObj);
     const logObjWithMeta: LogObj & ILogObjMeta =
       this.settings.overwrite?.addMeta != null
-        ? this.settings.overwrite?.addMeta(logObj, logLevelId, logLevelName)
+        ? this.settings.overwrite.addMeta(
+            logObj,
+            logLevelId,
+            logLevelName,
+            // Optionally hand the default meta to the custom handler so it can extend rather than replace it.
+            this.settings.overwrite.includeDefaultMetaInAddMeta
+              ? this.runtime.getMeta(logLevelId, logLevelName, this.stackDepthLevel, !this.captureStackForMeta, this.settings.name, this.settings.parentNames)
+              : undefined,
+          )
         : this._addMetaToLogObj(logObj, logLevelId, logLevelName);
     const logMeta = logObjWithMeta?.[this.settings.metaProperty] as IMeta | undefined;
 
