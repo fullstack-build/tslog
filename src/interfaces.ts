@@ -1,6 +1,17 @@
 import type { InspectOptions } from "./internal/InspectOptions.interface.js";
 export type { InspectOptions };
 
+/** The log level ids used by the default logging methods (silly … fatal). */
+export enum DefaultLogLevels {
+  SILLY = 0,
+  TRACE = 1,
+  DEBUG = 2,
+  INFO = 3,
+  WARN = 4,
+  ERROR = 5,
+  FATAL = 6,
+}
+
 export type TStyle =
   | null
   | string
