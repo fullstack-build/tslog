@@ -76,7 +76,9 @@ describe("Pretty: Log Types", () => {
     const args = getArgs(log);
 
     expect(args[0]).toBe(42n);
-    expect(getConsoleLogStripped()).toContain("{");
+    // A bigint renders with the trailing "n" (like Node's util.inspect), not as an empty object.
+    expect(getConsoleLogStripped()).toContain("42n");
+    expect(getConsoleLogStripped()).not.toContain("{");
   });
 
   test("null", (): void => {

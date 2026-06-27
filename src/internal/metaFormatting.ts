@@ -42,10 +42,13 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
     }
   }
 
-  const dateInSettingsTimeZone =
-    settings.prettyLogTimeZone === "UTC" ? meta.date : meta.date != null ? new Date(meta.date.getTime() - meta.date.getTimezoneOffset() * 60000) : undefined;
+  const isUtc = settings.prettyLogTimeZone === "UTC";
+  const dateInSettingsTimeZone = isUtc ? meta.date : meta.date != null ? new Date(meta.date.getTime() - meta.date.getTimezoneOffset() * 60000) : undefined;
 
-  placeholderValues.rawIsoStr = dateInSettingsTimeZone?.toISOString() ?? "";
+  // In local mode the shifted date is "wall clock as UTC"; toISOString() would wrongly suffix "Z".
+  // Use the real timezone offset (e.g. +02:00) so rawIsoStr is an accurate local ISO timestamp.
+  placeholderValues.rawIsoStr =
+    dateInSettingsTimeZone == null ? "" : isUtc ? dateInSettingsTimeZone.toISOString() : localIsoString(dateInSettingsTimeZone, meta.date);
   placeholderValues.dateIsoStr = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "") ?? "";
   placeholderValues.logLevelName = meta.logLevelName;
   placeholderValues.fileNameWithLine = meta.path?.fileNameWithLine ?? "";
@@ -71,4 +74,18 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
     template,
     placeholders: placeholderValues,
   };
+}
+
+/**
+ * Build an ISO 8601 string for a local timestamp with the real timezone offset suffix (e.g. 2023-01-19T13:05:37.263+02:00).
+ * `shifted` carries the local wall-clock digits as if they were UTC; `original` provides the actual offset.
+ */
+function localIsoString(shifted: Date, original: Date): string {
+  const base = shifted.toISOString().replace("Z", "");
+  const offsetMinutes = -original.getTimezoneOffset();
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMinutes);
+  const hh = String(Math.floor(abs / 60)).padStart(2, "0");
+  const mm = String(abs % 60).padStart(2, "0");
+  return `${base}${sign}${hh}:${mm}`;
 }

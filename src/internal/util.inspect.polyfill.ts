@@ -96,6 +96,10 @@ function isNull(arg: unknown) {
   return arg === null;
 }
 
+function isBigInt(arg: unknown) {
+  return typeof arg === "bigint";
+}
+
 function hasOwn(obj: unknown, prop: string) {
   // biome-ignore lint/suspicious/noPrototypeBuiltins: Object.hasOwn requires ES2022, project targets ES2020
   return Object.prototype.hasOwnProperty.call(obj, prop);
@@ -150,6 +154,11 @@ function formatArray(ctx: ICtx, value: string[], recurseTimes: number, visibleKe
 
 function formatError(value: Error): string {
   return `[${Error.prototype.toString.call(value)}]`;
+}
+
+function formatDate(value: Date): string {
+  // toISOString throws "Invalid time value" for invalid dates; mirror Node's "Invalid Date" instead.
+  return Number.isNaN(value.valueOf()) ? "Invalid Date" : Date.prototype.toISOString.call(value);
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: util.inspect polyfill compatibility
@@ -209,7 +218,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
         return ctx.stylize(RegExp.prototype.toString.call(value), "regexp");
       }
       if (isDate(value)) {
-        return ctx.stylize(Date.prototype.toISOString.call(value), "date");
+        return ctx.stylize(formatDate(value as Date), "date");
       }
       if (isError(value)) {
         return formatError(value as Error);
@@ -242,7 +251,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   // Make dates with properties first say the date
   if (isDate(value)) {
-    base = ` ${Date.prototype.toUTCString.call(value)}`;
+    base = ` ${Number.isNaN((value as Date).valueOf()) ? "Invalid Date" : Date.prototype.toUTCString.call(value)}`;
   }
 
   // Make error with message first say the error
@@ -370,6 +379,7 @@ function formatPrimitive(ctx: ICtx, value: unknown) {
     return ctx.stylize(simple, "string");
   }
   if (isNumber(value)) return ctx.stylize(`${value}`, "number");
+  if (isBigInt(value)) return ctx.stylize(`${value}n`, "number");
   if (isBoolean(value)) return ctx.stylize(`${value}`, "boolean");
   // For some reason typeof null is "object", so special case here.
   if (isNull(value)) return ctx.stylize("null", "null");

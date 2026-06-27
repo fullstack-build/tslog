@@ -166,6 +166,12 @@ export interface IMetaStatic {
   name?: string;
   parentNames?: string[];
   runtime: string;
+  /** Runtime version string (Node/Deno/Bun only). */
+  runtimeVersion?: string;
+  /** Host name of the machine (server-side runtimes only). */
+  hostname?: string;
+  /** Browser user agent (browser/worker runtimes only). */
+  browser?: string;
 }
 
 export interface IMeta extends IMetaStatic {

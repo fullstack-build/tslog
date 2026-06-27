@@ -24,8 +24,12 @@ export function isBrowserEnvironment(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
 }
 
+export function isWorkerEnvironment(): boolean {
+  return typeof (globalThis as { importScripts?: unknown }).importScripts === "function";
+}
+
 export function consoleSupportsCssStyling(): boolean {
-  if (!isBrowserEnvironment()) {
+  if (!isBrowserEnvironment() && !isWorkerEnvironment()) {
     return false;
   }
 
