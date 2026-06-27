@@ -1,0 +1,337 @@
+import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { Logger } from "../src/index.js";
+import type { IMeta, ISettings } from "../src/interfaces.js";
+
+type LoggerEnv = ReturnType<typeof createLoggerEnvironment>;
+
+describe("Browser CSS styling", () => {
+  const globalAny = globalThis as Record<string, unknown>;
+  let saved: Record<string, unknown>;
+
+  beforeEach(() => {
+    // navigator is a getter-only property in Node — never write it directly.
+    // Stub it with vi.stubGlobal and let vi.unstubAllGlobals restore it.
+    saved = {
+      window: globalAny.window,
+      document: globalAny.document,
+      location: globalAny.location,
+      Deno: globalAny.Deno,
+      Bun: globalAny.Bun,
+      importScripts: globalAny.importScripts,
+      process: globalAny.process,
+      CSS: globalAny.CSS,
+    };
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) {
+        delete globalAny[key];
+      } else {
+        globalAny[key] = value;
+      }
+    }
+  });
+
+  // Turn the current global scope into a CSS-capable browser (Chrome-like).
+  function makeCssBrowser(): void {
+    globalAny.window = {};
+    globalAny.document = {};
+    delete globalAny.Deno;
+    delete globalAny.Bun;
+    delete globalAny.importScripts;
+    globalAny.CSS = { supports: () => true };
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh) Chrome/120.0" });
+  }
+
+  describe("Browser stack parsing via createLoggerEnvironment", () => {
+    test("parses a browser frame and prefixes location.origin into fullFilePath", () => {
+      globalAny.window = {};
+      globalAny.document = {};
+      globalAny.location = { origin: "http://localhost" };
+      delete globalAny.Deno;
+      delete globalAny.Bun;
+      delete globalAny.importScripts;
+      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
+
+      const env = createLoggerEnvironment();
+      const error = { stack: "Error\nfn@http://localhost/app.js:10:5" } as Error;
+      const frames = env.getErrorTrace(error);
+
+      expect(frames.length).toBe(1);
+      expect(frames[0]?.filePath).toBe("/localhost/app.js");
+      expect(frames[0]?.fileName).toBe("app.js");
+      expect(frames[0]?.fileLine).toBe("10");
+      expect(frames[0]?.fileColumn).toBe("5");
+      expect(frames[0]?.fileNameWithLine).toBe("app.js:10");
+      expect(frames[0]?.filePathWithLine).toBe("/localhost/app.js:10");
+      // origin is prepended to the captured filePath
+      expect(frames[0]?.fullFilePath).toBe("http://localhost/localhost/app.js");
+      expect(frames[0]?.method).toBeUndefined();
+    });
+
+    test("fullFilePath equals filePath when there is no location.origin", () => {
+      globalAny.window = {};
+      globalAny.document = {};
+      delete globalAny.location;
+      delete globalAny.Deno;
+      delete globalAny.Bun;
+      delete globalAny.importScripts;
+      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
+
+      const env = createLoggerEnvironment();
+      const error = { stack: "Error\nfn@http://localhost/some/deep/app.js:42:7" } as Error;
+      const frames = env.getErrorTrace(error);
+
+      expect(frames.length).toBe(1);
+      expect(frames[0]?.filePath).toBe("/localhost/some/deep/app.js");
+      expect(frames[0]?.fullFilePath).toBe("/localhost/some/deep/app.js");
+      expect(frames[0]?.fileLine).toBe("42");
+    });
+
+    test("skips stack lines that do not match the browser path regex", () => {
+      globalAny.window = {};
+      globalAny.document = {};
+      delete globalAny.location;
+      delete globalAny.Deno;
+      delete globalAny.Bun;
+      delete globalAny.importScripts;
+      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
+
+      const env = createLoggerEnvironment();
+      // First line is the "Error" header, second line is garbage with no path,
+      // only the third line is a valid browser frame.
+      const error = {
+        stack: "Error\nthis is garbage with no path\nreal@http://localhost/valid.js:3:1",
+      } as Error;
+      const frames = env.getErrorTrace(error);
+
+      expect(frames.length).toBe(1);
+      expect(frames[0]?.filePath).toBe("/localhost/valid.js");
+      expect(frames[0]?.fileLine).toBe("3");
+    });
+
+    test("handles empty lines in the stack without producing empty frames", () => {
+      globalAny.window = {};
+      globalAny.document = {};
+      delete globalAny.location;
+      delete globalAny.Deno;
+      delete globalAny.Bun;
+      delete globalAny.importScripts;
+      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
+
+      const env = createLoggerEnvironment();
+      const error = { stack: "Error\n\n\nfn@http://localhost/only.js:1:1\n\n" } as Error;
+      const frames = env.getErrorTrace(error);
+
+      expect(frames.length).toBe(1);
+      expect(frames[0]?.filePath).toBe("/localhost/only.js");
+    });
+  });
+
+  // Build settings from a real pretty Logger and tweak template/styles per test.
+  function prettySettings(overrides: Partial<ISettings<unknown>> = {}): ISettings<unknown> {
+    const settings = new Logger({ type: "pretty" }).settings as ISettings<unknown>;
+    return { ...settings, ...overrides };
+  }
+
+  describe("CSS styling path in transportFormatted", () => {
+    test("emits %c markers and css style arguments for a styled placeholder", () => {
+      makeCssBrowser();
+      const env = createLoggerEnvironment();
+      const settings = prettySettings({
+        prettyLogTemplate: "{{logLevelName}}",
+        prettyLogStyles: { logLevelName: "blue" },
+      });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", ["hello"], [], meta, settings);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      const call = spy.mock.calls[0] as unknown[];
+      const text = call[0] as string;
+      const styleArgs = call.slice(1) as string[];
+
+      expect(text).toContain("%c");
+      expect(text).toContain("INFO");
+      // the args are appended after the meta markup
+      expect(text).toContain("hello");
+      // blue resolves to a color css value passed as a separate console arg
+      expect(styleArgs).toContain("color: #42a5f5");
+      spy.mockRestore();
+    });
+  });
+
+  describe("buildCssMetaOutput behaviors", () => {
+    test("placeholder with no matching style produces no css; falls back to sanitized meta markup", () => {
+      makeCssBrowser();
+      const env = createLoggerEnvironment();
+      const settings = prettySettings({
+        prettyLogTemplate: "{{logLevelName}}",
+        // empty styles -> no css for any placeholder
+        prettyLogStyles: {},
+      });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      // With no css produced, transportFormatted falls back to the passed-in (sanitized) meta markup.
+      env.transportFormatted("META-MARKUP", ["body"], [], meta, settings);
+
+      const call = spy.mock.calls[0] as unknown[];
+      const text = call[0] as string;
+      // no css -> console.log called with only the text argument (no extra style args)
+      expect(call.length).toBe(1);
+      expect(text).not.toContain("%c");
+      expect(text).toContain("META-MARKUP");
+      expect(text).toContain("body");
+      spy.mockRestore();
+    });
+
+    test("preserves trailing template text after the last placeholder", () => {
+      makeCssBrowser();
+      const env = createLoggerEnvironment();
+      const settings = prettySettings({
+        prettyLogTemplate: "{{logLevelName}} >> trailing-text",
+        prettyLogStyles: { logLevelName: "blue" },
+      });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", [], [], meta, settings);
+
+      const text = spy.mock.calls[0]?.[0] as string;
+      expect(text).toContain(">> trailing-text");
+      spy.mockRestore();
+    });
+
+    test("undefined meta produces no meta markup but still logs the args", () => {
+      makeCssBrowser();
+      const env = createLoggerEnvironment();
+      const settings = prettySettings();
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", ["just-args"], [], undefined, settings);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      const call = spy.mock.calls[0] as unknown[];
+      const text = call[0] as string;
+      // no meta -> no css styles, single argument
+      expect(call.length).toBe(1);
+      expect(text).not.toContain("%c");
+      expect(text).toContain("just-args");
+      spy.mockRestore();
+    });
+  });
+
+  describe("styleTokenToCss token resolution", () => {
+    // A sentinel meta markup. transportFormatted only falls back to this value
+    // when no css styles are produced (hasCssMeta === false); when css IS produced,
+    // the rendered cssMeta.text (containing the placeholder value) is used instead.
+    const FALLBACK_MARKUP = "FALLBACK";
+
+    // Capture the text and css style arguments for a given style + template + level.
+    function renderStyle(
+      style: unknown,
+      level: { id: number; name: string } = { id: 3, name: "INFO" },
+      template = "{{logLevelName}}",
+    ): { text: string; styleArgs: string[] } {
+      makeCssBrowser();
+      const env = createLoggerEnvironment();
+      const settings = prettySettings({
+        prettyLogTemplate: template,
+        prettyLogStyles: { logLevelName: style } as ISettings<unknown>["prettyLogStyles"],
+      });
+      const meta = env.getMeta(level.id, level.name, Number.NaN, false);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted(FALLBACK_MARKUP, [], [], meta, settings);
+      const call = spy.mock.calls[0] as unknown[];
+      spy.mockRestore();
+
+      return {
+        text: call[0] as string,
+        styleArgs: call.slice(1).filter((arg) => typeof arg === "string" && arg.length > 0) as string[],
+      };
+    }
+
+    test("color token red maps to its hex color", () => {
+      expect(renderStyle("red").styleArgs).toContain("color: #ef5350");
+    });
+
+    test("bright background token maps to background-color", () => {
+      expect(renderStyle("bgRedBright").styleArgs).toContain("background-color: #ff7043");
+    });
+
+    test("bold maps to font-weight", () => {
+      expect(renderStyle("bold").styleArgs).toContain("font-weight: bold");
+    });
+
+    test("dim maps to opacity", () => {
+      expect(renderStyle("dim").styleArgs).toContain("opacity: 0.75");
+    });
+
+    test("italic maps to font-style", () => {
+      expect(renderStyle("italic").styleArgs).toContain("font-style: italic");
+    });
+
+    test("underline maps to text-decoration underline", () => {
+      expect(renderStyle("underline").styleArgs).toContain("text-decoration: underline");
+    });
+
+    test("overline maps to text-decoration overline", () => {
+      expect(renderStyle("overline").styleArgs).toContain("text-decoration: overline");
+    });
+
+    test("inverse maps to invert filter", () => {
+      expect(renderStyle("inverse").styleArgs).toContain("filter: invert(1)");
+    });
+
+    test("hidden maps to visibility hidden", () => {
+      expect(renderStyle("hidden").styleArgs).toContain("visibility: hidden");
+    });
+
+    test("strikethrough maps to text-decoration line-through", () => {
+      expect(renderStyle("strikethrough").styleArgs).toContain("text-decoration: line-through");
+    });
+
+    test("object style with no matching value and no '*' produces no css and falls back to plain markup", () => {
+      // value "INFO" matches neither "NOPE" nor a "*" fallback -> collectStyleTokens returns [],
+      // so no css is produced and transportFormatted falls back to the plain meta markup.
+      const { text, styleArgs } = renderStyle({ NOPE: "blue" });
+      expect(styleArgs.length).toBe(0);
+      expect(text).not.toContain("%c");
+      expect(text).toBe(FALLBACK_MARKUP);
+    });
+
+    describe("object style form (level map with '*' fallback)", () => {
+      test("matching level uses its specific css", () => {
+        const { text, styleArgs } = renderStyle({ INFO: "blue", "*": ["bold", "white"] });
+        // the specific INFO entry wins -> only the blue color css, '*' fallback not applied
+        expect(styleArgs).toEqual(["color: #42a5f5"]);
+        expect(text).toBe("%cINFO%c");
+      });
+
+      test("non-matching level falls back to '*' (tokens joined into one css string)", () => {
+        const { text, styleArgs } = renderStyle({ INFO: "blue", "*": ["bold", "white"] }, { id: 4, name: "WARN" });
+        // multiple tokens for one placeholder are joined with "; " into a single css argument
+        expect(styleArgs).toEqual(["font-weight: bold; color: #fafafa"]);
+        expect(text).toBe("%cWARN%c");
+      });
+
+      test("null entry for the matching level yields no css and falls back to plain markup", () => {
+        const { text, styleArgs } = renderStyle({ SILLY: null }, { id: 0, name: "SILLY" });
+        expect(styleArgs.length).toBe(0);
+        expect(text).not.toContain("%c");
+        expect(text).toBe(FALLBACK_MARKUP);
+      });
+    });
+
+    test("array and nested-array tokens are all collected into one joined css string", () => {
+      const { text, styleArgs } = renderStyle(["bold", ["red"]]);
+      expect(styleArgs).toEqual(["font-weight: bold; color: #ef5350"]);
+      expect(text).toBe("%cINFO%c");
+    });
+  });
+});

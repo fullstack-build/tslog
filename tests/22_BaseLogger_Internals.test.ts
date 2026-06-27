@@ -103,7 +103,7 @@ describe("BaseLogger internals", () => {
     expect(first).toEqual(["password"]);
   });
 
-  test("get mask keys returns original array in case-sensitive mode", () => {
+  test("get mask keys normalizes and caches the result in case-sensitive mode", () => {
     const logger = new Logger({ type: "json" });
     const internals = logger as unknown as {
       _getMaskKeys: () => (string | number)[];
@@ -112,7 +112,11 @@ describe("BaseLogger internals", () => {
     logger.settings.maskValuesOfKeys = ["token"];
     const result = internals._getMaskKeys();
 
-    expect(result).toBe(logger.settings.maskValuesOfKeys);
+    // String keys keep their value but the result is a normalized copy (numeric keys become strings),
+    // never a live reference to settings.maskValuesOfKeys.
+    expect(result).toEqual(["token"]);
+    // A subsequent call with the same source returns the cached normalized array.
+    expect(internals._getMaskKeys()).toBe(result);
   });
 
   test("numeric mask keys are normalized when lower-casing", () => {

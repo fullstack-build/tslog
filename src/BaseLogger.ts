@@ -57,6 +57,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
       const autoIndex = findFirstExternalFrameIndex(frames, callerIgnorePatterns);
       const useManualIndex = Number.isFinite(stackDepthLevel) && stackDepthLevel >= 0;
       const resolvedIndex = useManualIndex ? clampIndex(stackDepthLevel, frames.length) : clampIndex(autoIndex, frames.length);
+      /* v8 ignore next -- defensive: clampIndex always yields a valid index for a non-empty frames array */
       return frames[resolvedIndex] ?? {};
     },
     getErrorTrace(error: Error): IStackFrame[] {
@@ -171,11 +172,11 @@ export function createLoggerEnvironment(): LoggerEnvironment {
     let filePathCandidate = withoutQuery;
 
     const segments = withoutQuery.split(":");
-    if (segments.length >= 3 && /^\d+$/.test(segments[segments.length - 1] ?? "")) {
+    if (segments.length >= 3 && /^\d+$/.test(segments[segments.length - 1])) {
       fileColumn = segments.pop();
       fileLine = segments.pop();
       filePathCandidate = segments.join(":");
-    } else if (segments.length >= 2 && /^\d+$/.test(segments[segments.length - 1] ?? "")) {
+    } else if (segments.length >= 2 && /^\d+$/.test(segments[segments.length - 1])) {
       fileLine = segments.pop();
       filePathCandidate = segments.join(":");
     }
@@ -212,6 +213,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
 
   function parseBrowserStackLine(line?: string): IStackFrame | undefined {
     const href = (globalThis as { location?: { origin?: string } }).location?.origin;
+    /* v8 ignore next 3 -- defensive: buildStackTrace only ever feeds non-null lines into the parser */
     if (line == null) {
       return undefined;
     }
@@ -222,6 +224,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
     }
 
     const filePath = match[1]?.replace(/\?.*$/, "");
+    /* v8 ignore next 3 -- defensive: the regex requires capture group 1 to match, so filePath is never null here */
     if (filePath == null) {
       return undefined;
     }
@@ -270,6 +273,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
   }
 
   function buildCssMetaOutput<LogObj>(settings: ISettings<LogObj>, metaValue: IMeta | undefined): { text: string; styles: string[] } {
+    /* v8 ignore next 3 -- defensive: the sole caller only invokes this when logMeta is non-null */
     if (metaValue == null) {
       return { text: "", styles: [] };
     }
@@ -378,6 +382,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
         return "visibility: hidden";
       case "strikethrough":
         return "text-decoration: line-through";
+      /* v8 ignore next 2 -- defensive: an unknown style token throws earlier during ANSI rendering, so it never reaches the CSS path */
       default:
         return undefined;
     }
@@ -436,6 +441,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
 
     try {
       return JSON.stringify(value);
+      /* v8 ignore next 3 -- defensive: only reached for values JSON.stringify rejects (e.g. BigInt) while the primary inspect path has already failed */
     } catch {
       return String(value);
     }
@@ -867,7 +873,17 @@ export class BaseLogger<LogObj> {
 
     if (this.settings.attachedTransports != null && this.settings.attachedTransports.length > 0) {
       this.settings.attachedTransports.forEach((transportLogger) => {
-        transportLogger(logObjWithMeta);
+        try {
+          transportLogger(logObjWithMeta);
+        } catch (transportError) {
+          // A failing transport must never take down logging or prevent other transports from running.
+          try {
+            console.error("tslog: attached transport threw an error", transportError);
+            /* v8 ignore next 3 -- defensive: guards against a console.error implementation that itself throws */
+          } catch {
+            // ignore secondary failures while reporting the transport error
+          }
+        }
       });
     }
 
@@ -940,13 +956,19 @@ export class BaseLogger<LogObj> {
       return normalized;
     }
 
+    if (this.maskKeysCache?.source === maskKeys && this.maskKeysCache.caseInsensitive === false && this.maskKeysCache.signature === signature) {
+      return this.maskKeysCache.normalized;
+    }
+
+    // Property names returned by Object.getOwnPropertyNames are always strings, so normalize numeric mask keys to strings to make them match.
+    const normalized = maskKeys.map((key) => (typeof key === "string" ? key : String(key)));
     this.maskKeysCache = {
       source: maskKeys,
       caseInsensitive: false,
-      normalized: maskKeys,
+      normalized,
       signature,
     };
-    return maskKeys;
+    return normalized;
   }
 
   private _resolveLogArguments(args: unknown[]): unknown[] {
@@ -1003,8 +1025,11 @@ export class BaseLogger<LogObj> {
     } else {
       if (typeof source === "string") {
         let modifiedSource: string = source;
+        // Escape "$" so that a maskPlaceholder containing "$1", "$&", etc. is inserted literally
+        // instead of being interpreted as a String.replace substitution pattern (which could leak parts of the secret).
+        const placeholder = (this.settings?.maskPlaceholder || "").replace(/\$/g, "$$$$");
         for (const regEx of this.settings?.maskValuesRegEx || []) {
-          modifiedSource = modifiedSource.replace(regEx, this.settings?.maskPlaceholder || "");
+          modifiedSource = modifiedSource.replace(regEx, placeholder);
         }
         return modifiedSource as unknown as T;
       }

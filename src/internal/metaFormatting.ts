@@ -55,6 +55,7 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   let parentNamesString = settings.parentNames?.join(settings.prettyErrorParentNamesSeparator);
   parentNamesString = parentNamesString != null && meta.name != null ? parentNamesString + settings.prettyErrorParentNamesSeparator : undefined;
 
+  /* v8 ignore next -- defensive: parentNamesString is only set when meta.name is also set (see line above), so the meta.name ?? "" fallback is unreachable */
   const combinedName = meta.name != null || parentNamesString != null ? `${parentNamesString ?? ""}${meta.name ?? ""}` : "";
 
   placeholderValues.name = combinedName;
