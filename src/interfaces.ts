@@ -12,6 +12,12 @@ export enum DefaultLogLevels {
   FATAL = 6,
 }
 
+/** The names of the default log levels, accepted by `minLevel` as a self-documenting alternative to the numeric id. */
+export type TLogLevelName = keyof typeof DefaultLogLevels;
+
+/** A default log level expressed as its numeric id, the {@link DefaultLogLevels} enum, or its name (e.g. `"WARN"`). */
+export type TLogLevel = number | DefaultLogLevels | TLogLevelName;
+
 export type TStyle =
   | null
   | string
@@ -48,11 +54,31 @@ export interface IPrettyLogStyles {
 }
 
 export interface ISettingsParam<LogObj> {
+  /**
+   * Output format.
+   * - `"pretty"` (default): human-readable, colorized — best for local development.
+   * - `"json"`: one structured JSON object per line — best for production, observability backends, and LLM ingestion.
+   * - `"hidden"`: suppress console output (still returns the log object and runs attached transports).
+   * @example { type: "json" }
+   */
   type?: "json" | "pretty" | "hidden";
+  /** Optional name for this logger, shown in pretty output and inherited by sub-loggers (e.g. per-module or per-agent). */
   name?: string;
   parentNames?: string[];
-  minLevel?: number;
+  /**
+   * Minimum level to emit; lower levels are skipped. Accepts a number, the {@link DefaultLogLevels} enum, or a level name.
+   * Levels: `SILLY`(0) `TRACE`(1) `DEBUG`(2) `INFO`(3) `WARN`(4) `ERROR`(5) `FATAL`(6).
+   * @example { minLevel: "WARN" }
+   * @example { minLevel: DefaultLogLevels.INFO }
+   */
+  minLevel?: TLogLevel;
   argumentsArrayName?: string;
+  /**
+   * Additional RegExp patterns matched against stack frame file paths that should be treated as
+   * "internal" when auto-detecting the calling code position. Use this so a wrapper/custom logger
+   * reports the position of *its* caller instead of the wrapper file itself.
+   */
+  internalFramePatterns?: RegExp[];
   hideLogPositionForProduction?: boolean;
   prettyLogTemplate?: string;
   prettyErrorTemplate?: string;
@@ -64,20 +90,44 @@ export interface ISettingsParam<LogObj> {
   prettyLogStyles?: IPrettyLogStyles;
   prettyLogLevelMethod?: TPrettyLogLevelMethod;
   prettyInspectOptions?: InspectOptions;
+  /** Property name under which runtime metadata (date, level, code position, runtime) is attached. Default: `"_meta"`. */
   metaProperty?: string;
+  /** String used to replace masked values. Default: `"[***]"`. */
   maskPlaceholder?: string;
+  /**
+   * Redact the values of these object keys anywhere in the logged data (case-sensitive by default).
+   * Use this to keep secrets and sensitive data — passwords, API keys, tokens, and (for AI/agentic apps) prompts and PII — out of your logs.
+   * @example { maskValuesOfKeys: ["password", "apiKey", "authorization", "token"] }
+   * @example { maskValuesOfKeys: ["prompt", "completion", "email"] } // agentic apps
+   */
   maskValuesOfKeys?: string[];
+  /** Match {@link maskValuesOfKeys} case-insensitively (so `"password"` also masks `"Password"`/`"PASSWORD"`). Default: `false`. */
   maskValuesOfKeysCaseInsensitive?: boolean;
-  /** Mask all occurrences (case-sensitive) from values in logs (e.g. all secrets from ENVs etc.). Will be replaced with [***] */
+  /**
+   * Replace every substring matching these patterns in string values (e.g. secrets pulled from env vars, emails, IPs).
+   * Applied with the {@link maskPlaceholder}.
+   * @example { maskValuesRegEx: [/\b[A-Za-z0-9]{32,}\b/g] } // long token-like strings
+   */
   maskValuesRegEx?: RegExp[];
   /**  Prefix every log message of this logger. */
   prefix?: unknown[];
   /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
   attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
+  /**
+   * Hooks to override individual steps of the log pipeline (mask → toLogObj → addMeta → format → transport).
+   * The most common use is `addMeta`, to attach correlation/trace ids and cost fields to every log.
+   */
   overwrite?: {
     addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => void;
     mask?: (args: unknown[]) => unknown[];
     toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
+    /**
+     * Attach custom metadata to every log object. Set {@link includeDefaultMetaInAddMeta} to receive the default
+     * runtime meta as `defaultMeta` and extend it instead of replacing it.
+     * @example
+     * // Inject a request/trace id and token cost into every log (great for agentic apps):
+     * addMeta: (logObj, _id, _name, defaultMeta) => ({ ...logObj, _meta: { ...defaultMeta, traceId: getTraceId() } })
+     */
     addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => LogObj & ILogObjMeta;
     /** When true, the default runtime meta is passed as the 4th argument to a custom `addMeta` handler so it can extend rather than replace it. */
     includeDefaultMetaInAddMeta?: boolean;
@@ -94,6 +144,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   parentNames?: string[];
   minLevel: number;
   argumentsArrayName?: string;
+  internalFramePatterns?: RegExp[];
   hideLogPositionForProduction: boolean;
   prettyLogTemplate: string;
   prettyErrorTemplate: string;

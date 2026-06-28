@@ -11,6 +11,32 @@ declare global {
   }
 }
 
+/**
+ * Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies,
+ * pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting.
+ *
+ * @example
+ * // Pretty, colorized output — best for local development:
+ * import { Logger } from "tslog";
+ * const log = new Logger();
+ * log.info("server started", { port: 3000 });
+ *
+ * @example
+ * // Structured JSON for production / observability / LLM ingestion:
+ * const log = new Logger({ type: "json", minLevel: "INFO" });
+ * log.info({ event: "tool_call", tool: "search", durationMs: 142, tokens: 318 });
+ *
+ * @example
+ * // A child logger per request/agent — settings and fields are inherited automatically:
+ * const requestLog = log.getSubLogger({ name: "agent:planner" });
+ * requestLog.debug("planning step", { step: 2 });
+ *
+ * @example
+ * // Keep secrets and prompts out of your logs:
+ * const log = new Logger({ type: "json", maskValuesOfKeys: ["password", "apiKey", "prompt"] });
+ *
+ * @typeParam LogObj - Shape of your structured log object (e.g. `{ traceId?: string }`); defaults are fine for most apps.
+ */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
     const isBrowser = typeof window !== "undefined" && typeof document !== "undefined";
@@ -99,3 +125,13 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     return super.getSubLogger(settings, logObj) as Logger<LogObj>;
   }
 }
+
+/**
+ * A ready-to-use default logger instance with pretty output — import and log without any setup.
+ * For structured logs, masking, or custom settings, create your own `new Logger({ ... })` instead.
+ *
+ * @example
+ * import { log } from "tslog";
+ * log.info("hello");
+ */
+export const log: Logger<ILogObj> = new Logger<ILogObj>();

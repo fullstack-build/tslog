@@ -1,5 +1,6 @@
 import { formatTemplate } from "./formatTemplate.js";
-import type { IErrorObject, ILogObj, ILogObjMeta, IMeta, IMetaStatic, ISettings, ISettingsParam, IStackFrame } from "./interfaces.js";
+import type { IErrorObject, ILogObj, ILogObjMeta, IMeta, IMetaStatic, ISettings, ISettingsParam, IStackFrame, TLogLevel } from "./interfaces.js";
+import { DefaultLogLevels } from "./interfaces.js";
 import { consoleSupportsCssStyling, isBrowserEnvironment, safeGetCwd } from "./internal/environment.js";
 import { collectErrorCauses, toError } from "./internal/errorUtils.js";
 import type { InspectOptions } from "./internal/InspectOptions.interface.js";
@@ -38,6 +39,7 @@ export function createLoggerEnvironment(): LoggerEnvironment {
       hideLogPositionForPerformance: boolean,
       name?: string,
       parentNames?: string[],
+      extraIgnorePatterns?: RegExp[],
     ): IMeta {
       return Object.assign({}, meta, {
         name,
@@ -45,16 +47,20 @@ export function createLoggerEnvironment(): LoggerEnvironment {
         date: new Date(),
         logLevelId,
         logLevelName,
-        path: !hideLogPositionForPerformance ? environment.getCallerStackFrame(stackDepthLevel) : undefined,
+        path: !hideLogPositionForPerformance ? environment.getCallerStackFrame(stackDepthLevel, new Error(), extraIgnorePatterns) : undefined,
       }) as RuntimeMeta;
     },
-    getCallerStackFrame(stackDepthLevel: number, error: Error = new Error()): IStackFrame {
+    getCallerStackFrame(stackDepthLevel: number, error: Error = new Error(), extraIgnorePatterns?: RegExp[]): IStackFrame {
       const frames = buildStackTrace(error, (line) => parseStackLine(line));
       if (frames.length === 0) {
         return {};
       }
 
-      const autoIndex = findFirstExternalFrameIndex(frames, callerIgnorePatterns);
+      // Allow callers (e.g. wrapper/custom loggers) to register additional frame patterns to skip,
+      // so auto-detection lands on their caller rather than the wrapper itself.
+      const ignorePatterns =
+        extraIgnorePatterns != null && extraIgnorePatterns.length > 0 ? [...callerIgnorePatterns, ...extraIgnorePatterns] : callerIgnorePatterns;
+      const autoIndex = findFirstExternalFrameIndex(frames, ignorePatterns);
       const useManualIndex = Number.isFinite(stackDepthLevel) && stackDepthLevel >= 0;
       const resolvedIndex = useManualIndex ? clampIndex(stackDepthLevel, frames.length) : clampIndex(autoIndex, frames.length);
       /* v8 ignore next -- defensive: clampIndex always yields a valid index for a non-empty frames array */
@@ -699,8 +705,9 @@ interface LoggerEnvironment {
     hideLogPositionForPerformance: boolean,
     name?: string,
     parentNames?: string[],
+    extraIgnorePatterns?: RegExp[],
   ) => IMeta;
-  getCallerStackFrame: (stackDepthLevel: number, error?: Error) => IStackFrame;
+  getCallerStackFrame: (stackDepthLevel: number, error?: Error, extraIgnorePatterns?: RegExp[]) => IStackFrame;
   getErrorTrace: (error: Error) => IStackFrame[];
   isError: (value: unknown) => value is Error;
   isBuffer: (value: unknown) => boolean;
@@ -736,6 +743,98 @@ export const loggerEnvironment = runtime;
 
 export * from "./interfaces.js";
 
+/**
+ * Resolve a {@link TLogLevel} (number, enum, or level name like "WARN") to its numeric id.
+ * Unknown names fall back to `undefined` so the caller can apply its own default.
+ */
+function resolveLogLevelId(level: TLogLevel | undefined): number | undefined {
+  if (level == null) {
+    return undefined;
+  }
+  if (typeof level === "number") {
+    return level;
+  }
+  const mapped = (DefaultLogLevels as unknown as Record<string, number>)[level];
+  return typeof mapped === "number" ? mapped : undefined;
+}
+
+/** Whether to emit developer diagnostics. Off in production and when explicitly disabled via TSLOG_DISABLE_WARNINGS. */
+function devWarningsEnabled(): boolean {
+  const env = (globalThis as { process?: { env?: Record<string, string | undefined> } })?.process?.env;
+  if (env?.TSLOG_DISABLE_WARNINGS != null) {
+    return false;
+  }
+  return env?.NODE_ENV !== "production";
+}
+
+// Callers gate on devWarningsEnabled() before building a message, so this only emits.
+function emitConfigWarning(message: string): void {
+  try {
+    console.warn(`tslog: ${message}`);
+    /* v8 ignore next 3 -- defensive: guards against a console.warn implementation that itself throws */
+  } catch {
+    // never let a diagnostic crash logging
+  }
+}
+
+const KNOWN_PRETTY_PLACEHOLDERS = new Set([
+  "yyyy",
+  "mm",
+  "dd",
+  "hh",
+  "MM",
+  "ss",
+  "ms",
+  "dateIsoStr",
+  "rawIsoStr",
+  "logLevelName",
+  "name",
+  "nameWithDelimiterPrefix",
+  "nameWithDelimiterSuffix",
+  "fullFilePath",
+  "filePathWithLine",
+  "fileNameWithLine",
+  "fileName",
+  "filePath",
+  "fileLine",
+  "fileColumn",
+]);
+
+/**
+ * Validate user-provided settings and warn (once, in development only) about likely mistakes.
+ * This is a best-effort developer aid; it never throws and never changes behavior.
+ */
+function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> | undefined): void {
+  if (settings == null || !devWarningsEnabled()) {
+    return;
+  }
+
+  // Out-of-range / unknown minLevel.
+  if (settings.minLevel != null) {
+    const resolved = resolveLogLevelId(settings.minLevel);
+    if (resolved == null) {
+      emitConfigWarning(`unknown minLevel ${JSON.stringify(settings.minLevel)}; expected a number 0-6 or a level name like "WARN".`);
+    } else if (typeof settings.minLevel === "number" && (resolved < 0 || resolved > 6)) {
+      emitConfigWarning(`minLevel ${resolved} is outside the default range 0-6; no default log method will be filtered as you might expect.`);
+    }
+  }
+
+  // Unknown template placeholders (typos like {{loglevelname}}).
+  if (typeof settings.prettyLogTemplate === "string") {
+    const placeholderRegex = /{{\s*(.+?)\s*}}/g;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
+    while ((match = placeholderRegex.exec(settings.prettyLogTemplate)) != null) {
+      const key = match[1];
+      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key)) {
+        emitConfigWarning(
+          `prettyLogTemplate references unknown placeholder "{{${key}}}"; check the spelling (e.g. "{{logLevelName}}") or add it via overwrite.addPlaceholders.`,
+        );
+      }
+    }
+  }
+}
+
 export class BaseLogger<LogObj> {
   public readonly runtime: LoggerEnvironment = runtime;
   public settings: ISettings<LogObj>;
@@ -755,12 +854,14 @@ export class BaseLogger<LogObj> {
     private logObj?: LogObj,
     private stackDepthLevel: number = Number.NaN,
   ) {
+    validateSettingsParam(settings);
     this.settings = {
       type: settings?.type ?? "pretty",
       name: settings?.name,
       parentNames: settings?.parentNames,
-      minLevel: settings?.minLevel ?? 0,
+      minLevel: resolveLogLevelId(settings?.minLevel) ?? 0,
       argumentsArrayName: settings?.argumentsArrayName,
+      internalFramePatterns: settings?.internalFramePatterns,
       hideLogPositionForProduction: settings?.hideLogPositionForProduction ?? false,
       prettyLogTemplate:
         settings?.prettyLogTemplate ??
@@ -851,7 +952,15 @@ export class BaseLogger<LogObj> {
             logLevelName,
             // Optionally hand the default meta to the custom handler so it can extend rather than replace it.
             this.settings.overwrite.includeDefaultMetaInAddMeta
-              ? this.runtime.getMeta(logLevelId, logLevelName, this.stackDepthLevel, !this.captureStackForMeta, this.settings.name, this.settings.parentNames)
+              ? this.runtime.getMeta(
+                  logLevelId,
+                  logLevelName,
+                  this.stackDepthLevel,
+                  !this.captureStackForMeta,
+                  this.settings.name,
+                  this.settings.parentNames,
+                  this.settings.internalFramePatterns,
+                )
               : undefined,
           )
         : this._addMetaToLogObj(logObj, logLevelId, logLevelName);
@@ -933,6 +1042,8 @@ export class BaseLogger<LogObj> {
     const subLoggerSettings: ISettings<LogObj> = {
       ...this.settings,
       ...settings,
+      // resolve a level-name minLevel (e.g. "WARN") back to its numeric id for the resolved settings
+      minLevel: resolveLogLevelId(settings?.minLevel) ?? this.settings.minLevel,
       // collect parent names in Array
       parentNames:
         this.settings?.parentNames != null && this.settings?.name != null
@@ -1172,6 +1283,7 @@ export class BaseLogger<LogObj> {
         !this.captureStackForMeta,
         this.settings.name,
         this.settings.parentNames,
+        this.settings.internalFramePatterns,
       ),
     };
   }

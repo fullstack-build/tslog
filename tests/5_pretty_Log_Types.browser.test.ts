@@ -125,7 +125,9 @@ test.describe("Pretty: Log Types (browser)", () => {
       logger.info(42n);
     `,
     );
-    expect(combined).toContain("{");
+    // A bigint renders with the trailing "n" (like Node's util.inspect), not as an empty object.
+    expect(combined).toContain("42n");
+    expect(combined).not.toContain("{");
   });
 
   test("null", async ({ page }) => {

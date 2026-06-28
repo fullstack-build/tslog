@@ -5,10 +5,30 @@ import { DefaultLogLevels } from "./interfaces.js";
 export * from "./BaseLogger.js";
 export * from "./interfaces.js";
 
+/**
+ * Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies,
+ * pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting.
+ *
+ * @example
+ * // Pretty, colorized output — best for local development:
+ * import { Logger } from "tslog";
+ * const log = new Logger();
+ * log.info("ready");
+ *
+ * @example
+ * // Structured JSON for production / observability / LLM ingestion:
+ * const log = new Logger({ type: "json", minLevel: "INFO" });
+ * log.info({ event: "tool_call", tool: "search", durationMs: 142, tokens: 318 });
+ *
+ * @example
+ * // A child logger per request/agent — settings and fields are inherited automatically:
+ * const requestLog = log.getSubLogger({ name: "agent:planner" });
+ *
+ * @typeParam LogObj - Shape of your structured log object; defaults are fine for most apps.
+ */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
     const isBrowser = ![typeof window, typeof document].includes("undefined");
-    const isSafari = isBrowser ? /^((?!chrome|android).)*safari/i.test(navigator.userAgent) : false;
 
     const normalizedSettings = settings ? { ...settings } : {};
 
@@ -16,7 +36,10 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
       normalizedSettings.stylePrettyLogs = true;
     }
 
-    super(normalizedSettings, logObj, isSafari ? 4 : 5);
+    // Auto-detect the caller frame the same way as the Node entry point. The previous hardcoded
+    // Safari/other frame counts (4/5) are brittle across engines (Safari, Bun, Deno collapse or omit
+    // frames differently); pattern-based detection finds the first non-tslog frame regardless of runtime.
+    super(normalizedSettings, logObj, Number.NaN);
   }
 
   /**
@@ -95,3 +118,13 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     return super.getSubLogger(settings, logObj) as Logger<LogObj>;
   }
 }
+
+/**
+ * A ready-to-use default logger instance with pretty output — import and log without any setup.
+ * For structured logs, masking, or custom settings, create your own `new Logger({ ... })` instead.
+ *
+ * @example
+ * import { log } from "tslog";
+ * log.info("hello");
+ */
+export const log: Logger<ILogObj> = new Logger<ILogObj>();
