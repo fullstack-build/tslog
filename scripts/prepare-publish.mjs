@@ -77,14 +77,16 @@ const main = async () => {
   const licensePath = path.join(rootDir, "LICENSE");
   await copyFile(licensePath, path.join(distDir, "LICENSE"));
 
-  const readmePath = path.join(rootDir, "README.md");
-  try {
-    await copyFile(readmePath, path.join(distDir, "README.md"));
-  } catch (error) {
-    if (error && error.code === "ENOENT") {
-      console.warn("README.md not found; skipping copy to dist.");
-    } else {
-      throw error;
+  // Copy docs that help humans and AI tools discover the API (README plus machine-readable surface).
+  for (const file of ["README.md", "llms.txt", "RECIPES.md"]) {
+    try {
+      await copyFile(path.join(rootDir, file), path.join(distDir, file));
+    } catch (error) {
+      if (error && error.code === "ENOENT") {
+        console.warn(`${file} not found; skipping copy to dist.`);
+      } else {
+        throw error;
+      }
     }
   }
 };

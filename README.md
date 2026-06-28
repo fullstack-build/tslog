@@ -35,10 +35,21 @@
 ## Example
 
 ```typescript
-import { Logger, ILogObj } from "tslog";
+import { Logger } from "tslog";
 
-const log: Logger<ILogObj> = new Logger();
-log.silly("I am a silly log.");
+// Pretty, colorized output for local development:
+const log = new Logger();
+log.info("server started", { port: 3000 });
+
+// Structured JSON for production / observability / LLM ingestion:
+const jsonLog = new Logger({ type: "json", minLevel: "INFO" });
+
+// A child logger per request or agent — name, settings and fields are inherited:
+const requestLog = jsonLog.getSubLogger({ name: "agent:planner" });
+requestLog.info("tool call complete", { tool: "search", durationMs: 142, tokens: 318 });
+
+// Keep secrets and prompts out of your logs:
+const safeLog = new Logger({ type: "json", maskValuesOfKeys: ["password", "apiKey", "prompt"] });
 ```
 
 ## [Become a Sponsor](https://github.com/sponsors/fullstack-build)

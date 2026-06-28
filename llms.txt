@@ -1,0 +1,57 @@
+# tslog
+
+> Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting. A strong fit for AI/agentic apps that need structured, redacted, correlated logs.
+
+## Install
+`npm install tslog`
+
+## Import
+```ts
+import { Logger } from "tslog";       // create your own
+import { log } from "tslog";          // ready-to-use default (pretty)
+import { Logger, DefaultLogLevels, ILogObj } from "tslog";
+```
+
+## Core API
+- `new Logger(settings?, logObj?)` — create a logger. `logObj` is a default object merged into every log; function-valued fields are evaluated per log (great for `requestId`).
+- `log.silly|trace|debug|info|warn|error|fatal(...args)` — log at a level. Returns the structured log object (with `_meta`).
+- `log.getSubLogger(settings?, logObj?)` — child logger; inherits settings, names, prefixes, and transports.
+- `log.attachTransport((logObj) => void)` — send every log object somewhere (file, HTTP, observability backend). Transports are isolated: a throwing transport never breaks logging.
+
+## Key settings (ISettingsParam)
+- `type: "pretty" | "json" | "hidden"` — `"json"` for production/observability/LLM ingestion; `"pretty"` (default) for local dev; `"hidden"` to suppress console but still run transports.
+- `minLevel: number | DefaultLogLevels | "SILLY".."FATAL"` — accepts a level name (e.g. `"WARN"`) or number (0..6).
+- `name: string` — logger name, shown in pretty output and inherited by sub-loggers (use per-module or per-agent).
+- `maskValuesOfKeys: string[]` — redact the values of these keys anywhere in the data. Use for secrets and, in AI apps, prompts/PII: `["password","apiKey","authorization","token","prompt"]`.
+- `maskValuesRegEx: RegExp[]` — redact substrings in string values (env secrets, emails, IPs).
+- `prettyLogLevelMethod` — map levels to console methods (e.g. `{ WARN: console.warn, ERROR: console.error, "*": console.log }`).
+- `overwrite.addMeta(logObj, id, name, defaultMeta?)` — attach correlation/trace ids or cost fields to every log (set `overwrite.includeDefaultMetaInAddMeta: true` to extend the default meta).
+- `hideLogPositionForProduction: true` — skip stack capture for max throughput in production.
+
+## Common correct patterns
+```ts
+// Structured JSON, filtered to INFO and above:
+const log = new Logger({ type: "json", minLevel: "INFO" });
+log.info({ event: "request", method: "GET", path: "/users", status: 200, ms: 12 });
+
+// Per-request child logger with an inherited request id:
+const reqLog = log.getSubLogger({ name: "req" }, { requestId: () => getRequestId() });
+
+// Redact secrets and prompts:
+const log = new Logger({ type: "json", maskValuesOfKeys: ["password", "apiKey", "prompt"] });
+
+// Ship logs to a backend without blocking:
+log.attachTransport((o) => sendToObservability(o));
+```
+
+## Notes for code generation
+- Prefer `type: "json"` for anything machine-read (observability, LLM ingestion).
+- Prefer `minLevel: "INFO"` (a name) over a bare number for readability.
+- Use `getSubLogger` (not new top-level loggers) for per-request/per-agent context.
+- Always set `maskValuesOfKeys` when logging objects that may contain secrets or prompts.
+- tslog has no runtime dependencies and works in every JS runtime — no environment-specific setup needed.
+
+## Links
+- Docs: https://tslog.js.org
+- Recipes: ./RECIPES.md
+- Repo: https://github.com/fullstack-build/tslog
