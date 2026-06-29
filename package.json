@@ -55,7 +55,9 @@
     "pre-publish": "npm run build",
     "release": "np --any-branch",
     "pre-commit-hook": "bash ./scripts/pre-commit.sh",
-    "prepare-publish": "node scripts/prepare-publish.mjs"
+    "prepare-publish": "node scripts/prepare-publish.mjs",
+    "sync-version": "node scripts/sync-version.mjs",
+    "version": "npm run sync-version"
   },
   "engines": {
     "node": ">=16"
