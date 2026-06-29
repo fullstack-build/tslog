@@ -403,6 +403,16 @@ suppressSilly.silly("Will be hidden");
 suppressSilly.trace("Will be visible");
 ```
 
+Instead of a magic number, you can use the exported `DefaultLogLevels` enum for the default levels:
+
+```typescript
+import { Logger, DefaultLogLevels } from "tslog";
+
+const log = new Logger({ minLevel: DefaultLogLevels.WARN });
+log.info("Will be hidden");
+log.warn("Will be visible");
+```
+
 #### argumentsArrayName
 
 `tslog` < 4 wrote all parameters into an arguments array. In `tslog` >= 4 the main object becomes home for all log parameters, and they get merged with the default `logObj`.
@@ -523,6 +533,16 @@ If a level is not specified, `*` is used. If that is not set, then it falls back
 You can define the property containing this meta information with `metaProperty`, which is "_meta" by default.
 
 `tslog` automatically determines the first caller frame outside of the library, even in bundled environments such as Vite or Next.js. If you need to override the detected frame, provide `stackDepthLevel` when constructing a `Logger`.
+
+##### internalFramePatterns
+
+If you wrap `tslog` in your own logging helper, the detected code position would point at your wrapper instead of the real caller. Register additional stack-frame patterns via `internalFramePatterns` to treat those frames as "internal", so the reported file and line point at _your_ caller rather than the wrapper:
+
+```typescript
+const logger = new Logger({ internalFramePatterns: [/my-logging-lib/] });
+```
+
+Each entry is a `RegExp` matched against the stack frames; frames matching any pattern are skipped during caller detection, in addition to `tslog`'s own frames.
 
 #### Pretty templates and styles (color settings)
 
@@ -801,6 +821,7 @@ const logMsg = logger.info("Test");
 //  foo: 'bar',
 //  _meta: {
 //    runtime: 'node',
+//    runtimeVersion: 'v20.11.0',
 //    hostname: 'Eugenes-MBP.local',
 //    date: 2022-10-23T10:51:08.857Z,
 //    logLevelId: 3,
@@ -816,6 +837,8 @@ const logMsg = logger.info("Test");
 //  }
 //}
 ```
+
+The `_meta` fields depend on the runtime: `runtimeVersion` is the runtime's version (e.g. `v20.11.0` on Node.js), `hostname` is included where the runtime exposes it, and `browser` holds the user agent on browser and web-worker runtimes only.
 
 ## Backwards compatibility
 
