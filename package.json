@@ -79,7 +79,7 @@
     "@typescript-eslint/parser": "^8.44.1",
     "@vitest/coverage-v8": "^3.0.0",
     "docsify": "^4.13.1",
-    "esbuild": "^0.25.10",
+    "esbuild": "^0.28.1",
     "eslint": "^9.36.0",
     "eslint-config-prettier": "^10.1.8",
     "husky": "^9.1.7",
