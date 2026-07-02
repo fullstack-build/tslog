@@ -1,4 +1,6 @@
 import type { ILogObjMeta, TLogFormat, Transport } from "../../interfaces.js";
+import { registerExitHook } from "../../internal/exitHooks.js";
+import { nativeConsoleMethod } from "../../internal/nativeConsole.js";
 
 /**
  * `tslog/transports/worker` — an opt-in, **Node-only** {@link Transport} that runs a destination's
@@ -71,6 +73,17 @@ export interface WorkerTransportOptions<LogObj> {
   name?: string;
   /** Per-transport minimum level; this sink only receives logs at or above it. See {@link Transport.minLevel}. */
   minLevel?: Transport<LogObj>["minLevel"];
+  /**
+   * How often an unexpectedly dead worker is respawned before the transport permanently falls back to
+   * inline synchronous writes on the calling thread (default `3`).
+   */
+  maxRespawns?: number;
+  /**
+   * Register a guarded `beforeExit` hook (default `true`) that drains the worker's queue via a flush
+   * round-trip, so a naturally exiting process does not lose queued lines. Set `false` to manage
+   * draining yourself.
+   */
+  exitHooks?: boolean;
 }
 
 /**
@@ -89,6 +102,7 @@ interface WorkerLike {
   postMessage(value: unknown): void;
   on(event: "message" | "error" | "exit", listener: (arg: unknown) => void): unknown;
   terminate(): Promise<unknown> | unknown;
+  ref?(): void;
   unref?(): void;
 }
 
@@ -105,36 +119,40 @@ interface WorkerThreadsModule {
  * dynamic `import()` of node builtins so it works whether the worker is launched as CJS or ESM.
  */
 const INLINE_RUNNER_SOURCE = `
-const { parentPort, workerData } = require("node:worker_threads");
-const fs = require("node:fs");
-const path = require("node:path");
-if (parentPort != null) {
-  let stream = null;
-  const std = workerData.destination === "file" ? null : workerData.destination;
-  function writeLine(line) {
-    const chunk = line + workerData.eol;
-    if (std != null) { fs.appendFileSync(std === "stdout" ? 1 : 2, chunk); return; }
-    if (stream == null) {
-      fs.mkdirSync(path.dirname(workerData.path), { recursive: true });
-      stream = fs.createWriteStream(workerData.path, { flags: workerData.append ? "a" : "w", encoding: workerData.encoding });
-    }
-    stream.write(chunk);
-  }
-  function drain() {
-    if (stream == null) return Promise.resolve();
-    return new Promise((resolve) => stream.write("", () => resolve()));
-  }
-  parentPort.on("message", (message) => {
-    try {
-      if (message.type === "write") writeLine(message.line);
-      else if (message.type === "flush") drain().then(() => parentPort.postMessage({ type: "flushed", id: message.id }), () => parentPort.postMessage({ type: "flushed", id: message.id }));
-      else if (message.type === "close") {
-        const target = stream; stream = null;
-        if (target != null) target.end(() => parentPort.close()); else parentPort.close();
+(async () => {
+  // Dynamic imports work in BOTH module systems: the eval'd worker inherits the parent's execArgv,
+  // so it may be evaluated as CJS or (e.g. under --input-type=module) as ESM — require() would break there.
+  const { parentPort, workerData } = await import("node:worker_threads");
+  const fs = await import("node:fs");
+  const path = await import("node:path");
+  if (parentPort != null) {
+    let stream = null;
+    const std = workerData.destination === "file" ? null : workerData.destination;
+    function writeLine(line) {
+      const chunk = line + workerData.eol;
+      if (std != null) { fs.appendFileSync(std === "stdout" ? 1 : 2, chunk); return; }
+      if (stream == null) {
+        fs.mkdirSync(path.dirname(workerData.path), { recursive: true });
+        stream = fs.createWriteStream(workerData.path, { flags: workerData.append ? "a" : "w", encoding: workerData.encoding });
       }
-    } catch {}
-  });
-}
+      stream.write(chunk);
+    }
+    function drain() {
+      if (stream == null) return Promise.resolve();
+      return new Promise((resolve) => stream.write("", () => resolve()));
+    }
+    parentPort.on("message", (message) => {
+      try {
+        if (message.type === "write") writeLine(message.line);
+        else if (message.type === "flush") drain().then(() => parentPort.postMessage({ type: "flushed", id: message.id }), () => parentPort.postMessage({ type: "flushed", id: message.id }));
+        else if (message.type === "close") {
+          const target = stream; stream = null;
+          if (target != null) target.end(() => parentPort.close()); else parentPort.close();
+        }
+      } catch {}
+    });
+  }
+})();
 `;
 
 /** Lazily import `node:worker_threads`; returns `null` on a runtime without it (browser/Deno/edge). */
@@ -212,6 +230,12 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
   let worker: WorkerLike | null = null;
   let spawning: Promise<WorkerLike | null> | null = null;
   let closed = false;
+  const maxRespawns = options.maxRespawns != null && options.maxRespawns >= 0 ? options.maxRespawns : 3;
+  let respawns = 0;
+  // Set when the worker died more often than maxRespawns allows: every later write goes inline.
+  let workerGaveUp = false;
+  let deathReported = false;
+  let unregisterExitHook: (() => void) | null = null;
 
   // Set once we've learned the runtime has no worker_threads: we then write inline (synchronously) on the
   // calling thread via node:fs, so logging keeps working off-Node at the cost of the off-thread benefit.
@@ -220,7 +244,14 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
   // Pending flush round-trips keyed by a monotonically increasing id; resolved when the worker acks.
   const pendingFlushes = new Map<number, () => void>();
   let nextFlushId = 1;
-  let onMessageBound = false;
+  // Whether anything was posted since the last completed flush. A flush with nothing queued is a
+  // no-op — crucially so for the beforeExit hook, whose ref()d round-trip would otherwise schedule
+  // fresh work on every beforeExit tick and keep the process alive in a flush loop forever.
+  let queuedSinceFlush = false;
+  // Serialize flush() calls: a second flush arriving inside the first one's spawn-await gap must wait
+  // for (and thereby share) the first round-trip instead of seeing the cleared dirty flag and
+  // resolving before anything was drained.
+  let flushChain: Promise<void> = Promise.resolve();
 
   function handleMessage(message: unknown): void {
     const msg = message as { type?: string; id?: number };
@@ -230,6 +261,46 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
         pendingFlushes.delete(msg.id);
         resolve();
       }
+      // No outstanding round-trips: release the event-loop handle again (see the ref() in flush()).
+      if (pendingFlushes.size === 0) {
+        worker?.unref?.();
+      }
+    }
+  }
+
+  /** Settle every outstanding flush (worker died / was terminated) so flush() can never hang. */
+  function settleAllFlushes(): void {
+    for (const [id, resolve] of pendingFlushes) {
+      pendingFlushes.delete(id);
+      resolve();
+    }
+  }
+
+  /** An unexpected worker death: reset so the next write respawns, or give up after maxRespawns. */
+  function handleWorkerDeath(died: WorkerLike, error?: unknown): void {
+    if (worker !== died) {
+      return; // stale event from an already-replaced worker — must not settle the NEW worker's flushes
+    }
+    settleAllFlushes();
+    worker = null;
+    spawning = null;
+    if (closed) {
+      return;
+    }
+    respawns++;
+    if (respawns > maxRespawns) {
+      workerGaveUp = true;
+    }
+    if (!deathReported) {
+      deathReported = true;
+      try {
+        nativeConsoleMethod("error")(
+          `tslog: worker transport "${options.name ?? "worker"}" thread died unexpectedly${workerGaveUp ? "; falling back to inline writes" : "; respawning on the next write"}`,
+          error,
+        );
+      } catch {
+        // the report itself must never throw
+      }
     }
   }
 
@@ -237,6 +308,9 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
   function ensureWorker(): Promise<WorkerLike | null> {
     if (worker != null) {
       return Promise.resolve(worker);
+    }
+    if (workerGaveUp) {
+      return Promise.resolve(null);
     }
     if (spawning == null) {
       spawning = (async () => {
@@ -255,20 +329,16 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
         } else {
           created = new wt.Worker(INLINE_RUNNER_SOURCE, { eval: true, workerData });
         }
-        if (!onMessageBound) {
-          created.on("message", handleMessage);
-          // On worker error/exit, fail any outstanding flush so flush() never hangs the process.
-          const settleAll = () => {
-            for (const [id, resolve] of pendingFlushes) {
-              pendingFlushes.delete(id);
-              resolve();
-            }
-          };
-          created.on("error", settleAll);
-          created.on("exit", settleAll);
-          onMessageBound = true;
-        }
+        created.on("message", handleMessage);
+        created.on("error", (error) => handleWorkerDeath(created, error));
+        created.on("exit", () => handleWorkerDeath(created));
+        // A ref'd worker keeps the parent event loop alive forever — a process that merely attached
+        // this transport could never exit. Unref AFTER the listeners: attaching a message listener
+        // re-refs the worker's port, which would silently undo an earlier unref. flush() temporarily
+        // refs the worker again so an awaited drain cannot be cut short by process exit.
+        created.unref?.();
         worker = created;
+        deathReported = false;
         return created;
       })();
     }
@@ -307,12 +377,21 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
       if (closed) {
         return;
       }
+      if (unregisterExitHook == null && options.exitHooks !== false) {
+        unregisterExitHook = registerExitHook({ flushAsync: () => transport.flush() });
+      }
+      if (workerGaveUp) {
+        void inlineWrite(line);
+        return;
+      }
       if (worker != null) {
         // Fast path: worker already running — post synchronously, never awaiting in the log path.
+        queuedSinceFlush = true;
         worker.postMessage({ type: "write", line });
         return;
       }
       // First write (or while still spawning): spawn, then post (or fall back to an inline write off-Node).
+      queuedSinceFlush = true;
       void ensureWorker().then(
         (w) => {
           if (closed) {
@@ -331,17 +410,44 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
       );
     },
 
-    async flush(): Promise<void> {
-      const w = await ensureWorker();
-      if (w == null) {
-        // Inline fallback writes synchronously, so there is nothing buffered to drain.
-        return;
-      }
-      const id = nextFlushId++;
-      await new Promise<void>((resolve) => {
-        pendingFlushes.set(id, resolve);
-        w.postMessage({ type: "flush", id });
-      });
+    flush(): Promise<void> {
+      const run = async (): Promise<void> => {
+        // Never spawn a worker just to flush it: with no worker and no spawn in progress nothing was
+        // ever queued (pre-fix, flushing an idle transport spawned a ref'd thread and hung the process).
+        if (worker == null && spawning == null) {
+          return;
+        }
+        // Nothing posted since the last completed drain: skip the round-trip entirely (see above).
+        if (!queuedSinceFlush && pendingFlushes.size === 0) {
+          return;
+        }
+        queuedSinceFlush = false;
+        const w = await ensureWorker();
+        if (w == null) {
+          // Inline fallback writes synchronously, so there is nothing buffered to drain.
+          return;
+        }
+        const id = nextFlushId++;
+        await new Promise<void>((resolve) => {
+          pendingFlushes.set(id, resolve);
+          try {
+            // Hold the event loop open for the round-trip: the worker is normally unref'd, and an
+            // awaited promise alone does not keep a Node process alive — without this ref an
+            // `await flush()` as the program's last statement would exit before the drain finished.
+            w.ref?.();
+            w.postMessage({ type: "flush", id });
+          } catch {
+            pendingFlushes.delete(id);
+            if (pendingFlushes.size === 0) {
+              w.unref?.();
+            }
+            resolve(); // worker died between check and post — nothing left to drain
+          }
+        });
+      };
+      const chained = flushChain.then(run);
+      flushChain = chained.catch(() => undefined);
+      return chained;
     },
 
     async [Symbol.asyncDispose](): Promise<void> {
@@ -351,10 +457,14 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
       closed = true;
       // Nothing was ever spawned (no writes): nothing to drain or terminate.
       if (worker == null && spawning == null) {
+        unregisterExitHook?.();
+        unregisterExitHook = null;
         return;
       }
       const w = await (spawning ?? Promise.resolve(worker));
       if (w == null) {
+        unregisterExitHook?.();
+        unregisterExitHook = null;
         return; // off-Node fallback: no thread to tear down.
       }
       // Drain the queue (round-trip), then close the destination and terminate the thread.
@@ -366,6 +476,9 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
       }
       await w.terminate();
       worker = null;
+      // Only drop the exit-hook safety net once the drain + teardown completed.
+      unregisterExitHook?.();
+      unregisterExitHook = null;
     },
   };
 

@@ -472,6 +472,16 @@ await log.flush();
 await using scoped = new Logger({ /* ... */ });
 ```
 
+Delivery guarantees: `log.flush()` awaits in-flight **async transport writes** as well as each
+transport's own `flush()`. Disposing a sub-logger flushes shared transports but only disposes the
+ones the child itself attached. The built-in transports register guarded exit hooks by default:
+the file transport drains synchronously even on `process.exit(...)` or an uncaught exception (and
+never crashes the process on fs errors — they are contained, reported via `onError`, and the open is
+retried); the http transport bounds every request with a timeout, retries with backoff, caps its
+buffer (oldest lines drop first), and flushes on `beforeExit`/`pagehide`; the worker transport keeps
+its thread unref'd so it never blocks process exit, drains on `beforeExit`, and survives a dead
+worker by respawning (then falling back to inline writes).
+
 ### Built-in transport subpaths
 
 ```typescript

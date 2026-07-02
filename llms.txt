@@ -12,7 +12,7 @@ import { Logger, log } from "tslog"; // class + ready-to-use default instance
 - `log.info|warn|error|debug|trace|silly|fatal(...)` — fields-first or string-first: `log.info({ userId: 42 }, "ready")` or `log.info("ready", { userId: 42 })`.
 - `log.getSubLogger({ name })` / `log.child({ name })` — child logger (aliases); inherits settings, names, prefixes, transports.
 - `log.runInContext({ requestId }, fn)` — AsyncLocalStorage correlation: fields attach to every log inside `fn`, across awaits. `log.getContext()` reads them.
-- `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` / `await using`.
+- `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` awaits async transport writes + each transport's `flush()`; `await using` disposes owned transports (a child never disposes inherited ones).
 
 ## Settings are GROUPED (no flat keys)
 - `type`, `name`, `minLevel: "INFO"` (name or 0..6), `strictConfig: true` (throw `TslogConfigError` on unknown/typo'd/v4-flat keys; without it they warn in dev with a did-you-mean).
@@ -28,10 +28,10 @@ Flat, fields-first: `{ message, level, levelId, time, ...yourFields, error?, _me
 - `tslog/presets/genai` — `genai({ model, inputTokens, outputTokens, costUsd })` → spread into a log call.
 
 ## Transports (subpaths, opt-in)
-- `tslog/transports/file` — `fileTransport({ path, format, append })` (Node; buffered, flush on dispose).
-- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs })` (batched fetch).
+- `tslog/transports/file` — `fileTransport({ path, format, append, onError, exitHooks })` (Node; buffered; never crashes on fs errors; exit hooks drain on `process.exit`/crash via `flushSync()`).
+- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs, timeoutMs, retries, maxBufferedLines, keepalive, onError })` (batched fetch; per-attempt timeout, retry with backoff, bounded buffer with oldest-first drop, flush on `beforeExit`/`pagehide`).
 - `tslog/transports/ringbuffer` — `ringBufferTransport({ size })` (in-memory; `.dump()`/`.clear()`).
-- `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself).
+- `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format, maxRespawns })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself; the worker is unref'd so it never blocks process exit, drains on `beforeExit`, and a dead worker respawns then falls back to inline writes).
 
 ## Notes for code generation
 - Prefer `type: "json"` and `minLevel: "INFO"` for machine-read logs.

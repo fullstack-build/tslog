@@ -156,6 +156,39 @@ log.info("ready");
 // the buffered file output is flushed when the `await using` scope ends
 ```
 
+Built-in exit safety: the file transport registers guarded exit hooks by default (`exitHooks: false`
+opts out) — an async flush on `beforeExit` and a synchronous drain on `exit`, so even a bare
+`process.exit(0)` or an uncaught exception does not lose the buffered tail. fs errors (disk full,
+permissions) are contained and reported via `onError` (default: one `console.error` per error burst);
+a failed open is retried on the next write. The http and worker transports flush on `beforeExit`
+(and `pagehide` in browsers) the same way.
+
+## 10b. Graceful shutdown on SIGTERM/SIGINT (app-owned)
+
+Signal handling belongs to the application — a library installing a `SIGTERM` listener would change
+your process's termination semantics. Wire the logger into your own handler:
+
+```ts
+import { Logger } from "tslog";
+
+const log = new Logger({ type: "json" });
+
+async function shutdown(code: number): Promise<void> {
+  await log.flush(); // awaits async transport writes AND each transport's own flush()
+  process.exit(code);
+}
+process.on("SIGTERM", () => void shutdown(0));
+process.on("SIGINT", () => void shutdown(130));
+process.on("uncaughtException", (error) => {
+  log.fatal("uncaught exception", error);
+  void shutdown(1);
+});
+```
+
+Note: disposing a sub-logger (`await using child = log.child(...)`) flushes shared transports but
+only *disposes* transports the child itself attached — a request-scoped child can never terminate
+the root logger's sinks.
+
 ## 11. Keep slow sink I/O off the event loop (Node worker thread)
 
 The `tslog/transports/worker` transport runs its destination write on a `node:worker_threads` worker, so a slow file/stream sink under high log volume doesn't stall the application's event loop (like pino's `thread-stream`). Note: this does **not** speed up `log.info()` — the record is still built and serialized on the main thread; only the write moves off-thread. Off Node it falls back to a synchronous inline write.
