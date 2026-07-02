@@ -1,7 +1,9 @@
-import { createWriteStream, type WriteStream } from "node:fs";
+import { closeSync, createWriteStream, mkdirSync, openSync, type WriteStream, writeSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { ILogObjMeta, LogFormatter, Transport } from "../../interfaces.js";
+import { registerExitHook } from "../../internal/exitHooks.js";
+import { nativeConsoleMethod } from "../../internal/nativeConsole.js";
 
 /**
  * `tslog/transports/file` — a **Node-only** {@link Transport} that appends each log line to a file
@@ -13,6 +15,23 @@ import type { ILogObjMeta, LogFormatter, Transport } from "../../interfaces.js";
  * everything queued has actually been handed to the kernel. {@link FileTransport.[Symbol.asyncDispose]}
  * flushes and then closes the stream, so `await using` (or the logger's own disposal) releases the
  * file descriptor cleanly.
+ *
+ * Failure semantics — a logging sink must NEVER take the process down:
+ *  - Stream `error` events and write-callback errors (EACCES, ENOSPC, ENOTDIR, …) are contained and
+ *    reported through {@link FileTransportOptions.onError} (default: one `console.error` per error
+ *    burst — the report re-arms after a successful write). No unhandled rejection is ever produced.
+ *  - A failed lazy open is retried on the next write, so a directory that appears later (or a disk
+ *    that frees up) resumes logging without a restart.
+ *
+ * Exit semantics: lines are buffered in the stream, so a `process.exit(...)` or an uncaught exception
+ * would normally lose the tail. The transport registers guarded exit hooks (opt out with
+ * `exitHooks: false`): on `beforeExit` it flushes asynchronously; on `exit` it calls
+ * {@link FileTransport.flushSync}, which synchronously writes the not-yet-confirmed lines with its
+ * own file descriptor. The single line whose fs write is mid-syscall at that moment is skipped (the
+ * stream writes serially, so there is at most one): rewriting it would deterministically duplicate it
+ * on every `process.exit`, while skipping loses it only in the narrow window where the in-flight
+ * kernel write also failed to complete. `flushSync` is exit-path machinery — while the process keeps
+ * running, the stream remains the writer of record.
  *
  * Rotation is intentionally **not** built in. Compose a rotating stream instead — point the transport
  * at one and tslog will keep enqueuing lines while the external library handles size/time rollover:
@@ -37,10 +56,14 @@ import type { ILogObjMeta, LogFormatter, Transport } from "../../interfaces.js";
 interface WritableLike {
   write(chunk: string, callback?: (error?: Error | null) => void): boolean;
   once(event: "drain" | "error" | "close", listener: (...args: unknown[]) => void): unknown;
+  on?(event: "drain" | "error" | "close", listener: (...args: unknown[]) => void): unknown;
   end(callback?: () => void): unknown;
   readonly writableNeedDrain?: boolean;
   readonly writableEnded?: boolean;
 }
+
+/** Where a contained file-transport failure occurred, passed to {@link FileTransportOptions.onError}. */
+export type FileTransportErrorContext = "open" | "write" | "close";
 
 /** Options for {@link fileTransport}. Either a destination `path` or a pre-built `stream` is required. */
 export interface FileTransportOptions<LogObj> {
@@ -73,6 +96,18 @@ export interface FileTransportOptions<LogObj> {
   minLevel?: Transport<LogObj>["minLevel"];
   /** Line terminator appended after every formatted line (default `"\n"`). Set `""` to write lines verbatim. */
   eol?: string;
+  /**
+   * Invoked (never throwing) when the sink fails: opening the file, an fs write error (disk full,
+   * permissions), or closing. Defaults to one `console.error` per error burst; the default report
+   * re-arms after the next successful write.
+   */
+  onError?: (error: unknown, context: FileTransportErrorContext) => void;
+  /**
+   * Register guarded process exit hooks (default `true`): an async flush on `beforeExit` and a
+   * synchronous {@link FileTransport.flushSync} drain on `exit`, so `process.exit(...)`/crashes don't
+   * lose the buffered tail. Set `false` to manage draining yourself.
+   */
+  exitHooks?: boolean;
 }
 
 /**
@@ -82,13 +117,21 @@ export interface FileTransportOptions<LogObj> {
 export interface FileTransport<LogObj> extends Transport<LogObj> {
   /** Resolve once every queued line has been handed to the kernel (back-pressure drained). */
   flush(): Promise<void>;
+  /**
+   * Synchronously write the lines the stream has not confirmed yet, using a dedicated file
+   * descriptor; the single possibly-mid-syscall line is skipped (see the module docs on exit
+   * semantics). Exit-path machinery (`process.on("exit")`, uncaught-exception handlers). No-op for a
+   * caller-supplied {@link FileTransportOptions.stream}.
+   */
+  flushSync(): void;
   /** Flush, then close the stream and release the file descriptor. */
   [Symbol.asyncDispose](): Promise<void>;
 }
 
 /**
  * Create a Node-only file {@link Transport} that appends each formatted log line to a file (or a
- * supplied rotating stream) without ever blocking the event loop.
+ * supplied rotating stream) without ever blocking the event loop — and without ever crashing the
+ * process on an fs error.
  *
  * @param options - {@link FileTransportOptions}; supply `path` (the transport opens/creates the file
  *   lazily) **or** `stream` (a pre-built writable, e.g. a rotating-file-stream, for composition).
@@ -110,18 +153,50 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
   const eol = options.eol ?? "\n";
   const append = options.append ?? true;
   const encoding = options.encoding ?? "utf8";
+  const name = options.name ?? "file";
+  const ownsStream = options.stream == null;
 
   // The live stream and a one-shot promise that opens it (mkdir parent + createWriteStream). Both stay
   // null until the first write/flush/dispose so importing or constructing the transport touches no IO.
   let stream: WritableLike | null = options.stream ?? null;
   let opening: Promise<WritableLike> | null = null;
   let closed = false;
+  let unregisterExitHook: (() => void) | null = null;
 
-  // Pending writes whose `write()` callback (or `error` event) has not yet fired. `flush()` awaits the
-  // current set; this is what makes flush "drain" rather than merely resolve immediately.
-  const inflight = new Set<Promise<void>>();
+  // One report per error burst: re-armed by the next successful write so a disk-full loop does not
+  // emit one console line per log call.
+  let errorReported = false;
+  // Whether the CURRENT stream has completed at least one write (used to classify errors as
+  // open-time vs write-time) and whether ANY stream ever opened (drives flushSync's truncation flag).
+  let streamReady = false;
+  let everOpened = false;
 
-  async function ensureStream(): Promise<WritableLike> {
+  function handleError(error: unknown, context: FileTransportErrorContext): void {
+    if (options.onError != null) {
+      try {
+        options.onError(error, context);
+      } catch {
+        // a failing error callback must never escape the transport
+      }
+      return;
+    }
+    if (errorReported) {
+      return;
+    }
+    errorReported = true;
+    try {
+      nativeConsoleMethod("error")(`tslog: file transport "${name}" ${context} failed`, error);
+    } catch {
+      // even the report must never throw into the pipeline
+    }
+  }
+
+  // Chunks whose write has not been confirmed yet, in write order. `submitted` flips once the chunk
+  // was handed to the stream (the stream writes serially, so among submitted entries only the FIRST
+  // can be mid-syscall). This is what flush() awaits and what flushSync() rescues on the exit path.
+  const unconfirmed = new Map<Promise<void>, { chunk: string; submitted: boolean }>();
+
+  async function ensureStream(): Promise<WritableLike | null> {
     if (stream != null) {
       return stream;
     }
@@ -130,46 +205,75 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
       opening = (async () => {
         await mkdir(dirname(filePath), { recursive: true });
         const created = createWriteStream(filePath, { flags: append ? "a" : "w", encoding }) as unknown as WriteStream & WritableLike;
+        // Without an `error` listener an async open failure (EACCES, ENOTDIR) is an uncaught
+        // exception that kills the process — the one thing a logging sink must never do.
+        (created.on ?? created.once).call(created, "error", (error: unknown) => {
+          handleError(error, streamReady ? "write" : "open");
+          if (stream === created) {
+            // Abandon the broken stream AND the cached open, so the next write truly reopens.
+            stream = null;
+            opening = null;
+            streamReady = false;
+          }
+        });
         stream = created;
+        streamReady = false;
+        everOpened = true;
         return created;
       })();
+      opening = opening.catch((error) => {
+        // Failed open: report, then reset so a later write retries (the directory may exist by then).
+        handleError(error, "open");
+        opening = null;
+        return null as unknown as WritableLike;
+      });
     }
     return opening;
   }
 
-  /** Write one chunk, returning a promise that settles when the kernel has accepted it (or it errors). */
+  /** Write one chunk, resolving when the kernel accepted it and reporting (never rejecting) on error. */
   function writeChunk(target: WritableLike, chunk: string): Promise<void> {
-    return new Promise<void>((resolve, reject) => {
-      // The write callback fires once the chunk has been flushed to the underlying resource; this is the
-      // signal flush() needs. Errors are surfaced via the callback's first argument and via "error".
-      target.write(chunk, (error?: Error | null) => {
-        if (error != null) {
-          reject(error);
-        } else {
+    return new Promise<void>((resolve) => {
+      try {
+        target.write(chunk, (error?: Error | null) => {
+          if (error != null) {
+            handleError(error, "write");
+          } else {
+            errorReported = false; // success re-arms the default one-per-burst report
+            streamReady = true;
+          }
           resolve();
-        }
-      });
+        });
+      } catch (error) {
+        handleError(error, "write");
+        resolve();
+      }
     });
   }
 
-  /** Track a write promise in {@link inflight} so {@link flush} can await it; never reject the caller. */
-  function track(promise: Promise<void>): void {
-    const tracked = promise.then(
-      () => {
-        inflight.delete(tracked);
-      },
-      (error) => {
-        inflight.delete(tracked);
-        // Re-throw inside the tracked promise so flush()'s allSettled sees it, but isolate the write path:
-        // the synchronous write() call must never break logging.
-        throw error;
-      },
-    );
-    inflight.add(tracked);
+  /** Track a chunk until its write settles so flush()/flushSync() can cover it. Never rejects. */
+  function track(chunk: string, submitted: boolean, write: (entry: { chunk: string; submitted: boolean }) => Promise<void>): void {
+    const entry = { chunk, submitted };
+    let settled: Promise<void>;
+    const done = (): void => {
+      unconfirmed.delete(settled);
+    };
+    settled = write(entry).then(done, done);
+    unconfirmed.set(settled, entry);
+  }
+
+  function ensureExitHook(): void {
+    if (unregisterExitHook != null || options.exitHooks === false) {
+      return;
+    }
+    unregisterExitHook = registerExitHook({
+      drainSync: () => transport.flushSync(),
+      flushAsync: () => transport.flush(),
+    });
   }
 
   const transport: FileTransport<LogObj> = {
-    name: options.name ?? "file",
+    name,
     minLevel: options.minLevel,
     format: options.format,
 
@@ -177,23 +281,67 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
       if (closed) {
         return;
       }
+      ensureExitHook();
       const chunk = line + eol;
       if (stream != null) {
         // Fast path: stream already open — enqueue synchronously, never awaiting in the log path.
-        track(writeChunk(stream, chunk));
+        const target = stream;
+        track(chunk, true, () => writeChunk(target, chunk));
         return;
       }
       // First write (or while still opening): open the stream, then enqueue. The open+write is tracked as
-      // one inflight promise so an early flush() still waits for this line.
-      track(ensureStream().then((target) => writeChunk(target, chunk)));
+      // one entry so an early flush()/flushSync() still covers this line. A failed open resolves to null
+      // and leaves the chunk to flushSync (or the next successful open's retry of NEW lines). The entry
+      // is marked `submitted` only when the chunk is actually handed to the opened stream.
+      track(chunk, false, (entry) =>
+        ensureStream().then((target) => {
+          if (target == null) {
+            return;
+          }
+          entry.submitted = true;
+          return writeChunk(target, chunk);
+        }),
+      );
     },
 
     async flush(): Promise<void> {
-      // If a write is still opening the stream, awaiting the inflight set covers it. Snapshot the set so
-      // writes that arrive mid-flush are not awaited forever in a single call.
-      const pending = [...inflight];
+      // Snapshot so writes that arrive mid-flush are not awaited forever in a single call. Entries
+      // never reject (errors are contained in writeChunk), so a plain all() is safe.
+      const pending = [...unconfirmed.keys()];
       if (pending.length > 0) {
-        await Promise.allSettled(pending);
+        await Promise.all(pending);
+      }
+    },
+
+    flushSync(): void {
+      if (!ownsStream || unconfirmed.size === 0) {
+        return; // caller-supplied streams cannot be drained synchronously from here
+      }
+      const filePath = options.path as string;
+      try {
+        mkdirSync(dirname(filePath), { recursive: true });
+        // Honor append:false when no stream ever opened (the async open would have truncated).
+        const fd = openSync(filePath, everOpened || append ? "a" : "w");
+        everOpened = true;
+        try {
+          // The stream writes serially, so among submitted entries exactly the FIRST can be mid-
+          // syscall — skipping it avoids deterministic duplication on process.exit; every other
+          // entry still sits in the stream's in-memory buffer, which dies with the process.
+          let first = true;
+          for (const [key, entry] of unconfirmed) {
+            if (first && entry.submitted && stream != null) {
+              first = false;
+              continue;
+            }
+            first = false;
+            writeSync(fd, entry.chunk, null, encoding);
+            unconfirmed.delete(key);
+          }
+        } finally {
+          closeSync(fd);
+        }
+      } catch (error) {
+        handleError(error, "write");
       }
     },
 
@@ -202,8 +350,11 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
         return;
       }
       closed = true;
-      // Drain anything queued before tearing the stream down.
+      // Drain anything queued before tearing the stream down. The exit hook stays registered until
+      // the drain completes: `using logger; process.exit()` must not lose everything by disposing.
       await transport.flush();
+      unregisterExitHook?.();
+      unregisterExitHook = null;
       // Nothing was ever opened (no writes, or only failed opens): nothing to close.
       if (stream == null) {
         return;
@@ -214,7 +365,12 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
         return;
       }
       await new Promise<void>((resolve) => {
-        target.end(() => resolve());
+        try {
+          target.end(() => resolve());
+        } catch (error) {
+          handleError(error, "close");
+          resolve();
+        }
       });
     },
   };
