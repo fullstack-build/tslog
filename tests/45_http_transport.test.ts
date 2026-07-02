@@ -94,6 +94,7 @@ describe("httpTransport", () => {
     const transport = httpTransport({
       url: "https://logs.example/ingest",
       batchSize: 2,
+      retries: 0,
       fetchImpl,
       onError: (error, lines) => seen.push({ error, lines }),
     });
@@ -111,7 +112,13 @@ describe("httpTransport", () => {
   test("non-2xx responses are reported as an error with the status, batch isolated", async () => {
     const { calls, fetchImpl } = makeFakeFetch({ ok: false, status: 503 });
     const seen: unknown[] = [];
-    const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, fetchImpl, onError: (error) => seen.push(error) });
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      retries: 0,
+      fetchImpl,
+      onError: (error) => seen.push(error),
+    });
 
     transport.write(record, '{"a":1}');
     await transport.flush?.();
@@ -126,6 +133,7 @@ describe("httpTransport", () => {
     const transport = httpTransport({
       url: "https://logs.example/ingest",
       batchSize: 1,
+      retries: 0,
       fetchImpl,
       onError: () => {
         throw new Error("callback blew up");
@@ -216,5 +224,184 @@ describe("httpTransport", () => {
         (globalThis as { fetch?: unknown }).fetch = original;
       }
     }
+  });
+});
+
+describe("httpTransport delivery hardening", () => {
+  test("a failed batch is retried with backoff and eventually delivers without onError", async () => {
+    let attempts = 0;
+    const fetchImpl: FetchLike = async () => {
+      attempts++;
+      if (attempts < 3) {
+        throw new Error("network down");
+      }
+      return { ok: true, status: 200 };
+    };
+    const seen: unknown[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      retries: 2,
+      retryBaseMs: 1,
+      fetchImpl,
+      onError: (error) => seen.push(error),
+    });
+
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+
+    expect(attempts).toBe(3);
+    expect(seen).toHaveLength(0);
+  });
+
+  test("exhausted retries drop the batch and report once", async () => {
+    let attempts = 0;
+    const fetchImpl: FetchLike = async () => {
+      attempts++;
+      throw new Error("network down");
+    };
+    const seen: unknown[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      retries: 1,
+      retryBaseMs: 1,
+      fetchImpl,
+      onError: (error) => seen.push(error),
+    });
+
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+
+    expect(attempts).toBe(2);
+    expect(seen).toHaveLength(1);
+  });
+
+  test("a hard 4xx fails fast without retrying", async () => {
+    let attempts = 0;
+    const fetchImpl: FetchLike = async () => {
+      attempts++;
+      return { ok: false, status: 400 };
+    };
+    const seen: unknown[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      retries: 3,
+      retryBaseMs: 1,
+      fetchImpl,
+      onError: (error) => seen.push(error),
+    });
+
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+
+    expect(attempts).toBe(1);
+    expect((seen[0] as Error).message).toContain("400");
+  });
+
+  test("a hung request is aborted by timeoutMs so later batches still deliver", async () => {
+    let call = 0;
+    const delivered: string[] = [];
+    const fetchImpl: FetchLike = (_url, init) => {
+      call++;
+      if (call === 1) {
+        // Hang until the per-attempt AbortSignal fires.
+        return new Promise((_resolve, reject) => {
+          const signal = init.signal as AbortSignal | undefined;
+          if (signal != null) {
+            signal.addEventListener("abort", () => reject(new Error("aborted")));
+          }
+        });
+      }
+      delivered.push(init.body);
+      return Promise.resolve({ ok: true, status: 200 });
+    };
+    const seen: unknown[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      retries: 0,
+      timeoutMs: 30,
+      fetchImpl,
+      onError: (error) => seen.push(error),
+    });
+
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+    transport.write(record, '{"a":2}');
+    await transport.flush?.();
+
+    expect(seen).toHaveLength(1);
+    expect(delivered).toEqual(['{"a":2}']);
+  });
+
+  test("the buffer cap drops the oldest lines while a send is in flight and reports a sample", async () => {
+    const bodies: string[] = [];
+    let releaseFirst: (() => void) | undefined;
+    let call = 0;
+    const fetchImpl: FetchLike = (_url, init) => {
+      call++;
+      bodies.push(init.body);
+      if (call === 1) {
+        // A slow collector: the first batch hangs until released, so later writes pile into the buffer.
+        return new Promise((resolve) => {
+          releaseFirst = () => resolve({ ok: true, status: 200 });
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200 });
+    };
+    const seen: { error: unknown; lines: readonly string[] }[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 2,
+      maxBufferedLines: 3,
+      fetchImpl,
+      onError: (error, lines) => seen.push({ error, lines }),
+    });
+
+    transport.write(record, '{"n":1}');
+    transport.write(record, '{"n":2}'); // pump takes [1,2]; the send hangs
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    for (let i = 3; i <= 7; i++) {
+      transport.write(record, `{"n":${i}}`); // buffer capped at 3: 3 and 4 are dropped
+    }
+
+    releaseFirst?.();
+    await transport.flush?.();
+
+    expect(bodies[0].split("\n")).toEqual(['{"n":1}', '{"n":2}']);
+    // Only the newest 3 lines survived the cap, delivered in order across subsequent batches.
+    expect(bodies.slice(1).join("\n").split("\n")).toEqual(['{"n":5}', '{"n":6}', '{"n":7}']);
+    expect(String(seen[0]?.error)).toContain("dropped");
+    expect(seen[0]?.lines).toEqual(['{"n":3}']); // the dropped sample
+  });
+
+  test("a cap smaller than the batch size still drains (threshold clamps to the cap)", async () => {
+    const { calls, fetchImpl } = makeFakeFetch();
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 100,
+      maxBufferedLines: 3,
+      fetchImpl,
+    });
+
+    transport.write(record, '{"n":1}');
+    transport.write(record, '{"n":2}');
+    transport.write(record, '{"n":3}');
+    await transport.flush?.();
+
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls[0].init.body.split("\n")).toEqual(['{"n":1}', '{"n":2}', '{"n":3}']);
+  });
+
+  test("keepalive is passed through to the request init", async () => {
+    const { calls, fetchImpl } = makeFakeFetch();
+    const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, keepalive: true, fetchImpl });
+
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+
+    expect(calls[0].init.keepalive).toBe(true);
   });
 });

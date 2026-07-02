@@ -1,4 +1,5 @@
 import type { ILogObjMeta, TLogFormat, Transport } from "../../interfaces.js";
+import { registerExitHook } from "../../internal/exitHooks.js";
 
 /**
  * `tslog/transports/http` — a buffering HTTP transport (M2b).
@@ -37,6 +38,10 @@ export interface HttpRequestInit {
   method: string;
   headers: Record<string, string>;
   body: string;
+  /** Per-attempt abort signal (set when the runtime supports `AbortSignal.timeout`). */
+  signal?: unknown;
+  /** Ask the runtime to let the request outlive the page (browser `fetch` keepalive). */
+  keepalive?: boolean;
 }
 
 /** The subset of the `fetch` `Response` this transport reads. */
@@ -87,10 +92,35 @@ export interface IHttpTransportOptions<LogObj> {
   name?: string;
   /**
    * Invoked (never throwing) when a batch fails to deliver — a thrown/rejected request or a non-2xx
-   * response. Receives the error (a synthesized `Error` for a bad status) and the lines that were in the
-   * failed batch, so a caller can re-queue or count drops.
+   * response — after all {@link retries} were exhausted, and when buffered lines are dropped because
+   * {@link maxBufferedLines} was hit. Receives the error (a synthesized `Error` for a bad status or for
+   * a drop report) and the lines involved (for throttled drop reports: the most recently dropped
+   * line as a sample), so a caller can re-queue failed batches or count drops.
    */
   onError?: (error: unknown, lines: readonly string[]) => void;
+  /**
+   * Abort each request attempt after this many milliseconds (default `10000`), so one hung collector
+   * connection can never stall the send chain — and with it every later batch and `flush()` — forever.
+   * Requires `AbortSignal.timeout` (Node 18+, modern browsers/Deno/Bun); silently unbounded without it.
+   * `<= 0` disables the timeout.
+   */
+  timeoutMs?: number;
+  /** Re-attempt a failed batch this many times (default `2`) with exponential backoff before dropping it. */
+  retries?: number;
+  /** Base backoff delay in ms between attempts (default `250`; attempt n waits `retryBaseMs * 2^n` + jitter). */
+  retryBaseMs?: number;
+  /**
+   * Upper bound for the in-memory buffer (default `10000` lines). When the collector is down long
+   * enough to hit it, the OLDEST lines are dropped first and the drop is reported via {@link onError}.
+   */
+  maxBufferedLines?: number;
+  /** Set `keepalive: true` on requests so a browser flush can outlive the page (64KB body cap applies). */
+  keepalive?: boolean;
+  /**
+   * Register a guarded exit hook (default `true`) that flushes the buffer on Node `beforeExit` and on
+   * browser `pagehide` (pair with {@link keepalive} there). Set `false` to manage draining yourself.
+   */
+  exitHooks?: boolean;
 }
 
 /** A {@link Transport} extended with the HTTP-transport-specific surface (here just the standard shape). */
@@ -143,11 +173,43 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
   const flushIntervalMs = options.flushIntervalMs ?? 0;
   const bodyFormat: HttpBodyFormat = options.bodyFormat ?? "ndjson";
   const onError = options.onError;
+  const timeoutMs = options.timeoutMs ?? 10_000;
+  const retries = options.retries != null && options.retries >= 0 ? options.retries : 2;
+  const retryBaseMs = options.retryBaseMs ?? 250;
+  const maxBufferedLines = options.maxBufferedLines != null && options.maxBufferedLines > 0 ? options.maxBufferedLines : 10_000;
+  const keepalive = options.keepalive;
 
-  let buffer: string[] = [];
-  // Serialize sends so two flushes never race on the same buffer slice and ordering is preserved.
-  let inFlight: Promise<void> = Promise.resolve();
+  const buffer: string[] = [];
+  let droppedTotal = 0;
+  // A single pump loop drains the buffer batch-by-batch. Ordering is preserved (one send at a time),
+  // and — unlike an unbounded promise chain of detached batches — at most ONE batch ever lives outside
+  // `buffer`, so maxBufferedLines genuinely bounds memory while the collector is down.
+  let pumping: Promise<void> = Promise.resolve();
+  let pumpActive = false;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let unregisterExitHook: (() => void) | null = null;
+  // The drain trigger: a cap below the batch size must still drain (the old check could never fire).
+  const drainThreshold = Math.min(batchSize, maxBufferedLines);
+
+  /** A per-attempt abort signal, when the runtime can build one. */
+  const attemptSignal = (): unknown => {
+    if (timeoutMs <= 0) {
+      return undefined;
+    }
+    const signalCtor = (globalThis as { AbortSignal?: { timeout?: (ms: number) => unknown } }).AbortSignal;
+    return typeof signalCtor?.timeout === "function" ? signalCtor.timeout(timeoutMs) : undefined;
+  };
+
+  /**
+   * Sleep between retry attempts (exponential backoff with jitter). The timer is deliberately REF'd:
+   * an in-progress send is real, strictly bounded work (retries × (timeout + backoff)) that someone is
+   * awaiting — an unref'd timer here let the process exit mid-backoff, silently dropping the batch and
+   * leaving flush() forever unsettled. Only the background interval timer stays unref'd.
+   */
+  const backoff = (attempt: number): Promise<void> =>
+    new Promise((resolve) => {
+      setTimeout(resolve, retryBaseMs * 2 ** attempt + Math.random() * retryBaseMs);
+    });
 
   const reportError = (error: unknown, lines: readonly string[]): void => {
     if (onError == null) {
@@ -160,35 +222,66 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
     }
   };
 
-  /** POST one already-detached batch; resolves regardless of outcome (errors go to {@link reportError}). */
+  /**
+   * POST one already-detached batch, retrying with backoff; resolves regardless of outcome (an
+   * exhausted batch goes to {@link reportError} and is dropped). Each attempt is individually
+   * time-bounded so a hung connection can never stall the chain.
+   */
   const send = async (lines: readonly string[]): Promise<void> => {
     if (lines.length === 0) {
       return;
     }
     const { body, contentType } = encodeBody(lines, bodyFormat);
-    try {
-      const response = await fetchImpl(url, {
-        method: "POST",
-        headers: { "content-type": contentType, ...headers },
-        body,
-      });
-      if (!response.ok) {
-        reportError(new Error(`tslog httpTransport: POST ${url} responded ${response.status}`), lines);
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      if (attempt > 0) {
+        await backoff(attempt - 1);
       }
-    } catch (error) {
-      reportError(error, lines);
+      try {
+        const init: HttpRequestInit = {
+          method: "POST",
+          headers: { "content-type": contentType, ...headers },
+          body,
+        };
+        const signal = attemptSignal();
+        if (signal != null) {
+          init.signal = signal;
+        }
+        if (keepalive != null) {
+          init.keepalive = keepalive;
+        }
+        const response = await fetchImpl(url, init);
+        if (response.ok) {
+          return;
+        }
+        lastError = new Error(`tslog httpTransport: POST ${url} responded ${response.status}`);
+        // 4xx (except 408/429) will not get better on retry — fail fast and keep the chain moving.
+        if (response.status >= 400 && response.status < 500 && response.status !== 408 && response.status !== 429) {
+          break;
+        }
+      } catch (error) {
+        lastError = error;
+      }
     }
+    reportError(lastError, lines);
   };
 
-  /** Detach the current buffer and chain a send onto the in-flight tail so sends stay ordered. */
+  /** Start (or join) the pump: sends batches until the buffer is empty, one batch at a time. */
   const drainOnce = (): Promise<void> => {
-    if (buffer.length === 0) {
-      return inFlight;
+    if (!pumpActive && buffer.length > 0) {
+      pumpActive = true;
+      pumping = (async () => {
+        try {
+          while (buffer.length > 0) {
+            const batch = buffer.splice(0, batchSize);
+            await send(batch);
+          }
+        } finally {
+          pumpActive = false;
+        }
+      })();
     }
-    const batch = buffer;
-    buffer = [];
-    inFlight = inFlight.then(() => send(batch));
-    return inFlight;
+    return pumping;
   };
 
   if (flushIntervalMs > 0) {
@@ -200,19 +293,32 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
     (timer as { unref?: () => void }).unref?.();
   }
 
-  return {
+  const transport: HttpTransport<LogObj> = {
     name: options.name ?? "http",
     format: options.format,
     write(_record: LogObj & ILogObjMeta, line: string): void {
+      if (unregisterExitHook == null && options.exitHooks !== false) {
+        unregisterExitHook = registerExitHook({ flushAsync: () => transport.flush?.() });
+      }
       buffer.push(line);
-      if (buffer.length >= batchSize) {
+      // Bounded memory while the collector is down: drop the OLDEST lines first and account for them.
+      if (buffer.length > maxBufferedLines) {
+        const dropped = buffer.shift();
+        droppedTotal++;
+        if (droppedTotal === 1 || droppedTotal % 1000 === 0) {
+          reportError(
+            new Error(`tslog httpTransport: buffer full (${maxBufferedLines}), dropped ${droppedTotal} lines so far`),
+            dropped != null ? [dropped] : [],
+          );
+        }
+      }
+      if (buffer.length >= drainThreshold) {
         void drainOnce();
       }
     },
     async flush(): Promise<void> {
-      // Drain whatever is buffered, then await the full in-flight chain (including any concurrent send).
+      // The pump loops until the buffer is empty, so one await covers everything queued so far.
       await drainOnce();
-      await inFlight;
     },
     async [Symbol.asyncDispose](): Promise<void> {
       if (timer != null) {
@@ -220,7 +326,10 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
         timer = undefined;
       }
       await drainOnce();
-      await inFlight;
+      // Only drop the exit-hook safety net once the drain has completed.
+      unregisterExitHook?.();
+      unregisterExitHook = null;
     },
   };
+  return transport;
 }
