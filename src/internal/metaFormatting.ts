@@ -12,18 +12,18 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   if (meta == null) {
     return {
       text: "",
-      template: settings.prettyLogTemplate,
+      template: settings.pretty.template,
       placeholders: {},
     };
   }
 
-  let template = settings.prettyLogTemplate;
+  let template = settings.pretty.template;
   const placeholderValues: Record<string, string | number> = {};
 
   if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
     template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
   } else {
-    if (settings.prettyLogTimeZone === "UTC") {
+    if (settings.pretty.timeZone === "UTC") {
       placeholderValues.yyyy = meta.date?.getUTCFullYear() ?? "----";
       placeholderValues.mm = formatNumberAddZeros(meta.date?.getUTCMonth(), 2, 1);
       placeholderValues.dd = formatNumberAddZeros(meta.date?.getUTCDate(), 2);
@@ -42,7 +42,7 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
     }
   }
 
-  const isUtc = settings.prettyLogTimeZone === "UTC";
+  const isUtc = settings.pretty.timeZone === "UTC";
   const dateInSettingsTimeZone = isUtc ? meta.date : meta.date != null ? new Date(meta.date.getTime() - meta.date.getTimezoneOffset() * 60000) : undefined;
 
   // In local mode the shifted date is "wall clock as UTC"; toISOString() would wrongly suffix "Z".
@@ -55,19 +55,15 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   placeholderValues.filePathWithLine = meta.path?.filePathWithLine ?? "";
   placeholderValues.fullFilePath = meta.path?.fullFilePath ?? "";
 
-  let parentNamesString = settings.parentNames?.join(settings.prettyErrorParentNamesSeparator);
-  parentNamesString = parentNamesString != null && meta.name != null ? parentNamesString + settings.prettyErrorParentNamesSeparator : undefined;
+  let parentNamesString = settings.parentNames?.join(settings.pretty.errorParentNamesSeparator);
+  parentNamesString = parentNamesString != null && meta.name != null ? parentNamesString + settings.pretty.errorParentNamesSeparator : undefined;
 
   /* v8 ignore next -- defensive: parentNamesString is only set when meta.name is also set (see line above), so the meta.name ?? "" fallback is unreachable */
   const combinedName = meta.name != null || parentNamesString != null ? `${parentNamesString ?? ""}${meta.name ?? ""}` : "";
 
   placeholderValues.name = combinedName;
-  placeholderValues.nameWithDelimiterPrefix = combinedName.length > 0 ? settings.prettyErrorLoggerNameDelimiter + combinedName : "";
-  placeholderValues.nameWithDelimiterSuffix = combinedName.length > 0 ? combinedName + settings.prettyErrorLoggerNameDelimiter : "";
-
-  if (settings.overwrite?.addPlaceholders != null) {
-    settings.overwrite.addPlaceholders(meta, placeholderValues);
-  }
+  placeholderValues.nameWithDelimiterPrefix = combinedName.length > 0 ? settings.pretty.errorLoggerNameDelimiter + combinedName : "";
+  placeholderValues.nameWithDelimiterSuffix = combinedName.length > 0 ? combinedName + settings.pretty.errorLoggerNameDelimiter : "";
 
   return {
     text: formatTemplate(settings, template, placeholderValues),

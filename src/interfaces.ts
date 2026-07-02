@@ -2,7 +2,7 @@ import type { InspectOptions } from "./internal/InspectOptions.interface.js";
 export type { InspectOptions };
 
 /** The log level ids used by the default logging methods (silly … fatal). */
-export enum DefaultLogLevels {
+export enum LogLevel {
   SILLY = 0,
   TRACE = 1,
   DEBUG = 2,
@@ -13,10 +13,10 @@ export enum DefaultLogLevels {
 }
 
 /** The names of the default log levels, accepted by `minLevel` as a self-documenting alternative to the numeric id. */
-export type TLogLevelName = keyof typeof DefaultLogLevels;
+export type TLogLevelName = keyof typeof LogLevel;
 
-/** A default log level expressed as its numeric id, the {@link DefaultLogLevels} enum, or its name (e.g. `"WARN"`). */
-export type TLogLevel = number | DefaultLogLevels | TLogLevelName;
+/** A default log level expressed as its numeric id, the {@link LogLevel} enum, or its name (e.g. `"WARN"`). */
+export type TLogLevel = number | LogLevel | TLogLevelName;
 
 export type TStyle =
   | null
@@ -30,6 +30,364 @@ export type TStyle =
 export type TPrettyLogLevelMethod = {
   [logLevelName: string]: (...args: unknown[]) => void;
 };
+
+/**
+ * Built-in output formats, or a custom {@link LogFormatter}. Used both as the logger-wide `type`
+ * (where only the two string formats apply) and as a per-{@link Transport} `format` override.
+ */
+export type TLogFormat<LogObj> = "pretty" | "json" | LogFormatter<LogObj>;
+
+/**
+ * Turns a finished, meta-decorated log record into the single line that a transport writes.
+ *
+ * A formatter receives the fully-built `record` (the user's `LogObj` plus the runtime `_meta` block)
+ * and the live {@link ISettings}, and returns the string to emit. The two built-in formats
+ * (`"pretty"`, `"json"`) are themselves formatters; supplying a function lets a single logger feed
+ * different transports different representations (e.g. JSON to a file, pretty to the console).
+ *
+ * @example
+ * // A minimal CSV-ish formatter for a custom transport:
+ * const csv: LogFormatter<MyLog> = (record, settings) =>
+ *   `${record[settings.meta.property].logLevelName},${record[settings.meta.property].date.toISOString()}`;
+ */
+export type LogFormatter<LogObj> = (record: LogObj & ILogObjMeta, settings: ISettings<LogObj>) => string;
+
+/**
+ * The mutable context threaded through the {@link LogMiddleware} chain for a single `log()` call.
+ *
+ * Middleware may read and mutate any field before the record is built: drop the log (by returning
+ * `null`/`false`), rewrite the arguments, change the level, or stash request/trace state on `meta`
+ * for a later format stage to pick up.
+ *
+ * @example
+ * logger.use((ctx) => {
+ *   ctx.meta.traceId = currentTraceId();   // enrich every log
+ *   if (ctx.logLevelId < 3) return null;   // drop everything below INFO
+ *   return ctx;
+ * });
+ */
+export interface LogContext<LogObj> {
+  /** Numeric id of the level this log was emitted at (e.g. `3` for INFO). */
+  logLevelId: number;
+  /** Name of the level this log was emitted at (e.g. `"INFO"`). */
+  logLevelName: string;
+  /** The (already prefix-prepended) arguments passed to the log call; may be replaced in place. */
+  args: unknown[];
+  /** The live, resolved settings of the emitting logger. Treat as read-only. */
+  settings: ISettings<LogObj>;
+  /** Free-form, per-call scratch space for middleware to attach trace/correlation/cost fields. */
+  meta: Record<string, unknown>;
+}
+
+/**
+ * A middleware function registered via `logger.use(...)`. Replaces the removed `overwrite.*` hooks
+ * with a single composable chain.
+ *
+ * Middleware run in registration order, each receiving the {@link LogContext} produced by the
+ * previous one. Return the (possibly mutated) context to continue, or `null`/`false` to drop the log
+ * entirely (nothing is formatted, no transport runs). Returning `void` keeps the passed-in context.
+ *
+ * @example
+ * // Sampling + enrichment in one chain:
+ * logger.use((ctx) => { ctx.meta.region = "eu"; return ctx; });
+ * logger.use((ctx) => (Math.random() < 0.1 ? ctx : null)); // sample 10%
+ */
+export type LogMiddleware<LogObj> = (context: LogContext<LogObj>) => LogContext<LogObj> | null | false | undefined;
+
+/**
+ * A single stage in the format pipeline that turns a meta-decorated record into output. Stages are
+ * tree-shakeable factories (e.g. `timestamp()`, `errors()`, `json()`, `pretty()`); the default
+ * console output is itself expressed as a built-in pipeline so the core has one path.
+ *
+ * Each stage receives the finished `record` and the live {@link ISettings} and returns the string it
+ * contributes (or transforms). Composing stages yields the final line handed to transports.
+ *
+ * @example
+ * const upper: FormatStage<MyLog> = (record, settings) => json()(record, settings).toUpperCase();
+ */
+export type FormatStage<LogObj> = (record: LogObj & ILogObjMeta, settings: ISettings<LogObj>) => string;
+
+/**
+ * A full-featured transport: an output sink that receives every emitted log (subject to its own
+ * {@link minLevel}) as both the structured `record` and a pre-formatted `line`, and may flush and/or
+ * dispose asynchronously. Attach via `logger.attachTransport(...)`, which returns a detach function.
+ *
+ * A plain {@link TransportFn} is accepted too and is wrapped into a `Transport` with no `flush`.
+ *
+ * @example
+ * // A buffered file transport with per-transport JSON formatting and a flush:
+ * const lines: string[] = [];
+ * logger.attachTransport({
+ *   name: "file",
+ *   minLevel: "WARN",          // this sink only sees WARN and above
+ *   format: "json",            // receives a JSON line regardless of the logger's `type`
+ *   write: (_record, line) => { lines.push(line); },
+ *   flush: async () => { await fs.appendFile("app.log", lines.join("\n")); lines.length = 0; },
+ * });
+ */
+export interface Transport<LogObj> {
+  /** Optional human-readable name, used in diagnostics (e.g. when a transport throws). */
+  name?: string;
+  /**
+   * Per-transport minimum level: this sink only receives logs at or above it, independent of the
+   * logger's own `minLevel`. Accepts a numeric id or a level name. Omitted → receives everything the
+   * logger emits.
+   * @example { minLevel: "ERROR" }
+   */
+  minLevel?: number | TLogLevelName;
+  /**
+   * Per-transport output format, isolating this sink from the logger-wide `type`. `"pretty"`/`"json"`
+   * select a built-in formatter; a {@link LogFormatter} supplies a custom one. The `line` passed to
+   * {@link write} is produced with this format (computed lazily, once per format used). Omitted → the
+   * line follows the logger's `type`.
+   * @example { format: "json" }
+   */
+  format?: TLogFormat<LogObj>;
+  /**
+   * Consume one log. `record` is the finished log object (user fields + `_meta`); `line` is the
+   * already-formatted string for this transport's {@link format}. May be async; a rejected/thrown
+   * result is isolated so it never breaks logging or sibling transports.
+   */
+  write(record: LogObj & ILogObjMeta, line: string): void | Promise<void>;
+  /**
+   * Flush any buffered output. Awaited by `logger.flush()` and by the logger's `[Symbol.asyncDispose]`.
+   * @example flush: async () => { await stream.write(buffer); buffer = ""; }
+   */
+  flush?(): Promise<void>;
+  /** Async disposer (`await using`), invoked by the logger's own disposal; should flush then release resources. */
+  [Symbol.asyncDispose]?(): Promise<void>;
+}
+
+/**
+ * A bare transport function: receives the finished, meta-decorated record. Accepted by
+ * `attachTransport` for convenience and wrapped into a {@link Transport} (with no `flush`).
+ *
+ * @example
+ * logger.attachTransport((record) => myQueue.push(record));
+ */
+export type TransportFn<LogObj> = (record: LogObj & ILogObjMeta) => void;
+
+/**
+ * Controls the shape of the structured (`type: "json"`) output: which top-level keys carry the
+ * message, level, time, and error, and whether a numeric level id and stable key ordering are emitted.
+ * The user's logged fields are spread alongside these keys; runtime metadata stays nested under
+ * {@link IMetaSettings.property} (default `"_meta"`).
+ *
+ * @example
+ * // Emit Elastic Common Schema-ish keys:
+ * { json: { messageKey: "message", levelKey: "log.level", timeKey: "@timestamp", numericLevel: false } }
+ */
+export interface IJsonOutputSettings {
+  /**
+   * Top-level key under which a bare-string log message is placed. Default: `"message"`.
+   * @example { json: { messageKey: "msg" } } // pino-style
+   */
+  messageKey?: string;
+  /**
+   * Top-level key holding the level *name* (e.g. `"INFO"`). Default: `"level"`.
+   * @example { json: { levelKey: "severity" } }
+   */
+  levelKey?: string;
+  /**
+   * Top-level key holding the numeric level *id* (e.g. `3`), emitted only when {@link numericLevel}
+   * is `true`. Default: `"levelId"`.
+   * @example { json: { numericLevel: true, levelIdKey: "level_id" } }
+   */
+  levelIdKey?: string;
+  /**
+   * Top-level key holding the ISO timestamp (UTC or local per `pretty.timeZone`). Default: `"time"`.
+   * @example { json: { timeKey: "@timestamp" } }
+   */
+  timeKey?: string;
+  /**
+   * Top-level key under which logged errors are serialized as an {@link IErrorObjectStringifiable}
+   * (following the `cause` chain). Default: `"error"`.
+   * @example { json: { errorKey: "err" } } // pino-style
+   */
+  errorKey?: string;
+  /**
+   * When `true` (default), also emit the numeric level id under {@link levelIdKey} alongside the
+   * level name. Set `false` to emit only the name.
+   * @example { json: { numericLevel: false } }
+   */
+  numericLevel?: boolean;
+  /**
+   * When `true` (default), emit the well-known keys (message, level, time, …) in a stable, documented
+   * order before the user's fields, so diffing and log-grepping stay deterministic. Set `false` to
+   * skip the reordering pass for maximum throughput.
+   * @example { json: { stableKeyOrder: false } }
+   */
+  stableKeyOrder?: boolean;
+}
+
+/**
+ * The `mask` group: every secret-redaction control. Key/regex masking ({@link keys}/{@link regex}) and
+ * path-based (JSONPath-lite) masking ({@link paths}) are composed in a single pass; a leaf is censored
+ * when its key is in {@link keys}, its string value matches a {@link regex}, or its full dotted path
+ * matches one of {@link paths} (`*` matches any single path segment).
+ *
+ * @example
+ * // Keep secrets and prompts/PII out of your logs (key masking):
+ * { mask: { keys: ["password", "apiKey", "authorization", "token", "prompt", "email"] } }
+ * @example
+ * // Redact a nested password and any top-level *.token (path masking):
+ * { mask: { paths: ["user.password", "*.token", "a.b.c"] } }
+ * @example
+ * // Drop the matched key entirely instead of replacing its value:
+ * { mask: { paths: ["headers.authorization"], censor: "remove" } }
+ * @example
+ * // Custom censor that keeps the last 4 chars:
+ * { mask: { paths: ["card.number"], censor: (v) => `****${String(v).slice(-4)}` } }
+ */
+export interface IMaskOptions {
+  /**
+   * Redact the values of these object keys anywhere in the logged data (case-sensitive by default).
+   * Use this to keep secrets and sensitive data — passwords, API keys, tokens, and (for AI/agentic apps)
+   * prompts and PII — out of your logs.
+   * @example { mask: { keys: ["password", "apiKey", "authorization", "token"] } }
+   * @example { mask: { keys: ["prompt", "completion", "email"] } } // agentic apps
+   */
+  keys?: string[];
+  /** Match {@link keys} case-insensitively (so `"password"` also masks `"Password"`/`"PASSWORD"`). Default: `false`. */
+  caseInsensitive?: boolean;
+  /**
+   * Replace every substring matching these patterns in string values (e.g. secrets pulled from env vars,
+   * emails, IPs). Applied with the {@link placeholder}.
+   * @example { mask: { regex: [/\b[A-Za-z0-9]{32,}\b/g] } } // long token-like strings
+   */
+  regex?: RegExp[];
+  /** String used to replace masked values. Default: `"[***]"`. */
+  placeholder?: string;
+  /**
+   * Dotted paths whose matching leaf values are censored. `*` matches exactly one segment.
+   * Compiled once and composed with key/regex masking; an empty/omitted list keeps the masking
+   * fast path (normalize-only) intact.
+   * @example { mask: { paths: ["user.password", "*.token"] } }
+   */
+  paths?: string[];
+  /**
+   * How a path-matched value is censored:
+   * - `"remove"` to delete the key from the cloned output,
+   * - `"hash"` to replace the value with a SHORT, stable, **non-cryptographic** correlation token
+   *   (e.g. `"[hash:1a2b3c4d]"`) so the same value always yields the same token — letting you
+   *   correlate occurrences of a secret across logs without ever exposing it. The hash is a fast,
+   *   synchronous FNV-1a over the stringified value (no Web Crypto, no async on the hot path); it is
+   *   for correlation only and must NOT be relied on for security. Customize the token label via
+   *   {@link hashLabel}.
+   * - any other `string` is used verbatim as the replacement (defaults to {@link placeholder} when omitted), or
+   * - a function `(value, path) => unknown` returning the replacement (receives the matched value
+   *   and its dotted path).
+   * @example { mask: { paths: ["pin"], censor: "remove" } }
+   * @example { mask: { paths: ["userId"], censor: "hash" } }      // "[hash:1a2b3c4d]"
+   * @example { mask: { paths: ["ssn"], censor: (v, path) => `redacted@${path}` } }
+   */
+  censor?: string | "remove" | "hash" | ((value: unknown, path: string) => unknown);
+  /**
+   * Label used inside the `"hash"` correlation token, i.e. the `xxx` in `"[xxx:1a2b3c4d]"`.
+   * Only consulted when {@link censor} is `"hash"`. Default: `"hash"`.
+   * @example { mask: { paths: ["userId"], censor: "hash", hashLabel: "id" } } // "[id:1a2b3c4d]"
+   */
+  hashLabel?: string;
+}
+
+/**
+ * The `stack` group: controls how (and whether) the calling code position is captured for `_meta.path`.
+ *
+ * @example { stack: { capture: "off" } }      // never capture a stack (cheapest)
+ * @example { stack: { internalFramePatterns: [/myWrapper\.ts/] } } // skip a wrapper file in auto-detection
+ */
+export interface IStackSettings {
+  /**
+   * Controls how the calling code position is captured for `_meta.path`.
+   * - `"off"`: never capture a stack — cheapest, no code position in output.
+   * - `"lazy"`: capture the `Error` cheaply but only parse frames on first read of `_meta.path`.
+   * - `"auto"` (default for `type: "pretty"`): capture only when the pretty template references a code-position placeholder.
+   * - `"full"`: always capture and parse the stack eagerly.
+   *
+   * Defaults to `"auto"` for `type: "pretty"` and `"off"` for `type: "json"`.
+   * @example { stack: { capture: "lazy" } }
+   */
+  capture?: "off" | "lazy" | "auto" | "full";
+  /**
+   * Additional RegExp patterns matched against stack frame file paths that should be treated as
+   * "internal" when auto-detecting the calling code position. Use this so a wrapper/custom logger
+   * reports the position of *its* caller instead of the wrapper file itself.
+   * @example { stack: { internalFramePatterns: [/myLogger\.ts/] } }
+   */
+  internalFramePatterns?: RegExp[];
+}
+
+/**
+ * The `meta` group: controls the runtime metadata block attached to every log.
+ *
+ * @example { meta: { property: "$meta" } }
+ * @example { meta: { attachContext: false } } // disable async-context auto-attach
+ */
+export interface IMetaSettings {
+  /** Property name under which runtime metadata (date, level, code position, runtime) is attached. Default: `"_meta"`. */
+  property?: string;
+  /**
+   * Async context (M2.13) propagation. When `true` (the default), the fields of the active context set via
+   * `logger.runInContext(ctx, fn)` are attached onto every log's `_meta` block (under {@link property})
+   * for the duration of `fn`, across `await`/timers/nested calls. Set `false` to disable the attach while
+   * still allowing `runInContext`/`getContext` to be used (e.g. only by the otel preset's trace getter).
+   * On runtimes without `AsyncLocalStorage` (browsers/edge) this is a graceful no-op regardless of the flag.
+   * @example { meta: { attachContext: false } }
+   */
+  attachContext?: boolean;
+}
+
+/**
+ * The `pretty` group: every control for the human-readable (`type: "pretty"`) output — the log/error
+ * templates, the timezone, the per-token styles, the level→console-method map, and the inspect options.
+ *
+ * @example
+ * { pretty: { template: "{{logLevelName}}\t{{filePathWithLine}}\t", timeZone: "local" } }
+ */
+export interface IPrettySettings {
+  /**
+   * Explicitly enable/disable pretty output regardless of the environment-aware default `type` resolution.
+   * When `false`, the logger falls back to `"json"` (unless an explicit `type` is set). When omitted, the
+   * default `type` is resolved from the environment (interactive TTY → pretty, CI/non-TTY/NO_COLOR → json).
+   * @example { pretty: { enabled: false } }
+   */
+  enabled?: boolean;
+  /**
+   * The pretty log line template. Recognized placeholders include `{{yyyy}}`/`{{mm}}`/`{{dd}}`,
+   * `{{hh}}`/`{{MM}}`/`{{ss}}`/`{{ms}}`, `{{dateIsoStr}}`, `{{logLevelName}}`, `{{filePathWithLine}}`,
+   * `{{name}}`, and the name-delimiter variants.
+   * @example { pretty: { template: "{{logLevelName}}\t{{name}}\t" } }
+   */
+  template?: string;
+  /**
+   * Template for the error header (name + message) when an `Error` is logged in pretty mode.
+   * @example { pretty: { errorTemplate: "\n{{errorName}} {{errorMessage}}\n{{errorStack}}" } }
+   */
+  errorTemplate?: string;
+  /**
+   * Template for each rendered stack frame of a logged error.
+   * @example { pretty: { errorStackTemplate: "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}" } }
+   */
+  errorStackTemplate?: string;
+  /** Separator placed between parent logger names in pretty/error output. Default: `":"`. */
+  errorParentNamesSeparator?: string;
+  /** Delimiter placed around the (combined) logger name in pretty/error output. Default: `"\t"`. */
+  errorLoggerNameDelimiter?: string;
+  /**
+   * Whether to apply ANSI (Node) / CSS `%c` (browser) styling to pretty output. Default: `true`.
+   * Honored alongside `NO_COLOR`/`FORCE_COLOR` at normalize time.
+   * @example { pretty: { style: false } }
+   */
+  style?: boolean;
+  /** Timezone used to render the pretty timestamp (`"UTC"` or `"local"`). Default: `"UTC"`. */
+  timeZone?: "UTC" | "local";
+  /** Per-token styles (ANSI color names / arrays / level maps) for pretty output. See {@link IPrettyLogStyles}. */
+  styles?: IPrettyLogStyles;
+  /** Maps a log level name (or `"*"`) to the console method used to print it. See {@link TPrettyLogLevelMethod}. */
+  levelMethod?: TPrettyLogLevelMethod;
+  /** Options passed to the runtime's `util.inspect`/`formatWithOptions` when rendering pretty args. */
+  inspectOptions?: InspectOptions;
+}
 
 export interface IPrettyLogStyles {
   yyyy?: TStyle;
@@ -66,76 +424,127 @@ export interface ISettingsParam<LogObj> {
   name?: string;
   parentNames?: string[];
   /**
-   * Minimum level to emit; lower levels are skipped. Accepts a number, the {@link DefaultLogLevels} enum, or a level name.
+   * Minimum level to emit; lower levels are skipped. Accepts a number, the {@link LogLevel} enum, or a level name.
    * Levels: `SILLY`(0) `TRACE`(1) `DEBUG`(2) `INFO`(3) `WARN`(4) `ERROR`(5) `FATAL`(6).
    * @example { minLevel: "WARN" }
-   * @example { minLevel: DefaultLogLevels.INFO }
+   * @example { minLevel: LogLevel.INFO }
    */
   minLevel?: TLogLevel;
   argumentsArrayName?: string;
   /**
-   * Additional RegExp patterns matched against stack frame file paths that should be treated as
-   * "internal" when auto-detecting the calling code position. Use this so a wrapper/custom logger
-   * reports the position of *its* caller instead of the wrapper file itself.
+   * Opt-in browser log-level persistence (M4.6). When `true` and running in a browser, the logger reads its
+   * initial `minLevel` from `localStorage["tslog:level"]` (a numeric id or a level name like `"WARN"`) on
+   * construction, and `setMinLevel(...)` persists the new level back to the same key for the next page load —
+   * letting you flip log verbosity live from the devtools console without a rebuild. All `localStorage` access
+   * is `try/catch`-guarded (private mode throws) and is a NO-OP off-browser, so this never affects Node/Bun/Deno
+   * behavior. Default `false`. The custom key can be set via {@link persistLevelKey}.
+   * @example { type: "pretty", persistLevel: true } // then in devtools: localStorage["tslog:level"] = "DEBUG"
    */
-  internalFramePatterns?: RegExp[];
-  hideLogPositionForProduction?: boolean;
-  prettyLogTemplate?: string;
-  prettyErrorTemplate?: string;
-  prettyErrorStackTemplate?: string;
-  prettyErrorParentNamesSeparator?: string;
-  prettyErrorLoggerNameDelimiter?: string;
-  stylePrettyLogs?: boolean;
-  prettyLogTimeZone?: "UTC" | "local";
-  prettyLogStyles?: IPrettyLogStyles;
-  prettyLogLevelMethod?: TPrettyLogLevelMethod;
-  prettyInspectOptions?: InspectOptions;
-  /** Property name under which runtime metadata (date, level, code position, runtime) is attached. Default: `"_meta"`. */
-  metaProperty?: string;
-  /** String used to replace masked values. Default: `"[***]"`. */
-  maskPlaceholder?: string;
+  persistLevel?: boolean;
   /**
-   * Redact the values of these object keys anywhere in the logged data (case-sensitive by default).
-   * Use this to keep secrets and sensitive data — passwords, API keys, tokens, and (for AI/agentic apps) prompts and PII — out of your logs.
-   * @example { maskValuesOfKeys: ["password", "apiKey", "authorization", "token"] }
-   * @example { maskValuesOfKeys: ["prompt", "completion", "email"] } // agentic apps
+   * The `localStorage` key used when {@link persistLevel} is enabled. Defaults to `"tslog:level"`. Ignored when
+   * {@link persistLevel} is `false` or off-browser.
+   * @example { persistLevel: true, persistLevelKey: "myapp:logLevel" }
    */
-  maskValuesOfKeys?: string[];
-  /** Match {@link maskValuesOfKeys} case-insensitively (so `"password"` also masks `"Password"`/`"PASSWORD"`). Default: `false`. */
-  maskValuesOfKeysCaseInsensitive?: boolean;
+  persistLevelKey?: string;
   /**
-   * Replace every substring matching these patterns in string values (e.g. secrets pulled from env vars, emails, IPs).
-   * Applied with the {@link maskPlaceholder}.
-   * @example { maskValuesRegEx: [/\b[A-Za-z0-9]{32,}\b/g] } // long token-like strings
+   * The `pretty` group: every control for the human-readable (`type: "pretty"`) output — templates,
+   * timezone, per-token styles, the level→console-method map, and inspect options. See {@link IPrettySettings}.
+   * @example { type: "pretty", pretty: { timeZone: "local", style: true } }
    */
-  maskValuesRegEx?: RegExp[];
+  pretty?: IPrettySettings;
+  /**
+   * Configure the structured (`type: "json"`) output: the top-level key names for message/level/time/error,
+   * whether a numeric level id is emitted, and whether well-known keys are written in a stable order.
+   * The user's logged fields are spread at the top level next to these keys; runtime meta stays under
+   * {@link IMetaSettings.property}. See {@link IJsonOutputSettings}.
+   * @example { type: "json", json: { messageKey: "msg", levelKey: "level", timeKey: "@timestamp" } }
+   */
+  json?: IJsonOutputSettings;
+  /**
+   * The `mask` group: secret redaction by key ({@link IMaskOptions.keys}), regex
+   * ({@link IMaskOptions.regex}), and dotted path ({@link IMaskOptions.paths}), with the
+   * {@link IMaskOptions.placeholder}/{@link IMaskOptions.censor} replacement. See {@link IMaskOptions}.
+   * @example { mask: { keys: ["password", "apiKey", "prompt"], caseInsensitive: true } }
+   * @example { mask: { paths: ["user.password", "*.token"], censor: "remove" } }
+   */
+  mask?: IMaskOptions;
+  /**
+   * The `stack` group: how (and whether) the calling code position is captured for `_meta.path`, plus
+   * extra internal-frame patterns for wrapper loggers. See {@link IStackSettings}.
+   * @example { stack: { capture: "off" } }
+   */
+  stack?: IStackSettings;
+  /**
+   * The `meta` group: the runtime metadata property name and the async-context auto-attach flag.
+   * See {@link IMetaSettings}.
+   * @example { meta: { property: "$meta", attachContext: false } }
+   */
+  meta?: IMetaSettings;
   /**  Prefix every log message of this logger. */
   prefix?: unknown[];
-  /**  Array of attached Transports. Use Method `attachTransport` to attach transports. */
-  attachedTransports?: ((transportLogger: LogObj & ILogObjMeta) => void)[];
   /**
-   * Hooks to override individual steps of the log pipeline (mask → toLogObj → addMeta → format → transport).
-   * The most common use is `addMeta`, to attach correlation/trace ids and cost fields to every log.
+   * Output sinks attached to this logger. Each entry is a full {@link Transport} or a bare
+   * {@link TransportFn} (which is wrapped into a `Transport` with no `flush`). Prefer the
+   * `attachTransport(...)` method, which returns a detach function and keeps this array as the storage.
+   * @example { attachedTransports: [(record) => myQueue.push(record)] }
    */
-  overwrite?: {
-    addPlaceholders?: (logObjMeta: IMeta, placeholderValues: Record<string, string | number>) => void;
-    mask?: (args: unknown[]) => unknown[];
-    toLogObj?: (args: unknown[], clonesLogObj?: LogObj) => LogObj;
-    /**
-     * Attach custom metadata to every log object. Set {@link includeDefaultMetaInAddMeta} to receive the default
-     * runtime meta as `defaultMeta` and extend it instead of replacing it.
-     * @example
-     * // Inject a request/trace id and token cost into every log (great for agentic apps):
-     * addMeta: (logObj, _id, _name, defaultMeta) => ({ ...logObj, _meta: { ...defaultMeta, traceId: getTraceId() } })
-     */
-    addMeta?: (logObj: LogObj, logLevelId: number, logLevelName: string, defaultMeta?: IMeta) => LogObj & ILogObjMeta;
-    /** When true, the default runtime meta is passed as the 4th argument to a custom `addMeta` handler so it can extend rather than replace it. */
-    includeDefaultMetaInAddMeta?: boolean;
-    formatMeta?: (meta?: IMeta) => string;
-    formatLogObj?: (maskedArgs: unknown[], settings: ISettings<LogObj>) => { args: unknown[]; errors: string[] };
-    transportFormatted?: (logMetaMarkup: string, logArgs: unknown[], logErrors: string[], logMeta?: IMeta, settings?: ISettings<LogObj>) => void;
-    transportJSON?: (json: unknown) => void;
-  };
+  attachedTransports?: (Transport<LogObj> | TransportFn<LogObj>)[];
+  /**
+   * Middleware run, in order, on every log before the record is built — the replacement for the removed
+   * `overwrite.*` hooks. Each can enrich/rewrite the {@link LogContext} or drop the log (return
+   * `null`/`false`). Prefer the `use(...)` method to append at runtime; this seeds the initial chain.
+   * @example
+   * // Attach a trace id to every log and drop anything below INFO:
+   * { middleware: [(ctx) => { ctx.meta.traceId = getTraceId(); return ctx.logLevelId >= 3 ? ctx : null; }] }
+   */
+  middleware?: LogMiddleware<LogObj>[];
+  /**
+   * Additive custom log levels (M2.14): a map of `name → numeric id` registered on top of the canonical
+   * seven (`SILLY`(0) … `FATAL`(6)), which always keep working. Use these to express domain levels (e.g.
+   * `{ NOTICE: 3.5, AUDIT: 7 }`) that `log(id, name, ...)` emits with the right `logLevelId`/`logLevelName`
+   * and that a string `minLevel` (e.g. `"NOTICE"`) resolves against. A name colliding with a default level
+   * throws. No syslog set is shipped in core — define your own. Sub-loggers inherit and may extend the map.
+   * Also addable at runtime via `logger.addLevel(name, id)`.
+   * @example { customLevels: { NOTICE: 3.5, AUDIT: 7 } }
+   */
+  customLevels?: Record<string, number>;
+  /**
+   * Opt-in strict configuration validation (E6). When `true`, a hard misconfiguration that would otherwise
+   * only emit a development warning (e.g. an unknown `minLevel` name or a typo'd pretty template placeholder)
+   * instead throws a typed {@link TslogConfigError} carrying a `code`, the offending `setting` path, and a
+   * `suggestion`. Default `false` preserves the existing warn-only, never-throwing behavior. Throwing happens
+   * regardless of `NODE_ENV`, so a strict config fails fast in production too.
+   * @example { strictConfig: true }
+   */
+  strictConfig?: boolean;
+}
+
+/** Fully-resolved `pretty` group: every field of {@link IPrettySettings} defaulted (`enabled` resolved into `type`). */
+export interface IResolvedPrettySettings extends Required<Omit<IPrettySettings, "enabled">> {}
+
+/** Fully-resolved `stack` group: `capture` resolved by type/flags; `internalFramePatterns` always an array. */
+export interface IResolvedStackSettings {
+  capture: "off" | "lazy" | "auto" | "full";
+  internalFramePatterns: RegExp[];
+}
+
+/** Fully-resolved `meta` group: `property` and `attachContext` always present. */
+export interface IResolvedMetaSettings {
+  property: string;
+  attachContext: boolean;
+}
+
+/** Fully-resolved `mask` group: `keys`/`regex`/`paths` always present (possibly empty); `placeholder` defaulted. */
+export interface IResolvedMaskSettings {
+  keys: string[];
+  caseInsensitive: boolean;
+  regex: RegExp[];
+  placeholder: string;
+  paths: string[];
+  censor?: string | "remove" | "hash" | ((value: unknown, path: string) => unknown);
+  /** Label used inside the `"hash"` correlation token (`"[<label>:xxxxxxxx]"`). Default: `"hash"`. */
+  hashLabel?: string;
 }
 
 export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
@@ -144,24 +553,25 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   parentNames?: string[];
   minLevel: number;
   argumentsArrayName?: string;
-  internalFramePatterns?: RegExp[];
-  hideLogPositionForProduction: boolean;
-  prettyLogTemplate: string;
-  prettyErrorTemplate: string;
-  prettyErrorStackTemplate: string;
-  prettyErrorParentNamesSeparator: string;
-  prettyErrorLoggerNameDelimiter: string;
-  stylePrettyLogs: boolean;
-  prettyLogTimeZone: "UTC" | "local";
-  prettyLogStyles: IPrettyLogStyles;
-  prettyLogLevelMethod: TPrettyLogLevelMethod;
-  prettyInspectOptions: InspectOptions;
-  metaProperty: string;
-  maskPlaceholder: string;
-  maskValuesOfKeys: string[];
-  maskValuesOfKeysCaseInsensitive: boolean;
+  /** Resolved `pretty` group with every field defaulted. See {@link IResolvedPrettySettings}. */
+  pretty: IResolvedPrettySettings;
+  /** Fully-resolved JSON output settings with every key defaulted. See {@link IJsonOutputSettings}. */
+  json: Required<IJsonOutputSettings>;
+  /** Resolved `mask` group: key/regex/path masking with the placeholder defaulted. See {@link IResolvedMaskSettings}. */
+  mask: IResolvedMaskSettings;
+  /** Resolved `stack` group: `capture` resolved and `internalFramePatterns` always an array. See {@link IResolvedStackSettings}. */
+  stack: IResolvedStackSettings;
+  /** Resolved `meta` group: `property` and `attachContext` always present. See {@link IResolvedMetaSettings}. */
+  meta: IResolvedMetaSettings;
   prefix: unknown[];
-  attachedTransports: ((transportLogger: LogObj & ILogObjMeta) => void)[];
+  /** Resolved transports: bare {@link TransportFn}s passed in are normalized into {@link Transport}s. */
+  attachedTransports: Transport<LogObj>[];
+  /** Resolved middleware chain (the seed from {@link ISettingsParam.middleware} plus anything added via `use(...)`). */
+  middleware: LogMiddleware<LogObj>[];
+  /** Resolved additive custom levels (always present, possibly empty). See {@link ISettingsParam.customLevels}. */
+  customLevels: Record<string, number>;
+  /** Resolved strict-config flag (always present). See {@link ISettingsParam.strictConfig}. */
+  strictConfig: boolean;
 }
 
 export interface ILogObj {

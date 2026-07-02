@@ -1,5 +1,5 @@
 import type { IPrettyLogStyles, ISettings, TStyle } from "./interfaces.js";
-import { prettyLogStyles } from "./prettyLogStyles.js";
+import { prettyLogStyles } from "./render/styles.js";
 
 export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: string, values: Record<string, string | number>, hideUnsetPlaceholder = false) {
   const templateString = String(template);
@@ -24,8 +24,8 @@ export function formatTemplate<LogObj>(settings: ISettings<LogObj>, template: st
   const defaultStyle: TStyle = null;
   return templateString.replace(/{{(.+?)}}/g, (_, placeholder) => {
     const value = values[placeholder] != null ? String(values[placeholder]) : hideUnsetPlaceholder ? "" : _;
-    return settings.stylePrettyLogs
-      ? styleWrap(value, settings?.prettyLogStyles?.[placeholder as keyof IPrettyLogStyles] ?? defaultStyle) + ansiColorWrap("", prettyLogStyles.reset)
+    return settings.pretty.style
+      ? styleWrap(value, settings.pretty.styles?.[placeholder as keyof IPrettyLogStyles] ?? defaultStyle) + ansiColorWrap("", prettyLogStyles.reset)
       : value;
   });
 }

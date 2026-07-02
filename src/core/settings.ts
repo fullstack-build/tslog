@@ -1,0 +1,271 @@
+import type { ISettings, ISettingsParam } from "../interfaces.js";
+import { forceColorRequested, noColorRequested, resolveDefaultType, safeEnvGet } from "../internal/environment.js";
+import { nativeConsoleMethod } from "../internal/nativeConsole.js";
+import { TslogConfigError } from "./config.js";
+import { resolveLogLevelId, validateCustomLevel } from "./levels.js";
+import { normalizeTransport } from "./transports.js";
+
+// Re-export the canonical level resolver so callers can pull it from the settings module
+// without redefining it (it lives in ./levels.js as the single source of truth).
+export { resolveLogLevelId };
+
+/** Valid values for the `stack.capture` setting. */
+export type TStackCapture = "off" | "lazy" | "auto" | "full";
+
+/**
+ * Pretty-log template placeholders recognized by tslog. Used to warn (in development only) about
+ * likely typos such as `{{loglevelname}}` instead of `{{logLevelName}}`.
+ */
+export const KNOWN_PRETTY_PLACEHOLDERS = new Set([
+  "yyyy",
+  "mm",
+  "dd",
+  "hh",
+  "MM",
+  "ss",
+  "ms",
+  "dateIsoStr",
+  "rawIsoStr",
+  "logLevelName",
+  "name",
+  "nameWithDelimiterPrefix",
+  "nameWithDelimiterSuffix",
+  "fullFilePath",
+  "filePathWithLine",
+  "fileNameWithLine",
+  "fileName",
+  "filePath",
+  "fileLine",
+  "fileColumn",
+]);
+
+/** Whether to emit developer diagnostics. Off in production and when explicitly disabled via TSLOG_DISABLE_WARNINGS. */
+export function devWarningsEnabled(): boolean {
+  // Guarded per-property reads: Deno's process.env proxy throws NotCapable per GET without --allow-env.
+  if (safeEnvGet("TSLOG_DISABLE_WARNINGS") != null) {
+    return false;
+  }
+  return safeEnvGet("NODE_ENV") !== "production";
+}
+
+// Callers gate on devWarningsEnabled() before building a message, so this only emits.
+export function emitConfigWarning(message: string): void {
+  try {
+    nativeConsoleMethod("warn")(`tslog: ${message}`);
+    /* v8 ignore next 3 -- defensive: guards against a console.warn implementation that itself throws */
+  } catch {
+    // never let a diagnostic crash logging
+  }
+}
+
+/**
+ * Validate user-provided settings (E6). By default this is a best-effort developer aid: it warns (in
+ * development only) about likely mistakes, never throws, and never changes behavior. When the opt-in
+ * `strictConfig: true` setting is set, the same hard misconfigurations instead throw a typed
+ * {@link TslogConfigError} (with a `code`, `setting`, and `suggestion`) — regardless of `NODE_ENV`, so a
+ * strict config fails fast in production too. The out-of-range placeholder/minLevel checks are unchanged.
+ */
+export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> | undefined): void {
+  if (settings == null) {
+    return;
+  }
+  const strict = settings.strictConfig === true;
+  // Skip the whole pass when neither strict-mode is on nor dev warnings are enabled (production default).
+  if (!strict && !devWarningsEnabled()) {
+    return;
+  }
+
+  // In strict mode a hard error throws the typed TslogConfigError; otherwise it emits a dev warning.
+  const report = (issue: { code: string; setting: string; message: string; suggestion: string }): void => {
+    if (strict) {
+      throw new TslogConfigError(issue);
+    }
+    emitConfigWarning(issue.message);
+  };
+
+  // Out-of-range / unknown minLevel. Custom levels (M2.14) are valid minLevel targets, so consult them.
+  if (settings.minLevel != null) {
+    const resolved = resolveLogLevelId(settings.minLevel, settings.customLevels);
+    if (resolved == null) {
+      report({
+        code: "UNKNOWN_MIN_LEVEL",
+        setting: "minLevel",
+        message: `unknown minLevel ${JSON.stringify(settings.minLevel)}; expected a number 0-6 or a level name like "WARN".`,
+        suggestion: 'Use a number 0-6, a LogLevel enum value, or a level name like "WARN" — or register it via customLevels.',
+      });
+    } else if (typeof settings.minLevel === "number" && (resolved < 0 || resolved > 6)) {
+      report({
+        code: "MIN_LEVEL_OUT_OF_RANGE",
+        setting: "minLevel",
+        message: `minLevel ${resolved} is outside the default range 0-6; no default log method will be filtered as you might expect.`,
+        suggestion: "Set minLevel to a number between 0 (SILLY) and 6 (FATAL), or register a customLevel for the out-of-range id.",
+      });
+    }
+  }
+
+  // Unknown template placeholders (typos like {{loglevelname}}).
+  const template = settings.pretty?.template;
+  if (typeof template === "string") {
+    const placeholderRegex = /{{\s*(.+?)\s*}}/g;
+    let match: RegExpExecArray | null;
+    // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
+    while ((match = placeholderRegex.exec(template)) != null) {
+      const key = match[1];
+      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key)) {
+        report({
+          code: "UNKNOWN_PRETTY_PLACEHOLDER",
+          setting: "pretty.template",
+          message: `pretty.template references unknown placeholder "{{${key}}}"; check the spelling (e.g. "{{logLevelName}}").`,
+          suggestion: `Remove or fix "{{${key}}}" — see the recognized placeholders (e.g. "{{logLevelName}}", "{{filePathWithLine}}").`,
+        });
+      }
+    }
+  }
+}
+
+/**
+ * Resolve the effective {@link TStackCapture} mode from the (possibly partial) user settings.
+ *
+ * Precedence:
+ * 1. An explicit `stack.capture` value wins.
+ * 2. Otherwise default by output type: `"json"` -> `"off"`, everything else (pretty/hidden) -> `"auto"`.
+ */
+function resolveStackCapture<LogObj>(settings: ISettingsParam<LogObj> | undefined, type: ISettings<LogObj>["type"]): TStackCapture {
+  if (settings?.stack?.capture != null) {
+    return settings.stack.capture;
+  }
+  return type === "json" ? "off" : "auto";
+}
+
+/**
+ * Resolve the effective output `type` (M3.2). An explicit `type` always wins. Otherwise, when
+ * `pretty.enabled` is set it decides (`true` -> "pretty", `false` -> "json"); when it is unset the
+ * type is resolved from the environment (interactive TTY/not-CI/not-NO_COLOR -> "pretty", else "json";
+ * browser -> "pretty").
+ */
+function resolveType<LogObj>(settings: ISettingsParam<LogObj> | undefined): "json" | "pretty" | "hidden" {
+  if (settings?.type != null) {
+    return settings.type;
+  }
+  if (settings?.pretty?.enabled != null) {
+    return settings.pretty.enabled ? "pretty" : "json";
+  }
+  return resolveDefaultType();
+}
+
+/**
+ * Resolve pretty styling. Defaults to `pretty.style` (or `true`), but `NO_COLOR` forces styling off and
+ * `FORCE_COLOR` forces it on — honored even within an explicit pretty type so piped/CI output stays plain.
+ */
+function resolveStyle<LogObj>(settings: ISettingsParam<LogObj> | undefined): boolean {
+  if (forceColorRequested()) {
+    return true;
+  }
+  if (noColorRequested()) {
+    return false;
+  }
+  return settings?.pretty?.style ?? true;
+}
+
+/**
+ * Normalize a partial {@link ISettingsParam} into a fully populated {@link ISettings} with every default applied.
+ *
+ * This owns the defaults block previously inlined in the `BaseLogger` constructor: it resolves the
+ * environment-aware `type` (M3.2), `minLevel`, derives `stack.capture`, clones array/object inputs so
+ * callers cannot mutate the logger's settings by reference, and fills in every pretty/json/mask/stack/meta
+ * default under the grouped resolved shape.
+ */
+export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): ISettings<LogObj> {
+  const type = resolveType(settings);
+  const stackCapture = resolveStackCapture(settings, type);
+
+  // Resolve additive custom levels first (M2.14): validate each, then make the map available so a string
+  // `minLevel` referring to a custom level (e.g. "NOTICE") resolves correctly below.
+  const customLevels: Record<string, number> = {};
+  if (settings?.customLevels != null) {
+    for (const [name, id] of Object.entries(settings.customLevels)) {
+      validateCustomLevel(name, id);
+      customLevels[name] = id;
+    }
+  }
+
+  return {
+    type,
+    name: settings?.name,
+    parentNames: settings?.parentNames,
+    minLevel: resolveLogLevelId(settings?.minLevel, customLevels) ?? 0,
+    argumentsArrayName: settings?.argumentsArrayName,
+    // M4.6: opt-in browser log-level persistence flags pass through unchanged (default off).
+    persistLevel: settings?.persistLevel,
+    persistLevelKey: settings?.persistLevelKey,
+    pretty: {
+      template:
+        settings?.pretty?.template ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t{{filePathWithLine}}{{nameWithDelimiterPrefix}}\t",
+      errorTemplate: settings?.pretty?.errorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
+      errorStackTemplate: settings?.pretty?.errorStackTemplate ?? "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}",
+      errorParentNamesSeparator: settings?.pretty?.errorParentNamesSeparator ?? ":",
+      errorLoggerNameDelimiter: settings?.pretty?.errorLoggerNameDelimiter ?? "\t",
+      style: resolveStyle(settings),
+      timeZone: settings?.pretty?.timeZone ?? "UTC",
+      styles: settings?.pretty?.styles ?? {
+        logLevelName: {
+          "*": ["bold", "black", "bgWhiteBright", "dim"],
+          SILLY: ["bold", "white"],
+          TRACE: ["bold", "whiteBright"],
+          DEBUG: ["bold", "green"],
+          INFO: ["bold", "blue"],
+          WARN: ["bold", "yellow"],
+          ERROR: ["bold", "red"],
+          FATAL: ["bold", "redBright"],
+        },
+        dateIsoStr: "white",
+        filePathWithLine: "white",
+        name: ["white", "bold"],
+        nameWithDelimiterPrefix: ["white", "bold"],
+        nameWithDelimiterSuffix: ["white", "bold"],
+        errorName: ["bold", "bgRedBright", "whiteBright"],
+        fileName: ["yellow"],
+        fileNameWithLine: "white",
+      },
+      levelMethod: settings?.pretty?.levelMethod ?? {},
+      inspectOptions: settings?.pretty?.inspectOptions ?? {
+        colors: true,
+        compact: false,
+        depth: Infinity,
+      },
+    },
+    json: {
+      messageKey: settings?.json?.messageKey ?? "message",
+      levelKey: settings?.json?.levelKey ?? "level",
+      levelIdKey: settings?.json?.levelIdKey ?? "levelId",
+      timeKey: settings?.json?.timeKey ?? "time",
+      errorKey: settings?.json?.errorKey ?? "error",
+      numericLevel: settings?.json?.numericLevel ?? true,
+      stableKeyOrder: settings?.json?.stableKeyOrder ?? true,
+    },
+    mask: {
+      keys: [...(settings?.mask?.keys ?? [])],
+      caseInsensitive: settings?.mask?.caseInsensitive ?? false,
+      regex: [...(settings?.mask?.regex ?? [])],
+      placeholder: settings?.mask?.placeholder ?? "[***]",
+      paths: [...(settings?.mask?.paths ?? [])],
+      censor: settings?.mask?.censor,
+      hashLabel: settings?.mask?.hashLabel,
+    },
+    stack: {
+      capture: stackCapture,
+      internalFramePatterns: [...(settings?.stack?.internalFramePatterns ?? [])],
+    },
+    meta: {
+      property: settings?.meta?.property ?? "_meta",
+      attachContext: settings?.meta?.attachContext ?? true,
+    },
+    prefix: [...(settings?.prefix ?? [])],
+    // Bare TransportFns passed via settings are normalized into Transports so the resolved-settings
+    // contract (attachedTransports: Transport[]) holds and dispatch/flush can assume a uniform shape.
+    attachedTransports: (settings?.attachedTransports ?? []).map((transport) => normalizeTransport(transport)),
+    middleware: [...(settings?.middleware ?? [])],
+    customLevels,
+    strictConfig: settings?.strictConfig ?? false,
+  };
+}

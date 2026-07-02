@@ -1,15 +1,15 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { settingsFromEnv } from "./core/fromEnv.js";
-import { createBrowserEnvironment } from "./env/environment.browser.js";
 import type { EnvironmentProvider } from "./env/environment.js";
+import { selectEnvironment } from "./env/environment.universal.js";
 import type { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
 import { LogLevel } from "./interfaces.js";
 
 export * from "./BaseLogger.js";
 export * from "./core/config.js";
-// Re-export the runtime's environment provider factory so advanced users can construct a BaseLogger
-// directly (BaseLogger requires an injected EnvironmentProvider as of v5 — BC11).
-export { createBrowserEnvironment } from "./env/environment.browser.js";
+// Re-export the runtime's environment provider factory + selector so advanced users can construct a
+// BaseLogger directly (BaseLogger requires an injected EnvironmentProvider as of v5 — BC11).
+export { createUniversalEnvironment, selectEnvironment } from "./env/environment.universal.js";
 export * from "./interfaces.js";
 
 declare global {
@@ -18,14 +18,15 @@ declare global {
   }
 }
 
-// Lazily memoized browser provider — created on first logger construction, never at module top level,
-// so `sideEffects: false` keeps holding and the provider is not built when the module is merely imported.
-let browserEnvironment: EnvironmentProvider | undefined;
-function getBrowserEnvironment(): EnvironmentProvider {
-  if (browserEnvironment == null) {
-    browserEnvironment = createBrowserEnvironment();
+// Lazily memoized universal provider — selected on first logger construction (runtime probed once),
+// never at module top level, so `sideEffects: false` keeps holding and neither `node:util` nor the
+// inspect polyfill is pulled in merely by importing this module.
+let universalEnvironment: EnvironmentProvider | undefined;
+function getUniversalEnvironment(): EnvironmentProvider {
+  if (universalEnvironment == null) {
+    universalEnvironment = selectEnvironment();
   }
-  return browserEnvironment;
+  return universalEnvironment;
 }
 
 /**
@@ -51,14 +52,14 @@ function getBrowserEnvironment(): EnvironmentProvider {
  */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    // The browser's default `type` (pretty, with CSS `%c` styling) and `pretty.style` (on unless
-    // NO_COLOR) are resolved inside normalizeSettings (M3.2) via resolveDefaultType/resolveStyle, so the
-    // entry no longer needs to force a styling flag.
+    // The default `type` (env-aware: browser → pretty, server TTY → pretty, else json) and `pretty.style`
+    // (on unless NO_COLOR) are resolved inside normalizeSettings (M3.2), so the entry no longer forces a
+    // styling flag.
     //
-    // Auto-detect the caller frame (NaN) rather than hardcoding Safari/other frame counts (4/5), which
-    // are brittle across engines (Safari, Bun, Deno collapse or omit frames differently). The provider's
-    // pattern-based detection finds the first non-tslog frame regardless of runtime.
-    super(settings, logObj, getBrowserEnvironment(), Number.NaN);
+    // Auto-detect the caller frame the same way as the Node entry point. The previous hardcoded
+    // Safari/other frame counts (4/5) are brittle across engines (Safari, Bun, Deno collapse or omit
+    // frames differently); pattern-based detection finds the first non-tslog frame regardless of runtime.
+    super(settings, logObj, getUniversalEnvironment(), Number.NaN);
   }
 
   /**
@@ -172,10 +173,10 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
   /**
    * Build a {@link Logger} from environment variables (E3): `TSLOG_LEVEL` → `minLevel`, `TSLOG_TYPE` →
    * `type`, `TSLOG_NAME` → `name` (plus `NO_COLOR`/`FORCE_COLOR`, already honored at normalize time). The
-   * `overrides` are shallow-merged on top of the env-derived settings and win on any collision. In a browser
-   * without a `process.env` bag this simply yields the `overrides` (env reads degrade to empty).
+   * `overrides` are shallow-merged on top of the env-derived settings and win on any collision. On runtimes
+   * without a readable `process.env` bag this yields just the `overrides`.
    *
-   * @example Logger.fromEnv({ name: "ui" })
+   * @example TSLOG_LEVEL=WARN TSLOG_NAME=api node app.js  →  Logger.fromEnv()
    */
   public static fromEnv<LogObj = ILogObj>(overrides?: ISettingsParam<LogObj>): Logger<LogObj> {
     return new Logger<LogObj>(settingsFromEnv(overrides));

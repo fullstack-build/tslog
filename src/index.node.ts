@@ -1,7 +1,7 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { settingsFromEnv } from "./core/fromEnv.js";
-import { createBrowserEnvironment } from "./env/environment.browser.js";
 import type { EnvironmentProvider } from "./env/environment.js";
+import { createNodeEnvironment } from "./env/environment.node.js";
 import type { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
 import { LogLevel } from "./interfaces.js";
 
@@ -9,23 +9,17 @@ export * from "./BaseLogger.js";
 export * from "./core/config.js";
 // Re-export the runtime's environment provider factory so advanced users can construct a BaseLogger
 // directly (BaseLogger requires an injected EnvironmentProvider as of v5 — BC11).
-export { createBrowserEnvironment } from "./env/environment.browser.js";
+export { createNodeEnvironment } from "./env/environment.node.js";
 export * from "./interfaces.js";
 
-declare global {
-  interface Window {
-    chrome?: unknown;
-  }
-}
-
-// Lazily memoized browser provider — created on first logger construction, never at module top level,
+// Lazily memoized Node provider — created on first logger construction, never at module top level,
 // so `sideEffects: false` keeps holding and the provider is not built when the module is merely imported.
-let browserEnvironment: EnvironmentProvider | undefined;
-function getBrowserEnvironment(): EnvironmentProvider {
-  if (browserEnvironment == null) {
-    browserEnvironment = createBrowserEnvironment();
+let nodeEnvironment: EnvironmentProvider | undefined;
+function getNodeEnvironment(): EnvironmentProvider {
+  if (nodeEnvironment == null) {
+    nodeEnvironment = createNodeEnvironment();
   }
-  return browserEnvironment;
+  return nodeEnvironment;
 }
 
 /**
@@ -36,7 +30,7 @@ function getBrowserEnvironment(): EnvironmentProvider {
  * // Pretty, colorized output — best for local development:
  * import { Logger } from "tslog";
  * const log = new Logger();
- * log.info("ready");
+ * log.info("server started", { port: 3000 });
  *
  * @example
  * // Structured JSON for production / observability / LLM ingestion:
@@ -46,19 +40,17 @@ function getBrowserEnvironment(): EnvironmentProvider {
  * @example
  * // A child logger per request/agent — settings and fields are inherited automatically:
  * const requestLog = log.getSubLogger({ name: "agent:planner" });
+ * requestLog.debug("planning step", { step: 2 });
  *
- * @typeParam LogObj - Shape of your structured log object; defaults are fine for most apps.
+ * @example
+ * // Keep secrets and prompts out of your logs:
+ * const log = new Logger({ type: "json", mask: { keys: ["password", "apiKey", "prompt"] } });
+ *
+ * @typeParam LogObj - Shape of your structured log object (e.g. `{ traceId?: string }`); defaults are fine for most apps.
  */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    // The browser's default `type` (pretty, with CSS `%c` styling) and `pretty.style` (on unless
-    // NO_COLOR) are resolved inside normalizeSettings (M3.2) via resolveDefaultType/resolveStyle, so the
-    // entry no longer needs to force a styling flag.
-    //
-    // Auto-detect the caller frame (NaN) rather than hardcoding Safari/other frame counts (4/5), which
-    // are brittle across engines (Safari, Bun, Deno collapse or omit frames differently). The provider's
-    // pattern-based detection finds the first non-tslog frame regardless of runtime.
-    super(settings, logObj, getBrowserEnvironment(), Number.NaN);
+    super(settings, logObj, getNodeEnvironment(), Number.NaN);
   }
 
   /**
@@ -172,10 +164,9 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
   /**
    * Build a {@link Logger} from environment variables (E3): `TSLOG_LEVEL` → `minLevel`, `TSLOG_TYPE` →
    * `type`, `TSLOG_NAME` → `name` (plus `NO_COLOR`/`FORCE_COLOR`, already honored at normalize time). The
-   * `overrides` are shallow-merged on top of the env-derived settings and win on any collision. In a browser
-   * without a `process.env` bag this simply yields the `overrides` (env reads degrade to empty).
+   * `overrides` are shallow-merged on top of the env-derived settings and win on any collision.
    *
-   * @example Logger.fromEnv({ name: "ui" })
+   * @example TSLOG_LEVEL=WARN TSLOG_TYPE=json node app.js  →  Logger.fromEnv() // { minLevel: "WARN", type: "json" }
    */
   public static fromEnv<LogObj = ILogObj>(overrides?: ISettingsParam<LogObj>): Logger<LogObj> {
     return new Logger<LogObj>(settingsFromEnv(overrides));
