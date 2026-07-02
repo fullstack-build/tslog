@@ -26,6 +26,10 @@ jobs:
                   node-version: ${{ matrix.node-version }}
             - run: npm ci
 
+            # Fail fast if the AI-facing docs (llms.txt/RECIPES.md) drifted from the source.
+            - name: Check doc sync
+              run: npm run check-doc-sync
+
             # Node test suite + coverage.
             - name: Run coverage
               run: npm run coverage

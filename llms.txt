@@ -1,57 +1,43 @@
 # tslog
 
-> Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting. A strong fit for AI/agentic apps that need structured, redacted, correlated logs.
-
-## Install
-`npm install tslog`
+> Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret/PII/prompt masking, async-context correlation, structured error/cause formatting. A strong fit for AI/agentic apps needing structured, redacted, correlated logs.
 
 ## Import
 ```ts
-import { Logger } from "tslog";       // create your own
-import { log } from "tslog";          // ready-to-use default (pretty)
-import { Logger, DefaultLogLevels, ILogObj } from "tslog";
+import { Logger, log } from "tslog"; // class + ready-to-use default instance
 ```
 
 ## Core API
-- `new Logger(settings?, logObj?)` — create a logger. `logObj` is a default object merged into every log; function-valued fields are evaluated per log (great for `requestId`).
-- `log.silly|trace|debug|info|warn|error|fatal(...args)` — log at a level. Returns the structured log object (with `_meta`).
-- `log.getSubLogger(settings?, logObj?)` — child logger; inherits settings, names, prefixes, and transports.
-- `log.attachTransport((logObj) => void)` — send every log object somewhere (file, HTTP, observability backend). Transports are isolated: a throwing transport never breaks logging.
+- `new Logger({ type: "json" })` — structured one-object-per-line output (production / observability / LLM ingestion). Default `type` is env-aware: pretty in an interactive TTY, json in CI / non-TTY / when `NO_COLOR` is set.
+- `log.info|warn|error|debug|trace|silly|fatal(...)` — fields-first or string-first: `log.info({ userId: 42 }, "ready")` or `log.info("ready", { userId: 42 })`.
+- `log.getSubLogger({ name })` / `log.child({ name })` — child logger (aliases); inherits settings, names, prefixes, transports.
+- `log.runInContext({ requestId }, fn)` — AsyncLocalStorage correlation: fields attach to every log inside `fn`, across awaits. `log.getContext()` reads them.
+- `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` / `await using`.
 
-## Key settings (ISettingsParam)
-- `type: "pretty" | "json" | "hidden"` — `"json"` for production/observability/LLM ingestion; `"pretty"` (default) for local dev; `"hidden"` to suppress console but still run transports.
-- `minLevel: number | DefaultLogLevels | "SILLY".."FATAL"` — accepts a level name (e.g. `"WARN"`) or number (0..6).
-- `name: string` — logger name, shown in pretty output and inherited by sub-loggers (use per-module or per-agent).
-- `maskValuesOfKeys: string[]` — redact the values of these keys anywhere in the data. Use for secrets and, in AI apps, prompts/PII: `["password","apiKey","authorization","token","prompt"]`.
-- `maskValuesRegEx: RegExp[]` — redact substrings in string values (env secrets, emails, IPs).
-- `prettyLogLevelMethod` — map levels to console methods (e.g. `{ WARN: console.warn, ERROR: console.error, "*": console.log }`).
-- `overwrite.addMeta(logObj, id, name, defaultMeta?)` — attach correlation/trace ids or cost fields to every log (set `overwrite.includeDefaultMetaInAddMeta: true` to extend the default meta).
-- `hideLogPositionForProduction: true` — skip stack capture for max throughput in production.
+## Settings are GROUPED (no flat keys)
+- `type`, `name`, `minLevel: "INFO"` (name or 0..6).
+- `mask: { keys: ["password","apiKey","token","prompt"], paths: ["user.password","*.token"], caseInsensitive, regex, censor }` — redact secrets/PII/prompts by key, dotted path, or regex. Regexes always apply globally (no `g` flag needed); keys/regex also mask inside `Map`/`Set` contents; shared/circular references resolve to the same masked clone.
+- `json: { messageKey, levelKey, timeKey, errorKey }`, `pretty: { timeZone, style }`, `stack: { capture: "off" }`, `meta: { property, attachContext }`.
 
-## Common correct patterns
-```ts
-// Structured JSON, filtered to INFO and above:
-const log = new Logger({ type: "json", minLevel: "INFO" });
-log.info({ event: "request", method: "GET", path: "/users", status: 200, ms: 12 });
+## Output shape (type:"json")
+Flat, fields-first: `{ message, level, levelId, time, ...yourFields, error?, _meta: { v: 5, runtime, logLevelId, ... } }`.
 
-// Per-request child logger with an inherited request id:
-const reqLog = log.getSubLogger({ name: "req" }, { requestId: () => getRequestId() });
+## Presets (subpaths)
+- `tslog/presets/pino` — `pinoTransport`/`pinoFormat` (pino NDJSON).
+- `tslog/otel` — `otelFormat`/`toOtelRecord` (OpenTelemetry logs).
+- `tslog/presets/genai` — `genai({ model, inputTokens, outputTokens, costUsd })` → spread into a log call.
 
-// Redact secrets and prompts:
-const log = new Logger({ type: "json", maskValuesOfKeys: ["password", "apiKey", "prompt"] });
-
-// Ship logs to a backend without blocking:
-log.attachTransport((o) => sendToObservability(o));
-```
+## Transports (subpaths, opt-in)
+- `tslog/transports/file` — `fileTransport({ path, format, append })` (Node; buffered, flush on dispose).
+- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs })` (batched fetch).
+- `tslog/transports/ringbuffer` — `ringBufferTransport({ size })` (in-memory; `.dump()`/`.clear()`).
+- `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself).
 
 ## Notes for code generation
-- Prefer `type: "json"` for anything machine-read (observability, LLM ingestion).
-- Prefer `minLevel: "INFO"` (a name) over a bare number for readability.
-- Use `getSubLogger` (not new top-level loggers) for per-request/per-agent context.
-- Always set `maskValuesOfKeys` when logging objects that may contain secrets or prompts.
-- tslog has no runtime dependencies and works in every JS runtime — no environment-specific setup needed.
+- Prefer `type: "json"` and `minLevel: "INFO"` for machine-read logs.
+- Use `getSubLogger`/`child` per request/agent, `runInContext` for correlation.
+- Always set `mask.keys`/`mask.paths` when logging objects that may hold secrets or prompts.
 
 ## Links
-- Docs: https://tslog.js.org
 - Recipes: ./RECIPES.md
 - Repo: https://github.com/fullstack-build/tslog
