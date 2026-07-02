@@ -14,34 +14,104 @@
     "url": "https://github.com/fullstack-build/tslog/issues"
   },
   "type": "module",
-  "main": "./dist/cjs/index.js",
-  "module": "./dist/esm/index.js",
+  "module": "./dist/esm/index.node.js",
   "types": "./dist/types/index.d.ts",
   "browser": {
     "tslog": "./dist/browser/index.js",
     "util": false
   },
-  "react-native": "./dist/cjs/index.js",
+  "react-native": "./dist/esm/index.universal.js",
   "exports": {
     ".": {
       "types": "./dist/types/index.d.ts",
-      "require": "./dist/cjs/index.js",
-      "import": "./dist/esm/index.js",
-      "default": "./dist/esm/index.js"
-    }
+      "browser": "./dist/esm/index.browser.js",
+      "worker": "./dist/esm/index.browser.js",
+      "deno": "./dist/esm/index.universal.js",
+      "bun": "./dist/esm/index.universal.js",
+      "node": "./dist/esm/index.node.js",
+      "react-native": "./dist/esm/index.universal.js",
+      "default": "./dist/esm/index.universal.js"
+    },
+    "./transports/file": {
+      "types": "./dist/types/subpaths/transports/file.d.ts",
+      "node": "./dist/esm/subpaths/transports/file.js",
+      "default": "./dist/esm/subpaths/transports/file.js"
+    },
+    "./transports/http": {
+      "types": "./dist/types/subpaths/transports/http.d.ts",
+      "default": "./dist/esm/subpaths/transports/http.js"
+    },
+    "./transports/ringbuffer": {
+      "types": "./dist/types/subpaths/transports/ringBuffer.d.ts",
+      "default": "./dist/esm/subpaths/transports/ringBuffer.js"
+    },
+    "./transports/worker": {
+      "types": "./dist/types/subpaths/transports/worker.d.ts",
+      "node": "./dist/esm/subpaths/transports/worker.js",
+      "default": "./dist/esm/subpaths/transports/worker.js"
+    },
+    "./presets/pino": {
+      "types": "./dist/types/subpaths/presets/pino.d.ts",
+      "default": "./dist/esm/subpaths/presets/pino.js"
+    },
+    "./otel": {
+      "types": "./dist/types/subpaths/presets/otel.d.ts",
+      "default": "./dist/esm/subpaths/presets/otel.js"
+    },
+    "./presets/genai": {
+      "types": "./dist/types/subpaths/presets/genai.d.ts",
+      "default": "./dist/esm/subpaths/presets/genai.js"
+    },
+    "./serializers": {
+      "types": "./dist/types/subpaths/serializers/std.d.ts",
+      "default": "./dist/esm/subpaths/serializers/std.js"
+    },
+    "./lite": {
+      "types": "./dist/types/subpaths/lite.d.ts",
+      "default": "./dist/esm/subpaths/lite.js"
+    },
+    "./console": {
+      "types": "./dist/types/subpaths/wrapConsole.d.ts",
+      "default": "./dist/esm/subpaths/wrapConsole.js"
+    },
+    "./testing": {
+      "types": "./dist/types/subpaths/testing.d.ts",
+      "default": "./dist/esm/subpaths/testing.js"
+    },
+    "./pretty/box": {
+      "types": "./dist/types/subpaths/pretty/box.d.ts",
+      "default": "./dist/esm/subpaths/pretty/box.js"
+    },
+    "./throttle": {
+      "types": "./dist/types/subpaths/throttle.d.ts",
+      "default": "./dist/esm/subpaths/throttle.js"
+    },
+    "./cli": {
+      "types": "./dist/types/subpaths/cli.d.ts",
+      "node": "./dist/esm/subpaths/cli.js",
+      "default": "./dist/esm/subpaths/cli.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "tslog": "./dist/esm/subpaths/cli.js"
   },
   "scripts": {
     "prepare": "husky",
-    "build": "npm run build-types && npm run build-server && npm run build-browser && npm run prepare-publish",
+    "build": "npm run build-types && npm run build-esm && npm run build-browser && npm run prepare-publish",
     "build-browser": "node build.js",
-    "build-types": "tsc -b tsconfig.types.json",
-    "build-server": "tsc -b tsconfig.esm.json tsconfig.cjs.json && cp ./src/package-cjs.json ./dist/cjs/package.json",
-    "build-example": "tsc -b tsconfig.example.json",
+    "build-types": "tsgo -p tsconfig.types.json",
+    "build-esm": "tsgo -p tsconfig.esm.json",
+    "build-example": "tsgo -p tsconfig.example.json",
+    "audit-sideeffects": "node scripts/audit-sideeffects.mjs",
+    "bench": "node benchmarks/run.mjs",
+    "bench:gate": "node benchmarks/run.mjs --gate",
     "dev-ts": "nodemon examples/server/index2.ts",
     "dev-ts-old-example": "nodemon examples/server/index.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
-    "check": "biome check --write .",
+    "check": "biome check --write . && npm run check-doc-sync",
+    "check-doc-sync": "node scripts/check-doc-sync.mjs",
     "test": "vitest run",
     "test:browser": "npx playwright test",
     "test:bun": "bunx vitest run",
@@ -60,7 +130,7 @@
     "version": "npm run sync-version"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=20"
   },
   "np": {
     "yarn": false,
@@ -89,7 +159,9 @@
     "np": "^11.0.2",
     "playwright": "^1.50.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.9.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260629.1",
     "vitest": "^3.0.0"
   },
   "overrides": {

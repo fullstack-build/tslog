@@ -3,7 +3,11 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "dist/esm",
-    "module": "NodeNext"
+    "rootDir": "src",
+    "module": "NodeNext",
+    // Keep comments in the emitted JS: the entry points' `/* @__PURE__ */ new Logger()` annotation
+    // must survive into dist/esm so consumer bundlers can drop the unused default singleton.
+    "removeComments": false
   },
   "include": ["src/*.ts", "src/**/*.ts"]
 }

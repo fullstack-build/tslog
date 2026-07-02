@@ -54,11 +54,12 @@ const main = async () => {
       "type",
       "engines",
     ]),
-    main: adjustPaths(rootPkg.main),
+    // ESM-only as of v5: no `main`/CJS entry. `module` kept for legacy bundlers.
     module: adjustPaths(rootPkg.module),
     types: adjustPaths(rootPkg.types),
     browser: adjustPaths(rootPkg.browser),
     exports: adjustPaths(rootPkg.exports),
+    bin: adjustPaths(rootPkg.bin),
     "react-native": adjustPaths(rootPkg["react-native"]),
   };
 
