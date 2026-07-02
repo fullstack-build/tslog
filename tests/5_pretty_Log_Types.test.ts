@@ -113,10 +113,9 @@ describe("Pretty: Log Types", () => {
     expect(Buffer.isBuffer(secondArgs[1])).toBe(true);
     expect((secondArgs[1] as Buffer).equals(buffer)).toBe(true);
 
+    // Native node:util inspect renders Buffers in their canonical hex form.
     const output = getConsoleLogStripped();
-    expect(output).toMatch(/'0':\s*102/);
-    expect(output).toMatch(/'1':\s*111/);
-    expect(output).toMatch(/'2':\s*111/);
+    expect(output).toContain("<Buffer 66 6f 6f>");
   });
 
   test("Object", (): void => {

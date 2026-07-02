@@ -185,8 +185,12 @@ export function createUniversalEnvironment(): EnvironmentProvider {
         date: new Date(),
         logLevelId,
         logLevelName,
-        path: !hideLogPosition ? provider.getCallerStackFrame(callerFrame, new Error(), internalFramePatterns) : undefined,
       }) as RuntimeMeta;
+      // Omit `path` entirely when capture is off (mirrors the node provider): an ever-present
+      // `path: undefined` key serialized as the junk string "[undefined]" on every record.
+      if (!hideLogPosition) {
+        built.path = provider.getCallerStackFrame(callerFrame, new Error(), internalFramePatterns);
+      }
       // Omit name/parentNames when unset so they don't serialize as `"[undefined]"` (matches the node provider).
       if (name !== undefined) {
         built.name = name;

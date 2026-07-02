@@ -190,6 +190,12 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
     return primitive;
   }
 
+  // URLs carry no own enumerable properties (everything lives in prototype getters), so the generic
+  // object walk below would render them as an empty `{}`. Show the href instead, like native inspect.
+  if (typeof URL !== "undefined" && value instanceof URL) {
+    return `URL { ${formatPrimitive(ctx, value.href) ?? `'${value.href}'`} }`;
+  }
+
   // Look up the keys of the object.
   let keys = Object.keys(value);
   const visibleKeys = arrayToHash(keys);

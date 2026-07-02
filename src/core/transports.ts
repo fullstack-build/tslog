@@ -128,12 +128,15 @@ export function dispatchToTransports<LogObj>(
   }
 
   // Cache lines by their resolved format so each distinct format is computed at most once per call and
-  // shared across transports that request it. Custom LogFormatter functions key by identity.
-  const lineByStringFormat = new Map<"pretty" | "json", string>();
-  const lineByFormatterFn = new Map<LogFormatter<LogObj>, string>();
+  // shared across transports that request it. The two built-in formats use plain locals (no Map
+  // allocation on the hot path); custom LogFormatter functions key by identity in a lazily-created Map.
+  let prettyLine: string | undefined;
+  let jsonLine: string | undefined;
+  let lineByFormatterFn: Map<LogFormatter<LogObj>, string> | undefined;
 
   const lineFor = (format: TLogFormat<LogObj>): string => {
     if (typeof format === "function") {
+      lineByFormatterFn ??= new Map();
       const cached = lineByFormatterFn.get(format);
       if (cached !== undefined) {
         return cached;
@@ -142,13 +145,12 @@ export function dispatchToTransports<LogObj>(
       lineByFormatterFn.set(format, line);
       return line;
     }
-    const cached = lineByStringFormat.get(format);
-    if (cached !== undefined) {
-      return cached;
+    if (format === "json") {
+      jsonLine ??= formatResolver(record, "json");
+      return jsonLine;
     }
-    const line = formatResolver(record, format);
-    lineByStringFormat.set(format, line);
-    return line;
+    prettyLine ??= formatResolver(record, "pretty");
+    return prettyLine;
   };
 
   for (const transport of transports) {

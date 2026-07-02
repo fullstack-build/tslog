@@ -118,12 +118,11 @@ export class MaskingEngine<LogObj> {
    * Normalize and mask every argument in `args`.
    *
    * Fast path (M1.5): when there are no mask keys AND no mask regexes AND no `mask.paths`, nothing can be
-   * *masked*, so we skip the deep masking clone. We still expand any `URL` instances into plain objects,
-   * because in v4 that normalization lived inside the mask pass and therefore ran for every log under the old
-   * default; with the v5 default `mask.keys: []` (BC5) a bare `URL` would otherwise render as an opaque
-   * `{}` (its own properties are non-enumerable). {@link normalizeUrls} returns the args untouched (no
-   * allocation) when no URL is present, so the common case stays cheap. Both the pretty and JSON formatters
-   * consume this result, so URLs render consistently regardless of masking.
+   * *masked*, so we skip the deep masking clone entirely. Only a shallow, per-argument check expands a
+   * TOP-LEVEL `URL` argument into a plain object (`logger.info(url)` is the common case and a bare `URL`'s
+   * own properties are non-enumerable) — the old deep normalization walk cost every log a full traversal
+   * for a feature almost no log used. Nested URLs render fine without it: `JSON.stringify` emits the href
+   * via `URL#toJSON`, and Node's `util.inspect` prints URLs natively in pretty mode.
    */
   public mask(args: unknown[]): unknown[] {
     const hasKeys = this.settings.mask.keys != null && this.settings.mask.keys.length > 0;
@@ -131,95 +130,20 @@ export class MaskingEngine<LogObj> {
     const compiledPaths = this.getMaskPaths();
     const hasPaths = compiledPaths.length > 0;
     if (!hasKeys && !hasRegex && !hasPaths) {
-      return this.normalizeUrls(args, new WeakSet<object>());
+      for (let i = 0; i < args.length; i++) {
+        if (args[i] instanceof URL) {
+          return args.map((arg) => (arg instanceof URL ? urlToObject(arg) : arg));
+        }
+      }
+      return args;
     }
 
     const ctx = this.createContext(compiledPaths);
     // Each top-level argument is the root of its own path (`""` so its own children are "<key>").
-    return args?.map((arg) => this.recurse(arg, ctx));
-  }
-
-  /**
-   * Recursively expand `URL` instances into plain objects, allocating a copy only along paths that actually
-   * contain a URL (so a log with no URL incurs no clone). Containers handled specially by the masking
-   * recursion (Map/Set/Date/Buffer/Error) are left as-is here — they have well-defined inspect output and v4
-   * did not URL-expand inside them. Non-data properties (getters) are not invoked. A `WeakSet` guards cycles.
-   */
-  private normalizeUrls<T>(source: T, seen: WeakSet<object>): T {
-    if (source instanceof URL) {
-      return urlToObject(source) as T;
-    }
-    if (source == null || typeof source !== "object") {
-      return source;
-    }
-    // Defensive: predicate checks (isError/isBuffer) and `seen` bookkeeping may read properties, which a
-    // hostile Proxy can throw from. URL normalization is best-effort — never crash logging over it.
-    try {
-      if (
-        source instanceof Date ||
-        source instanceof Map ||
-        source instanceof Set ||
-        this.predicates.isError(source) ||
-        this.predicates.isBuffer(source) ||
-        ArrayBuffer.isView(source)
-      ) {
-        return source;
-      }
-      if (seen.has(source)) {
-        return source;
-      }
-      seen.add(source);
-    } catch {
-      return source;
-    }
-
-    if (Array.isArray(source)) {
-      let copy: unknown[] | undefined;
-      for (let i = 0; i < source.length; i++) {
-        const next = this.normalizeUrls(source[i], seen);
-        if (next !== source[i] && copy == null) {
-          copy = source.slice(0, i);
-        }
-        if (copy != null) {
-          copy.push(next);
-        }
-      }
-      return (copy ?? source) as unknown as T;
-    }
-
-    // Defensive: a hostile object (e.g. a throwing Proxy) can throw from any trap. URL normalization is a
-    // best-effort convenience, never a reason to crash logging — pass such objects through untouched.
-    let keys: string[];
-    try {
-      keys = Object.getOwnPropertyNames(source);
-    } catch {
-      return source;
-    }
-
-    let copy: Record<string, unknown> | undefined;
-    for (const key of keys) {
-      let value: unknown;
-      try {
-        const descriptor = Object.getOwnPropertyDescriptor(source, key);
-        if (descriptor == null || !("value" in descriptor)) {
-          continue;
-        }
-        value = (source as Record<string, unknown>)[key];
-      } catch {
-        // a throwing getter/trap on this property — leave the original in place, keep walking
-        continue;
-      }
-      if (value instanceof URL || (value != null && typeof value === "object")) {
-        const next = this.normalizeUrls(value, seen);
-        if (next !== value && copy == null) {
-          copy = { ...(source as Record<string, unknown>) };
-        }
-        if (copy != null) {
-          copy[key] = next;
-        }
-      }
-    }
-    return (copy ?? source) as T;
+    // Top-level URLs are expanded to plain objects BEFORE the walk (mirroring the fast path above), so
+    // `mask.regex` still applies to their href/query strings; nested URLs pass through untouched on
+    // both paths and serialize via `URL#toJSON` — one consistent representation regardless of config.
+    return args?.map((arg) => this.recurse(arg instanceof URL ? urlToObject(arg) : arg, ctx));
   }
 
   /**
@@ -550,7 +474,9 @@ export class MaskingEngine<LogObj> {
     } else if (source instanceof Date) {
       return new Date(source.getTime()) as T;
     } else if (source instanceof URL) {
-      return urlToObject(source) as T;
+      // Nested URLs pass through untouched (immutable enough; own enumerable props are empty anyway):
+      // JSON serializes them via `URL#toJSON`, pretty via inspect — identical to the no-mask path.
+      return source as T;
     } else if (source !== null && typeof source === "object") {
       const caseInsensitive = this.settings.mask.caseInsensitive === true;
       const hasPaths = ctx.paths.length > 0;

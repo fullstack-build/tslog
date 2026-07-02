@@ -315,12 +315,12 @@ describe("Node runtime specifics", () => {
 
     vi.resetModules();
 
-    // The Node provider imports `formatWithOptions` directly from `node:util`; the universal/browser
-    // providers resolve it via `resolveInspect()` -> `../src/render/inspect.polyfill.js`. Under Vitest
-    // (no global `require`) that resolves to the polyfill, so mock the polyfill to throw and drive the
-    // fallback through the universal provider's `formatWithOptionsSafe`.
-    vi.doMock("../src/render/inspect.polyfill.js", () => ({
-      formatWithOptions: () => {
+    // The universal/browser providers resolve their formatter via `resolveInspect()` (native
+    // `node:util` through process.getBuiltinModule, else the polyfill). Mock the resolver itself to
+    // return a throwing formatter so the fallback in `formatWithOptionsSafe` is driven regardless of
+    // which implementation the runtime would pick.
+    vi.doMock("../src/render/inspect.js", () => ({
+      resolveInspect: () => (): string => {
         throw new Error("boom");
       },
     }));
@@ -340,6 +340,6 @@ describe("Node runtime specifics", () => {
 
     consoleSpy.mockRestore();
     console.log = originalConsoleLog;
-    vi.doUnmock("../src/render/inspect.polyfill.js");
+    vi.doUnmock("../src/render/inspect.js");
   });
 });

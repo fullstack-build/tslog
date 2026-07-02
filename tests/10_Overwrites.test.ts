@@ -249,3 +249,19 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
     expect(writes).toBe(1);
   });
 });
+
+describe("middleware argument isolation", () => {
+  test("middleware pushing onto ctx.args never mutates a caller-owned lazy array", () => {
+    const logger = new Logger({ type: "hidden" });
+    logger.use((ctx) => {
+      ctx.args.push({ traceId: "t-1" });
+      return ctx;
+    });
+
+    const payload = ["job started"];
+    logger.info(() => payload);
+    logger.info(() => payload);
+
+    expect(payload).toEqual(["job started"]);
+  });
+});

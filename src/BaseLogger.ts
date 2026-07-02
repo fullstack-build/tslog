@@ -136,28 +136,38 @@ export class BaseLogger<LogObj> {
     }
 
     const resolvedArgs = this._resolveLogArguments(args);
-    const logArgs = [...this.settings.prefix, ...resolvedArgs];
+    // Skip the spread when there is no prefix — `args` is this call's own rest array, safe to pass on.
+    let logArgs = this.settings.prefix.length > 0 ? [...this.settings.prefix, ...resolvedArgs] : resolvedArgs;
 
     // Middleware chain (replaces the v4 overwrite.* hooks): runs in registration order over a mutable
     // context. Any middleware may rewrite args/level/meta or drop the log entirely (return null/false).
-    let context: LogContext<LogObj> | null = {
-      logLevelId,
-      logLevelName,
-      args: logArgs,
-      settings: this.settings,
-      meta: {},
-    };
+    // The context object is only built when middleware are registered, so the common no-middleware
+    // log pays no allocation here.
+    let effectiveLevelId = logLevelId;
+    let effectiveLevelName = logLevelName;
+    let middlewareMeta: Record<string, unknown> | undefined;
     if (this.settings.middleware.length > 0) {
-      context = runMiddleware(context, this.settings.middleware);
+      const context: LogContext<LogObj> | null = runMiddleware(
+        {
+          logLevelId,
+          logLevelName,
+          args: logArgs,
+          settings: this.settings,
+          meta: {},
+        },
+        this.settings.middleware,
+      );
       if (context == null) {
         return;
       }
+      effectiveLevelId = context.logLevelId;
+      effectiveLevelName = context.logLevelName;
+      logArgs = context.args;
+      middlewareMeta = context.meta;
     }
-    const effectiveLevelId = context.logLevelId;
-    const effectiveLevelName = context.logLevelName;
 
     // Mask / normalize the (possibly middleware-rewritten) args through the masking engine.
-    const maskedArgs: unknown[] = this.maskingEngine.mask(context.args);
+    const maskedArgs: unknown[] = this.maskingEngine.mask(logArgs);
 
     // Execute default LogObj functions for every log (e.g. requestId), then build the flat log object.
     const thisLogObj: LogObj | undefined = this.logObj != null ? recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
@@ -180,8 +190,10 @@ export class BaseLogger<LogObj> {
           }
         }
       }
-      for (const key of Object.keys(context.meta)) {
-        (recordMeta as unknown as Record<string, unknown>)[key] = context.meta[key];
+      if (middlewareMeta != null) {
+        for (const key of Object.keys(middlewareMeta)) {
+          (recordMeta as unknown as Record<string, unknown>)[key] = middlewareMeta[key];
+        }
       }
     }
 
@@ -414,13 +426,17 @@ export class BaseLogger<LogObj> {
       const candidate = args[0] as () => unknown;
       if (candidate.length === 0) {
         const result = candidate();
-        return Array.isArray(result) ? result : [result];
+        // Copy a returned array: it is CALLER-owned (often reused across calls), and downstream
+        // consumers (middleware ctx.args, the empty-prefix zero-copy path) may append to the array
+        // they receive — the per-call rest array is private, a lazy-returned array is not.
+        return Array.isArray(result) ? [...result] : [result];
       }
     }
     return args;
   }
 
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
+    // NOTE: the spread also carries the enumerable symbol-keyed SPREAD_SHAPE_HINT forward.
     return {
       ...logObj,
       [this.settings.meta.property]: this.runtime.getMeta(

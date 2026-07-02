@@ -260,9 +260,8 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLogStripped()).toContain("T");
     expect(getConsoleLogStripped()).toContain("Z");
     logger.log(4567, "testLevel", Buffer.from("foo"));
-    expect(getConsoleLogStripped()).toMatch(/'0':\s*102/);
-    expect(getConsoleLogStripped()).toMatch(/'1':\s*111/);
-    expect(getConsoleLogStripped()).toMatch(/'2':\s*111/);
+    // Native node:util inspect renders Buffers in their canonical hex form.
+    expect(getConsoleLogStripped()).toContain("<Buffer 66 6f 6f>");
     logger.log(4567, "testLevel", new Error("test"));
     expect(getConsoleLogStripped()).toContain("error stack");
 
