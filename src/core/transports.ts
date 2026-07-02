@@ -40,8 +40,10 @@ export function normalizeTransport<LogObj>(input: Transport<LogObj> | TransportF
   if (isTransportFn(input)) {
     const fn = input;
     return {
-      write(record: LogObj & ILogObjMeta): void {
-        fn(record);
+      // Return the function's result: an async transport function's promise must reach the in-flight
+      // tracking in runTransportIsolated so `logger.flush()` can await it.
+      write(record: LogObj & ILogObjMeta): void | Promise<void> {
+        return fn(record);
       },
     };
   }
@@ -60,15 +62,37 @@ function resolveTransportMinLevel<LogObj>(transport: Transport<LogObj>): number 
 }
 
 /**
+ * In-flight async `write(...)` promises per TRANSPORT object. `flushAll` awaits the sets of every
+ * transport in the list it is given, so `logger.flush()` covers plain async transport functions — and
+ * because a shared transport carries ONE set regardless of which logger dispatched to it, a parent's
+ * flush also awaits writes a sub-logger dispatched to the shared sink (and vice versa).
+ */
+const pendingWritesByTransport = new WeakMap<object, Set<Promise<unknown>>>();
+
+/**
  * Run a single transport in isolation: report-but-swallow any thrown error or rejected promise so a
- * failing sink never breaks logging or its siblings. Synchronous throws and async rejections are both
- * handled; the returned value is ignored by the caller.
+ * failing sink never breaks logging or its siblings. An async write's promise is tracked on the
+ * transport list so `flushAll` can await it; synchronous throws and async rejections are both handled.
  */
 function runTransportIsolated<LogObj>(transport: Transport<LogObj>, record: LogObj & ILogObjMeta, line: string): void {
   try {
     const result = transport.write(record, line);
     if (result != null && typeof (result as Promise<void>).then === "function") {
-      (result as Promise<void>).then(undefined, (error) => reportTransportError(transport, error));
+      let pending = pendingWritesByTransport.get(transport as object);
+      if (pending === undefined) {
+        pending = new Set();
+        pendingWritesByTransport.set(transport as object, pending);
+      }
+      const tracked = (result as Promise<void>).then(
+        () => {
+          pending.delete(tracked);
+        },
+        (error) => {
+          pending.delete(tracked);
+          reportTransportError(transport, error);
+        },
+      );
+      pending.add(tracked);
     }
   } catch (error) {
     reportTransportError(transport, error);
@@ -211,6 +235,19 @@ export async function flushAll<LogObj>(transports: readonly Transport<LogObj>[],
   if (transports.length === 0) {
     return;
   }
+  // First cover the in-flight async write() promises (plain async transport functions have no flush()),
+  // so the documented "flush before exit" contract holds for every transport shape — including writes
+  // a different logger dispatched to a transport shared through sub-logger inheritance.
+  const inFlightWrites: Promise<unknown>[] = [];
+  for (const transport of transports) {
+    const pending = pendingWritesByTransport.get(transport as object);
+    if (pending !== undefined && pending.size > 0) {
+      inFlightWrites.push(...pending);
+    }
+  }
+  if (inFlightWrites.length > 0) {
+    await Promise.allSettled(inFlightWrites);
+  }
   const pending: Promise<unknown>[] = [];
   for (const transport of transports) {
     if (typeof transport.flush === "function") {
@@ -221,6 +258,27 @@ export async function flushAll<LogObj>(transports: readonly Transport<LogObj>[],
       if (typeof disposer === "function") {
         pending.push(invokeIsolated(() => disposer.call(transport), transport));
       }
+    }
+  }
+  if (pending.length > 0) {
+    await Promise.allSettled(pending);
+  }
+}
+
+/**
+ * Invoke `[Symbol.asyncDispose]` on each transport in isolation, awaiting all of them. Used by the
+ * logger's disposers for the transports it OWNS (inherited transports are only flushed — disposing a
+ * shared parent sink from a request-scoped child would kill the parent's logging).
+ */
+export async function disposeAll<LogObj>(transports: readonly Transport<LogObj>[]): Promise<void> {
+  if (transports.length === 0) {
+    return;
+  }
+  const pending: Promise<unknown>[] = [];
+  for (const transport of transports) {
+    const disposer = transport[Symbol.asyncDispose];
+    if (typeof disposer === "function") {
+      pending.push(invokeIsolated(() => disposer.call(transport), transport));
     }
   }
   if (pending.length > 0) {

@@ -54,7 +54,7 @@ describe("child() alias (E2)", () => {
 });
 
 describe("Symbol.dispose (E1)", () => {
-  test("a logger is sync-disposable and best-effort flushes/disposes transports", () => {
+  test("a logger is sync-disposable and best-effort flushes/disposes transports", async () => {
     let disposed = false;
     let flushed = false;
     const logger = new Logger({ type: "hidden" });
@@ -70,10 +70,11 @@ describe("Symbol.dispose (E1)", () => {
     });
 
     expect(typeof logger[Symbol.dispose]).toBe("function");
-    // Synchronous disposal kicks off flush+dispose (best-effort, not awaited) without throwing.
+    // Synchronous disposal kicks off flush-then-dispose (best-effort, not awaited) without throwing.
     expect(() => logger[Symbol.dispose]()).not.toThrow();
     expect(flushed).toBe(true);
-    expect(disposed).toBe(true);
+    // Dispose is sequenced AFTER the flush settles, so it lands a tick later.
+    await vi.waitFor(() => expect(disposed).toBe(true));
   });
 
   test("works under a synchronous `using` scope", () => {

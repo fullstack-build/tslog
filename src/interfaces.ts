@@ -165,7 +165,7 @@ export interface Transport<LogObj> {
  * @example
  * logger.attachTransport((record) => myQueue.push(record));
  */
-export type TransportFn<LogObj> = (record: LogObj & ILogObjMeta) => void;
+export type TransportFn<LogObj> = (record: LogObj & ILogObjMeta) => void | Promise<void>;
 
 /**
  * Controls the shape of the structured (`type: "json"`) output: which top-level keys carry the

@@ -6,7 +6,7 @@ import { type LogObjDeps, recursiveCloneAndExecuteFunctions, toLogObj } from "./
 import { MaskingEngine } from "./core/masking.js";
 import { attachMaskedArgs, resolveFormatter, runMiddleware } from "./core/pipeline.js";
 import { normalizeSettings, resolveLogLevelId, validateSettingsParam } from "./core/settings.js";
-import { attachTransport, dispatchToTransports, flushAll } from "./core/transports.js";
+import { attachTransport, dispatchToTransports, disposeAll, flushAll } from "./core/transports.js";
 import type { EnvironmentProvider } from "./env/environment.js";
 import type {
   ILogObj,
@@ -54,6 +54,10 @@ export class BaseLogger<LogObj> {
   // merely constructing a logger never resolves `AsyncLocalStorage`. Shared with sub-loggers (see getSubLogger)
   // so a context entered on a parent propagates to its children.
   private asyncContextStore?: AsyncContextStore;
+  // Transports inherited from a parent logger (set by getSubLogger). Disposing THIS logger flushes
+  // everything but only disposes transports it owns — a request-scoped `await using child` must not
+  // terminate the root logger's file/worker/http sinks.
+  private inheritedTransports?: WeakSet<object>;
 
   constructor(
     settings: ISettingsParam<LogObj> | undefined,
@@ -334,12 +338,23 @@ export class BaseLogger<LogObj> {
     await flushAll(this.settings.attachedTransports);
   }
 
+  /** The transports this logger owns (constructor-supplied or attached here; not inherited from a parent). */
+  private _ownedTransports(): Transport<LogObj>[] {
+    const inherited = this.inheritedTransports;
+    if (inherited == null) {
+      return this.settings.attachedTransports;
+    }
+    return this.settings.attachedTransports.filter((transport) => !inherited.has(transport as object));
+  }
+
   /**
-   * Async disposer (`await using`): flushes and disposes every attached transport. Lets a logger be used
-   * with explicit resource management so buffered transports are drained on scope exit.
+   * Async disposer (`await using`): flushes every attached transport, then disposes the ones this logger
+   * OWNS. Transports inherited from a parent are flushed but left alive — disposing a request-scoped
+   * child must not terminate the root logger's sinks.
    */
   public async [Symbol.asyncDispose](): Promise<void> {
-    await flushAll(this.settings.attachedTransports, true);
+    await flushAll(this.settings.attachedTransports);
+    await disposeAll(this._ownedTransports());
   }
 
   /**
@@ -350,7 +365,10 @@ export class BaseLogger<LogObj> {
    * explicit `await logger.flush()`. Provided so a logger also works under synchronous `using` scopes.
    */
   public [Symbol.dispose](): void {
-    void flushAll(this.settings.attachedTransports, true);
+    // Fire-and-forget (a sync disposer cannot await), but SEQUENCED: disposing a transport while its
+    // in-flight writes are still being flushed would tear the sink down under them. Only owned
+    // transports are disposed (see above).
+    void flushAll(this.settings.attachedTransports).then(() => disposeAll(this._ownedTransports()));
   }
 
   /**
@@ -418,6 +436,9 @@ export class BaseLogger<LogObj> {
     if (this.asyncContextStore != null) {
       subLogger.asyncContextStore = this.asyncContextStore;
     }
+    // Everything the child received from this logger's list is inherited (including what THIS logger
+    // itself inherited): the child's disposers flush them but never dispose them.
+    subLogger.inheritedTransports = new WeakSet(this.settings.attachedTransports as unknown as object[]);
     return subLogger;
   }
 
