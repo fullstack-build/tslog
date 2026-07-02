@@ -17,18 +17,27 @@ describe("Hidden mode", () => {
     }
   });
 
-  test("overwrite.transportJSON fires in hidden mode", () => {
-    const captured: unknown[] = [];
-    const logger = new Logger({
-      type: "hidden",
-      overwrite: {
-        transportJSON: (logObj) => captured.push(logObj),
+  test("custom json transport fires in hidden mode", () => {
+    // Replaces the removed overwrite.transportJSON hook: a custom transport with format: "json"
+    // receives the JSON line (and the structured record) even when console output is suppressed.
+    const capturedLines: string[] = [];
+    const capturedRecords: unknown[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport({
+      format: "json",
+      write: (record, line) => {
+        capturedRecords.push(record);
+        capturedLines.push(line);
       },
     });
 
     logger.info("test");
 
-    expect(captured.length).toBe(1);
+    expect(capturedRecords.length).toBe(1);
+    expect(capturedLines.length).toBe(1);
+    const parsed = JSON.parse(capturedLines[0]) as Record<string, unknown>;
+    expect(parsed.message).toBe("test");
+    expect(parsed.level).toBe("INFO");
     expect(getConsoleLog()).toBe("");
   });
 
@@ -49,7 +58,7 @@ describe("Hidden mode", () => {
   test("masking still applies in hidden mode", () => {
     const logger = new Logger({
       type: "hidden",
-      maskValuesOfKeys: ["password"],
+      mask: { keys: ["password"] },
     });
 
     const logObj = logger.info({ password: "secret", user: "alice" });

@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
+// v5 (BC11): the env provider's stack-frame helpers live in `src/env/stackTrace.js` — the module the
+// browser provider itself imports from. The legacy `src/internal/stackTrace.js` copy is no longer the
+// one the runtime uses, so assert against the env-level helpers to stay in lockstep with the runtime.
+import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../src/env/stackTrace.js";
 import type { IMeta, IStackFrame } from "../src/interfaces.js";
-import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../src/internal/stackTrace.js";
 
 type BrowserMetaPayload = Omit<IMeta, "date"> & { date: string | null };
 
@@ -11,13 +14,12 @@ test.afterEach(async ({ page }) => {
 });
 
 async function ensureRuntimeAvailable(page: import("@playwright/test").Page) {
+  // v5 (BC11): the `loggerEnvironment` singleton and `createLoggerEnvironment()` factory are gone. The
+  // browser provider is now injected into each `Logger` and exposed as the public `runtime` field, so the
+  // tests reach it via `new tslog.Logger().runtime`. We only need the bundle global to be present here.
   await page.waitForFunction(() => {
-    const tslogGlobal = (
-      window as unknown as {
-        tslog?: { createLoggerEnvironment?: () => unknown; loggerEnvironment?: unknown };
-      }
-    ).tslog;
-    return tslogGlobal != null;
+    const tslogGlobal = (window as unknown as { tslog?: { Logger?: unknown } }).tslog;
+    return tslogGlobal != null && typeof tslogGlobal.Logger === "function";
   });
 }
 
@@ -34,12 +36,13 @@ async function getMeta(
   const payload = (await page.evaluate(
     (params: { logLevelId: number; logLevelName: string; stackDepthLevel: number; hide: boolean; name?: string; parentNames?: string[] }) => {
       const tslogGlobal = window as unknown as {
-        tslog?: { createLoggerEnvironment?: () => unknown; loggerEnvironment?: unknown };
+        tslog?: { Logger?: new () => { runtime?: unknown } };
         __tslogEnv?: unknown;
       };
       if (!tslogGlobal.__tslogEnv) {
-        const envCandidate = tslogGlobal.tslog?.loggerEnvironment ?? tslogGlobal.tslog?.createLoggerEnvironment?.();
-        tslogGlobal.__tslogEnv = envCandidate as unknown;
+        // v5: the injected per-runtime provider is reachable as `Logger.runtime`.
+        const LoggerCtor = tslogGlobal.tslog?.Logger;
+        tslogGlobal.__tslogEnv = LoggerCtor != null ? new LoggerCtor().runtime : undefined;
       }
       if (!tslogGlobal.__tslogEnv) {
         throw new Error("unable to create tslog browser runtime");
@@ -65,12 +68,12 @@ async function getErrorTrace(page: import("@playwright/test").Page, error: Error
   await ensureRuntimeAvailable(page);
   return (await page.evaluate((stack) => {
     const tslogGlobal = window as unknown as {
-      tslog?: { createLoggerEnvironment?: () => unknown; loggerEnvironment?: unknown };
+      tslog?: { Logger?: new () => { runtime?: unknown } };
       __tslogEnv?: unknown;
     };
     if (!tslogGlobal.__tslogEnv) {
-      const envCandidate = tslogGlobal.tslog?.loggerEnvironment ?? tslogGlobal.tslog?.createLoggerEnvironment?.();
-      tslogGlobal.__tslogEnv = envCandidate as unknown;
+      const LoggerCtor = tslogGlobal.tslog?.Logger;
+      tslogGlobal.__tslogEnv = LoggerCtor != null ? new LoggerCtor().runtime : undefined;
     }
     const env = tslogGlobal.__tslogEnv as { getErrorTrace: (error: Error) => IStackFrame[] };
     const browserError = new Error("trace");
@@ -84,12 +87,12 @@ async function getCallerStackFrame(page: import("@playwright/test").Page, stackD
   return (await page.evaluate(
     (params: { depth: number; stack: string }) => {
       const tslogGlobal = window as unknown as {
-        tslog?: { createLoggerEnvironment?: () => unknown; loggerEnvironment?: unknown };
+        tslog?: { Logger?: new () => { runtime?: unknown } };
         __tslogEnv?: unknown;
       };
       if (!tslogGlobal.__tslogEnv) {
-        const envCandidate = tslogGlobal.tslog?.loggerEnvironment ?? tslogGlobal.tslog?.createLoggerEnvironment?.();
-        tslogGlobal.__tslogEnv = envCandidate as unknown;
+        const LoggerCtor = tslogGlobal.tslog?.Logger;
+        tslogGlobal.__tslogEnv = LoggerCtor != null ? new LoggerCtor().runtime : undefined;
       }
       const env = tslogGlobal.__tslogEnv as {
         getCallerStackFrame: (depth: number, error: Error) => IStackFrame;

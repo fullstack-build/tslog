@@ -1,25 +1,34 @@
-import { createLoggerEnvironment, loggerEnvironment } from "../src/BaseLogger.js";
+import { createBrowserEnvironment } from "../src/env/environment.browser.js";
+import type { EnvironmentProvider } from "../src/env/environment.js";
+import { createNodeEnvironment } from "../src/env/environment.node.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { Logger } from "../src/index.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
 import { registerUniversalRuntimeTests } from "./shared/runtimeHarness.js";
 
-function wrapEnvironment(env = createLoggerEnvironment()) {
-  return {
-    getMeta: (
-      logLevelId: number,
-      logLevelName: string,
-      stackDepthLevel: number,
-      hideLogPositionForPerformance: boolean,
-      name?: string,
-      parentNames?: string[],
-    ) => Promise.resolve(env.getMeta(logLevelId, logLevelName, stackDepthLevel, hideLogPositionForPerformance, name, parentNames)),
-    getCallerStackFrame: (stackDepthLevel: number, error: Error) => Promise.resolve(env.getCallerStackFrame(stackDepthLevel, error)),
+// v5 (BC11): the module-level `loggerEnvironment` singleton and `createLoggerEnvironment()` are gone.
+// The environment is now an injected per-runtime provider. The cwd cache lives inside each provider
+// instance (closure-local, no `__resetWorkingDirectoryCacheForTests` hook), so "resetting" the cwd
+// means constructing a FRESH provider. `wrapEnvironment` therefore takes a factory and rebuilds the
+// underlying provider on `resetWorkingDirectory()`.
+function wrapEnvironment(factory: () => EnvironmentProvider = createNodeEnvironment) {
+  let env = factory();
+  const wrapped = {
+    getMeta: (logLevelId: number, logLevelName: string, callerFrame: number, hideLogPositionForPerformance: boolean, name?: string, parentNames?: string[]) =>
+      Promise.resolve(env.getMeta(logLevelId, logLevelName, callerFrame, hideLogPositionForPerformance, name, parentNames)),
+    getCallerStackFrame: (callerFrame: number, error: Error) => Promise.resolve(env.getCallerStackFrame(callerFrame, error)),
     getErrorTrace: (error: Error) => Promise.resolve(env.getErrorTrace(error)),
-    resetWorkingDirectory: () =>
-      Promise.resolve((env as unknown as { __resetWorkingDirectoryCacheForTests?: () => void }).__resetWorkingDirectoryCacheForTests?.()),
+    // Re-create the provider so it re-reads `process.cwd()` (the old cwd cache reset hook is gone).
+    resetWorkingDirectory: () => {
+      env = factory();
+      return Promise.resolve();
+    },
     dispose: () => Promise.resolve(),
-    raw: env,
+    get raw() {
+      return env;
+    },
   };
+  return wrapped;
 }
 
 const cwd = process.cwd();
@@ -27,11 +36,16 @@ const cwd = process.cwd();
 registerUniversalRuntimeTests({
   label: "node",
   expectedRuntime: "node",
-  create: async () => wrapEnvironment(),
+  create: async () => wrapEnvironment(createNodeEnvironment),
+  // NOTE: the user frame lives at an absolute path OUTSIDE cwd. This repo's cwd literally ends in
+  // "tslog", and v5's default ignore patterns treat any "tslog/src/" path as tslog's own source — so a
+  // synthetic `${cwd}/src/app.ts` user frame would be (incorrectly, for the test's purpose) skipped as
+  // internal. Using `/srv/app/src/app.ts` keeps the scenario meaningful: the only tslog-owned frame is
+  // the `node_modules/.vite/deps/tslog.js` bundle, which auto-detection must skip to land on user code.
   stackScenario: {
     description: "skips tslog frames when determining caller",
-    errorStack: `Error\n    at Logger.log (${cwd}/node_modules/.vite/deps/tslog.js:1:1)\n    at userFunction (${cwd}/src/app.ts:42:7)`,
-    expectedFilePathWithLine: "src/app.ts:42",
+    errorStack: `Error\n    at Logger.log (${cwd}/node_modules/.vite/deps/tslog.js:1:1)\n    at userFunction (/srv/app/src/app.ts:42:7)`,
+    expectedFilePathWithLine: "/srv/app/src/app.ts:42",
     expectedAutoIndex: 1,
   },
 });
@@ -56,7 +70,9 @@ registerUniversalRuntimeTests({
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Simulated)" });
     globalAny.location = { origin: "http://localhost" };
 
-    const wrapped = wrapEnvironment(createLoggerEnvironment());
+    // The browser provider detects the (now stubbed) DOM globals at construction time and selects
+    // browser-style stack parsing — the v5 equivalent of the monolith picking the browser branch.
+    const wrapped = wrapEnvironment(createBrowserEnvironment);
 
     const dispose = async () => {
       await wrapped.dispose?.();
@@ -96,12 +112,9 @@ describe("Node runtime specifics", () => {
 
   afterEach(() => {
     process.cwd = originalProcessCwd;
-    (loggerEnvironment as unknown as { __resetWorkingDirectoryCacheForTests?: () => void }).__resetWorkingDirectoryCacheForTests?.();
   });
 
   test("process.cwd permission errors are ignored", () => {
-    (loggerEnvironment as unknown as { __resetWorkingDirectoryCacheForTests?: () => void }).__resetWorkingDirectoryCacheForTests?.();
-
     (process as unknown as { cwd: () => string }).cwd = () => {
       throw new Error("permission denied");
     };
@@ -170,8 +183,10 @@ describe("Node runtime specifics", () => {
   test("defensively handles stack parsers receiving undefined entries", async () => {
     vi.resetModules();
 
-    vi.doMock("../src/internal/stackTrace.js", async (importOriginal) => {
-      const actual = await importOriginal<typeof import("../src/internal/stackTrace.js")>();
+    // The Node provider's stack parsing now lives in `../src/env/stackTrace.js`; mock `buildStackTrace`
+    // there to feed an undefined line into the parser and assert the provider tolerates it.
+    vi.doMock("../src/env/stackTrace.js", async (importOriginal) => {
+      const actual = await importOriginal<typeof import("../src/env/stackTrace.js")>();
       return {
         ...actual,
         buildStackTrace: (_error: Error, parseLine: (line: string) => unknown) => {
@@ -181,20 +196,23 @@ describe("Node runtime specifics", () => {
       };
     });
 
-    const { createLoggerEnvironment: freshCreate } = await import("../src/BaseLogger.js");
+    const { createNodeEnvironment: freshCreate } = await import("../src/env/environment.node.js");
     const env = freshCreate();
     expect(env.getErrorTrace(new Error("boom"))).toEqual([]);
 
-    vi.doUnmock("../src/internal/stackTrace.js");
+    vi.doUnmock("../src/env/stackTrace.js");
   });
 
   test("pretty error formatting omits function properties", () => {
-    const logger = new Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new Logger({ type: "pretty", pretty: { style: false } });
     const settings = {
       ...logger.settings,
-      stylePrettyLogs: false,
-      prettyErrorTemplate: "{{errorMessage}}",
-      prettyLogStyles: {},
+      pretty: {
+        ...logger.settings.pretty,
+        style: false,
+        errorTemplate: "{{errorMessage}}",
+        styles: {},
+      },
     } as ISettings<unknown>;
 
     const error = new Error("boom");
@@ -219,21 +237,23 @@ describe("Node runtime specifics", () => {
     const originalDeno = (globalThis as { Deno?: unknown }).Deno;
     const originalBun = (globalThis as { Bun?: unknown }).Bun;
 
+    // Runtime detection now happens at provider construction (detectRuntimeInfo). The universal
+    // provider re-detects the stubbed globals each time it is created, so we rebuild it per scenario.
     (globalThis as { process?: unknown }).process = { versions: {}, env: {} };
     (globalThis as { Deno?: unknown }).Deno = { version: { deno: "1.2.3" } };
-    let env = createLoggerEnvironment();
+    let env = createUniversalEnvironment();
     let meta = env.getMeta(0, "INFO", 0, false) as IMeta & { runtimeVersion?: string };
     expect(meta.runtimeVersion).toBe("deno/1.2.3");
 
     (globalThis as { Deno?: unknown }).Deno = undefined;
     (globalThis as { Bun?: unknown }).Bun = { version: "1.0.0" };
-    env = createLoggerEnvironment();
+    env = createUniversalEnvironment();
     meta = env.getMeta(0, "INFO", 0, false) as IMeta & { runtimeVersion?: string };
     expect(meta.runtimeVersion).toBe("bun/1.0.0");
 
     (globalThis as { Bun?: unknown }).Bun = undefined;
     (globalThis as { process?: unknown }).process = { env: {} } as unknown;
-    env = createLoggerEnvironment();
+    env = createUniversalEnvironment();
     meta = env.getMeta(0, "INFO", 0, false) as IMeta & { runtimeVersion?: string };
     expect(meta.runtimeVersion).toBe("unknown");
 
@@ -255,28 +275,28 @@ describe("Node runtime specifics", () => {
     globalAny.process = { env: { HOSTNAME: "env-host" }, versions: { node: "18.0.0" } };
     globalAny.Deno = undefined;
     globalAny.location = undefined;
-    let env = createLoggerEnvironment();
+    let env = createUniversalEnvironment();
     let meta = env.getMeta(0, "INFO", 0, false) as IMeta & { hostname?: string };
     expect(meta.hostname).toBe("env-host");
 
     globalAny.process = { env: {} };
     globalAny.Deno = { env: { get: () => "deno-env" } };
     globalAny.location = undefined;
-    env = createLoggerEnvironment();
+    env = createUniversalEnvironment();
     meta = env.getMeta(0, "INFO", 0, false) as IMeta & { hostname?: string };
     expect(meta.hostname).toBe("deno-env");
 
     globalAny.process = { env: {} };
     globalAny.Deno = { hostname: () => "deno-host" };
     globalAny.location = undefined;
-    env = createLoggerEnvironment();
+    env = createUniversalEnvironment();
     meta = env.getMeta(0, "INFO", 0, false) as IMeta & { hostname?: string };
     expect(meta.hostname).toBe("deno-host");
 
     globalAny.process = { env: {} };
     globalAny.Deno = undefined;
     globalAny.location = { hostname: "browser-host" };
-    env = createLoggerEnvironment();
+    env = createUniversalEnvironment();
     meta = env.getMeta(0, "INFO", 0, false) as IMeta & { hostname?: string };
     expect(meta.hostname).toBe("browser-host");
 
@@ -295,25 +315,31 @@ describe("Node runtime specifics", () => {
 
     vi.resetModules();
 
-    vi.doMock("../src/internal/util.inspect.polyfill.js", () => ({
+    // The Node provider imports `formatWithOptions` directly from `node:util`; the universal/browser
+    // providers resolve it via `resolveInspect()` -> `../src/render/inspect.polyfill.js`. Under Vitest
+    // (no global `require`) that resolves to the polyfill, so mock the polyfill to throw and drive the
+    // fallback through the universal provider's `formatWithOptionsSafe`.
+    vi.doMock("../src/render/inspect.polyfill.js", () => ({
       formatWithOptions: () => {
         throw new Error("boom");
       },
     }));
 
-    const { createLoggerEnvironment: freshCreate } = await import("../src/BaseLogger.js");
+    const { createUniversalEnvironment: freshCreate } = await import("../src/env/environment.universal.js");
     const env = freshCreate();
     const circular: Record<string, unknown> = {};
     circular.self = circular;
     env.transportFormatted("meta", [circular], [], undefined, {
-      stylePrettyLogs: false,
-      prettyInspectOptions: { colors: false, depth: 2, compact: false },
+      pretty: {
+        style: false,
+        inspectOptions: { colors: false, depth: 2, compact: false },
+      },
     } as unknown as Parameters<typeof env.transportFormatted>[4]);
 
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining("[object Object]"));
 
     consoleSpy.mockRestore();
     console.log = originalConsoleLog;
-    vi.doUnmock("../src/internal/util.inspect.polyfill.js");
+    vi.doUnmock("../src/render/inspect.polyfill.js");
   });
 });

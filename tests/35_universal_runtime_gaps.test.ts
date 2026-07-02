@@ -1,4 +1,4 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { Logger } from "../src/index.js";
 import type { IStackFrame } from "../src/interfaces.js";
 import { jsonStringifyRecursive } from "../src/internal/jsonStringifyRecursive.js";
@@ -43,7 +43,7 @@ describe("Universal runtime robustness", () => {
         globalAny.document = {};
         vi.stubGlobal("navigator", { userAgent: "Hermes ReactNative" });
 
-        const env = createLoggerEnvironment();
+        const env = createUniversalEnvironment();
         const error = { stack: "Error: boom\n    at apply (native)\nbar@/data/app.js:10:5" } as Error;
 
         let frames: IStackFrame[] = [];
@@ -68,7 +68,7 @@ describe("Universal runtime robustness", () => {
         globalAny.importScripts = function importScripts() {};
         vi.stubGlobal("navigator", { userAgent: "Safari" });
 
-        const env = createLoggerEnvironment();
+        const env = createUniversalEnvironment();
         const error = { stack: "Error\nglobal code@https://example.com/app.js:5:1" } as Error;
         const frames = env.getErrorTrace(error);
 
@@ -88,7 +88,7 @@ describe("Universal runtime robustness", () => {
         globalAny.importScripts = function importScripts() {};
         vi.stubGlobal("navigator", { userAgent: "Firefox" });
 
-        const env = createLoggerEnvironment();
+        const env = createUniversalEnvironment();
         const error = { stack: "Error\nasyncFn@https://example.com/script.js:42:15" } as Error;
         const frames = env.getErrorTrace(error);
 
@@ -125,7 +125,7 @@ describe("Universal runtime robustness", () => {
         let runtime: unknown;
         let output = "";
         try {
-          const env = createLoggerEnvironment();
+          const env = createUniversalEnvironment();
           const meta = env.getMeta(3, "INFO", Number.NaN, false) as { runtime?: unknown };
           runtime = meta.runtime;
 
@@ -149,7 +149,7 @@ describe("Universal runtime robustness", () => {
 
   describe("Binary and exotic values", () => {
     test("isBuffer(new Uint8Array()) is false and logging a Uint8Array does not crash", () => {
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       expect(env.isBuffer(new Uint8Array())).toBe(false);
 
       const transports: Record<string, unknown>[] = [];
@@ -325,12 +325,11 @@ describe("Universal runtime robustness", () => {
           },
         };
 
-        const env = createLoggerEnvironment() as ReturnType<typeof createLoggerEnvironment> & {
-          __resetWorkingDirectoryCacheForTests?: () => void;
-        };
-        // NODE_ENV is "test" under vitest, so the cache reset hook is available.
-        expect(typeof env.__resetWorkingDirectoryCacheForTests).toBe("function");
-        env.__resetWorkingDirectoryCacheForTests?.();
+        // v5 (BC11): the cwd cache lives inside the provider closure and there is no public reset
+        // hook anymore. Constructing a fresh provider AFTER stubbing process.cwd gives us a clean,
+        // uncached cwd: the first stack parse calls safeGetCwd(), which catches the throwing cwd and
+        // returns undefined.
+        const env = createUniversalEnvironment();
 
         const error = new Error("server failure");
         let frames: IStackFrame[] = [];

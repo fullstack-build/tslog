@@ -19,6 +19,13 @@ test.describe("Cross-runtime browser tests", () => {
     });
 
     const combined = consoleMessages.join("\n");
+    // v5 flat JSON: level name/id and time are promoted to the top level (M2.1/M2.2).
+    expect(combined).toContain('"level":"INFO"');
+    expect(combined).toContain('"levelId":3');
+    expect(combined).toContain('"time":"');
+    // Runtime meta stays nested under _meta, now carrying the schema version and runtime tag.
+    expect(combined).toContain('"_meta":{');
+    expect(combined).toContain('"v":5');
     expect(combined).toContain('"runtime":"browser"');
     expect(combined).toContain('"logLevelId":3');
     expect(combined).toContain('"logLevelName":"INFO"');
@@ -45,9 +52,10 @@ test.describe("Cross-runtime browser tests", () => {
     });
 
     expect(results.length).toBe(7);
-    expect(results[0]).toContain('"logLevelId":0');
-    expect(results[3]).toContain('"logLevelId":3');
-    expect(results[6]).toContain('"logLevelId":6');
+    // v5 flat JSON: the numeric level id is promoted to the top-level "levelId" key.
+    expect(results[0]).toContain('"levelId":0');
+    expect(results[3]).toContain('"levelId":3');
+    expect(results[6]).toContain('"levelId":6');
   });
 
   test("error with cause chain is serialized in browser", async ({ page }) => {
@@ -69,7 +77,7 @@ test.describe("Cross-runtime browser tests", () => {
   test("masking works in browser context", async ({ page }) => {
     const result = await page.evaluate(() => {
       // @ts-ignore
-      const logger = new tslog.Logger({ type: "json", maskValuesOfKeys: ["password"] });
+      const logger = new tslog.Logger({ type: "json", mask: { keys: ["password"] } });
       const output: string[] = [];
       const origLog = console.log;
       console.log = (...args: unknown[]) => output.push(String(args[0]));
@@ -158,7 +166,7 @@ test.describe("Cross-runtime browser tests", () => {
   test("pretty mode with prefix in browser", async ({ page }) => {
     await page.evaluate(() => {
       // @ts-ignore
-      const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false, prefix: ["[APP]"] });
+      const logger = new tslog.Logger({ type: "pretty", pretty: { style: false }, prefix: ["[APP]"] });
       logger.info("prefixed message");
     });
 

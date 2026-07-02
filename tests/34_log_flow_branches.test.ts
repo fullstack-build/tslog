@@ -119,46 +119,116 @@ describe("_toErrorObject cause handling", () => {
   });
 });
 
-describe("transportFormatted overwrite arity", () => {
-  test("a 3-parameter transport is called with exactly 3 arguments (no meta/settings leaked)", () => {
-    let received: unknown[] | undefined;
-    // biome-ignore lint: capture the real arguments object to assert the call arity dispatch logic.
-    const transportFormatted = function (meta: string, args: unknown[], errors: string[]) {
-      // eslint-disable-next-line prefer-rest-params
-      received = Array.from(arguments as unknown as ArrayLike<unknown>);
-    };
-    const logger = new Logger({ type: "pretty", overwrite: { transportFormatted } });
+// The v4 `overwrite.transportFormatted` hook (and its arity-sniffing of the formatted-meta string, the
+// pretty args, the errors, the resolved logMeta, and the active settings) was removed in M2.6. The
+// replacement capability is a custom `Transport.write(record, line)` plus a per-transport `format`:
+// the transport receives the finished record AND the already-formatted line, and chooses its own format
+// independently of the logger-wide `type`. The bits the old 4-/5-arg overloads exposed (the resolved
+// meta and active settings) are reachable directly off `record[_meta]` and `logger.settings`.
+describe("custom transport receives (record, line)", () => {
+  test("a custom transport's write receives the finished record and the formatted pretty line", () => {
+    let record: (Record<string, unknown> & { _meta?: { logLevelName?: string } }) | undefined;
+    let line: string | undefined;
+    const logger = new Logger({ type: "pretty", name: "PrettyT" });
+    logger.attachTransport({
+      format: "pretty",
+      write(rec, formattedLine) {
+        record = rec as typeof record;
+        line = formattedLine;
+      },
+    });
     logger.info("x");
-    expect(received).toBeDefined();
-    expect(received).toHaveLength(3);
-    expect(typeof received?.[0]).toBe("string");
-    expect(Array.isArray(received?.[1])).toBe(true);
+    expect(record).toBeDefined();
+    expect(record?._meta?.logLevelName).toBe("INFO");
+    // the line is the rendered pretty string for this record (carries the level name and the message)
+    expect(typeof line).toBe("string");
+    expect(line).toContain("INFO");
+    expect(line).toContain("x");
   });
 
-  test("a 4-parameter transport is called with exactly 4 arguments and receives the resolved meta", () => {
-    let received: unknown[] | undefined;
-    const transportFormatted = function (meta: string, args: unknown[], errors: string[], logMeta: unknown) {
-      received = Array.from(arguments as unknown as ArrayLike<unknown>);
-    };
-    const logger = new Logger({ type: "pretty", name: "Arity4", overwrite: { transportFormatted } });
-    logger.info("x");
-    expect(received).toHaveLength(4);
-    const logMeta = received?.[3] as { logLevelName?: string; name?: string } | undefined;
-    expect(logMeta?.logLevelName).toBe("INFO");
-    expect(logMeta?.name).toBe("Arity4");
+  test('per-transport format: "json" yields the flat fields-first JSON line regardless of the logger type', () => {
+    let line: string | undefined;
+    // logger is "pretty" yet this sink asks for json, so it receives the flat JSON line
+    const logger = new Logger({ type: "pretty", name: "JsonT", minLevel: 2 });
+    logger.attachTransport({
+      format: "json",
+      write(_rec, formattedLine) {
+        line = formattedLine;
+      },
+    });
+    logger.info("hello");
+    expect(line).toBeDefined();
+    const parsed = JSON.parse(line as string) as { message?: string; level?: string; levelId?: number; _meta?: { v?: number; name?: string } };
+    expect(parsed.message).toBe("hello");
+    expect(parsed.level).toBe("INFO");
+    expect(parsed.levelId).toBe(3);
+    expect(parsed._meta?.v).toBe(5);
+    expect(parsed._meta?.name).toBe("JsonT");
   });
 
-  test("a 5-parameter transport is called with exactly 5 arguments and receives the active settings", () => {
-    let received: unknown[] | undefined;
-    const transportFormatted = function (meta: string, args: unknown[], errors: string[], logMeta: unknown, settings: unknown) {
-      received = Array.from(arguments as unknown as ArrayLike<unknown>);
-    };
-    const logger = new Logger({ type: "pretty", minLevel: 2, overwrite: { transportFormatted } });
+  test("per-transport format: a custom LogFormatter is used to build the line", () => {
+    let line: string | undefined;
+    const logger = new Logger({ type: "pretty" });
+    logger.attachTransport({
+      // a LogFormatter receives (record, settings) and returns the line the transport's write() gets
+      format: (record, settings) => `${(record[settings.meta.property] as { logLevelName: string }).logLevelName}|${(record as Record<string, unknown>)["0"]}`,
+      write(_rec, formattedLine) {
+        line = formattedLine;
+      },
+    });
+    logger.info("payload");
+    expect(line).toBe("INFO|payload");
+  });
+});
+
+describe("middleware replaces overwrite.addMeta", () => {
+  test("a middleware can stash fields that surface on record._meta", () => {
+    const { logger, transports } = hiddenLogger();
+    logger.use((ctx) => {
+      ctx.meta.traceId = "trace-abc";
+      return ctx;
+    });
     logger.info("x");
-    expect(received).toHaveLength(5);
-    const settings = received?.[4] as { type?: string; minLevel?: number } | undefined;
-    expect(settings?.type).toBe("pretty");
-    expect(settings?.minLevel).toBe(2);
+    const meta = transports[0]._meta as { traceId?: string; logLevelName?: string } | undefined;
+    expect(meta?.traceId).toBe("trace-abc");
+    expect(meta?.logLevelName).toBe("INFO");
+  });
+
+  test("a middleware can drop a log by returning null (no record, no transport call)", () => {
+    const { logger, transports } = hiddenLogger({ minLevel: 0 });
+    logger.use((ctx) => (ctx.logLevelId < 4 ? null : ctx));
+    const dropped = logger.info("below warn");
+    const kept = logger.warn("at warn");
+    expect(dropped).toBeUndefined();
+    expect(kept).toBeDefined();
+    expect(transports).toHaveLength(1);
+    expect(transports[0]["0"]).toBe("at warn");
+  });
+});
+
+describe("transport contract (attach/detach + normalization)", () => {
+  test("attachTransport normalizes a bare function into a Transport object with a write method", () => {
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport(() => {});
+    const stored = logger.settings.attachedTransports[0];
+    expect(typeof stored).toBe("object");
+    expect(typeof stored.write).toBe("function");
+  });
+
+  test("attachTransport returns a detach function that removes the transport", () => {
+    const logger = new Logger({ type: "hidden" });
+    let calls = 0;
+    const detach = logger.attachTransport(() => {
+      calls += 1;
+    });
+    expect(typeof detach).toBe("function");
+    logger.info("first");
+    detach();
+    logger.info("second");
+    expect(calls).toBe(1);
+    expect(logger.settings.attachedTransports).toHaveLength(0);
+    // detaching again is a no-op
+    expect(() => detach()).not.toThrow();
   });
 });
 
@@ -169,26 +239,26 @@ describe("formatTemplate", () => {
   }
 
   test("missing placeholder keeps the literal token when hideUnsetPlaceholder is false", () => {
-    const settings = baseSettings({ stylePrettyLogs: false });
+    const settings = baseSettings({ pretty: { style: false } });
     const result = formatTemplate(settings, "value: {{missing}}", {}, false);
     expect(result).toBe("value: {{missing}}");
   });
 
   test("missing placeholder becomes empty when hideUnsetPlaceholder is true", () => {
-    const settings = baseSettings({ stylePrettyLogs: false });
+    const settings = baseSettings({ pretty: { style: false } });
     const result = formatTemplate(settings, "value: {{missing}}", {}, true);
     expect(result).toBe("value: ");
   });
 
   test("stylePrettyLogs false produces no ANSI escapes", () => {
-    const settings = baseSettings({ stylePrettyLogs: false });
+    const settings = baseSettings({ pretty: { style: false } });
     const result = formatTemplate(settings, "{{logLevelName}}", { logLevelName: "INFO" });
     expect(result).toBe("INFO");
     expect(result).not.toContain("\u001b");
   });
 
   test("stylePrettyLogs true wraps the value in ANSI escapes", () => {
-    const settings = baseSettings({ stylePrettyLogs: true });
+    const settings = baseSettings({ pretty: { style: true } });
     const result = formatTemplate(settings, "{{logLevelName}}", { logLevelName: "INFO" });
     expect(result).toContain("\u001b");
     expect(result).toContain("INFO");
@@ -216,17 +286,17 @@ describe("Logger constructor browser branch", () => {
     globalAny.document = {};
     vi.stubGlobal("navigator", { userAgent: "Mozilla" });
     const logger = new Logger();
-    const settings = (logger as unknown as { settings: { stylePrettyLogs: boolean } }).settings;
-    expect(settings.stylePrettyLogs).toBe(true);
+    const settings = (logger as unknown as { settings: { pretty: { style: boolean } } }).settings;
+    expect(settings.pretty.style).toBe(true);
   });
 
   test("respects an explicit stylePrettyLogs false in a browser environment", () => {
     globalAny.window = {};
     globalAny.document = {};
     vi.stubGlobal("navigator", { userAgent: "Mozilla" });
-    const logger = new Logger({ stylePrettyLogs: false });
-    const settings = (logger as unknown as { settings: { stylePrettyLogs: boolean } }).settings;
-    expect(settings.stylePrettyLogs).toBe(false);
+    const logger = new Logger({ pretty: { style: false } });
+    const settings = (logger as unknown as { settings: { pretty: { style: boolean } } }).settings;
+    expect(settings.pretty.style).toBe(false);
   });
 });
 
@@ -378,8 +448,8 @@ describe("errorUtils", () => {
 });
 
 describe("metaFormatting.buildPrettyMeta", () => {
-  function settingsWithTemplate(template: string, overrides: Record<string, unknown> = {}) {
-    const logger = new Logger({ type: "pretty", prettyLogTemplate: template, ...overrides });
+  function settingsWithTemplate(template: string, prettyOverrides: Record<string, unknown> = {}) {
+    const logger = new Logger({ type: "pretty", pretty: { template, ...prettyOverrides } });
     return (logger as unknown as { settings: Parameters<typeof buildPrettyMeta>[0] }).settings;
   }
 
@@ -396,7 +466,7 @@ describe("metaFormatting.buildPrettyMeta", () => {
   }
 
   test("local timezone uses local date getters with individual placeholders", () => {
-    const settings = settingsWithTemplate("{{yyyy}}.{{mm}}", { prettyLogTimeZone: "local", stylePrettyLogs: false });
+    const settings = settingsWithTemplate("{{yyyy}}.{{mm}}", { timeZone: "local", style: false });
     const meta = makeMeta();
     const result = buildPrettyMeta(settings, meta);
     expect(result.placeholders.yyyy).toBe(meta.date?.getFullYear());
@@ -404,7 +474,7 @@ describe("metaFormatting.buildPrettyMeta", () => {
   });
 
   test("UTC timezone uses UTC date getters with individual placeholders", () => {
-    const settings = settingsWithTemplate("{{yyyy}}.{{mm}}", { prettyLogTimeZone: "UTC", stylePrettyLogs: false });
+    const settings = settingsWithTemplate("{{yyyy}}.{{mm}}", { timeZone: "UTC", style: false });
     const meta = makeMeta();
     const result = buildPrettyMeta(settings, meta);
     expect(result.placeholders.yyyy).toBe(meta.date?.getUTCFullYear());
@@ -412,7 +482,7 @@ describe("metaFormatting.buildPrettyMeta", () => {
   });
 
   test("missing meta.date yields the ---- year placeholder", () => {
-    const settings = settingsWithTemplate("{{yyyy}}", { prettyLogTimeZone: "UTC", stylePrettyLogs: false });
+    const settings = settingsWithTemplate("{{yyyy}}", { timeZone: "UTC", style: false });
     const meta = makeMeta({ date: undefined });
     const result = buildPrettyMeta(settings, meta);
     expect(result.placeholders.yyyy).toBe("----");
@@ -420,7 +490,7 @@ describe("metaFormatting.buildPrettyMeta", () => {
   });
 
   test("parentNames and name combine with the separator", () => {
-    const settings = settingsWithTemplate("{{name}}", { stylePrettyLogs: false });
+    const settings = settingsWithTemplate("{{name}}", { style: false });
     settings.parentNames = ["A", "B"];
     const meta = makeMeta({ name: "C" });
     const result = buildPrettyMeta(settings, meta);

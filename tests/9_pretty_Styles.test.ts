@@ -7,7 +7,7 @@ describe("Pretty: Styles", () => {
   });
 
   test("Logger with default styles", (): void => {
-    const logger = new Logger({ type: "pretty", stylePrettyLogs: true });
+    const logger = new Logger({ type: "pretty", pretty: { style: true } });
     logger.silly("Test silly");
     expect(getConsoleLog()).toContain("\u001b[37m\u001b[1mSILLY\u001b[22m\u001b[39m");
     logger.warn("Test warn");
@@ -17,12 +17,14 @@ describe("Pretty: Styles", () => {
   test("Logger with changed styles", (): void => {
     const logger = new Logger({
       type: "pretty",
-      stylePrettyLogs: true,
-      prettyLogStyles: {
-        logLevelName: {
-          "*": ["bold", "dim"],
-          SILLY: ["bold", "blue"],
-          WARN: ["bold", "green"],
+      pretty: {
+        style: true,
+        styles: {
+          logLevelName: {
+            "*": ["bold", "dim"],
+            SILLY: ["bold", "blue"],
+            WARN: ["bold", "green"],
+          },
         },
       },
     });
@@ -37,9 +39,11 @@ describe("Pretty: Styles", () => {
   test("Logger with missing style", (): void => {
     const logger = new Logger({
       type: "pretty",
-      stylePrettyLogs: true,
-      prettyLogStyles: {
-        logLevelName: {},
+      pretty: {
+        style: true,
+        styles: {
+          logLevelName: {},
+        },
       },
     });
     logger.log(0, "unknown", "Test unknown");

@@ -70,8 +70,8 @@ describe("transport behaviour", () => {
 
   test("runtime marks objects with Error-like names as errors", async () => {
     vi.resetModules();
-    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
-    const env = createLoggerEnvironment();
+    const { createNodeEnvironment } = await import("../src/env/environment.node.js");
+    const env = createNodeEnvironment();
     const errorLike = { name: "CustomError" };
     expect(env.isError(errorLike)).toBe(true);
   });
@@ -95,7 +95,7 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty", prettyLogTemplate: "static output" });
+    const logger = new Logger({ type: "pretty", pretty: { template: "static output" } });
     logger.info("unstyled");
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("static output"));
@@ -141,9 +141,9 @@ describe("transport behaviour", () => {
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
     const logger = new Logger({ type: "pretty" });
-    logger.settings.prettyLogTemplate = "{{logLevelName}}";
-    logger.settings.prettyLogStyles = {
-      ...logger.settings.prettyLogStyles,
+    logger.settings.pretty.template = "{{logLevelName}}";
+    logger.settings.pretty.styles = {
+      ...logger.settings.pretty.styles,
       logLevelName: {
         INFO: ["bold", "underline", "hidden", "dim", "italic"],
         "*": ["italic"],
@@ -195,8 +195,8 @@ describe("transport behaviour", () => {
     globalAny.location = { origin: "http://localhost" };
 
     vi.resetModules();
-    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
-    const env = createLoggerEnvironment();
+    const { createBrowserEnvironment } = await import("../src/env/environment.browser.js");
+    const env = createBrowserEnvironment();
     const frames = env.getErrorTrace({ stack: "Error\ngarbage frame" } as Error);
     expect(frames).toEqual([]);
 

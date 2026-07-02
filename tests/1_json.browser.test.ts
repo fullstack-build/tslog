@@ -17,14 +17,24 @@ test("Server and Page initiated", async ({ page }) => {
 
 test("silly", async ({ page }) => {
   await page.evaluate(() => {
+    // v5/M3a: with type "json" the env-aware default resolves stack.capture to "off", so _meta.path is
+    // no longer populated by default. This test asserts the captured path object, so opt into full stack
+    // capture explicitly to preserve that intent.
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "json" });
+    const logger = new tslog.Logger({ type: "json", stack: { capture: "full" } });
     logger.silly("Test");
   });
 
   const combined = consoleMessages.join("\n");
-  expect(combined).toContain('"0":"Test"');
+  // v5 flat shape: a bare string lands under the top-level "message" key (M2.1/M2.2),
+  // level NAME/levelId and the ISO timestamp are promoted to the top level too.
+  expect(combined).toContain('"message":"Test"');
+  expect(combined).toContain('"level":"SILLY"');
+  expect(combined).toContain('"levelId":0');
+  expect(combined).toContain(`"time":"${new Date().toISOString().split("T")[0]}`); // ignore time
+  // runtime meta still nested under _meta, which now also carries the schema version v: 5.
   expect(combined).toContain('"_meta":{');
+  expect(combined).toContain('"v":5');
   expect(combined).toContain('"runtime":"browser"');
   expect(combined).toContain(`"date":"${new Date().toISOString().split(".")[0]}`); // ignore ms
   expect(combined).toContain('"logLevelId":0');
@@ -75,7 +85,7 @@ test("pretty disables styling when turned off", async ({ page }) => {
       originalLog.apply(console, args as []);
     };
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.info("Browser no styling");
     console.log = originalLog;
     return calls;
@@ -90,7 +100,7 @@ test("pretty disables styling when turned off", async ({ page }) => {
 test("pretty no styles undefined", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.fatal("Test undefined", { test: undefined });
   });
 
@@ -100,7 +110,7 @@ test("pretty no styles undefined", async ({ page }) => {
 test("pretty string interpolation", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.info("Foo %s", "bar");
   });
 
@@ -110,7 +120,7 @@ test("pretty string interpolation", async ({ page }) => {
 test("pretty undefined", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.info(undefined);
   });
   expect(consoleMessages.some((msg) => msg.includes("undefined"))).toBe(true);
@@ -119,7 +129,7 @@ test("pretty undefined", async ({ page }) => {
 test("pretty null", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.info(null);
   });
   expect(consoleMessages.some((msg) => msg.includes("null"))).toBe(true);
@@ -128,7 +138,7 @@ test("pretty null", async ({ page }) => {
 test("pretty nullish", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", stylePrettyLogs: false });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
     logger.info({ foo: null, bar: undefined });
   });
   const combined = consoleMessages.join("\n");

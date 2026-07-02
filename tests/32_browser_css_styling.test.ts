@@ -1,8 +1,8 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import { Logger } from "../src/index.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
 
-type LoggerEnv = ReturnType<typeof createLoggerEnvironment>;
+type LoggerEnv = ReturnType<typeof createBrowserEnvironment>;
 
 describe("Browser CSS styling", () => {
   const globalAny = globalThis as Record<string, unknown>;
@@ -55,7 +55,7 @@ describe("Browser CSS styling", () => {
       delete globalAny.importScripts;
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
 
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const error = { stack: "Error\nfn@http://localhost/app.js:10:5" } as Error;
       const frames = env.getErrorTrace(error);
 
@@ -80,7 +80,7 @@ describe("Browser CSS styling", () => {
       delete globalAny.importScripts;
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
 
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const error = { stack: "Error\nfn@http://localhost/some/deep/app.js:42:7" } as Error;
       const frames = env.getErrorTrace(error);
 
@@ -99,7 +99,7 @@ describe("Browser CSS styling", () => {
       delete globalAny.importScripts;
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
 
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       // First line is the "Error" header, second line is garbage with no path,
       // only the third line is a valid browser frame.
       const error = {
@@ -121,7 +121,7 @@ describe("Browser CSS styling", () => {
       delete globalAny.importScripts;
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
 
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const error = { stack: "Error\n\n\nfn@http://localhost/only.js:1:1\n\n" } as Error;
       const frames = env.getErrorTrace(error);
 
@@ -130,19 +130,21 @@ describe("Browser CSS styling", () => {
     });
   });
 
-  // Build settings from a real pretty Logger and tweak template/styles per test.
-  function prettySettings(overrides: Partial<ISettings<unknown>> = {}): ISettings<unknown> {
+  // Build settings from a real pretty Logger and tweak pretty template/styles per test.
+  // M3a: the formerly-flat prettyLogTemplate/prettyLogStyles keys now live under the
+  // grouped `pretty` path, so overrides are merged into settings.pretty.
+  function prettySettings(prettyOverrides: Partial<ISettings<unknown>["pretty"]> = {}): ISettings<unknown> {
     const settings = new Logger({ type: "pretty" }).settings as ISettings<unknown>;
-    return { ...settings, ...overrides };
+    return { ...settings, pretty: { ...settings.pretty, ...prettyOverrides } };
   }
 
   describe("CSS styling path in transportFormatted", () => {
     test("emits %c markers and css style arguments for a styled placeholder", () => {
       makeCssBrowser();
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const settings = prettySettings({
-        prettyLogTemplate: "{{logLevelName}}",
-        prettyLogStyles: { logLevelName: "blue" },
+        template: "{{logLevelName}}",
+        styles: { logLevelName: "blue" },
       });
       const meta = env.getMeta(3, "INFO", Number.NaN, false);
 
@@ -167,11 +169,11 @@ describe("Browser CSS styling", () => {
   describe("buildCssMetaOutput behaviors", () => {
     test("placeholder with no matching style produces no css; falls back to sanitized meta markup", () => {
       makeCssBrowser();
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const settings = prettySettings({
-        prettyLogTemplate: "{{logLevelName}}",
+        template: "{{logLevelName}}",
         // empty styles -> no css for any placeholder
-        prettyLogStyles: {},
+        styles: {},
       });
       const meta = env.getMeta(3, "INFO", Number.NaN, false);
 
@@ -191,10 +193,10 @@ describe("Browser CSS styling", () => {
 
     test("preserves trailing template text after the last placeholder", () => {
       makeCssBrowser();
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const settings = prettySettings({
-        prettyLogTemplate: "{{logLevelName}} >> trailing-text",
-        prettyLogStyles: { logLevelName: "blue" },
+        template: "{{logLevelName}} >> trailing-text",
+        styles: { logLevelName: "blue" },
       });
       const meta = env.getMeta(3, "INFO", Number.NaN, false);
 
@@ -208,7 +210,7 @@ describe("Browser CSS styling", () => {
 
     test("undefined meta produces no meta markup but still logs the args", () => {
       makeCssBrowser();
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const settings = prettySettings();
 
       const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -238,10 +240,10 @@ describe("Browser CSS styling", () => {
       template = "{{logLevelName}}",
     ): { text: string; styleArgs: string[] } {
       makeCssBrowser();
-      const env = createLoggerEnvironment();
+      const env = createBrowserEnvironment();
       const settings = prettySettings({
-        prettyLogTemplate: template,
-        prettyLogStyles: { logLevelName: style } as ISettings<unknown>["prettyLogStyles"],
+        template,
+        styles: { logLevelName: style } as ISettings<unknown>["pretty"]["styles"],
       });
       const meta = env.getMeta(level.id, level.name, Number.NaN, false);
 

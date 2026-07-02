@@ -1,11 +1,18 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { MaskingEngine } from "../src/core/masking.js";
+import { createBrowserEnvironment } from "../src/env/environment.browser.js";
+import { createNodeEnvironment } from "../src/env/environment.node.js";
+import { buildStackTrace, clampIndex, findFirstExternalFrameIndex } from "../src/env/stackTrace.js";
 import { Logger } from "../src/index.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
 import { buildPrettyMeta } from "../src/internal/metaFormatting.js";
-import { findFirstExternalFrameIndex, pickCallerStackFrame } from "../src/internal/stackTrace.js";
 
 // Surgical tests closing the last reachable branches across the runtime detection,
 // CSS styling, metaFormatting and stackTrace modules. Each asserts a real, observable behavior.
+//
+// v5 migration: the v4 `createLoggerEnvironment()` singleton (BC11) is gone. The environment is now a
+// per-runtime provider injected through the constructor. Server-style behavior (runtime detection, node
+// stack parsing) is exercised through `createNodeEnvironment()`; browser-stack behavior through
+// `createBrowserEnvironment()`.
 
 describe("Coverage completion: runtime detection fallbacks", () => {
   const globalAny = globalThis as Record<string, unknown>;
@@ -43,7 +50,7 @@ describe("Coverage completion: runtime detection fallbacks", () => {
     delete globalAny.importScripts;
     globalAny.process = { version: "v20.1.0", versions: {}, env: {} };
 
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
     expect(meta.runtime).toBe("node");
@@ -58,7 +65,7 @@ describe("Coverage completion: runtime detection fallbacks", () => {
     globalAny.process = { env: {} };
     globalAny.Bun = { version: "1.1.0", env: { HOST: "bun-host-from-host" } };
 
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
     expect(meta.runtime).toBe("bun");
@@ -83,7 +90,7 @@ describe("Coverage completion: runtime detection fallbacks", () => {
       },
     };
 
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
     expect(meta.runtime).toBe("deno");
@@ -99,7 +106,7 @@ describe("Coverage completion: runtime detection fallbacks", () => {
     globalAny.process = { env: {} };
     globalAny.Bun = { version: "1.1.0", env: { COMPUTERNAME: "BUN-WIN-PC" } };
 
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
     expect(meta.runtime).toBe("bun");
@@ -116,7 +123,7 @@ describe("Coverage completion: runtime detection fallbacks", () => {
     // Simulate a runtime without Node's Buffer.
     (globalThis as { Buffer?: unknown }).Buffer = undefined;
     try {
-      const env = createLoggerEnvironment();
+      const env = createNodeEnvironment();
       expect(env.isBuffer(new Uint8Array([1, 2, 3]))).toBe(false);
       expect(env.isBuffer({})).toBe(false);
     } finally {
@@ -157,11 +164,13 @@ describe("Coverage completion: CSS styling edge cases", () => {
   const SENTINEL = "META_SENTINEL";
 
   function renderCss(styles: Record<string, unknown>, template: string, level = "INFO"): { text: string; styleArgs: unknown[] } {
-    const env = createLoggerEnvironment();
+    // The browser provider is the one that implements the CSS `%c` styling path; create it under the
+    // browser globals stubbed above so its detected runtime is "browser".
+    const env = createBrowserEnvironment();
     const base = new Logger({ type: "pretty" });
     const settings = base.settings as unknown as ISettings<unknown>;
-    settings.prettyLogTemplate = template;
-    settings.prettyLogStyles = styles as ISettings<unknown>["prettyLogStyles"];
+    settings.pretty.template = template;
+    settings.pretty.styles = styles as ISettings<unknown>["pretty"]["styles"];
     const meta = env.getMeta(3, level, Number.NaN, true) as IMeta;
 
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -198,13 +207,15 @@ describe("Coverage completion: CSS styling edge cases", () => {
 });
 
 describe("Coverage completion: metaFormatting branches", () => {
-  function baseSettings(overrides: Partial<ISettings<unknown>> = {}): ISettings<unknown> {
+  function baseSettings(overrides: { pretty?: Partial<ISettings<unknown>["pretty"]>; parentNames?: string[] | undefined } = {}): ISettings<unknown> {
     const settings = new Logger({ type: "pretty" }).settings as unknown as ISettings<unknown>;
-    return Object.assign(settings, overrides);
+    const { pretty, ...rest } = overrides;
+    if (pretty) Object.assign(settings.pretty, pretty);
+    return Object.assign(settings, rest);
   }
 
   test("local timezone with a missing date renders the '----' year fallback", () => {
-    const settings = baseSettings({ prettyLogTimeZone: "local", prettyLogTemplate: "{{yyyy}}.{{mm}}", stylePrettyLogs: false });
+    const settings = baseSettings({ pretty: { timeZone: "local", template: "{{yyyy}}.{{mm}}", style: false } });
     const meta = { logLevelName: "INFO", logLevelId: 3, runtime: "node" } as unknown as IMeta;
     const { placeholders, text } = buildPrettyMeta(settings, meta);
     expect(placeholders.yyyy).toBe("----");
@@ -212,7 +223,7 @@ describe("Coverage completion: metaFormatting branches", () => {
   });
 
   test("local timezone with a present date uses local getters and offset conversion", () => {
-    const settings = baseSettings({ prettyLogTimeZone: "local", prettyLogTemplate: "{{yyyy}}.{{mm}}.{{dd}}", stylePrettyLogs: false });
+    const settings = baseSettings({ pretty: { timeZone: "local", template: "{{yyyy}}.{{mm}}.{{dd}}", style: false } });
     const date = new Date("2024-06-15T12:00:00Z");
     const meta = { date, logLevelName: "INFO", logLevelId: 3, runtime: "node" } as unknown as IMeta;
     const { placeholders } = buildPrettyMeta(settings, meta);
@@ -221,14 +232,14 @@ describe("Coverage completion: metaFormatting branches", () => {
   });
 
   test("name combines parentNames with the logger name", () => {
-    const settings = baseSettings({ parentNames: ["A", "B"], prettyLogTemplate: "{{name}}", stylePrettyLogs: false });
+    const settings = baseSettings({ parentNames: ["A", "B"], pretty: { template: "{{name}}", style: false } });
     const meta = { date: new Date(), logLevelName: "INFO", logLevelId: 3, runtime: "node", name: "C" } as unknown as IMeta;
     const { placeholders } = buildPrettyMeta(settings, meta);
     expect(placeholders.name).toBe("A:B:C");
   });
 
   test("name is empty when neither name nor parentNames are present", () => {
-    const settings = baseSettings({ parentNames: undefined, prettyLogTemplate: "{{name}}", stylePrettyLogs: false });
+    const settings = baseSettings({ parentNames: undefined, pretty: { template: "{{name}}", style: false } });
     const meta = { date: new Date(), logLevelName: "INFO", logLevelId: 3, runtime: "node" } as unknown as IMeta;
     const { placeholders } = buildPrettyMeta(settings, meta);
     expect(placeholders.name).toBe("");
@@ -237,7 +248,7 @@ describe("Coverage completion: metaFormatting branches", () => {
   test("parentNames render even when the current logger has no name", () => {
     // parentNamesString is null (no trailing separator appended because meta.name == null),
     // but the combinedName is still produced from parentNames via the join above.
-    const settings = baseSettings({ parentNames: ["A", "B"], prettyLogTemplate: "{{name}}", stylePrettyLogs: false });
+    const settings = baseSettings({ parentNames: ["A", "B"], pretty: { template: "{{name}}", style: false } });
     const meta = { date: new Date(), logLevelName: "INFO", logLevelId: 3, runtime: "node" } as unknown as IMeta;
     const { placeholders } = buildPrettyMeta(settings, meta);
     // meta.name is null, so the trailing separator is not added; combinedName collapses to "".
@@ -246,7 +257,7 @@ describe("Coverage completion: metaFormatting branches", () => {
 
   test("a name with no parentNames renders just the name", () => {
     // meta.name != null but parentNamesString == null → combinedName === name.
-    const settings = baseSettings({ parentNames: undefined, prettyLogTemplate: "{{name}}", stylePrettyLogs: false });
+    const settings = baseSettings({ parentNames: undefined, pretty: { template: "{{name}}", style: false } });
     const meta = { date: new Date(), logLevelName: "INFO", logLevelId: 3, runtime: "node", name: "Solo" } as unknown as IMeta;
     const { placeholders } = buildPrettyMeta(settings, meta);
     expect(placeholders.name).toBe("Solo");
@@ -305,15 +316,29 @@ describe("Coverage completion: stackTrace branches", () => {
     expect(findFirstExternalFrameIndex(frames, [/never-matches/])).toBe(0);
   });
 
-  test("pickCallerStackFrame uses the auto-detected index when no explicit stackDepthLevel is given", () => {
+  test("the auto-detected caller frame skips tslog-internal frames (default ignore patterns)", () => {
+    // v5 dropped `pickCallerStackFrame`; the surviving seam is buildStackTrace + findFirstExternalFrameIndex
+    // (+ clampIndex). The default ignore patterns recognize tslog's *installed* frames (e.g. under
+    // node_modules/tslog/dist) — NOT any path that merely contains a `tslog/src/` segment, so a user whose
+    // own project lives under a directory named `tslog` is not misclassified (M1.12). The installed tslog
+    // frame is skipped, so the first external frame is the user's `/app/main.ts` line.
     const error = new Error("x");
-    error.stack = ["Error: x", "    at internal (/tslog/src/index.js:1:1)", "    at user (/app/main.ts:5:5)"].join("\n");
+    error.stack = ["Error: x", "    at internal (/proj/node_modules/tslog/dist/esm/index.js:1:1)", "    at user (/app/main.ts:5:5)"].join("\n");
     const parse = (line: string) => {
       const match = line.match(/at .*\((.*):(\d+):(\d+)\)/);
       return match ? { filePath: match[1], fileLine: match[2], fileColumn: match[3] } : undefined;
     };
-    const frame = pickCallerStackFrame(error, parse);
-    expect(frame?.filePath).toBe("/app/main.ts");
+    const frames = buildStackTrace(error, parse);
+    const index = clampIndex(findFirstExternalFrameIndex(frames), frames.length);
+    expect(frames[index]?.filePath).toBe("/app/main.ts");
+
+    // Regression guard (M1.12): a user whose OWN project lives under a directory named `tslog` must NOT
+    // have their frames misclassified as internal. The first frame here is user code and must be reported.
+    const userError = new Error("x");
+    userError.stack = ["Error: x", "    at handler (/home/me/tslog/src/app.ts:9:3)", "    at main (/home/me/tslog/src/main.ts:2:1)"].join("\n");
+    const userFrames = buildStackTrace(userError, parse);
+    const userIndex = clampIndex(findFirstExternalFrameIndex(userFrames), userFrames.length);
+    expect(userFrames[userIndex]?.filePath).toBe("/home/me/tslog/src/app.ts");
   });
 });
 
@@ -339,7 +364,7 @@ describe("Coverage completion: server stack parsing nuances (node)", () => {
   });
 
   function firstFrame(stackBody: string[]) {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const error = new Error("x");
     error.stack = ["Error: x", ...stackBody].join("\n");
     return env.getErrorTrace(error)[0];
@@ -381,7 +406,7 @@ describe("Coverage completion: browser frame without a line number", () => {
   });
 
   test("a browser frame without :line leaves line-derived fields undefined", () => {
-    const env = createLoggerEnvironment();
+    const env = createBrowserEnvironment();
     const error = { stack: "Error\nfn@/host/app.js" } as Error;
     const frame = env.getErrorTrace(error)[0];
     expect(frame?.filePath).toBe("/host/app.js");
@@ -437,10 +462,10 @@ describe("Coverage completion: pretty template with an unknown placeholder (brow
   });
 
   test("an unset placeholder resolves to an empty string in the CSS meta builder", () => {
-    const env = createLoggerEnvironment();
+    const env = createBrowserEnvironment();
     const base = new Logger({ type: "pretty" });
     const settings = base.settings as unknown as ISettings<unknown>;
-    settings.prettyLogTemplate = "{{logLevelName}}{{unknownPlaceholder}}";
+    settings.pretty.template = "{{logLevelName}}{{unknownPlaceholder}}";
     const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     env.transportFormatted("META", [], [], meta, settings);
@@ -453,17 +478,25 @@ describe("Coverage completion: pretty template with an unknown placeholder (brow
 });
 
 describe("Coverage completion: mask placeholder edge cases", () => {
+  // v5: the masking internals moved out of BaseLogger into the MaskingEngine (src/core/masking.ts).
+  // The engine reads the *live* settings object on every call, so post-construction mutation of
+  // maskPlaceholder still takes effect — mirroring the v4 instance method these tests targeted.
+  const predicates = {
+    isError: (value: unknown): value is Error => value instanceof Error,
+    isBuffer: () => false,
+  };
+
   test("an empty maskPlaceholder removes the matched substring", () => {
-    const logger = new Logger({ type: "json", maskValuesRegEx: [/secret/g], maskPlaceholder: "" });
-    const internals = logger as unknown as { _recursiveCloneAndMaskValuesOfKeys: <T>(s: T, k: (string | number)[]) => T };
-    expect(internals._recursiveCloneAndMaskValuesOfKeys("a secret b", [])).toBe("a  b");
+    const logger = new Logger({ type: "json", mask: { regex: [/secret/g], placeholder: "" } });
+    const engine = new MaskingEngine(logger.settings, predicates);
+    expect(engine.recursiveCloneAndMaskValuesOfKeys("a secret b", [])).toBe("a  b");
   });
 
   test("a nullish maskPlaceholder is treated as an empty replacement", () => {
-    const logger = new Logger({ type: "json", maskValuesRegEx: [/x/g] });
-    logger.settings.maskPlaceholder = undefined as unknown as string;
-    const internals = logger as unknown as { _recursiveCloneAndMaskValuesOfKeys: <T>(s: T, k: (string | number)[]) => T };
-    expect(internals._recursiveCloneAndMaskValuesOfKeys("xyx", [])).toBe("y");
+    const logger = new Logger({ type: "json", mask: { regex: [/x/g] } });
+    logger.settings.mask.placeholder = undefined as unknown as string;
+    const engine = new MaskingEngine(logger.settings, predicates);
+    expect(engine.recursiveCloneAndMaskValuesOfKeys("xyx", [])).toBe("y");
   });
 });
 
@@ -489,7 +522,7 @@ describe("Coverage completion: normalizeFilePath edge inputs", () => {
   });
 
   test("a bare Windows drive path (drive only) is preserved", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const error = new Error("x");
     // After stripping line:col, the path is just "C:" — the drive-only normalization branch.
     error.stack = ["Error: x", "    at fn (C:\\:10:5)"].join("\n");
@@ -498,7 +531,7 @@ describe("Coverage completion: normalizeFilePath edge inputs", () => {
   });
 
   test("a frame whose path portion is empty still extracts line, column and method", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const error = new Error("x");
     // The location reduces to an empty path before the line:column — exercises the
     // normalizeFilePath empty/non-string early return guard, which returns the empty path unchanged.

@@ -1,4 +1,5 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createNodeEnvironment } from "../src/env/environment.node.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import type { IMeta, ISettings, IStackFrame } from "../src/interfaces.js";
 
 // Shared global stubbing harness. navigator is a getter-only property in Node,
@@ -34,7 +35,7 @@ afterEach(() => {
 // and run it through the parser via env.getErrorTrace. The "Error: x" header
 // line is stripped by buildStackTrace, leaving a single parsed frame.
 function frameForServerStack(stackBody: string): IStackFrame {
-  const env = createLoggerEnvironment();
+  const env = createNodeEnvironment();
   const error = new Error("x");
   error.stack = `Error: x\n${stackBody}`;
   const frames = env.getErrorTrace(error);
@@ -104,7 +105,14 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
   });
 
   test("falls back to stringifyFallback for each arg when inspection throws", () => {
-    const env = createLoggerEnvironment();
+    // v5 inspect strategy (M0.5/2.2): the Node provider deliberately uses the robust native
+    // node:util.formatWithOptions, which does NOT throw on the pathological inputs below — so its
+    // formatWithOptionsSafe catch branch is unreachable from there. The formatWithOptionsSafe ->
+    // stringifyFallback fallback now lives in the universal provider, whose inspect is resolved via
+    // resolveInspect(): it uses the bundled polyfill whenever native node:util is not reachable
+    // through a global require (as in this vitest ESM run). The polyfill DOES throw on the proxy
+    // below, exercising the exact same per-arg fallback this test was written to verify.
+    const env = createUniversalEnvironment();
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
     // A Proxy whose ownKeys trap throws makes Object.keys() throw deep inside
@@ -122,7 +130,8 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
     const circular: Record<string, unknown> = {};
     circular.self = circular;
 
-    const settings = { stylePrettyLogs: false, prettyInspectOptions: {} } as unknown as ISettings<unknown>;
+    // M3a grouped settings: stylePrettyLogs -> pretty.style, prettyInspectOptions -> pretty.inspectOptions
+    const settings = { pretty: { style: false, inspectOptions: {} } } as unknown as ISettings<unknown>;
 
     env.transportFormatted("META ", ["plain", { a: 1 }, 10n, circular, throwingInspectArg], [], undefined, settings);
 
@@ -143,7 +152,7 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
 
 describe("detectRuntimeInfo / getEnvironmentHostname / resolveDenoHostname fallbacks", () => {
   function metaFor(): IMeta {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     return env.getMeta(3, "INFO", 0, true) as IMeta;
   }
 
@@ -199,18 +208,18 @@ describe("detectRuntimeInfo / getEnvironmentHostname / resolveDenoHostname fallb
 
 describe("isNativeError via env.isError", () => {
   test("recognises native Error and subclass instances", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     expect(env.isError(new Error("boom"))).toBe(true);
     expect(env.isError(new TypeError("nope"))).toBe(true);
   });
 
   test("recognises plain objects whose name ends with Error", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     expect(env.isError({ name: "ValidationError", message: "x" })).toBe(true);
   });
 
   test("recognises objects whose toString tag matches [object ...Error]", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     const tagged = {
       get [Symbol.toStringTag]() {
         return "DOMError";
@@ -222,7 +231,7 @@ describe("isNativeError via env.isError", () => {
   });
 
   test("rejects non-error names, primitives, and null", () => {
-    const env = createLoggerEnvironment();
+    const env = createNodeEnvironment();
     expect(env.isError({ name: "Warning" })).toBe(false);
     expect(env.isError("string")).toBe(false);
     expect(env.isError(null)).toBe(false);

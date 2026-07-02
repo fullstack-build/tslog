@@ -136,6 +136,8 @@ describe("Pretty: Log Types", () => {
   });
 
   test("URL", (): void => {
+    // URL -> plain-object expansion runs in the log-object path regardless of masking config (v5),
+    // so it works with the default maskValuesOfKeys: [] — no masking needs to be enabled.
     const logger = new Logger({ type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" });
     const url = new URL("https://example.com");
     logger.log(1234, "testLevel", url);

@@ -23,17 +23,17 @@ describe("Logger environment adjustments", () => {
     globalAny.window = {};
     globalAny.document = {};
 
-    const logger = new Logger({ stylePrettyLogs: true });
+    const logger = new Logger({ pretty: { style: true } });
 
-    expect(logger.settings.stylePrettyLogs).toBe(true);
+    expect(logger.settings.pretty.style).toBe(true);
   });
 
   test("respects explicit styling opt-out", () => {
     globalAny.window = {};
     globalAny.document = {};
 
-    const logger = new Logger({ stylePrettyLogs: false });
+    const logger = new Logger({ pretty: { style: false } });
 
-    expect(logger.settings.stylePrettyLogs).toBe(false);
+    expect(logger.settings.pretty.style).toBe(false);
   });
 });
