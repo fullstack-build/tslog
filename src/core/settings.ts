@@ -39,6 +39,122 @@ export const KNOWN_PRETTY_PLACEHOLDERS = new Set([
   "fileColumn",
 ]);
 
+/** Every key accepted at the top level of {@link ISettingsParam}. Drives the unknown-key check. */
+const KNOWN_TOP_LEVEL_KEYS = new Set([
+  "type",
+  "name",
+  "parentNames",
+  "minLevel",
+  "argumentsArrayName",
+  "persistLevel",
+  "persistLevelKey",
+  "pretty",
+  "json",
+  "mask",
+  "stack",
+  "meta",
+  "prefix",
+  "attachedTransports",
+  "middleware",
+  "customLevels",
+  "strictConfig",
+]);
+
+/** The keys accepted inside each settings group. Drives the unknown-key check for nested typos. */
+const KNOWN_GROUP_KEYS: Record<string, Set<string>> = {
+  pretty: new Set([
+    "enabled",
+    "template",
+    "errorTemplate",
+    "errorStackTemplate",
+    "errorParentNamesSeparator",
+    "errorLoggerNameDelimiter",
+    "style",
+    "timeZone",
+    "styles",
+    "levelMethod",
+    "inspectOptions",
+  ]),
+  json: new Set(["messageKey", "levelKey", "levelIdKey", "timeKey", "errorKey", "numericLevel", "stableKeyOrder"]),
+  mask: new Set(["keys", "caseInsensitive", "regex", "placeholder", "paths", "censor", "hashLabel"]),
+  stack: new Set(["capture", "internalFramePatterns"]),
+  meta: new Set(["property", "attachContext"]),
+};
+
+/**
+ * v4 flat settings keys mapped to their v5 home, so a config carried over from v4 gets a precise
+ * migration hint instead of being silently ignored (which for `maskValuesOfKeys` would mean logging
+ * secrets in plaintext). Mirrors the mapping table in MIGRATION_v4_to_v5.md.
+ */
+const V4_KEY_MIGRATIONS: Record<string, string> = {
+  prettyLogTemplate: "pretty.template",
+  prettyErrorTemplate: "pretty.errorTemplate",
+  prettyErrorStackTemplate: "pretty.errorStackTemplate",
+  prettyErrorParentNamesSeparator: "pretty.errorParentNamesSeparator",
+  prettyErrorLoggerNameDelimiter: "pretty.errorLoggerNameDelimiter",
+  stylePrettyLogs: "pretty.style",
+  prettyLogTimeZone: "pretty.timeZone",
+  prettyLogStyles: "pretty.styles",
+  prettyInspectOptions: "pretty.inspectOptions",
+  maskValuesOfKeys: "mask.keys",
+  maskValuesOfKeysCaseInsensitive: "mask.caseInsensitive",
+  maskValuesRegEx: "mask.regex",
+  maskPlaceholder: "mask.placeholder",
+  metaProperty: "meta.property",
+  internalFramePatterns: "stack.internalFramePatterns",
+  prettyLogLevelMethod: "pretty.levelMethod",
+  hideLogPositionForProduction: 'stack.capture ("off" hides positions)',
+  overwrite: "middleware / logger.use()",
+  stackDepthLevel: "the callerFrame constructor argument",
+};
+
+/**
+ * Bounded Levenshtein distance for did-you-mean suggestions. Bails out early once the distance
+ * exceeds `max`, so comparing a typo against every known key stays cheap.
+ */
+function editDistance(a: string, b: string, max: number): number {
+  if (Math.abs(a.length - b.length) > max) {
+    return max + 1;
+  }
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i];
+    let rowMin = i;
+    for (let j = 1; j <= b.length; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost);
+      if (current[j] < rowMin) {
+        rowMin = current[j];
+      }
+    }
+    if (rowMin > max) {
+      return max + 1;
+    }
+    previous = current;
+  }
+  return previous[b.length];
+}
+
+/** The closest known key within a small edit distance, or `undefined` when nothing is plausibly meant. */
+function nearestKey(key: string, known: Iterable<string>): string | undefined {
+  const lowered = key.toLowerCase();
+  const max = key.length <= 4 ? 1 : 2;
+  let best: string | undefined;
+  let bestDistance = max + 1;
+  for (const candidate of known) {
+    // A pure casing mistake ("Mask", "minlevel") is always the intended key.
+    if (candidate.toLowerCase() === lowered) {
+      return candidate;
+    }
+    const distance = editDistance(key, candidate, max);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = candidate;
+    }
+  }
+  return best;
+}
+
 /** Whether to emit developer diagnostics. Off in production and when explicitly disabled via TSLOG_DISABLE_WARNINGS. */
 export function devWarningsEnabled(): boolean {
   // Guarded per-property reads: Deno's process.env proxy throws NotCapable per GET without --allow-env.
@@ -99,6 +215,73 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
         setting: "minLevel",
         message: `minLevel ${resolved} is outside the default range 0-6; no default log method will be filtered as you might expect.`,
         suggestion: "Set minLevel to a number between 0 (SILLY) and 6 (FATAL), or register a customLevel for the out-of-range id.",
+      });
+    }
+  }
+
+  // Unknown / relocated settings keys — the #1 hazard of the grouped-settings migration. A stale v4
+  // flat key (`maskValuesOfKeys`), a typo'd group (`masks:`), or a typo inside a group
+  // (`json: { messagKey }`) would otherwise be silently ignored; for masking that means secrets
+  // logged in plaintext. TypeScript catches literal typos at compile time, but JS callers,
+  // spread/merged configs, and JSON-loaded configs only have this check.
+  // Enumeration is guarded: a hostile Proxy (throwing ownKeys trap) must not crash construction in
+  // warn-only mode. `report` still throws for strictConfig — only the key ENUMERATION is defensive.
+  let topLevelKeys: string[] = [];
+  try {
+    topLevelKeys = Object.keys(settings);
+  } catch {
+    // unreadable settings object — skip the key checks, the resolved defaults still apply
+  }
+  for (const key of topLevelKeys) {
+    if (KNOWN_TOP_LEVEL_KEYS.has(key)) {
+      continue;
+    }
+    // hasOwn guard: keys named after Object.prototype members ("constructor", "toString") must not
+    // resolve prototype methods as migration hints.
+    const migrated = Object.hasOwn(V4_KEY_MIGRATIONS, key) ? V4_KEY_MIGRATIONS[key] : undefined;
+    if (migrated != null) {
+      report({
+        code: "V4_FLAT_KEY",
+        setting: key,
+        message: `"${key}" was removed in v5 — use ${migrated} instead (see MIGRATION_v4_to_v5.md).`,
+        suggestion: `Move "${key}" to ${migrated}.`,
+      });
+      continue;
+    }
+    const closest = nearestKey(key, KNOWN_TOP_LEVEL_KEYS);
+    report({
+      code: "UNKNOWN_SETTING",
+      setting: key,
+      message: `unknown setting "${key}"${closest != null ? ` — did you mean "${closest}"?` : ""}`,
+      suggestion: closest != null ? `Rename "${key}" to "${closest}".` : `Remove "${key}" — it is not a tslog setting.`,
+    });
+  }
+  for (const [group, knownKeys] of Object.entries(KNOWN_GROUP_KEYS)) {
+    let groupValue: unknown;
+    try {
+      groupValue = (settings as unknown as Record<string, unknown>)[group];
+    } catch {
+      continue;
+    }
+    if (groupValue == null || typeof groupValue !== "object" || Array.isArray(groupValue)) {
+      continue;
+    }
+    let groupKeys: string[] = [];
+    try {
+      groupKeys = Object.keys(groupValue);
+    } catch {
+      continue;
+    }
+    for (const key of groupKeys) {
+      if (knownKeys.has(key)) {
+        continue;
+      }
+      const closest = nearestKey(key, knownKeys);
+      report({
+        code: "UNKNOWN_SETTING",
+        setting: `${group}.${key}`,
+        message: `unknown setting "${group}.${key}"${closest != null ? ` — did you mean "${group}.${closest}"?` : ""}`,
+        suggestion: closest != null ? `Rename "${group}.${key}" to "${group}.${closest}".` : `Remove "${group}.${key}" — it is not a tslog setting.`,
       });
     }
   }
@@ -241,7 +424,9 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
       timeKey: settings?.json?.timeKey ?? "time",
       errorKey: settings?.json?.errorKey ?? "error",
       numericLevel: settings?.json?.numericLevel ?? true,
-      stableKeyOrder: settings?.json?.stableKeyOrder ?? true,
+      // Off by default: the deep sorted copy costs real throughput on every log, and insertion order is
+      // what users wrote (and what every other structured logger emits). Head keys are stable either way.
+      stableKeyOrder: settings?.json?.stableKeyOrder ?? false,
     },
     mask: {
       keys: [...(settings?.mask?.keys ?? [])],

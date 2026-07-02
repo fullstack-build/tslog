@@ -15,7 +15,7 @@ import { Logger, log } from "tslog"; // class + ready-to-use default instance
 - `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` / `await using`.
 
 ## Settings are GROUPED (no flat keys)
-- `type`, `name`, `minLevel: "INFO"` (name or 0..6).
+- `type`, `name`, `minLevel: "INFO"` (name or 0..6), `strictConfig: true` (throw `TslogConfigError` on unknown/typo'd/v4-flat keys; without it they warn in dev with a did-you-mean).
 - `mask: { keys: ["password","apiKey","token","prompt"], paths: ["user.password","*.token"], caseInsensitive, regex, censor }` — redact secrets/PII/prompts by key, dotted path, or regex. Regexes always apply globally (no `g` flag needed); keys/regex also mask inside `Map`/`Set` contents; shared/circular references resolve to the same masked clone.
 - `json: { messageKey, levelKey, timeKey, errorKey }`, `pretty: { timeZone, style }`, `stack: { capture: "off" }`, `meta: { property, attachContext }`.
 

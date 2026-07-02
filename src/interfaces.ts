@@ -212,10 +212,12 @@ export interface IJsonOutputSettings {
    */
   numericLevel?: boolean;
   /**
-   * When `true` (default), emit the well-known keys (message, level, time, …) in a stable, documented
-   * order before the user's fields, so diffing and log-grepping stay deterministic. Set `false` to
-   * skip the reordering pass for maximum throughput.
-   * @example { json: { stableKeyOrder: false } }
+   * When `true`, additionally emit the user's fields (and nested objects, recursively) in sorted key
+   * order so identical payloads produce byte-identical lines — useful for snapshot tests and diffing.
+   * Default `false`: the well-known head keys (message, level, time, …) always come first in a stable
+   * order, but user fields keep their insertion order and skip the deep sorted copy that costs
+   * throughput on every log.
+   * @example { json: { stableKeyOrder: true } }
    */
   stableKeyOrder?: boolean;
 }

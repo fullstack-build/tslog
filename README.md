@@ -308,12 +308,14 @@ the groups cover everything else.
 
 **Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`,
 `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`,
-`persistLevel` / `persistLevelKey` (browser opt-in), `strictConfig` (throw on bad config).
+`persistLevel` / `persistLevelKey` (browser opt-in), `strictConfig` (throw a typed `TslogConfigError`
+on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in
+development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
 | `pretty`  | `template`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `inspectOptions`, `enabled` |
-| `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`true`) |
+| `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
 | `mask`    | `keys` (`[]`), `caseInsensitive`, `regex` (`RegExp[]`), `placeholder` (`"[***]"`), `paths` (JSONPath-lite), `censor` (`string \| "remove" \| "hash" \| fn`), `hashLabel` (`"hash"`) |
 | `stack`   | `capture` (`"off" \| "lazy" \| "auto" \| "full"`), `internalFramePatterns` (`RegExp[]`) |
 | `meta`    | `property` (`"_meta"`), `attachContext` |

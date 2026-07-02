@@ -214,3 +214,150 @@ describe("strictConfig + TslogConfigError (E6)", () => {
     expect(() => new Logger({ type: "json", strictConfig: true, minLevel: "INFO" })).not.toThrow();
   });
 });
+
+describe("unknown-key and v4-flat-key validation", () => {
+  test("a typo'd top-level key warns with a did-you-mean suggestion", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", minLvl: 3 } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain('unknown setting "minLvl"');
+      expect(output).toContain('did you mean "minLevel"');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a typo inside a group warns with the group-qualified suggestion", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", pretty: { tempalte: "x" } } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain('unknown setting "pretty.tempalte"');
+      expect(output).toContain('did you mean "pretty.template"');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a v4 flat key gets a precise migration hint", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", maskValuesOfKeys: ["password"] } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain('"maskValuesOfKeys" was removed in v5');
+      expect(output).toContain("mask.keys");
+      expect(output).toContain("MIGRATION_v4_to_v5.md");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("strictConfig turns an unknown key into a typed UNKNOWN_SETTING error", () => {
+    let caught: unknown;
+    try {
+      new Logger({ type: "hidden", strictConfig: true, masks: { keys: ["password"] } } as never);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(TslogConfigError);
+    expect((caught as TslogConfigError).code).toBe("UNKNOWN_SETTING");
+    expect((caught as TslogConfigError).setting).toBe("masks");
+    expect((caught as TslogConfigError).message).toContain('did you mean "mask"');
+  });
+
+  test("strictConfig turns a v4 flat key into a typed V4_FLAT_KEY error", () => {
+    let caught: unknown;
+    try {
+      new Logger({ type: "hidden", strictConfig: true, prettyLogTemplate: "{{logLevelName}} " } as never);
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(TslogConfigError);
+    expect((caught as TslogConfigError).code).toBe("V4_FLAT_KEY");
+    expect((caught as TslogConfigError).message).toContain("pretty.template");
+  });
+
+  test("a pure casing mistake suggests the intended key", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", Mask: { keys: ["x"] } } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain('did you mean "mask"');
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a fully valid grouped config emits no warnings", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({
+        type: "json",
+        name: "api",
+        minLevel: "INFO",
+        mask: { keys: ["password"], caseInsensitive: true },
+        json: { messageKey: "msg", stableKeyOrder: false },
+        pretty: { timeZone: "UTC" },
+        stack: { capture: "off" },
+        meta: { property: "_meta", attachContext: true },
+      });
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("the 4.11 flat keys internalFramePatterns and prettyLogLevelMethod get precise hints", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", internalFramePatterns: [/x/], prettyLogLevelMethod: {} } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain("stack.internalFramePatterns");
+      expect(output).toContain("pretty.levelMethod");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("settings keys named after Object.prototype members are not misreported as v4 keys", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      new Logger({ type: "hidden", constructor: 1, toString: 2 } as never);
+      const output = warnSpy.mock.calls.map((call) => String(call[0])).join("\n");
+      expect(output).toContain('unknown setting "constructor"');
+      expect(output).not.toContain("was removed in v5");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("a hostile Proxy group value never crashes warn-only construction", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const hostile = new Proxy(
+        {},
+        {
+          ownKeys() {
+            throw new Error("boom from ownKeys");
+          },
+        },
+      );
+      expect(() => new Logger({ type: "hidden", pretty: hostile } as never)).not.toThrow();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  test("creating a sub-logger from resolved settings emits no warnings", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({ type: "hidden", name: "root", mask: { keys: ["password"] } });
+      logger.getSubLogger({ name: "child" });
+      logger.child({ name: "child2" });
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+});

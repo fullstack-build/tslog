@@ -115,7 +115,11 @@ Node, browsers, Deno, Bun, and workers at construction time. The named exports a
 **Breaking:** every flat `prettyLog*` / `maskValues*` / `stack*` / `meta*` key is gone. Settings are now
 organized into the `pretty`, `json`, `mask`, `stack`, and `meta` groups, with a handful of top-level keys
 (`type`, `name`, `minLevel`, `customLevels`, `middleware`, `prefix`, `attachedTransports`,
-`strictConfig`, …). **There is no flat-key fallback** — an old flat key is silently ignored.
+`strictConfig`, …). **There is no flat-key fallback** — an old flat key does not configure anything.
+tslog detects carried-over v4 keys (and typo'd/unknown keys) at construction: in development it warns with
+the exact new location (e.g. `"maskValuesOfKeys" was removed in v5 — use mask.keys`), and with
+`strictConfig: true` it throws a typed `TslogConfigError` (`V4_FLAT_KEY` / `UNKNOWN_SETTING`) so a stale
+config can never ship silently.
 
 ```ts
 // BEFORE (v4) — flat keys
@@ -169,7 +173,7 @@ const log = new Logger({
 | `prettyLogStyles` | `pretty.styles` |
 | `prettyInspectOptions` | `pretty.inspectOptions` |
 | *(new)* | `pretty.enabled` — explicit pretty on/off, overriding the env-aware default |
-| *(new)* | `pretty.levelMethod` — map a level name (or `"*"`) to a `console` method |
+| `prettyLogLevelMethod` *(4.11)* | `pretty.levelMethod` — map a level name (or `"*"`) to a `console` method |
 | `maskValuesOfKeys` | `mask.keys` — **default is now `[]` (masking OFF); see §5** |
 | `maskValuesOfKeysCaseInsensitive` | `mask.caseInsensitive` |
 | `maskValuesRegEx` | `mask.regex` |
@@ -182,7 +186,7 @@ const log = new Logger({
 | `hideLogPositionForProduction` | **REMOVED → `stack.capture: "off"`** (or leave default `"auto"`); see §3 |
 | `stackDepthLevel` *(constructor arg)* | **renamed → `callerFrame`** (constructor arg); see §7 |
 | *(new)* | `stack.capture` — `"off" \| "lazy" \| "auto" \| "full"` |
-| *(new)* | `stack.internalFramePatterns` — extra wrapper-file patterns |
+| `internalFramePatterns` *(4.11)* | `stack.internalFramePatterns` |
 | *(new)* | `json.messageKey` / `levelKey` / `levelIdKey` / `timeKey` / `errorKey` |
 | *(new)* | `json.numericLevel` / `json.stableKeyOrder` |
 | `attachedTransports` | `attachedTransports` *(now `Transport \| TransportFn`; see §8)* |
@@ -432,7 +436,12 @@ Call-site mapping in v5:
 - `log.info("hi")` → `{ message: "hi" }`.
 - `log.info({ userId: 42 })` → fields spread: `{ userId: 42 }`.
 - `log.info({ userId: 42 }, "hi")` (pino-style fields-first) → `{ message: "hi", userId: 42 }`.
-- `log.info("hi", a, b)` → `{ message: "hi", "1": a, "2": b }` (or all under `argumentsArrayName` when set).
+- `log.info("hi", { userId: 42 })` (message-first) → `{ message: "hi", userId: 42 }` — symmetric with the
+  pino shape; a **single** trailing plain object always spreads.
+- `log.info("hi", a, b)` (two or more trailing values) → `{ message: "hi", "1": a, "2": b }` (or all under
+  `argumentsArrayName` when set).
+- User fields named like the canonical head keys (`level`, `levelId`, `time`) are dropped from the JSON
+  line — the canonical values always win.
 - Any logged `Error`(s) → under `error` (`json.errorKey`), serialized with the `cause` chain preserved.
 
 Every key name is configurable via the `json` group — to match pino, ECS, etc.:
