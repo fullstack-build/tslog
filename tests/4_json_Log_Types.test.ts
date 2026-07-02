@@ -102,9 +102,46 @@ describe("JSON: Log Types", () => {
   test("String, Object", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
-    // v5: leading string -> `message`; the trailing object stays bucketed under its positional index key "1".
+    // Leading string -> `message`; a single trailing plain object spreads at the top level,
+    // symmetric with the pino-style object-first shape.
     expect(getConsoleLog()).toContain('"message":"test"');
-    expect(getConsoleLog()).toContain(`"1":{"nested":{"1":false},"test":true}`);
+    expect(getConsoleLog()).toContain('"test":true');
+    expect(getConsoleLog()).toContain('"nested":{"1":false}');
+    expect(getConsoleLog()).not.toContain('"1":{');
+  });
+
+  test("String, Object and Object, String produce the same flat fields", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info("ready", { userId: 42 });
+    const messageFirst = getConsoleLog();
+    mockConsoleLog(true, false);
+    logger.info({ userId: 42 }, "ready");
+    const objectFirst = getConsoleLog();
+
+    for (const line of [messageFirst, objectFirst]) {
+      expect(line).toContain('"message":"ready"');
+      expect(line).toContain('"userId":42');
+      expect(line).not.toContain('"0":');
+      expect(line).not.toContain('"1":');
+    }
+  });
+
+  test("String with two trailing values keeps positional bucketing", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info("msg", { a: 1 }, { b: 2 });
+    expect(getConsoleLog()).toContain('"message":"msg"');
+    expect(getConsoleLog()).toContain('"1":{"a":1}');
+    expect(getConsoleLog()).toContain('"2":{"b":2}');
+  });
+
+  test("user fields cannot clobber the canonical level/levelId/time head keys", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info({ level: "fake", levelId: -1, time: "fake-time", ok: true });
+    expect(getConsoleLog()).toContain('"level":"INFO"');
+    expect(getConsoleLog()).toContain('"levelId":3');
+    expect(getConsoleLog()).not.toContain('"level":"fake"');
+    expect(getConsoleLog()).not.toContain('"time":"fake-time"');
+    expect(getConsoleLog()).toContain('"ok":true');
   });
 
   test("Object, String", (): void => {

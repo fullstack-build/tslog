@@ -121,6 +121,32 @@ export function toErrorObject(error: Error, deps: LogObjDeps, depth = 0, seen: S
 }
 
 /**
+ * Symbol-keyed marker set on a record whose CALL SHAPE was exactly one of the two field-spreading
+ * forms: pino object-first (`log.info({fields}, "msg")`) or message-first (`log.info("msg", {fields})`),
+ * with a genuinely PLAIN object. The JSON renderer spreads the object's fields at the top level only
+ * when this hint is present — shape-sniffing the record alone cannot distinguish those calls from a
+ * single logged object that happens to have numeric keys (`log.info({0: "a", 1: {…}})`).
+ */
+export const SPREAD_SHAPE_HINT: unique symbol = Symbol("tslog.logObj.spreadShape");
+
+/** The two hinted spread shapes (see {@link SPREAD_SHAPE_HINT}). */
+export type TSpreadShape = "message-first" | "object-first";
+
+/** Read the spread-shape hint off a record, if the call shape set one. */
+export function getSpreadShapeHint(record: object): TSpreadShape | undefined {
+  return (record as Record<symbol, TSpreadShape | undefined>)[SPREAD_SHAPE_HINT];
+}
+
+/** True for a plain object literal (prototype is `Object.prototype` or `null`) — the only spreadable shape. */
+function isPlainSpreadObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
  * Builds the final log object from the (already masked) call arguments.
  *
  * - Every Error argument is replaced by its serializable {@link IErrorObject} form.
@@ -129,8 +155,22 @@ export function toErrorObject(error: Error, deps: LogObjDeps, depth = 0, seen: S
  *   (objects spread directly; a non-mergeable single value is keyed under `"0"`), while multiple
  *   args are spread index-keyed (`0`, `1`, …). The cloned default LogObj always wins on key
  *   collisions, matching the monolith's `{ ...args[0], ...clonedLogObj }` ordering.
+ * - A two-argument call pairing a string message with a single PLAIN object (either order) tags the
+ *   record with {@link SPREAD_SHAPE_HINT} so the JSON renderer can spread the object's fields at the
+ *   top level; Buffers, Maps, Sets, class instances and arrays keep their positional bucket so their
+ *   own serialization semantics (`toJSON`, inspect) stay intact.
  */
 export function toLogObj<LogObj>(args: unknown[], argumentsArrayName: string | undefined, deps: LogObjDeps, clonedLogObj: LogObj = {} as LogObj): LogObj {
+  // Detect the spread shapes on the ORIGINAL args, before the Error mapping below turns a logged
+  // Error into a plain serializable object that would wrongly qualify as spreadable fields.
+  let spreadShape: TSpreadShape | undefined;
+  if (argumentsArrayName == null && args.length === 2 && !deps.isError(args[0]) && !deps.isError(args[1])) {
+    if (typeof args[0] === "string" && isPlainSpreadObject(args[1]) && deps.isBuffer(args[1]) !== true) {
+      spreadShape = "message-first";
+    } else if (isPlainSpreadObject(args[0]) && deps.isBuffer(args[0]) !== true && typeof args[1] === "string") {
+      spreadShape = "object-first";
+    }
+  }
   args = args?.map((arg) => (deps.isError(arg) ? toErrorObject(arg as Error, deps) : arg));
   if (argumentsArrayName == null) {
     if (args.length === 1 && !Array.isArray(args[0]) && deps.isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
@@ -143,6 +183,12 @@ export function toLogObj<LogObj>(args: unknown[], argumentsArrayName: string | u
       ...clonedLogObj,
       [argumentsArrayName]: args,
     };
+  }
+  if (spreadShape !== undefined) {
+    // A plain symbol-keyed assignment: invisible to Object.keys/JSON/for..in, yet carried forward by
+    // the `{ ...logObj }` spread that attaches `_meta` (spreads copy enumerable symbol keys) — no
+    // per-call defineProperty cost, no explicit re-attach step.
+    (clonedLogObj as Record<symbol, unknown>)[SPREAD_SHAPE_HINT] = spreadShape;
   }
   return clonedLogObj;
 }

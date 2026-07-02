@@ -1,3 +1,4 @@
+import { getSpreadShapeHint } from "../core/logObj.js";
 import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.js";
 
 /**
@@ -29,9 +30,12 @@ import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.
  * ```
  *
  * Mapping rules (how the call site maps onto the top level):
- *  - **Bare string** `log.info("hi")` → `{ [messageKey]: "hi" }`. If positional args follow the string
- *    (`log.info("hi", a, b)`) the extra args are bucketed under {@link ISettings.argumentsArrayName}
- *    when set, otherwise under numeric keys `"1"`, `"2"`, … (the string keeps `messageKey`).
+ *  - **Bare string** `log.info("hi")` → `{ [messageKey]: "hi" }`.
+ *  - **Message + object** `log.info("hi", { userId: 42 })` — a leading string with a SINGLE trailing
+ *    plain object — spreads the object's fields at the top level, symmetric with the pino shape below.
+ *  - With two or more trailing values (`log.info("hi", a, b)`) the extra args are bucketed under
+ *    {@link ISettings.argumentsArrayName} when set, otherwise under numeric keys `"1"`, `"2"`, …
+ *    (the string keeps `messageKey`).
  *  - **Single object** `log.info({ userId: 42 })` → its keys are spread at the top level.
  *  - **Object + message** `log.info({ userId: 42 }, "hi")` (pino-style) → `{ [messageKey]: "hi",
  *    userId: 42 }`: the object's fields spread at the top level and the trailing string lands under
@@ -40,6 +44,8 @@ import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.
  *    (or all under `argumentsArrayName` when set).
  *  - **Errors** anywhere in the args are collected under `errorKey` (a single Error → the object; two or
  *    more → an array), serialized as a JSON-safe {@link IErrorObject} with the `cause` chain preserved.
+ *  - **Reserved head keys**: user fields named like `levelKey`/`levelIdKey`/`timeKey` are dropped from
+ *    the flat line — the canonical head values always win (the raw record keeps the field for transports).
  *
  * The formatter is pure: it takes the already-built record (post mask → toLogObj → addMeta) plus the
  * resolved settings and returns either the flat object ({@link toFlatJsonObject}) or the JSON line
@@ -148,17 +154,16 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
   const hasZeroKey = !recordIsSpreadError && Object.hasOwn(recordObj, "0");
   let sawEmbeddedError = false;
   let pinoLeading = false;
+  let messageFirst = false;
   if (!recordIsSpreadError) {
-    const leadingObject = recordObj["0"];
-    pinoLeading =
-      !hasMessageKey &&
-      typeof leadingObject === "object" &&
-      leadingObject !== null &&
-      !Array.isArray(leadingObject) &&
-      !(leadingObject instanceof Date) &&
-      !isErrorObject(leadingObject) &&
-      typeof recordObj["1"] === "string";
-    if (!pinoLeading) {
+    // The two field-spreading call shapes — pino object-first (`{fields}, "msg"`) and the symmetric
+    // message-first (`"msg", {fields}`) — are recognized via the SPREAD_SHAPE_HINT that toLogObj set
+    // when the CALL was literally a string paired with a single PLAIN object. Sniffing the record's
+    // shape alone would misfire on a single logged object with numeric keys.
+    const spreadShape = hasMessageKey ? undefined : getSpreadShapeHint(recordObj);
+    pinoLeading = spreadShape === "object-first" && typeof recordObj["0"] === "object" && recordObj["0"] !== null && !isErrorObject(recordObj["0"]);
+    messageFirst = spreadShape === "message-first" && typeof recordObj["1"] === "object" && recordObj["1"] !== null && !isErrorObject(recordObj["1"]);
+    if (!pinoLeading && !messageFirst) {
       for (let i = 0; i < recordKeys.length; i++) {
         const key = recordKeys[i];
         if (key === metaProperty || key === json.messageKey || key === "0") {
@@ -172,10 +177,10 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
     }
   }
 
-  // Fast path: no spread error, no embedded error, no pino pattern. Build `flat` directly in documented
-  // head-first order, copying plain user fields straight from the record (sorted + deep-sorted in stable
-  // mode) without ever materializing `userFields`/`errors`.
-  if (!recordIsSpreadError && !sawEmbeddedError && !pinoLeading) {
+  // Fast path: no spread error, no embedded error, no pino/message-first pattern. Build `flat` directly
+  // in documented head-first order, copying plain user fields straight from the record (sorted +
+  // deep-sorted in stable mode) without ever materializing `userFields`/`errors`.
+  if (!recordIsSpreadError && !sawEmbeddedError && !pinoLeading && !messageFirst) {
     // The message comes from messageKey if present, else the legacy "0" index key. `messageSourceKey` is the
     // record key that supplied it, so the field loop below can skip exactly that key (and meta).
     const messageSourceKey = hasMessageKey ? json.messageKey : hasZeroKey ? "0" : undefined;
@@ -187,12 +192,16 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
       flat[json.messageKey] = stable ? deepSortKeys(message, awk) : message;
     }
     writeHead(flat, meta, json, dateIso);
-    // User fields: every record key except meta and whichever key supplied the message. Collect them only if
-    // any exist (the bare-message hot path has none, so we skip the array allocation + sort entirely).
+    // User fields: every record key except meta, whichever key supplied the message, and the reserved
+    // head keys (level/levelId/time are canonical — a colliding user field must not corrupt them).
+    // Collect them only if any exist (the bare-message hot path has none, so we skip the array
+    // allocation + sort entirely).
     let fieldKeys: string[] | undefined;
     for (let i = 0; i < recordKeys.length; i++) {
       const key = recordKeys[i];
-      if (key === metaProperty || key === messageSourceKey) {
+      // "__proto__" is skipped: a plain assignment would trigger the prototype setter instead of
+      // creating an own key, so it could never be emitted faithfully — drop it on every path.
+      if (key === metaProperty || key === messageSourceKey || key === "__proto__" || isReservedHeadKey(key, json)) {
         continue;
       }
       if (fieldKeys === undefined) {
@@ -252,8 +261,24 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
     const promotedMessage = userFields["1"];
     delete userFields["1"];
     // Spread the leading object's fields to the top level (they win over nothing yet; user data only).
+    // "__proto__" and the meta property are never spread (an assignment would hit the prototype setter).
     for (const [k, v] of Object.entries(leadingObject)) {
-      if (!Object.hasOwn(userFields, k)) {
+      if (k !== "__proto__" && k !== metaProperty && !Object.hasOwn(userFields, k)) {
+        userFields[k] = v;
+      }
+    }
+    userFields[json.messageKey] = promotedMessage;
+  }
+
+  // Message-first `log.info("msg", { fields })`: promote the leading string to messageKey and spread the
+  // trailing object's fields at the top level — symmetric with the pino object-first shape above.
+  if (messageFirst) {
+    const promotedMessage = userFields["0"];
+    delete userFields["0"];
+    const trailingObject = userFields["1"] as Record<string, unknown>;
+    delete userFields["1"];
+    for (const [k, v] of Object.entries(trailingObject)) {
+      if (k !== "__proto__" && k !== metaProperty && !Object.hasOwn(userFields, k)) {
         userFields[k] = v;
       }
     }
@@ -284,9 +309,13 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
   writeHead(flat, meta, json, dateIso);
 
   // The user's fields: in stable mode, emit them (recursively) in sorted key order so two calls with the
-  // same fields in a different insertion order produce byte-identical lines.
+  // same fields in a different insertion order produce byte-identical lines. Reserved head keys are
+  // skipped — the canonical level/levelId/time written by writeHead always win.
   const fieldKeys = stable ? Object.keys(userFields).sort() : Object.keys(userFields);
   for (const key of fieldKeys) {
+    if (key === "__proto__" || isReservedHeadKey(key, json)) {
+      continue;
+    }
     flat[key] = stable ? deepSortKeys(userFields[key]) : userFields[key];
   }
 
@@ -300,6 +329,16 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
   // The slow path always carries a native Error (the whole point of taking it), so it is awkward by
   // definition. Mark it unscanned so renderJson runs the safe serializer without a redundant inline flag.
   return { flat, awkward: true, scanned: false };
+}
+
+/**
+ * Whether `key` is one of the reserved head keys written by {@link writeHead}. User fields with these
+ * names are dropped from the flat line (one uniform policy: canonical head values always win; the raw
+ * record still carries the field for transports). `levelIdKey` is only reserved while `numericLevel`
+ * actually emits it.
+ */
+function isReservedHeadKey<LogObj>(key: string, json: ISettings<LogObj>["json"]): boolean {
+  return key === json.levelKey || key === json.timeKey || (json.numericLevel && key === json.levelIdKey);
 }
 
 /**
@@ -364,6 +403,15 @@ function writeMeta(
  * // '{"message":"hi","level":"INFO","levelId":3,"time":"…","_meta":{"v":5,…}}'
  */
 export function renderJson<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): string {
+  // Hot path: assemble the line from per-logger precompiled fragments (static `_meta`, per-level head)
+  // so the content that never changes between calls is serialized once, not on every log. Falls back
+  // to the object-building path for any shape the plan does not cover.
+  if (!settings.json.stableKeyOrder) {
+    const fastLine = renderPlannedLine(record, settings);
+    if (fastLine !== undefined) {
+      return fastLine;
+    }
+  }
   const { flat, awkward, scanned } = buildFlat(record, settings);
   // In stable mode the build already deep-walked every value and reported `awkward`, so we can pick the
   // serializer with zero extra work: clean → native `JSON.stringify` (fast), awkward → safe replacer.
@@ -373,6 +421,349 @@ export function renderJson<LogObj>(record: LogObj & ILogObjMeta, settings: ISett
     return awkward ? jsonStringifySafe(flat) : JSON.stringify(flat);
   }
   return jsonStringifyValue(flat);
+}
+
+/* ------------------------------------------------------------------------------------------------ */
+/* Precompiled line plan                                                                             */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * Per-logger precompiled JSON fragments. The static `_meta` block (v/runtime/hostname/name/…) and the
+ * per-level head (`"level":"INFO","levelId":3`) never change between calls, yet the object-building
+ * path re-copied and re-serialized them on every log — a large share of the per-line cost. The plan
+ * serializes them ONCE; per call only the message, the user's fields, and the two timestamps are
+ * stringified. Cached per resolved-settings object (sub-loggers get their own), revalidated cheaply on
+ * every call so live settings mutations and per-record meta additions (async-context fields, stack
+ * `path`) fall back to the full path instead of emitting stale fragments.
+ */
+interface JsonLinePlan {
+  /** Snapshot of the json key config the fragments were built from; a mismatch rebuilds the plan. */
+  messageKey: string;
+  levelKey: string;
+  levelIdKey: string;
+  timeKey: string;
+  numericLevel: boolean;
+  metaProperty: string;
+  /** `JSON.stringify(messageKey) + ":"`, precomputed. */
+  messagePrefix: string;
+  /** The static meta entries (key + expected value) validated by strict equality on every call. */
+  staticEntries: { key: string; value: unknown }[];
+  /** Expected number of own enumerable meta keys; extra keys (context fields, `path`) → fallback. */
+  metaKeyCount: number;
+  /**
+   * The `_meta` fragment as segments faithful to the OBSERVED meta key order: literal pieces
+   * interleaved with the three dynamic value slots. Per-level chunks concatenate the segments once,
+   * leaving only the `date` slot open (it splits `metaBefore`/`metaAfter`).
+   */
+  metaSegments: (string | { dyn: "date" | "levelId" | "levelName" })[];
+  /** Lazily built per-level chunks, keyed by `logLevelId|logLevelName`. */
+  levelChunks: Map<string, { head: string; metaBefore: string; metaAfter: string }>;
+}
+
+/** Plans per resolved-settings object; `false` marks a logger whose meta shape can never be planned. */
+const linePlanCache = new WeakMap<object, JsonLinePlan | false>();
+
+/** Meta keys that are static per logger instance and JSON-serializable once at plan-build time. */
+const STATIC_META_KEYS = new Set(["runtime", "runtimeVersion", "hostname", "browser", "name", "parentNames"]);
+
+/** Array-index-like keys are hoisted first by JS object enumeration — the plan bails on them. */
+const INTEGER_KEY = /^(?:0|[1-9]\d*)$/;
+
+/** Cheap integer-like-key test: one charCode compare for the common non-digit-leading key. */
+function isIntegerLikeKey(key: string): boolean {
+  const first = key.charCodeAt(0);
+  if (first < 48 || first > 57) {
+    return false;
+  }
+  return INTEGER_KEY.test(key);
+}
+
+/** Whether a static meta value can be serialized once at plan-build time (JSON-stable primitives). */
+function isPlanStaticValue(value: unknown): boolean {
+  const type = typeof value;
+  if (type === "string" || type === "number" || type === "boolean" || value === null) {
+    return true;
+  }
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+/** Build a plan from an eligible record's meta, or return `null`/`false` (false = never plannable). */
+function buildLinePlan<LogObj>(meta: IMeta, settings: ISettings<LogObj>): JsonLinePlan | false | null {
+  const json = settings.json;
+  // A messageKey colliding with a head key (or the meta property) has bespoke overwrite semantics on
+  // the object path — never plannable.
+  if (
+    json.messageKey === json.levelKey ||
+    json.messageKey === json.timeKey ||
+    (json.numericLevel && json.messageKey === json.levelIdKey) ||
+    json.messageKey === settings.meta.property
+  ) {
+    return false;
+  }
+
+  const staticEntries: { key: string; value: unknown }[] = [];
+  const metaSegments: (string | { dyn: "date" | "levelId" | "levelName" })[] = [];
+  let literal = `,${JSON.stringify(settings.meta.property)}:{"v":${JSON_SCHEMA_VERSION}`;
+  let sawDate = 0;
+  let sawLevelId = 0;
+  let sawLevelName = 0;
+  let keyCount = 0;
+  for (const key of Object.keys(meta as unknown as Record<string, unknown>)) {
+    keyCount++;
+    if (key === "date") {
+      literal += `,"date":"`;
+      metaSegments.push(literal, { dyn: "date" });
+      literal = `"`;
+      sawDate++;
+      continue;
+    }
+    if (key === "logLevelId") {
+      literal += `,"logLevelId":`;
+      metaSegments.push(literal, { dyn: "levelId" });
+      literal = "";
+      sawLevelId++;
+      continue;
+    }
+    if (key === "logLevelName") {
+      literal += `,"logLevelName":`;
+      metaSegments.push(literal, { dyn: "levelName" });
+      literal = "";
+      sawLevelName++;
+      continue;
+    }
+    if (!STATIC_META_KEYS.has(key)) {
+      // `path` (stack capture on) means every record of this logger is unplannable; any other unknown
+      // key is record-specific (async-context fields) — retry on the next record.
+      return key === "path" ? false : null;
+    }
+    const value = (meta as unknown as Record<string, unknown>)[key];
+    if (!isPlanStaticValue(value)) {
+      return false;
+    }
+    staticEntries.push({ key, value });
+    literal += `,${JSON.stringify(key)}:${JSON.stringify(value)}`;
+  }
+  if (sawDate !== 1 || sawLevelId !== 1 || sawLevelName !== 1) {
+    return false;
+  }
+  metaSegments.push(`${literal}}`);
+
+  return {
+    messageKey: json.messageKey,
+    levelKey: json.levelKey,
+    levelIdKey: json.levelIdKey,
+    timeKey: json.timeKey,
+    numericLevel: json.numericLevel,
+    metaProperty: settings.meta.property,
+    messagePrefix: `${JSON.stringify(json.messageKey)}:`,
+    staticEntries,
+    metaKeyCount: keyCount,
+    metaSegments,
+    levelChunks: new Map(),
+  };
+}
+
+/** Whether the cached plan still matches the live settings (key renames rebuild the plan). */
+function planMatchesSettings<LogObj>(plan: JsonLinePlan, settings: ISettings<LogObj>): boolean {
+  const json = settings.json;
+  return (
+    plan.messageKey === json.messageKey &&
+    plan.levelKey === json.levelKey &&
+    plan.levelIdKey === json.levelIdKey &&
+    plan.timeKey === json.timeKey &&
+    plan.numericLevel === json.numericLevel &&
+    plan.metaProperty === settings.meta.property
+  );
+}
+
+/** Serialize one user field value; `undefined` means "skip this key" (functions/symbols, like native stringify). */
+function stringifyFieldValue(value: unknown): string | undefined {
+  if (value === undefined) {
+    return '"[undefined]"';
+  }
+  return jsonStringifyValue(value) as string | undefined;
+}
+
+/**
+ * TEST-ONLY probe: whether a usable line plan is currently cached for these resolved settings. The
+ * differential suite uses it to assert the planned path actually fired (a silent fallback would make
+ * the byte-identity tests vacuous).
+ */
+export function __linePlanActive(settings: object): boolean {
+  const plan = linePlanCache.get(settings);
+  return plan !== undefined && plan !== false;
+}
+
+/**
+ * Render the flat line directly from the precompiled plan. Returns `undefined` for any record shape
+ * the plan does not cover (embedded/spread errors, integer-like field keys, extra meta keys,
+ * missing/invalid meta) — the caller then takes the object-building path, which handles everything.
+ */
+function renderPlannedLine<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): string | undefined {
+  const metaProperty = settings.meta.property;
+  const meta = record[metaProperty] as unknown as IMeta | undefined;
+  if (meta == null || !(meta.date instanceof Date)) {
+    return undefined;
+  }
+
+  let plan = linePlanCache.get(settings as unknown as object);
+  if (plan === false) {
+    return undefined;
+  }
+  if (plan === undefined || !planMatchesSettings(plan, settings)) {
+    const built = buildLinePlan(meta, settings);
+    if (built === null) {
+      return undefined;
+    }
+    linePlanCache.set(settings as unknown as object, built);
+    if (built === false) {
+      return undefined;
+    }
+    plan = built;
+  }
+
+  // Validate this record's meta against the plan without allocating: same key count (extra keys =
+  // context fields → fallback) and identical static values (hostname/name/… unchanged).
+  let metaKeyCount = 0;
+  for (const _key in meta as unknown as Record<string, unknown>) {
+    metaKeyCount++;
+  }
+  if (metaKeyCount !== plan.metaKeyCount) {
+    return undefined;
+  }
+  for (let i = 0; i < plan.staticEntries.length; i++) {
+    const entry = plan.staticEntries[i];
+    if ((meta as unknown as Record<string, unknown>)[entry.key] !== entry.value) {
+      return undefined;
+    }
+  }
+
+  const recordObj = record as Record<string, unknown>;
+  // A spread lone Error satisfies the IErrorObject shape on the record itself → slow path.
+  if (recordObj[ERROR_NATIVE_KEY] instanceof Error) {
+    return undefined;
+  }
+
+  // Classify the record's keys, mirroring buildFlat's rules. The two field-spreading call shapes are
+  // recognized via the SPREAD_SHAPE_HINT toLogObj set (plain-object + string pairs only) and emitted
+  // inline below in the same order the object path produces.
+  const json = settings.json;
+  const hasMessageKey = Object.hasOwn(recordObj, json.messageKey);
+  let messageSourceKey = hasMessageKey ? json.messageKey : Object.hasOwn(recordObj, "0") ? "0" : undefined;
+  let messageValue = messageSourceKey !== undefined ? recordObj[messageSourceKey] : undefined;
+  let spreadSource: Record<string, unknown> | undefined;
+  const spreadShape = hasMessageKey ? undefined : getSpreadShapeHint(recordObj);
+  if (spreadShape !== undefined) {
+    const leading = recordObj["0"];
+    const trailing = recordObj["1"];
+    if (spreadShape === "object-first" && typeof leading === "object" && leading !== null) {
+      messageValue = trailing;
+      spreadSource = leading as Record<string, unknown>;
+    } else if (spreadShape === "message-first" && typeof trailing === "object" && trailing !== null) {
+      messageValue = leading;
+      spreadSource = trailing as Record<string, unknown>;
+    }
+  }
+  const spreading = spreadSource !== undefined;
+  if (spreading) {
+    messageSourceKey = json.messageKey;
+  }
+
+  const levelId = meta.logLevelId;
+  const levelName = meta.logLevelName;
+  const chunkKey = `${levelId}|${levelName}`;
+  let chunk = plan.levelChunks.get(chunkKey);
+  if (chunk === undefined) {
+    const head =
+      `${JSON.stringify(plan.levelKey)}:${JSON.stringify(levelName)}` +
+      `${plan.numericLevel ? `,${JSON.stringify(plan.levelIdKey)}:${JSON.stringify(levelId)}` : ""},${JSON.stringify(plan.timeKey)}:"`;
+    // Concatenate the meta segments once per level, leaving the `date` slot as the before/after split.
+    let metaBefore = "";
+    let metaAfter = "";
+    let pastDate = false;
+    for (const segment of plan.metaSegments) {
+      const piece =
+        typeof segment === "string"
+          ? segment
+          : segment.dyn === "levelId"
+            ? JSON.stringify(levelId)
+            : segment.dyn === "levelName"
+              ? JSON.stringify(levelName)
+              : undefined;
+      if (piece === undefined) {
+        pastDate = true;
+        continue;
+      }
+      if (pastDate) {
+        metaAfter += piece;
+      } else {
+        metaBefore += piece;
+      }
+    }
+    chunk = { head, metaBefore, metaAfter };
+    plan.levelChunks.set(chunkKey, chunk);
+  }
+
+  const iso = toIsoString(meta.date);
+  let line = "{";
+  if (messageSourceKey !== undefined) {
+    const messageJson = stringifyFieldValue(messageValue);
+    if (messageJson !== undefined) {
+      line += `${plan.messagePrefix}${messageJson},`;
+    }
+  }
+  line += chunk.head + iso + '"';
+
+  // User fields: everything except meta, the message source (and the two positional keys consumed by a
+  // spread shape), "__proto__", and the reserved head keys. Integer-like keys would be hoisted first by
+  // the object path's JS enumeration order, and an embedded serialized error would need errorKey
+  // nesting — both → slow path.
+  const recordKeys = Object.keys(recordObj);
+  for (let i = 0; i < recordKeys.length; i++) {
+    const key = recordKeys[i];
+    if (key === metaProperty || key === messageSourceKey || key === "__proto__" || isReservedHeadKey(key, json)) {
+      continue;
+    }
+    if (spreading && (key === "0" || key === "1")) {
+      continue;
+    }
+    if (isIntegerLikeKey(key)) {
+      return undefined;
+    }
+    const value = recordObj[key];
+    if (isErrorObject(value)) {
+      return undefined;
+    }
+    const valueJson = stringifyFieldValue(value);
+    if (valueJson === undefined) {
+      continue;
+    }
+    line += `,${JSON.stringify(key)}:${valueJson}`;
+  }
+
+  // The spread shape's fields, in the same order and with the same collision rules as the
+  // object-building path: existing record fields win, the promoted message wins over a field named
+  // like the message key, and integer-like keys bail (hoisting divergence).
+  if (spreadSource !== undefined) {
+    for (const key of Object.keys(spreadSource)) {
+      if (key === json.messageKey || key === "__proto__" || key === metaProperty || isReservedHeadKey(key, json)) {
+        continue;
+      }
+      if (Object.hasOwn(recordObj, key) && key !== "0" && key !== "1") {
+        continue;
+      }
+      if (isIntegerLikeKey(key)) {
+        return undefined;
+      }
+      const valueJson = stringifyFieldValue(spreadSource[key]);
+      if (valueJson === undefined) {
+        continue;
+      }
+      line += `,${JSON.stringify(key)}:${valueJson}`;
+    }
+  }
+
+  return `${line + chunk.metaBefore + iso + chunk.metaAfter}}`;
 }
 
 /**
@@ -414,7 +805,7 @@ export function jsonStringifyValue(value: unknown): string {
  * a native `Error` (would serialize as `{}`), or a circular reference (throws). Walks own-enumerable keys
  * with a `WeakSet` cycle guard and bails out (returns true) the instant it finds one.
  */
-function containsAwkwardValue(value: unknown, seen: WeakSet<object> = new WeakSet()): boolean {
+function containsAwkwardValue(value: unknown, ancestors: WeakSet<object> = new WeakSet()): boolean {
   if (typeof value === "bigint" || value === undefined) {
     return true;
   }
@@ -424,32 +815,39 @@ function containsAwkwardValue(value: unknown, seen: WeakSet<object> = new WeakSe
   if (value instanceof Error) {
     return true;
   }
-  if (seen.has(value)) {
+  // Ancestor-chain detection: only a value that contains ITSELF is a true cycle. A node is removed
+  // from the set once its subtree is done, so a shared sibling reference (the same object reachable
+  // twice through different fields) is NOT flagged and serializes in full on every path.
+  if (ancestors.has(value)) {
     return true; // circular
   }
   if (value instanceof Date) {
     return false; // Date stringifies fine (toJSON)
   }
-  seen.add(value);
+  ancestors.add(value);
   if (Array.isArray(value)) {
     for (let i = 0; i < value.length; i++) {
-      if (containsAwkwardValue(value[i], seen)) {
+      if (containsAwkwardValue(value[i], ancestors)) {
         return true;
       }
     }
+    ancestors.delete(value);
     return false;
   }
   for (const key of Object.keys(value)) {
-    if (containsAwkwardValue((value as Record<string, unknown>)[key], seen)) {
+    if (containsAwkwardValue((value as Record<string, unknown>)[key], ancestors)) {
       return true;
     }
   }
+  ancestors.delete(value);
   return false;
 }
 
 /** The robust serializer: handles bigint, circular refs, undefined, and native Error. Used only as a fallback. */
 function jsonStringifySafe(value: unknown): string {
-  const seen = new WeakSet<object>();
+  // Ancestor-stack circular detection (mirrors containsAwkwardValue): pop back to the current holder,
+  // then a value that is its own ancestor is a true cycle — shared sibling references serialize fully.
+  const ancestors: object[] = [];
   const replacer = function (this: unknown, _key: string, val: unknown): unknown {
     if (typeof val === "bigint") {
       return `${val}`;
@@ -458,15 +856,18 @@ function jsonStringifySafe(value: unknown): string {
       return "[undefined]";
     }
     if (typeof val === "object" && val !== null) {
-      if (seen.has(val)) {
-        return "[Circular]";
-      }
-      seen.add(val);
       // Drop native Error instances so they do not serialize as "{}". Carried alongside a serializable
       // stack/name/message on the IErrorObject, the native handle adds nothing JSON-safe.
       if (val instanceof Error) {
         return undefined;
       }
+      while (ancestors.length > 0 && ancestors[ancestors.length - 1] !== this) {
+        ancestors.pop();
+      }
+      if (ancestors.includes(val)) {
+        return "[Circular]";
+      }
+      ancestors.push(val);
     }
     return val;
   };
@@ -500,24 +901,29 @@ function deepSortKeys(value: unknown, awk?: AwkFlag, seen: WeakSet<object> = new
     }
     return value;
   }
+  // Ancestor-chain detection (delete on exit): shared sibling references sort/serialize fully; only
+  // a true cycle collapses to "[Circular]".
   if (seen.has(value)) {
     return "[Circular]";
   }
-  seen.add(value);
-  if (Array.isArray(value)) {
-    return value.map((item) => deepSortKeys(item, awk, seen));
-  }
-  if (!isPlainObject(value)) {
+  if (!isPlainObject(value) && !Array.isArray(value)) {
     // Date passes through fine; a native Error would serialize as "{}" under native stringify, so flag it.
     if (awk !== undefined && value instanceof Error) {
       awk.hit = true;
     }
     return value;
   }
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const mapped = value.map((item) => deepSortKeys(item, awk, seen));
+    seen.delete(value);
+    return mapped;
+  }
   const sorted: Record<string, unknown> = {};
   for (const key of Object.keys(value).sort()) {
     sorted[key] = deepSortKeys((value as Record<string, unknown>)[key], awk, seen);
   }
+  seen.delete(value);
   return sorted;
 }
 
