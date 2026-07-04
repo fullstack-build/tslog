@@ -158,9 +158,12 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
     `,
     );
-    // v5: leading string -> `message`; the trailing object stays bucketed under its positional index key "1".
+    // Leading string -> `message`; a single trailing plain object spreads at the top level,
+    // symmetric with the pino-style object-first shape (mirrors the Node twin of this test).
     expect(combined).toContain('"message":"test"');
-    expect(combined).toContain('"1":{"nested":{"1":false},"test":true}');
+    expect(combined).toContain('"test":true');
+    expect(combined).toContain('"nested":{"1":false}');
+    expect(combined).not.toContain('"1":{');
   });
 
   test("Object, String", async ({ page }) => {
