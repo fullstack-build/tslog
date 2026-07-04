@@ -1,11 +1,21 @@
-import type { ILogObjMeta, IMeta, ISettings, LogFormatter, LogMiddleware } from "../../interfaces.js";
+import { getSpreadShapeHint } from "../../core/logObj.js";
+import type { IErrorObject, ILogObjMeta, IMeta, ISettings, LogFormatter, LogMiddleware } from "../../interfaces.js";
 
 /**
  * `presets/otel.ts` → `tslog/otel`
  *
- * Shape tslog records as **OpenTelemetry log records** for ingestion by OTel collectors, the OTLP
- * exporter, or any backend that speaks the OTel logs data model — without taking a hard dependency on
- * any OpenTelemetry SDK. The module is pure (no import-time side effects) and runtime-agnostic.
+ * Shape tslog records for OpenTelemetry — without taking a hard dependency on any OpenTelemetry SDK.
+ * The module is pure (no import-time side effects) and runtime-agnostic. It has TWO output shapes:
+ *
+ *  - **OTLP/JSON** ({@link otlpFormat} / {@link toOtlpJson} / {@link toOtlpLogRecord}): the actual
+ *    collector wire format — camelCase proto3-JSON log records (`timeUnixNano`, `severityNumber`,
+ *    `body: { stringValue }`, typed `attributes`) inside the `resourceLogs[].scopeLogs[].logRecords[]`
+ *    envelope. THIS is what a collector's `otlphttp` receiver (`http://collector:4318/v1/logs`)
+ *    accepts; pair it with `tslog/transports/http` via {@link otlpBatchBody}.
+ *  - **Data-model prose shape** ({@link otelFormat} / {@link toOtelRecord}): the abstract field names
+ *    from the logs data-model spec (`Timestamp`, `SeverityNumber`, `Body`, ...). This is NOT a wire
+ *    format — no collector ingests it directly; it suits custom pipelines that want a readable,
+ *    spec-vocabulary record.
  *
  * The OTel logs data model (https://opentelemetry.io/docs/specs/otel/logs/data-model/) defines:
  *  - `Timestamp`            — event time, **nanoseconds since the Unix epoch** (a `bigint` here).
@@ -33,19 +43,23 @@ import type { ILogObjMeta, IMeta, ISettings, LogFormatter, LogMiddleware } from 
  * two finest tslog levels remain distinguishable inside the OTel `TRACE` band (1-4). Unknown/custom level
  * ids fall back to the nearest band by magnitude (see {@link levelToSeverityNumber}).
  *
- * ## Usage — as a transport formatter
+ * ## Usage — ship straight to an OTel collector (OTLP/JSON)
  * ```ts
  * import { Logger } from "tslog";
- * import { otelFormat } from "tslog/otel";
+ * import { otlpFormat, otlpBatchBody } from "tslog/otel";
+ * import { httpTransport } from "tslog/transports/http";
  *
- * const logger = new Logger();
- * logger.attachTransport({
- *   format: otelFormat({ getSpanContext: () => myTracer.activeContext() }),
- *   write: (_record, line) => otlpQueue.push(line),
- * });
+ * const logger = new Logger({ type: "hidden" });
+ * logger.attachTransport(
+ *   httpTransport({
+ *     url: "http://collector:4318/v1/logs",
+ *     format: otlpFormat({ resource: { "service.name": "checkout" } }),
+ *     encodeBody: otlpBatchBody, // merge the batch into ONE OTLP envelope per POST
+ *   }),
+ * );
  * ```
  *
- * ## Usage — as a record builder (middleware-free)
+ * ## Usage — data-model shape for a custom pipeline
  * ```ts
  * import { toOtelRecord } from "tslog/otel";
  * const record = toOtelRecord(finishedLogRecord, logger.settings, { getSpanContext });
@@ -109,8 +123,10 @@ export interface OtelFormatOptions {
    */
   getSpanContext?: () => OtelSpanContext | undefined;
   /**
-   * Extra fixed attributes merged into every record's `Attributes` (e.g. `service.name`,
-   * `deployment.environment`). User fields on the log win over these on key collision.
+   * Fixed resource attributes (e.g. `service.name`, `deployment.environment`). In the OTLP shape they
+   * land in the envelope's `resource.attributes` — SEPARATE from per-record attributes, as the spec
+   * requires. In the legacy data-model shape (which has no envelope) they are merged into `Attributes`
+   * and, being resource identity, WIN over a colliding per-record field.
    */
   resource?: Record<string, unknown>;
   /**
@@ -184,9 +200,10 @@ function toEpochNanos(date: Date | number | undefined): bigint {
   return BigInt(ms) * NANOS_PER_MILLI;
 }
 
-/** True for a plain object literal (not an array, Date, or other class instance). */
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date);
+/** Serialized-error check usable before `looksLikeErrorObject` is defined (hoisted fn, same shape rule). */
+function isPlainErrorLike(value: object): boolean {
+  const candidate = value as Record<string, unknown>;
+  return candidate.nativeError instanceof Error && typeof candidate.name === "string" && Array.isArray(candidate.stack);
 }
 
 /**
@@ -213,19 +230,29 @@ function splitBodyAndAttributes<LogObj>(record: LogObj & ILogObjMeta, settings: 
     attributes[key] = (record as Record<string, unknown>)[key];
   }
 
-  // pino-style `log.info({ fields }, "message")`: toLogObj buckets these as `{ "0": {fields}, "1": "msg" }`.
-  // Promote the trailing string to Body and spread the leading object's fields into Attributes.
-  if (!Object.hasOwn(attributes, messageKey) && isPlainObject(attributes["0"]) && typeof attributes["1"] === "string") {
-    const leading = attributes["0"] as Record<string, unknown>;
-    const body = attributes["1"];
-    delete attributes["0"];
-    delete attributes["1"];
-    for (const [k, v] of Object.entries(leading)) {
-      if (!Object.hasOwn(attributes, k)) {
-        attributes[k] = v;
+  // The two field-spreading call shapes — pino object-first (`log.info({fields}, "msg")`) and
+  // message-first (`log.info("msg", {fields})`) — are recognized via the SPREAD_SHAPE_HINT that
+  // toLogObj stamps on the record, EXACTLY like the JSON renderer: shape-sniffing the numeric keys
+  // would spread a single logged object that merely looks pino-ish, and would miss the message-first
+  // form (leaving a numeric "1" attribute key in OTel output).
+  if (!Object.hasOwn(attributes, messageKey)) {
+    const spreadShape = getSpreadShapeHint(record as Record<string, unknown>);
+    if (spreadShape !== undefined) {
+      const fieldsKey = spreadShape === "object-first" ? "0" : "1";
+      const bodyKey = spreadShape === "object-first" ? "1" : "0";
+      const fields = attributes[fieldsKey];
+      if (typeof fields === "object" && fields !== null && !Array.isArray(fields) && !isPlainErrorLike(fields)) {
+        const body = attributes[bodyKey];
+        delete attributes["0"];
+        delete attributes["1"];
+        for (const [k, v] of Object.entries(fields as Record<string, unknown>)) {
+          if (k !== "__proto__" && !Object.hasOwn(attributes, k)) {
+            attributes[k] = v;
+          }
+        }
+        return { body, attributes };
       }
     }
-    return { body, attributes };
   }
 
   // A value under the configured messageKey is the Body.
@@ -246,8 +273,10 @@ function splitBodyAndAttributes<LogObj>(record: LogObj & ILogObjMeta, settings: 
 }
 
 /**
- * Build an {@link OtelLogRecord} from a finished tslog `record` (the output of the core pipeline:
- * user fields + the `_meta` block) and the resolved `settings`. Pure; never mutates `record`.
+ * Build an {@link OtelLogRecord} — the data-model PROSE shape (`Timestamp`/`Body`/...), for custom
+ * pipelines — from a finished tslog `record` (the output of the core pipeline: user fields + the
+ * `_meta` block) and the resolved `settings`. Pure; never mutates `record`. NOT collector-ingestible:
+ * for OTLP/JSON use {@link toOtlpLogRecord} / {@link toOtlpJson}.
  *
  * @example
  * const otel = toOtelRecord(record, logger.settings, { getSpanContext });
@@ -256,7 +285,8 @@ export function toOtelRecord<LogObj>(record: LogObj & ILogObjMeta, settings: ISe
   const meta = record[settings.meta.property] as unknown as IMeta | undefined;
   const { body, attributes } = splitBodyAndAttributes(record, settings);
 
-  const mergedAttributes: Record<string, unknown> = options.resource != null ? { ...options.resource, ...attributes } : attributes;
+  // Resource identity outranks a colliding per-record field (it describes the EMITTER, not the event).
+  const mergedAttributes: Record<string, unknown> = options.resource != null ? { ...attributes, ...options.resource } : attributes;
 
   const timestamp = toEpochNanos(meta?.date);
   const out: OtelLogRecord = {
@@ -297,15 +327,18 @@ export function toOtelRecord<LogObj>(record: LogObj & ILogObjMeta, settings: ISe
 
 /**
  * JSON-stringify an {@link OtelLogRecord}, rendering the 64-bit `bigint` nanosecond timestamps as
- * strings (OTLP/JSON encodes 64-bit ints as strings) and dropping `undefined` Body/values.
+ * strings and dropping `undefined` Body/values. NOTE: the RECORD is the data-model prose shape, not
+ * OTLP/JSON — only the bigint-as-string encoding matches OTLP's int64 rule. For collector-ingestible
+ * output use {@link stringifyOtlpRequest} / {@link otlpFormat} instead.
  */
 export function stringifyOtelRecord(record: OtelLogRecord): string {
   return JSON.stringify(record, (_key, value) => (typeof value === "bigint" ? value.toString() : value));
 }
 
 /**
- * A {@link LogFormatter} factory producing one OTel-shaped JSON line per log, suitable as a transport
- * `format`. Reuses `json.messageKey`/`meta.property` from the logger settings to split Body vs. Attributes.
+ * A {@link LogFormatter} factory producing one DATA-MODEL-shaped JSON line per log (the prose field
+ * names, for custom pipelines — collectors reject this; use {@link otlpFormat} for them). Reuses
+ * `json.messageKey`/`meta.property` from the logger settings to split Body vs. Attributes.
  *
  * @example
  * logger.attachTransport({ format: otelFormat({ getSpanContext }), write: (_r, line) => sink(line) });
@@ -340,4 +373,467 @@ export function otelTraceContext<LogObj>(options: Pick<OtelFormatOptions, "getSp
     }
     return ctx;
   };
+}
+
+/* ------------------------------------------------------------------------------------------------ */
+/* OTLP/JSON — the collector wire format                                                             */
+/* ------------------------------------------------------------------------------------------------ */
+
+/**
+ * A proto3-JSON `AnyValue` (opentelemetry/proto/common/v1/common.proto): exactly one member is set.
+ * `intValue` is a STRING because proto3 JSON encodes int64 as a decimal string.
+ */
+export interface OtlpAnyValue {
+  stringValue?: string;
+  boolValue?: boolean;
+  intValue?: string;
+  doubleValue?: number;
+  arrayValue?: { values: OtlpAnyValue[] };
+  kvlistValue?: { values: OtlpKeyValue[] };
+}
+
+/** A proto3-JSON `KeyValue` pair — the element type of OTLP attribute lists. */
+export interface OtlpKeyValue {
+  key: string;
+  value: OtlpAnyValue;
+}
+
+/**
+ * A proto3-JSON OTLP `LogRecord` (opentelemetry/proto/logs/v1/logs.proto) — what a collector's
+ * `otlphttp` receiver actually parses. Field names are camelCase; the two timestamps are int64
+ * nanosecond strings; `traceId`/`spanId` are lowercase hex.
+ */
+export interface OtlpLogRecord {
+  timeUnixNano: string;
+  observedTimeUnixNano?: string;
+  severityNumber: number;
+  severityText: string;
+  body?: OtlpAnyValue;
+  attributes?: OtlpKeyValue[];
+  droppedAttributesCount?: number;
+  traceId?: string;
+  spanId?: string;
+  /** W3C trace flags (proto field `flags`). */
+  flags?: number;
+}
+
+/** The `ExportLogsServiceRequest` envelope POSTed to a collector's `/v1/logs`. */
+export interface OtlpExportLogsRequest {
+  resourceLogs: {
+    resource: { attributes: OtlpKeyValue[] };
+    scopeLogs: {
+      scope: { name: string; version?: string };
+      logRecords: OtlpLogRecord[];
+    }[];
+  }[];
+}
+
+/** Options for the OTLP shape ({@link toOtlpLogRecord} / {@link toOtlpJson} / {@link otlpFormat}). */
+export interface OtlpFormatOptions extends OtelFormatOptions {
+  /**
+   * The instrumentation scope name stamped on the envelope. Per the logs spec the scope is meant to
+   * identify the emitting logger; default `"tslog"`. A named tslog logger additionally carries its
+   * name as the `logger.name` record attribute (scope is per-envelope, records may mix loggers).
+   */
+  scopeName?: string;
+  /** Optional instrumentation scope version stamped on the envelope. */
+  scopeVersion?: string;
+}
+
+/**
+ * Lowercase-hex-normalize a trace/span id and validate its length: OTLP requires lowercase hex of
+ * exactly 32 (traceId) / 16 (spanId) chars, and a single malformed id would get the WHOLE envelope
+ * rejected by the collector — dropping the id keeps the log deliverable.
+ */
+function normalizeHexId(value: unknown, length: number): string | undefined {
+  if (typeof value !== "string" || value.length !== length) {
+    return undefined;
+  }
+  const lowered = value.toLowerCase();
+  for (let i = 0; i < lowered.length; i++) {
+    const code = lowered.charCodeAt(i);
+    const isHex = (code >= 48 && code <= 57) || (code >= 97 && code <= 102);
+    if (!isHex) {
+      return undefined;
+    }
+  }
+  return lowered;
+}
+
+/** Guarded read of an own string property from a possibly hostile object. */
+function safeStringProp(obj: object, key: string): string | undefined {
+  try {
+    const value = (obj as Record<string, unknown>)[key];
+    return typeof value === "string" ? value : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Convert an arbitrary logged value into a proto3-JSON {@link OtlpAnyValue}. Total: hostile getters,
+ * circular structures, bigints, and non-JSON types all degrade to honest string forms rather than
+ * throwing out of the log call.
+ */
+export function toOtlpAnyValue(value: unknown, ancestors: WeakSet<object> = new WeakSet()): OtlpAnyValue {
+  switch (typeof value) {
+    case "string":
+      return { stringValue: value };
+    case "boolean":
+      return { boolValue: value };
+    case "number":
+      if (!Number.isFinite(value)) {
+        // Deliberate divergence: proto3 JSON encodes non-finite doubles as the strings "NaN"/
+        // "Infinity" INSIDE doubleValue; we emit a stringValue instead so lenient backends that
+        // parse doubleValue as a number never receive an unrepresentable value.
+        return { stringValue: String(value) };
+      }
+      return Number.isSafeInteger(value) ? { intValue: String(value) } : { doubleValue: value };
+    case "bigint":
+      return { intValue: value.toString() };
+    case "undefined":
+      return {};
+    case "function":
+    case "symbol":
+      return { stringValue: String(value) };
+    default:
+      break;
+  }
+  if (value === null) {
+    return {};
+  }
+  const obj = value as object;
+  if (ancestors.has(obj)) {
+    return { stringValue: "[Circular]" };
+  }
+  if (obj instanceof Date) {
+    return { stringValue: Number.isNaN(obj.getTime()) ? "Invalid Date" : obj.toISOString() };
+  }
+  ancestors.add(obj);
+  try {
+    if (Array.isArray(obj)) {
+      return { arrayValue: { values: obj.map((item) => toOtlpAnyValue(item, ancestors)) } };
+    }
+    if (obj instanceof Error) {
+      const values: OtlpKeyValue[] = [
+        { key: "name", value: { stringValue: safeStringProp(obj, "name") ?? "Error" } },
+        { key: "message", value: { stringValue: safeStringProp(obj, "message") ?? "" } },
+      ];
+      const stack = safeStringProp(obj, "stack");
+      if (stack !== undefined) {
+        values.push({ key: "stack", value: { stringValue: stack } });
+      }
+      return { kvlistValue: { values } };
+    }
+    let keys: string[];
+    try {
+      keys = Object.keys(obj);
+    } catch {
+      return { stringValue: "[unserializable]" };
+    }
+    const values: OtlpKeyValue[] = [];
+    for (const key of keys) {
+      let item: unknown;
+      try {
+        item = (obj as Record<string, unknown>)[key];
+      } catch {
+        continue; // a throwing getter skips that entry, keeps the rest
+      }
+      values.push({ key, value: toOtlpAnyValue(item, ancestors) });
+    }
+    return { kvlistValue: { values } };
+  } finally {
+    ancestors.delete(obj);
+  }
+}
+
+/** Convert a flat attribute bag into an OTLP attribute list, skipping nothing (undefined → empty AnyValue). */
+function toOtlpAttributes(bag: Record<string, unknown>): OtlpKeyValue[] {
+  const out: OtlpKeyValue[] = [];
+  for (const key of Object.keys(bag)) {
+    out.push({ key, value: toOtlpAnyValue(bag[key]) });
+  }
+  return out;
+}
+
+/** The serialized-IErrorObject shape check, duplicated from render/json (no cross-import: subpaths stay leaf-only). */
+function looksLikeErrorObject(value: unknown): value is IErrorObject {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return candidate.nativeError instanceof Error && typeof candidate.name === "string" && Array.isArray(candidate.stack);
+}
+
+/** Best-effort raw stack STRING for one error, preferring the native `Error#stack`. */
+function ownStackString(error: IErrorObject): string | undefined {
+  const native = error.nativeError;
+  if (native != null) {
+    const stack = safeStringProp(native, "stack");
+    if (stack !== undefined) {
+      return stack;
+    }
+  }
+  if (!Array.isArray(error.stack) || error.stack.length === 0) {
+    return undefined;
+  }
+  return error.stack
+    .map(
+      (frame) =>
+        `    at ${frame.method ?? "<anonymous>"} (${frame.fullFilePath ?? frame.filePath ?? "unknown"}:${frame.fileLine ?? "0"}:${frame.fileColumn ?? "0"})`,
+    )
+    .join("\n");
+}
+
+/**
+ * The `exception.stacktrace` string: the error's own stack followed by Java-style `Caused by:`
+ * sections for the serialized `cause` chain, so the chain survives into OTel (backends show it the
+ * way they show JVM traces). Depth-capped as defense-in-depth against hand-built structures.
+ */
+function errorStackString(error: IErrorObject): string | undefined {
+  const sections: string[] = [];
+  const own = ownStackString(error);
+  if (own !== undefined) {
+    sections.push(own);
+  }
+  let cause = error.cause;
+  for (let depth = 0; cause != null && depth < 8; depth++) {
+    if (!looksLikeErrorObject(cause)) {
+      sections.push(`Caused by: ${stringifyFallbackSafe(cause)}`);
+      break;
+    }
+    const header = `Caused by: ${cause.name}${cause.message ? `: ${cause.message}` : ""}`;
+    const causeStack = ownStackString(cause);
+    sections.push(causeStack !== undefined ? `${header}\n${causeStack}` : header);
+    cause = cause.cause;
+  }
+  return sections.length > 0 ? sections.join("\n") : undefined;
+}
+
+/** Total stringify for an unknown cause value (hostile toString tolerated). */
+function stringifyFallbackSafe(value: unknown): string {
+  try {
+    return typeof value === "string" ? value : (JSON.stringify(value) ?? String(value));
+  } catch {
+    try {
+      return String(value);
+    } catch {
+      return "[unserializable]";
+    }
+  }
+}
+
+/** Compact JSON-safe form for errors beyond the first (no native handle, string stack, cause kept). */
+function compactError(error: IErrorObject, depth = 0): Record<string, unknown> {
+  const out: Record<string, unknown> = { name: error.name, message: error.message };
+  const stack = ownStackString(error);
+  if (stack !== undefined) {
+    out.stack = stack;
+  }
+  if (error.cause != null && depth < 8) {
+    out.cause = looksLikeErrorObject(error.cause) ? compactError(error.cause, depth + 1) : stringifyFallbackSafe(error.cause);
+  }
+  return out;
+}
+
+/**
+ * Build a proto3-JSON {@link OtlpLogRecord} from a finished tslog `record`. Splits Body vs. attributes
+ * with the same rules as {@link toOtelRecord}, then:
+ *
+ *  - a logged Error under `json.errorKey` becomes the semconv `exception.type` /
+ *    `exception.message` / `exception.stacktrace` attributes (what error-tracking backends key on);
+ *    additional errors in the same record stay under the error key as a generic value;
+ *  - a named logger is carried as the `logger.name` attribute;
+ *  - trace correlation comes from {@link OtelFormatOptions.getSpanContext}, falling back to
+ *    `trace_id`/`span_id` fields stashed on `_meta` (e.g. by {@link otelTraceContext});
+ *  - `options.resource` is NOT merged here — it belongs to the envelope ({@link toOtlpJson}).
+ */
+export function toOtlpLogRecord<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>, options: OtlpFormatOptions = {}): OtlpLogRecord {
+  const meta = record[settings.meta.property] as unknown as IMeta | undefined;
+  const { body, attributes } = splitBodyAndAttributes(record, settings);
+
+  const out: OtlpLogRecord = {
+    timeUnixNano: toEpochNanos(meta?.date).toString(),
+    severityNumber: meta != null ? levelToSeverityNumber(meta.logLevelId) : OtelSeverityNumber.UNSPECIFIED,
+    severityText: meta?.logLevelName ?? "",
+  };
+  if (options.observedTimestamp !== false) {
+    out.observedTimeUnixNano = out.timeUnixNano;
+  }
+  if (body !== undefined) {
+    out.body = toOtlpAnyValue(body);
+  }
+
+  // OTLP requires UNIQUE attribute keys; reserved keys (logger.name, exception.*) are pushed first
+  // and win over a colliding user field, mirroring the JSON renderer's canonical-wins policy.
+  const attributeList: OtlpKeyValue[] = [];
+  const usedKeys = new Set<string>();
+  const pushAttribute = (key: string, value: OtlpAnyValue): void => {
+    if (usedKeys.has(key)) {
+      return;
+    }
+    usedKeys.add(key);
+    attributeList.push({ key, value });
+  };
+  if (typeof meta?.name === "string") {
+    pushAttribute("logger.name", { stringValue: meta.name });
+  }
+  // Map the FIRST logged error onto the exception.* semantic conventions (what error-tracking
+  // backends key on); any further errors are kept — compacted — under json.errorKey so nothing is
+  // dropped. On the RAW record errors sit under their positional keys (errorKey nesting is a
+  // render-time concern), so error-shaped VALUES are detected wherever they are; a lone logged error
+  // (`logger.error(err)`) is spread across the record itself and handled first.
+  let exceptionMapped = false;
+  const extraErrors: IErrorObject[] = [];
+  const mapError = (error: IErrorObject): void => {
+    if (exceptionMapped) {
+      extraErrors.push(error);
+      return;
+    }
+    exceptionMapped = true;
+    pushAttribute("exception.type", { stringValue: error.name });
+    pushAttribute("exception.message", { stringValue: error.message });
+    const stack = errorStackString(error);
+    if (stack !== undefined) {
+      pushAttribute("exception.stacktrace", { stringValue: stack });
+    }
+  };
+
+  const recordIsSpreadError = looksLikeErrorObject(attributes);
+  if (recordIsSpreadError) {
+    // A lone logged error is spread across the record; its `message` key doubles as the messageKey,
+    // so splitBodyAndAttributes promoted it to Body — put it back for the exception.* mapping.
+    const spreadError = attributes as unknown as IErrorObject;
+    const messageText = typeof spreadError.message === "string" ? spreadError.message : typeof body === "string" ? body : "";
+    mapError({ ...spreadError, message: messageText });
+  }
+  for (const key of Object.keys(attributes)) {
+    // The spread error's own members are fully represented by the exception.* attributes.
+    if (recordIsSpreadError && (key === "nativeError" || key === "name" || key === "message" || key === "stack" || key === "cause")) {
+      continue;
+    }
+    const value = attributes[key];
+    if (looksLikeErrorObject(value)) {
+      mapError(value);
+      continue;
+    }
+    if (Array.isArray(value) && value.length > 0 && value.every((item) => looksLikeErrorObject(item))) {
+      for (const item of value) {
+        mapError(item as IErrorObject);
+      }
+      continue;
+    }
+    pushAttribute(key, toOtlpAnyValue(value));
+  }
+  if (extraErrors.length > 0) {
+    // Compact form (no native handle, string stack, cause chain kept) — the first error owns the
+    // semconv slots.
+    pushAttribute(settings.json.errorKey, toOtlpAnyValue(extraErrors.map((error) => compactError(error))));
+  }
+  if (attributeList.length > 0) {
+    out.attributes = attributeList;
+  }
+
+  // Trace correlation: the injected getter wins; _meta trace_id/span_id (middleware-stashed, e.g. by
+  // otelTraceContext) are the fallback.
+  let span: OtelSpanContext | undefined;
+  if (typeof options.getSpanContext === "function") {
+    try {
+      span = options.getSpanContext();
+    } catch {
+      span = undefined;
+    }
+  }
+  const metaBag = meta as unknown as Record<string, unknown> | undefined;
+  const traceId = normalizeHexId(span?.traceId ?? metaBag?.trace_id, 32);
+  const spanId = normalizeHexId(span?.spanId ?? metaBag?.span_id, 16);
+  if (traceId !== undefined) {
+    out.traceId = traceId;
+  }
+  if (spanId !== undefined) {
+    out.spanId = spanId;
+  }
+  if (typeof span?.traceFlags === "number") {
+    out.flags = span.traceFlags;
+  }
+
+  return out;
+}
+
+/**
+ * Wrap one or more finished tslog records in the OTLP `ExportLogsServiceRequest` envelope —
+ * `resourceLogs[].scopeLogs[].logRecords[]` with `options.resource` as the (separate) resource
+ * attributes and `options.scopeName` (default `"tslog"`) as the instrumentation scope. The returned
+ * object `JSON.stringify`s to a body a collector's `/v1/logs` accepts.
+ */
+export function toOtlpJson<LogObj>(
+  records: (LogObj & ILogObjMeta) | (LogObj & ILogObjMeta)[],
+  settings: ISettings<LogObj>,
+  options: OtlpFormatOptions = {},
+): OtlpExportLogsRequest {
+  const list = Array.isArray(records) ? records : [records];
+  const scope: { name: string; version?: string } = { name: options.scopeName ?? "tslog" };
+  if (options.scopeVersion != null) {
+    scope.version = options.scopeVersion;
+  }
+  return {
+    resourceLogs: [
+      {
+        resource: { attributes: options.resource != null ? toOtlpAttributes(options.resource) : [] },
+        scopeLogs: [
+          {
+            scope,
+            logRecords: list.map((record) => toOtlpLogRecord(record, settings, options)),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** JSON-stringify an {@link OtlpExportLogsRequest} (plain JSON — the int64s are already strings). */
+export function stringifyOtlpRequest(request: OtlpExportLogsRequest): string {
+  return JSON.stringify(request);
+}
+
+/**
+ * A {@link LogFormatter} producing ONE complete OTLP/JSON envelope per log line. Each line alone is a
+ * valid `/v1/logs` body; for batched delivery pair it with `tslog/transports/http` and
+ * {@link otlpBatchBody}, which merges a batch of these lines into a single envelope per POST.
+ *
+ * @example
+ * logger.attachTransport(httpTransport({
+ *   url: "http://collector:4318/v1/logs",
+ *   format: otlpFormat({ resource: { "service.name": "checkout" } }),
+ *   encodeBody: otlpBatchBody,
+ * }));
+ */
+export function otlpFormat<LogObj>(options: OtlpFormatOptions = {}): LogFormatter<LogObj> {
+  return (record, settings) => stringifyOtlpRequest(toOtlpJson(record, settings, options));
+}
+
+/**
+ * Merge a batch of {@link otlpFormat}-produced lines (each a single-record OTLP envelope) into ONE
+ * `ExportLogsServiceRequest` body with `content-type: application/json` — the `encodeBody` companion
+ * for `tslog/transports/http`. All lines of a batch come from the same formatter, so the first line's
+ * resource/scope represent the whole batch; a non-OTLP line (foreign formatter) fails the batch
+ * loudly (the transport reports it via `onError`) instead of shipping a corrupt envelope.
+ */
+export function otlpBatchBody(lines: readonly string[]): { body: string; contentType: string } {
+  const merged: OtlpLogRecord[] = [];
+  let first: OtlpExportLogsRequest | undefined;
+  for (const line of lines) {
+    const parsed = JSON.parse(line) as OtlpExportLogsRequest;
+    const scopeLogs = parsed?.resourceLogs?.[0]?.scopeLogs?.[0];
+    if (scopeLogs == null || !Array.isArray(scopeLogs.logRecords)) {
+      throw new Error("tslog otlpBatchBody: line is not a single-record OTLP envelope (use format: otlpFormat(...) on this transport)");
+    }
+    first ??= parsed;
+    merged.push(...scopeLogs.logRecords);
+  }
+  if (first == null) {
+    return { body: JSON.stringify({ resourceLogs: [] }), contentType: "application/json" };
+  }
+  first.resourceLogs[0].scopeLogs[0].logRecords = merged;
+  return { body: JSON.stringify(first), contentType: "application/json" };
 }

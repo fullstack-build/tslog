@@ -82,6 +82,15 @@ export interface IHttpTransportOptions<LogObj> {
    */
   bodyFormat?: HttpBodyFormat;
   /**
+   * Custom body encoder for endpoints whose payload is neither NDJSON nor a plain JSON array — it
+   * receives the batch's formatted lines and returns the request body plus its content-type (still
+   * overridable via {@link headers}). Takes precedence over {@link bodyFormat}. Must not throw; a
+   * throwing encoder fails the batch like a delivery error (reported via {@link onError}).
+   * The OTLP pairing lives in `tslog/otel`: `encodeBody: otlpBatchBody` merges the batch into ONE
+   * OTLP/JSON envelope so the transport can POST straight to a collector's `/v1/logs`.
+   */
+  encodeBody?: (lines: readonly string[]) => { body: string; contentType: string };
+  /**
    * `fetch` implementation to use. Defaults to the global `fetch`. Inject this for tests, or for runtimes
    * that expose `fetch` under another binding. Throws at construction if neither is available.
    */
@@ -231,7 +240,16 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
     if (lines.length === 0) {
       return;
     }
-    const { body, contentType } = encodeBody(lines, bodyFormat);
+    let body: string;
+    let contentType: string;
+    try {
+      ({ body, contentType } = options.encodeBody != null ? options.encodeBody(lines) : encodeBody(lines, bodyFormat));
+    } catch (error) {
+      // A throwing custom encoder is a delivery failure for THIS batch — report and drop, never
+      // break the send chain.
+      reportError(error, lines);
+      return;
+    }
     let lastError: unknown;
     for (let attempt = 0; attempt <= retries; attempt++) {
       if (attempt > 0) {
