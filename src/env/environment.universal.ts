@@ -18,6 +18,7 @@ import {
   getPrettyLogMethod,
   isNativeError,
   parseBrowserStackLine,
+  parseReactNativeStackLine,
   parseServerStackLine,
   type RuntimeInfo,
   type RuntimeMetaStatic,
@@ -58,9 +59,14 @@ export function createUniversalEnvironment(): EnvironmentProvider {
   const runtimeInfo: RuntimeInfo = detectRuntimeInfo();
   const meta: RuntimeMetaStatic = createRuntimeMeta(runtimeInfo);
   const usesBrowserStack = runtimeInfo.name === "browser" || runtimeInfo.name === "worker";
-  const callerIgnorePatterns = usesBrowserStack
-    ? [...getDefaultIgnorePatterns(), /node_modules[\\/].*tslog/i]
-    : [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
+  // React Native needs a hybrid parser: Hermes (the default engine) emits V8-style frames
+  // ("at fn (address at index.android.bundle:1:1234)"), while JSC emits "fn@main.jsbundle:1:2" —
+  // parseReactNativeStackLine tries the server parser first and falls back to the JSC shapes.
+  const isReactNative = runtimeInfo.name === "react-native";
+  const callerIgnorePatterns =
+    usesBrowserStack || isReactNative
+      ? [...getDefaultIgnorePatterns(), /node_modules[\\/].*tslog/i]
+      : [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
 
   const formatWithOptions = resolveInspect();
 
@@ -74,6 +80,9 @@ export function createUniversalEnvironment(): EnvironmentProvider {
   }
 
   function parseStackLine(line: string | undefined): IStackFrame | undefined {
+    if (isReactNative) {
+      return parseReactNativeStackLine(line, getWorkingDirectory);
+    }
     return usesBrowserStack ? parseBrowserStackLine(line) : parseServerStackLine(line, getWorkingDirectory);
   }
 

@@ -29,7 +29,7 @@ function getBrowserEnvironment(): EnvironmentProvider {
 }
 
 /**
- * Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies,
+ * Universal TypeScript logger for Node.js, browsers, Deno, Bun, React Native, and workers. Zero runtime dependencies,
  * pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting.
  *
  * @example

@@ -105,7 +105,7 @@ import { Logger, log } from "tslog";
 ```
 
 The package root (`tslog`) resolves, via conditional exports, to the universal build, which auto-detects
-Node, browsers, Deno, Bun, and workers at construction time. The named exports are unchanged: `Logger`,
+Node, browsers, Deno, Bun, React Native, and workers at construction time. The named exports are unchanged: `Logger`,
 `BaseLogger`, the ready-made `log` instance, and all interface/enum types.
 
 ---

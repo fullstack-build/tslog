@@ -171,6 +171,14 @@ A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, ex
 }
 ```
 
+### React Native
+
+```bash
+npm install tslog
+```
+
+Works out of the box on Hermes and JSC — Metro resolves the `react-native` entry automatically. `tslog` detects React Native (`_meta.runtime: "react-native"`, with the Hermes engine version when available), parses Hermes/JSC stack frames correctly, and defaults to pretty output in the Metro console.
+
 
 ## Comparison with other loggers
 

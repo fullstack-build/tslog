@@ -23,7 +23,7 @@ import { nativeConsoleMethod } from "../internal/nativeConsole.js";
 /* ------------------------------------------------------------------------------------------------ */
 
 /** The runtimes tslog distinguishes for meta/stack-parsing purposes. */
-export type RuntimeName = "browser" | "node" | "deno" | "bun" | "worker" | "unknown";
+export type RuntimeName = "browser" | "node" | "deno" | "bun" | "worker" | "react-native" | "unknown";
 
 /** Detected runtime details used to build the static meta block. */
 export interface RuntimeInfo {
@@ -51,7 +51,9 @@ function shouldCaptureRuntimeVersion(name: RuntimeName): boolean {
 }
 
 /**
- * Probe the global scope and classify the current runtime. Order matters: browser first, then web
+ * Probe the global scope and classify the current runtime. Order matters: browser first, then React
+ * Native (`navigator.product === "ReactNative"` — RN has no `document`, so the browser check never
+ * claims it; real browsers report the frozen legacy product "Gecko", so RN never claims them), then web
  * worker (`importScripts`), then Bun, Deno and finally Node (with a last-resort "node" branch when a
  * bare `process` global is present). Anything else is "unknown" (e.g. Cloudflare Workers).
  */
@@ -66,8 +68,15 @@ export function detectRuntimeInfo(): RuntimeInfo {
 
   const globalScope = globalThis as {
     importScripts?: unknown;
-    navigator?: { userAgent?: string };
+    navigator?: { userAgent?: string; product?: string };
   };
+
+  if (globalScope.navigator?.product === "ReactNative") {
+    return {
+      name: "react-native",
+      version: resolveHermesVersion(),
+    };
+  }
 
   if (typeof globalScope.importScripts === "function") {
     return {
@@ -123,6 +132,20 @@ export function detectRuntimeInfo(): RuntimeInfo {
   };
 }
 
+/**
+ * Resolve the Hermes engine version on React Native (`hermes/<version>`), or `undefined` off Hermes
+ * (JSC-based RN apps have no comparable engine-version API). Never throws.
+ */
+export function resolveHermesVersion(): string | undefined {
+  try {
+    const hermes = (globalThis as { HermesInternal?: { getRuntimeProperties?: () => Record<string, unknown> } }).HermesInternal;
+    const version = hermes?.getRuntimeProperties?.()?.["OSS Release Version"];
+    return typeof version === "string" && version.length > 0 ? `hermes/${version}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Build the static (per-logger-instance) meta block for the detected runtime. */
 export function createRuntimeMeta(info: RuntimeInfo): RuntimeMetaStatic {
   if (info.name === "browser" || info.name === "worker") {
@@ -130,6 +153,16 @@ export function createRuntimeMeta(info: RuntimeInfo): RuntimeMetaStatic {
       runtime: info.name,
       browser: info.userAgent,
     };
+  }
+
+  if (info.name === "react-native") {
+    // No hostname (mobile devices have none worth logging) and no `"unknown"` placeholder version:
+    // only Hermes exposes an engine version, so the key is omitted entirely on JSC.
+    const reactNativeMeta: RuntimeMetaStatic = { runtime: info.name };
+    if (info.version !== undefined) {
+      reactNativeMeta.runtimeVersion = info.version;
+    }
+    return reactNativeMeta;
   }
 
   const metaStatic: RuntimeMetaStatic = {
@@ -288,13 +321,19 @@ export function parseServerStackLine(rawLine: string | undefined, getCwd: () => 
   }
 
   const sanitizedLocation = location.replace(/^\(/, "").replace(/\)$/, "");
-  const withoutQuery = sanitizedLocation.replace(/\?.*$/, "");
+  // Hermes (React Native's default engine) emits V8-style frames whose location is prefixed with
+  // "address at" for bytecode bundles ("at fn (address at index.android.bundle:1:1234)"); strip it so
+  // the bundle name parses as the path. Never appears in Node/Deno/Bun frames.
+  const withoutAddressPrefix = sanitizedLocation.replace(/^address at /, "");
 
   let fileLine: string | undefined;
   let fileColumn: string | undefined;
-  let filePathCandidate = withoutQuery;
 
-  const segments = withoutQuery.split(":");
+  // Pop the trailing :line[:column] BEFORE stripping a query string — Metro dev-server frames append
+  // them AFTER the query ("/index.bundle?platform=ios&dev=true:117:42"), so stripping the query first
+  // would discard the position.
+  let filePathCandidate = withoutAddressPrefix;
+  const segments = withoutAddressPrefix.split(":");
   if (segments.length >= 3 && /^\d+$/.test(segments[segments.length - 1])) {
     fileColumn = segments.pop();
     fileLine = segments.pop();
@@ -303,6 +342,7 @@ export function parseServerStackLine(rawLine: string | undefined, getCwd: () => 
     fileLine = segments.pop();
     filePathCandidate = segments.join(":");
   }
+  filePathCandidate = filePathCandidate.replace(/\?.*$/, "");
 
   let normalizedPath = filePathCandidate.replace(/^file:\/\//, "");
   const cwd = getCwd();
@@ -371,6 +411,57 @@ export function parseBrowserStackLine(line: string | undefined): IStackFrame | u
     filePathWithLine: fileLine ? `${filePath}:${fileLine}` : undefined,
     method: undefined,
   };
+}
+
+/**
+ * Matches a JSC-style `func@path:line:col` frame with NO path-shape requirement — React Native bundle
+ * locations are often single-segment Metro URLs (`http://host:8081/index.bundle?...`) or bare bundle
+ * names (`main.jsbundle`) that {@link BROWSER_PATH_REGEX} (which demands 2+ path segments) rejects.
+ */
+const REACT_NATIVE_JSC_REGEX = /^\s*(?:([^@\s]*)@)?(.+?):(\d+):(\d+)\s*$/;
+
+/**
+ * Parse a React Native stack line. RN needs a hybrid strategy:
+ *  - Hermes (the default engine) emits V8-style frames — `at fn (http://host:8081/index.bundle?...:117:42)`
+ *    in dev, `at fn (address at index.android.bundle:1:1234)` in release — handled by
+ *    {@link parseServerStackLine} (which strips the `address at` prefix and pops line/col before the query).
+ *  - JSC emits `fn@location:line:col`, where the location may be a bare bundle name (`main.jsbundle`) —
+ *    handled by a lenient dedicated regex, with {@link parseBrowserStackLine} as the final fallback.
+ */
+export function parseReactNativeStackLine(rawLine: string | undefined, getCwd: () => string | undefined): IStackFrame | undefined {
+  if (typeof rawLine !== "string" || rawLine.length === 0) {
+    return undefined;
+  }
+
+  const serverFrame = parseServerStackLine(rawLine, getCwd);
+  if (serverFrame !== undefined) {
+    return serverFrame;
+  }
+
+  const jscMatch = rawLine.match(REACT_NATIVE_JSC_REGEX);
+  if (jscMatch) {
+    const method = jscMatch[1] != null && jscMatch[1].length > 0 ? jscMatch[1] : undefined;
+    const filePath = jscMatch[2].replace(/\?.*$/, "");
+    const fileLine = jscMatch[3];
+    const fileColumn = jscMatch[4];
+    // "[native code]"-style locations carry no position information worth a frame.
+    if (filePath.length > 0 && !filePath.includes("[native")) {
+      const pathParts = filePath.split("/");
+      const fileName = pathParts[pathParts.length - 1];
+      return {
+        fullFilePath: jscMatch[2],
+        fileName,
+        fileNameWithLine: fileName ? `${fileName}:${fileLine}` : undefined,
+        fileColumn,
+        fileLine,
+        filePath,
+        filePathWithLine: `${filePath}:${fileLine}`,
+        method,
+      };
+    }
+  }
+
+  return parseBrowserStackLine(rawLine);
 }
 
 /**

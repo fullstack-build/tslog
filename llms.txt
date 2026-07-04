@@ -1,6 +1,6 @@
 # tslog
 
-> Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret/PII/prompt masking, async-context correlation, structured error/cause formatting. A strong fit for AI/agentic apps needing structured, redacted, correlated logs.
+> Universal TypeScript logger for Node.js, browsers, Deno, Bun, React Native, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret/PII/prompt masking, async-context correlation, structured error/cause formatting. A strong fit for AI/agentic apps needing structured, redacted, correlated logs.
 
 ## Import
 ```ts

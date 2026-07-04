@@ -28,6 +28,18 @@ export function isWorkerEnvironment(): boolean {
   return typeof (globalThis as { importScripts?: unknown }).importScripts === "function";
 }
 
+/**
+ * True on React Native (Hermes or JSC). `navigator.product === "ReactNative"` is the documented,
+ * stable check; real browsers report the frozen legacy value "Gecko" so it cannot false-positive.
+ */
+export function isReactNativeEnvironment(): boolean {
+  try {
+    return (globalThis as { navigator?: { product?: string } }).navigator?.product === "ReactNative";
+  } catch {
+    return false;
+  }
+}
+
 /** Read the process-style env bag (Node/Bun/Deno-with-permissions) at call time; never throws. */
 function readEnvBag(): Record<string, string | undefined> | undefined {
   try {
@@ -96,14 +108,14 @@ export function stdoutIsTTY(): boolean {
 /**
  * Resolve the default output `type` when the user did not set one (M3.2).
  *
- * Browsers (and web workers) always default to `"pretty"` (CSS `%c` styling). On server runtimes the
- * choice is environment-aware: an interactive stdout TTY that is NOT a CI run and does NOT request
- * `NO_COLOR` yields `"pretty"` (great for local development); everything else (piped output, CI, non-TTY,
- * `NO_COLOR`) yields `"json"` (great for production / observability / LLM ingestion). `FORCE_COLOR`
- * forces `"pretty"` regardless of the TTY check.
+ * Browsers, web workers, and React Native always default to `"pretty"` (a developer-facing console).
+ * On server runtimes the choice is environment-aware: an interactive stdout TTY that is NOT a CI run
+ * and does NOT request `NO_COLOR` yields `"pretty"` (great for local development); everything else
+ * (piped output, CI, non-TTY, `NO_COLOR`) yields `"json"` (great for production / observability / LLM
+ * ingestion). `FORCE_COLOR` forces `"pretty"` regardless of the TTY check.
  */
 export function resolveDefaultType(): "pretty" | "json" {
-  if (isBrowserEnvironment() || isWorkerEnvironment()) {
+  if (isBrowserEnvironment() || isWorkerEnvironment() || isReactNativeEnvironment()) {
     return "pretty";
   }
   if (forceColorRequested()) {

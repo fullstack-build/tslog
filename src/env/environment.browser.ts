@@ -17,6 +17,7 @@ import {
   getPrettyLogMethod,
   isNativeError,
   parseBrowserStackLine,
+  parseReactNativeStackLine,
   parseServerStackLine,
   type RuntimeInfo,
   type RuntimeMetaStatic,
@@ -49,9 +50,13 @@ export function createBrowserEnvironment(): EnvironmentProvider {
   const runtimeInfo: RuntimeInfo = detectRuntimeInfo();
   const meta: RuntimeMetaStatic = createRuntimeMeta(runtimeInfo);
   const usesBrowserStack = runtimeInfo.name === "browser" || runtimeInfo.name === "worker";
-  const callerIgnorePatterns = usesBrowserStack
-    ? [...getDefaultIgnorePatterns(), /node_modules[\\/].*tslog/i]
-    : [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
+  // React Native only reaches this entry when a bundler forces the browser condition; still handle its
+  // hybrid Hermes (V8-style) / JSC ("fn@…") frames correctly rather than assuming browser shapes.
+  const isReactNative = runtimeInfo.name === "react-native";
+  const callerIgnorePatterns =
+    usesBrowserStack || isReactNative
+      ? [...getDefaultIgnorePatterns(), /node_modules[\\/].*tslog/i]
+      : [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
 
   let cachedCwd: string | null | undefined;
   let formatWithOptions: ((options: InspectOptions, ...args: unknown[]) => string) | undefined;
@@ -189,6 +194,9 @@ export function createBrowserEnvironment(): EnvironmentProvider {
   return environment;
 
   function parseStackLine(line?: string): IStackFrame | undefined {
+    if (isReactNative) {
+      return parseReactNativeStackLine(line, getWorkingDirectory);
+    }
     return usesBrowserStack ? parseBrowserStackLine(line) : parseServerStackLine(line, getWorkingDirectory);
   }
 
