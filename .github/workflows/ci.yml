@@ -30,6 +30,10 @@ jobs:
             - name: Check doc sync
               run: npm run check-doc-sync
 
+            # Guard the gzip budgets of the slim and full browser bundles.
+            - name: Check bundle size
+              run: npm run check-bundle-size
+
             # Node test suite + coverage.
             - name: Run coverage
               run: npm run coverage
