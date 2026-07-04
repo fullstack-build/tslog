@@ -66,17 +66,25 @@ function pad2(n: number): string {
 }
 
 /**
- * Format a `Date` as an ISO-8601 UTC string, byte-identical to `Date#toISOString()` but ~3-4x faster.
+ * Format a `Date` as an ISO-8601 UTC string, byte-identical to `Date#toISOString()` but ~3-4x faster
+ * for the four-digit-year dates every real log carries.
  *
  * `toISOString` goes through a comparatively slow V8 path; on the JSON hot path (one timestamp per log, used
  * for both the top-level `time` key and `_meta.date`) that single call was the largest remaining cost. This
- * assembles the same `YYYY-MM-DDTHH:mm:ss.sssZ` string from the date's UTC components directly. Inputs are
- * always valid `Date`s built by the per-runtime `getMeta` provider, so no NaN/invalid-date guard is needed.
+ * assembles the same `YYYY-MM-DDTHH:mm:ss.sssZ` string from the date's UTC components directly. Years
+ * outside 1000-9999 are NOT byte-identical under this template (`toISOString` zero-pads below 1000 and
+ * uses the expanded `±YYYYYY` form outside 0-9999), so those — plus an Invalid Date, which a user
+ * `clock`/middleware can produce and on which `toISOString` throws — take the guard branch instead.
  */
 function toIsoString(date: Date): string {
+  const year = date.getUTCFullYear();
+  if (!(year >= 1000 && year <= 9999)) {
+    // NaN year = Invalid Date: emit an honest marker instead of throwing out of the log call.
+    return Number.isNaN(year) ? "Invalid Date" : date.toISOString();
+  }
   const ms = date.getUTCMilliseconds();
   const msStr = ms < 10 ? `00${ms}` : ms < 100 ? `0${ms}` : `${ms}`;
-  return `${date.getUTCFullYear()}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}T${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}:${pad2(date.getUTCSeconds())}.${msStr}Z`;
+  return `${year}-${pad2(date.getUTCMonth() + 1)}-${pad2(date.getUTCDate())}T${pad2(date.getUTCHours())}:${pad2(date.getUTCMinutes())}:${pad2(date.getUTCSeconds())}.${msStr}Z`;
 }
 
 /**
@@ -349,13 +357,16 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
  * actually emits it.
  */
 function isReservedHeadKey<LogObj>(key: string, json: ISettings<LogObj>["json"]): boolean {
-  return key === json.levelKey || key === json.timeKey || (json.numericLevel && key === json.levelIdKey);
+  // With `json.time: false` nothing canonical is written under timeKey, so a user field of that name
+  // passes through instead of being reserved.
+  return key === json.levelKey || (json.time !== false && key === json.timeKey) || (json.numericLevel && key === json.levelIdKey);
 }
 
 /**
  * Write the head-first level/levelId/time keys onto `flat` from `meta` (shared by both paths). `dateIso` is
  * the pre-computed `meta.date.toISOString()` (computed once per log and reused for `_meta.date`), so we never
- * call the relatively expensive `toISOString` twice for the same timestamp.
+ * call the relatively expensive `toISOString` twice for the same timestamp. The top-level time honors
+ * `json.time` ("iso" | "epoch" | false | fn); `_meta.date` always stays the ISO string.
  */
 function writeHead<LogObj>(flat: Record<string, unknown>, meta: IMeta | undefined, json: ISettings<LogObj>["json"], dateIso: string | undefined): void {
   if (meta == null) {
@@ -365,7 +376,29 @@ function writeHead<LogObj>(flat: Record<string, unknown>, meta: IMeta | undefine
   if (json.numericLevel) {
     flat[json.levelIdKey] = meta.logLevelId;
   }
-  flat[json.timeKey] = dateIso !== undefined ? dateIso : meta.date;
+  const time = json.time;
+  if (time === false) {
+    return;
+  }
+  // A non-Date `meta.date` (set by middleware) passes through verbatim on every mode, as before.
+  if (time === "iso" || dateIso === undefined) {
+    flat[json.timeKey] = dateIso !== undefined ? dateIso : meta.date;
+    return;
+  }
+  if (time === "epoch") {
+    flat[json.timeKey] = meta.date.getTime();
+    return;
+  }
+  try {
+    const value = time(meta.date);
+    // Contract: string | number. Anything else (bigint would abort the whole native-stringify line in
+    // stable mode; undefined would silently drop the key) falls back to the ISO string — the module's
+    // rule is that a bad time fn degrades the timestamp, never the line.
+    flat[json.timeKey] = typeof value === "string" || typeof value === "number" ? value : dateIso;
+  } catch {
+    // a throwing custom time fn must not break the line — fall back to the ISO string
+    flat[json.timeKey] = dateIso;
+  }
 }
 
 /**
@@ -416,8 +449,10 @@ function writeMeta(
 export function renderJson<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): string {
   // Hot path: assemble the line from per-logger precompiled fragments (static `_meta`, per-level head)
   // so the content that never changes between calls is serialized once, not on every log. Falls back
-  // to the object-building path for any shape the plan does not cover.
-  if (!settings.json.stableKeyOrder) {
+  // to the object-building path for any shape the plan does not cover. The `json.time` gate lives
+  // HERE (not only inside the plan builder) so a logger constructed with a non-"iso" mode never
+  // caches a poisoned "never plannable" verdict — flipping back to "iso" re-enters the plan path.
+  if (!settings.json.stableKeyOrder && settings.json.time === "iso") {
     const fastLine = renderPlannedLine(record, settings);
     if (fastLine !== undefined) {
       return fastLine;
@@ -512,14 +547,19 @@ function isPlanStaticValue(value: unknown): boolean {
 /** Build a plan from an eligible record's meta, or return `null`/`false` (false = never plannable). */
 function buildLinePlan<LogObj>(meta: IMeta, settings: ISettings<LogObj>): JsonLinePlan | false | null {
   const json = settings.json;
-  // A messageKey colliding with a head key (or the meta property) has bespoke overwrite semantics on
-  // the object path — never plannable.
-  if (
-    json.messageKey === json.levelKey ||
-    json.messageKey === json.timeKey ||
-    (json.numericLevel && json.messageKey === json.levelIdKey) ||
-    json.messageKey === settings.meta.property
-  ) {
+  // Defense-in-depth: renderJson gates on `json.time === "iso"` before ever reaching the plan (the
+  // head chunk hardwires the quoted ISO time slot). Bail here too in case a future caller skips the gate.
+  if (json.time !== "iso") {
+    return false;
+  }
+  // ANY collision among the head keys (or with the meta property) has bespoke last-write-wins
+  // semantics on the object path that the plan's concatenated fragments cannot reproduce (they would
+  // emit duplicate JSON keys) — never plannable.
+  const headKeys = [json.messageKey, json.levelKey, json.timeKey, settings.meta.property];
+  if (json.numericLevel) {
+    headKeys.push(json.levelIdKey);
+  }
+  if (new Set(headKeys).size !== headKeys.length) {
     return false;
   }
 
@@ -593,6 +633,8 @@ function planMatchesSettings<LogObj>(plan: JsonLinePlan, settings: ISettings<Log
     plan.levelKey === json.levelKey &&
     plan.levelIdKey === json.levelIdKey &&
     plan.timeKey === json.timeKey &&
+    // Plans are only ever built for json.time "iso"; a live mutation to any other mode rebuilds (and bails).
+    json.time === "iso" &&
     plan.numericLevel === json.numericLevel &&
     plan.metaProperty === settings.meta.property
   );

@@ -60,6 +60,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "bindings",
   "strictConfig",
   "contextStorage",
+  "clock",
 ]);
 
 /** The keys accepted inside each settings group. Drives the unknown-key check for nested typos. */
@@ -77,7 +78,7 @@ const KNOWN_GROUP_KEYS: Record<string, Set<string>> = {
     "levelMethod",
     "inspectOptions",
   ]),
-  json: new Set(["messageKey", "levelKey", "levelIdKey", "timeKey", "errorKey", "numericLevel", "stableKeyOrder"]),
+  json: new Set(["messageKey", "levelKey", "levelIdKey", "timeKey", "time", "errorKey", "numericLevel", "stableKeyOrder"]),
   mask: new Set(["keys", "caseInsensitive", "regex", "placeholder", "paths", "censor", "hashLabel"]),
   stack: new Set(["capture", "internalFramePatterns"]),
   meta: new Set(["property", "attachContext"]),
@@ -254,6 +255,32 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
     }
   } catch (error) {
     // reading settings.contextStorage itself threw — hostile settings object; strict mode still throws
+    if (error instanceof TslogConfigError) {
+      throw error;
+    }
+  }
+
+  // A clock that is not a function silently degrades to the runtime date; flag the typo at construction.
+  try {
+    if (settings.clock != null && typeof settings.clock !== "function") {
+      report({
+        code: "INVALID_CLOCK",
+        setting: "clock",
+        message: "clock must be a function returning a Date (e.g. `clock: () => new Date()`); it will be ignored.",
+        suggestion: "Pass a zero-argument function returning a valid Date.",
+      });
+    }
+    const time = settings.json?.time;
+    if (time != null && time !== false && time !== "iso" && time !== "epoch" && typeof time !== "function") {
+      report({
+        code: "INVALID_JSON_TIME",
+        setting: "json.time",
+        message: `unknown json.time value ${JSON.stringify(time)}; expected "iso", "epoch", false, or a (date) => string | number function.`,
+        suggestion: 'Use json.time: "iso" | "epoch" | false | ((date) => string | number).',
+      });
+    }
+  } catch (error) {
+    // hostile settings getters — strict mode still throws its typed error
     if (error instanceof TslogConfigError) {
       throw error;
     }
@@ -469,6 +496,8 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
       timeKey: settings?.json?.timeKey ?? "time",
       errorKey: settings?.json?.errorKey ?? "error",
       numericLevel: settings?.json?.numericLevel ?? true,
+      // `false` is a meaningful value (omit the time key) — only nullish falls back to "iso".
+      time: settings?.json?.time ?? "iso",
       // Off by default: the deep sorted copy costs real throughput on every log, and insertion order is
       // what users wrote (and what every other structured logger emits). Head keys are stable either way.
       stableKeyOrder: settings?.json?.stableKeyOrder ?? false,
@@ -501,5 +530,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
     // Kept by REFERENCE (never cloned): this is a live AsyncLocalStorage instance whose identity is
     // the whole point — sub-loggers must share the exact same store the caller injected.
     contextStorage: settings?.contextStorage,
+    // The injectable time seam — passed through by reference so sub-loggers inherit the same clock.
+    clock: settings?.clock,
   };
 }

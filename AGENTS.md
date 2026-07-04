@@ -6,9 +6,9 @@ tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native,
 
 There are no flat settings keys. Configuration is organized into groups passed to `new Logger({ ... })`:
 
-- Top-level: `type` (`"json" | "pretty" | "hidden"`, env-aware default), `name`, `minLevel` (name or 0..6), `prefix`, `customLevels`, `strictConfig`.
+- Top-level: `type` (`"json" | "pretty" | "hidden"`, env-aware default), `name`, `minLevel` (name or 0..6), `prefix`, `customLevels`, `strictConfig`, `clock` (injectable `() => Date`).
 - `mask: { keys, paths, regex, caseInsensitive, placeholder, censor }` — redact secrets/PII/prompts by key, dotted path (`*` = one segment), or regex.
-- `json: { messageKey, levelKey, levelIdKey, timeKey, errorKey, numericLevel, stableKeyOrder }` — structured-output key names/shape.
+- `json: { messageKey, levelKey, levelIdKey, timeKey, time, errorKey, numericLevel, stableKeyOrder }` — structured-output key names/shape (`time`: `"iso" | "epoch" | false | fn`).
 - `pretty: { enabled, template, errorTemplate, style, timeZone, styles, levelMethod, inspectOptions, ... }`.
 - `stack: { capture: "off" | "lazy" | "auto" | "full", internalFramePatterns }`.
 - `meta: { property, attachContext }`.

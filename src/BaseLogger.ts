@@ -660,18 +660,32 @@ export class BaseLogger<LogObj> {
   }
 
   private _addMetaToLogObj(logObj: LogObj, logLevelId: number, logLevelName: string): LogObj & ILogObjMeta & ILogObj {
+    const meta = this.runtime.getMeta(
+      logLevelId,
+      logLevelName,
+      this.callerFrame,
+      !this.captureStackForMeta,
+      this.settings.name,
+      this.settings.parentNames,
+      this.settings.stack.internalFramePatterns,
+    );
+    // Injectable clock (the time seam): replaces the provider's `new Date()` on the record. Guarded —
+    // a throwing clock or a non-Date/invalid result keeps the runtime date, never breaks the log call.
+    const clock = this.settings.clock;
+    if (clock != null) {
+      try {
+        const stamped = clock();
+        if (stamped instanceof Date && !Number.isNaN(stamped.getTime())) {
+          meta.date = stamped;
+        }
+      } catch {
+        // keep the provider's date
+      }
+    }
     // NOTE: the spread also carries the enumerable symbol-keyed SPREAD_SHAPE_HINT forward.
     return {
       ...logObj,
-      [this.settings.meta.property]: this.runtime.getMeta(
-        logLevelId,
-        logLevelName,
-        this.callerFrame,
-        !this.captureStackForMeta,
-        this.settings.name,
-        this.settings.parentNames,
-        this.settings.stack.internalFramePatterns,
-      ),
+      [this.settings.meta.property]: meta,
     };
   }
 

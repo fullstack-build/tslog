@@ -20,36 +20,62 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   let template = settings.pretty.template;
   const placeholderValues: Record<string, string | number> = {};
 
-  if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
-    template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
-  } else {
-    if (settings.pretty.timeZone === "UTC") {
-      placeholderValues.yyyy = meta.date?.getUTCFullYear() ?? "----";
-      placeholderValues.mm = formatNumberAddZeros(meta.date?.getUTCMonth(), 2, 1);
-      placeholderValues.dd = formatNumberAddZeros(meta.date?.getUTCDate(), 2);
-      placeholderValues.hh = formatNumberAddZeros(meta.date?.getUTCHours(), 2);
-      placeholderValues.MM = formatNumberAddZeros(meta.date?.getUTCMinutes(), 2);
-      placeholderValues.ss = formatNumberAddZeros(meta.date?.getUTCSeconds(), 2);
-      placeholderValues.ms = formatNumberAddZeros(meta.date?.getUTCMilliseconds(), 3);
+  // Middleware (or a hostile clock) can smuggle a non-Date or an Invalid Date into meta.date. The
+  // JSON path renders those as an honest marker; the pretty path must degrade the same way instead of
+  // throwing RangeError/TypeError out of the log call. `date` is the validated Date (or undefined),
+  // `dateFallback` the marker rendered where an ISO string would go.
+  const rawDate = meta.date as unknown;
+  const date: Date | undefined = rawDate instanceof Date && !Number.isNaN(rawDate.getTime()) ? rawDate : undefined;
+  let dateFallback: string | undefined;
+  if (rawDate != null && date === undefined) {
+    if (rawDate instanceof Date) {
+      dateFallback = "Invalid Date";
     } else {
-      placeholderValues.yyyy = meta.date?.getFullYear() ?? "----";
-      placeholderValues.mm = formatNumberAddZeros(meta.date?.getMonth(), 2, 1);
-      placeholderValues.dd = formatNumberAddZeros(meta.date?.getDate(), 2);
-      placeholderValues.hh = formatNumberAddZeros(meta.date?.getHours(), 2);
-      placeholderValues.MM = formatNumberAddZeros(meta.date?.getMinutes(), 2);
-      placeholderValues.ss = formatNumberAddZeros(meta.date?.getSeconds(), 2);
-      placeholderValues.ms = formatNumberAddZeros(meta.date?.getMilliseconds(), 3);
+      try {
+        dateFallback = String(rawDate);
+      } catch {
+        dateFallback = "Invalid Date";
+      }
     }
   }
 
+  if (template.includes("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}")) {
+    template = template.replace("{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", "{{dateIsoStr}}");
+  } else if (date == null) {
+    // No usable date (invalid/non-Date smuggled by middleware): neutral placeholders, never a throw.
+    placeholderValues.yyyy = "----";
+    placeholderValues.mm = "--";
+    placeholderValues.dd = "--";
+    placeholderValues.hh = "--";
+    placeholderValues.MM = "--";
+    placeholderValues.ss = "--";
+    placeholderValues.ms = "---";
+  } else if (settings.pretty.timeZone === "UTC") {
+    placeholderValues.yyyy = date.getUTCFullYear();
+    placeholderValues.mm = formatNumberAddZeros(date.getUTCMonth(), 2, 1);
+    placeholderValues.dd = formatNumberAddZeros(date.getUTCDate(), 2);
+    placeholderValues.hh = formatNumberAddZeros(date.getUTCHours(), 2);
+    placeholderValues.MM = formatNumberAddZeros(date.getUTCMinutes(), 2);
+    placeholderValues.ss = formatNumberAddZeros(date.getUTCSeconds(), 2);
+    placeholderValues.ms = formatNumberAddZeros(date.getUTCMilliseconds(), 3);
+  } else {
+    placeholderValues.yyyy = date.getFullYear();
+    placeholderValues.mm = formatNumberAddZeros(date.getMonth(), 2, 1);
+    placeholderValues.dd = formatNumberAddZeros(date.getDate(), 2);
+    placeholderValues.hh = formatNumberAddZeros(date.getHours(), 2);
+    placeholderValues.MM = formatNumberAddZeros(date.getMinutes(), 2);
+    placeholderValues.ss = formatNumberAddZeros(date.getSeconds(), 2);
+    placeholderValues.ms = formatNumberAddZeros(date.getMilliseconds(), 3);
+  }
+
   const isUtc = settings.pretty.timeZone === "UTC";
-  const dateInSettingsTimeZone = isUtc ? meta.date : meta.date != null ? new Date(meta.date.getTime() - meta.date.getTimezoneOffset() * 60000) : undefined;
+  const dateInSettingsTimeZone = isUtc ? date : date != null ? new Date(date.getTime() - date.getTimezoneOffset() * 60000) : undefined;
 
   // In local mode the shifted date is "wall clock as UTC"; toISOString() would wrongly suffix "Z".
   // Use the real timezone offset (e.g. +02:00) so rawIsoStr is an accurate local ISO timestamp.
   placeholderValues.rawIsoStr =
-    dateInSettingsTimeZone == null ? "" : isUtc ? dateInSettingsTimeZone.toISOString() : localIsoString(dateInSettingsTimeZone, meta.date);
-  placeholderValues.dateIsoStr = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "") ?? "";
+    dateInSettingsTimeZone == null ? (dateFallback ?? "") : isUtc ? dateInSettingsTimeZone.toISOString() : localIsoString(dateInSettingsTimeZone, date as Date);
+  placeholderValues.dateIsoStr = dateInSettingsTimeZone?.toISOString().replace("T", " ").replace("Z", "") ?? dateFallback ?? "";
   placeholderValues.logLevelName = meta.logLevelName;
   placeholderValues.fileNameWithLine = meta.path?.fileNameWithLine ?? "";
   placeholderValues.filePathWithLine = meta.path?.filePathWithLine ?? "";

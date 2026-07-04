@@ -209,10 +209,24 @@ export interface IJsonOutputSettings {
    */
   levelIdKey?: string;
   /**
-   * Top-level key holding the ISO timestamp (UTC or local per `pretty.timeZone`). Default: `"time"`.
+   * Top-level key holding the timestamp. Default: `"time"`. The JSON timestamp is always a UTC
+   * ISO-8601 string (`pretty.timeZone` only affects pretty output) unless {@link time} overrides
+   * the representation.
    * @example { json: { timeKey: "@timestamp" } }
    */
   timeKey?: string;
+  /**
+   * How the top-level {@link timeKey} value is rendered (`_meta.date` always stays a UTC ISO string):
+   * - `"iso"` (default): UTC ISO-8601 string, e.g. `"2026-07-04T10:11:12.000Z"`.
+   * - `"epoch"`: epoch **milliseconds** as a number (pino's default `time`; cheaper to produce).
+   * - `false`: omit the top-level time key entirely (diff-friendly/CI output; a user field named
+   *   like {@link timeKey} then passes through instead of being reserved).
+   * - a function `(date) => string | number`: custom rendering, e.g. nanoseconds for Loki. Must not
+   *   throw; if it does, the ISO string is emitted instead.
+   * @example { json: { time: "epoch" } }
+   * @example { json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } } // ns for Loki
+   */
+  time?: "iso" | "epoch" | false | ((date: Date) => string | number);
   /**
    * Top-level key under which logged errors are serialized as an {@link IErrorObjectStringifiable}
    * (following the `cause` chain). Default: `"error"`.
@@ -465,6 +479,15 @@ export interface ISettingsParam<LogObj> {
    */
   persistLevelKey?: string;
   /**
+   * Injectable clock (the time seam): called once per log to produce the record's `_meta.date`
+   * (and thus the JSON `time` and pretty timestamp). Defaults to the runtime's `new Date()`.
+   * Use it for deterministic tests, monotonic stamping, or an offset clock. Must return a valid
+   * `Date`; a throwing clock or an invalid result is ignored (the runtime date is kept), so a bad
+   * clock can never break logging. Inherited by sub-loggers.
+   * @example { clock: () => new Date(0) } // frozen time for snapshot tests
+   */
+  clock?: () => Date;
+  /**
    * The `pretty` group: every control for the human-readable (`type: "pretty"`) output — templates,
    * timezone, per-token styles, the level→console-method map, and inspect options. See {@link IPrettySettings}.
    * @example { type: "pretty", pretty: { timeZone: "local", style: true } }
@@ -635,6 +658,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   /** The injected async-context storage (kept by reference), or `undefined` for automatic resolution. See {@link ISettingsParam.contextStorage}. */
   // biome-ignore lint/suspicious/noExplicitAny: existential — mirrors ISettingsParam.contextStorage
   contextStorage?: IContextStorage<any>;
+  /** The injectable clock (kept by reference), or `undefined` for the runtime's `new Date()`. See {@link ISettingsParam.clock}. */
+  clock?: () => Date;
 }
 
 export interface ILogObj {

@@ -60,6 +60,29 @@ export interface ITestLogger<LogObj> {
   clear(): void;
 }
 
+/** Options for {@link createTestLogger} beyond plain logger settings. */
+export interface ITestLoggerOptions {
+  /**
+   * Per-logger test clock: called once per log to stamp `_meta.date` (and thus the JSON `time` /
+   * pretty timestamp). May return a `Date` or epoch milliseconds. Unlike `vi.useFakeTimers()` this
+   * freezes ONLY this logger's timestamps — interval-driven transports and user timers keep running.
+   * Sugar for the `clock` setting (an explicit `settings.clock` wins).
+   * @example createTestLogger({ type: "json" }, { now: () => new Date("2026-01-01T00:00:00Z") })
+   */
+  now?: () => Date | number;
+  /**
+   * Pin every machine-/run-varying meta field so `logs`/`lines` are snapshot-stable: the clock is
+   * frozen at the epoch (unless {@link now}/`clock` is set), stack capture defaults off (no `path`),
+   * and captured records/lines are stored as {@link normalizeMeta}-normalized COPIES (hostname →
+   * `"<hostname>"`, runtimeVersion → `"<runtimeVersion>"`). The record other transports receive is untouched.
+   * @example
+   * const { logger, lines } = createTestLogger({ type: "json" }, { normalize: true });
+   * logger.info("ready");
+   * expect(lines[0]).toMatchSnapshot(); // stable across runs, machines, and runtimes
+   */
+  normalize?: boolean;
+}
+
 /**
  * Create a {@link Logger} wired to an in-memory transport that records every emitted log, for easy
  * assertions in tests. Returns the `logger` plus the captured `logs` (records) and `lines` (formatted
@@ -72,24 +95,55 @@ export interface ITestLogger<LogObj> {
  * Pure: nothing global is mutated and importing this module performs no work.
  *
  * @param settings - optional logger settings, merged over the quiet (`type: "hidden"`) defaults.
+ * @param options - deterministic-output helpers: a per-logger `now` clock and snapshot `normalize`.
  * @example
  * const { logger, logs, clear } = createTestLogger();
  * logger.info("ready");
  * expect(logs.at(-1)?._meta.logLevelName).toBe("INFO");
+ *
+ * @example
+ * // Snapshot-stable lines: frozen clock, pinned hostname/runtimeVersion, no stack path.
+ * const { logger, lines } = createTestLogger({ type: "json" }, { normalize: true });
+ * logger.info("ready");
+ * expect(lines[0]).toMatchSnapshot();
  */
-export function createTestLogger<LogObj = ILogObj>(settings?: ISettingsParam<LogObj>): ITestLogger<LogObj> {
+export function createTestLogger<LogObj = ILogObj>(settings?: ISettingsParam<LogObj>, options?: ITestLoggerOptions): ITestLogger<LogObj> {
   const logs: CapturedLog<LogObj>[] = [];
   const lines: string[] = [];
 
   // Default to hidden so attaching a test logger never spams the runner; the transport still records
   // everything. The user may override `type` (e.g. "json") to also exercise the formatter via `lines`.
-  const logger = new Logger<LogObj>({ type: "hidden", ...settings });
+  const merged: ISettingsParam<LogObj> = { type: "hidden", ...settings };
+  const now = options?.now;
+  if (now != null && merged.clock == null) {
+    merged.clock = (): Date => {
+      const value = now();
+      return value instanceof Date ? value : new Date(value);
+    };
+  }
+  const normalize = options?.normalize === true;
+  if (normalize) {
+    // Deterministic at the SOURCE where possible: freeze the clock at the epoch and skip stack
+    // capture (no churning `_meta.path`) unless the caller configured either explicitly.
+    merged.clock = merged.clock ?? ((): Date => new Date(0));
+    merged.stack = { capture: "off", ...settings?.stack };
+  }
+  const logger = new Logger<LogObj>(merged);
+  const normalizeOptions: INormalizeMetaOptions = {
+    metaProperty: logger.settings.meta.property,
+    timeKey: logger.settings.json.timeKey,
+  };
 
   logger.attachTransport({
     name: "tslog-test-capture",
     write(record: CapturedLog<LogObj>, line: string): void {
-      logs.push(record);
-      lines.push(line);
+      if (normalize) {
+        logs.push(normalizeMeta(record, normalizeOptions));
+        lines.push(normalizeMeta(line, normalizeOptions));
+      } else {
+        logs.push(record);
+        lines.push(line);
+      }
     },
   });
 
@@ -102,6 +156,93 @@ export function createTestLogger<LogObj = ILogObj>(settings?: ISettingsParam<Log
       lines.length = 0;
     },
   };
+}
+
+/** Options for {@link normalizeMeta}: the record's meta/time key names when they were reconfigured. */
+export interface INormalizeMetaOptions {
+  /** The runtime-meta property name (`meta.property` setting). Default `"_meta"`. */
+  metaProperty?: string;
+  /** The top-level time key of JSON lines (`json.timeKey` setting). Default `"time"`. */
+  timeKey?: string;
+}
+
+/** The pinned timestamp emitted by {@link normalizeMeta} (the Unix epoch, ISO form). */
+const NORMALIZED_TIME_ISO = "1970-01-01T00:00:00.000Z";
+
+/** Matches an ISO-8601 UTC timestamp (the JSON `time`/`_meta.date` shape) inside a formatted line. */
+const ISO_TIMESTAMP_REGEX = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g;
+
+/** Matches the default pretty template's timestamp (`yyyy.mm.dd hh:MM:ss:ms`). */
+const PRETTY_TIMESTAMP_REGEX = /\d{4}\.\d{2}\.\d{2} \d{2}:\d{2}:\d{2}:\d{3}/g;
+
+/** Matches the pretty transport-line timestamp (`yyyy-mm-dd hh:MM:ss.ms`, no `T`/`Z`). */
+const PRETTY_DASH_TIMESTAMP_REGEX = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/g;
+
+/**
+ * Pin the run-/machine-varying meta fields of a captured log so it can be snapshot-asserted:
+ * `_meta.date` (and a JSON line's top-level time) → the Unix epoch, `hostname` → `"<hostname>"`,
+ * `runtimeVersion` → `"<runtimeVersion>"`, and `_meta.path` (the churning code position) is removed.
+ *
+ * Accepts either a structured record (returns a shallow-cloned record with a cloned meta — the input
+ * is never mutated) or a formatted line: a JSON line is parsed, normalized, and re-stringified
+ * (preserving key order); a non-JSON (pretty) line gets a best-effort timestamp scrub for the ISO and
+ * default-template shapes.
+ *
+ * @example
+ * expect(normalizeMeta(lines[0])).toMatchSnapshot();
+ * expect(normalizeMeta(record)._meta.hostname).toBe("<hostname>");
+ */
+export function normalizeMeta<T extends object>(input: T, options?: INormalizeMetaOptions): T;
+export function normalizeMeta(input: string, options?: INormalizeMetaOptions): string;
+export function normalizeMeta(input: object | string, options?: INormalizeMetaOptions): object | string {
+  const metaProperty = options?.metaProperty ?? "_meta";
+  const timeKey = options?.timeKey ?? "time";
+
+  if (typeof input === "string") {
+    try {
+      const parsed: unknown = JSON.parse(input);
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return JSON.stringify(normalizeRecord(parsed as Record<string, unknown>, metaProperty, timeKey, true));
+      }
+    } catch {
+      // not a JSON line — fall through to the pretty-line scrub
+    }
+    return input
+      .replace(ISO_TIMESTAMP_REGEX, NORMALIZED_TIME_ISO)
+      .replace(PRETTY_TIMESTAMP_REGEX, "1970.01.01 00:00:00:000")
+      .replace(PRETTY_DASH_TIMESTAMP_REGEX, "1970-01-01 00:00:00.000");
+  }
+  return normalizeRecord(input as Record<string, unknown>, metaProperty, timeKey, false);
+}
+
+/** Shared normalization core: clone-and-pin a record (`isLine` = values came from a parsed JSON line). */
+function normalizeRecord<T extends Record<string, unknown>>(record: T, metaProperty: string, timeKey: string, isLine: boolean): T {
+  const clone: Record<string, unknown> = { ...record };
+  // Only a parsed LINE carries the canonical top-level time; on a structured record a same-named
+  // property would be a user field and is left alone.
+  if (isLine && Object.hasOwn(clone, timeKey)) {
+    const value = clone[timeKey];
+    if (typeof value === "string" || typeof value === "number") {
+      clone[timeKey] = NORMALIZED_TIME_ISO;
+    }
+  }
+  const meta = clone[metaProperty];
+  if (meta !== null && typeof meta === "object" && !Array.isArray(meta)) {
+    // The spread reads through the lazy `path` getter (fine in tests); `path` is then dropped.
+    const metaClone: Record<string, unknown> = { ...(meta as Record<string, unknown>) };
+    if (Object.hasOwn(metaClone, "date")) {
+      metaClone.date = isLine ? NORMALIZED_TIME_ISO : new Date(0);
+    }
+    if (Object.hasOwn(metaClone, "hostname")) {
+      metaClone.hostname = "<hostname>";
+    }
+    if (Object.hasOwn(metaClone, "runtimeVersion")) {
+      metaClone.runtimeVersion = "<runtimeVersion>";
+    }
+    delete metaClone.path;
+    clone[metaProperty] = metaClone;
+  }
+  return clone as T;
 }
 
 /** A single recorded call on a {@link MockLogger}: which level method was invoked and with what arguments. */
