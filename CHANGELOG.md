@@ -21,6 +21,7 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 - **Subpath modules** (all tree-shakeable) — `tslog/lite` (minimal console wrappers preserving native line numbers), `tslog/cli` (also the `tslog` bin, an NDJSON pretty-printer for stdin), `tslog/testing` (`createTestLogger`, `mockLogger`), `tslog/throttle` (rate-limit middleware), `tslog/pretty/box` (`box`, `tree`), and `tslog/console` (`wrapConsole`, `restoreConsole`, `isConsoleWrapped`).
 - **Env-aware default output** — when `type` is omitted, an interactive TTY renders `pretty` while CI / non-TTY / `NO_COLOR` render `json`; the browser renders `pretty` (CSS). Honors `NO_COLOR`/`FORCE_COLOR`. Applies to both `new Logger()` and the ready-made `log`.
 - **React Native support** — detected via `navigator.product` (`_meta.runtime: "react-native"`, Hermes engine version when available), Hermes/JSC stack frames parsed with a hybrid parser, pretty output by default.
+- **Real hostname in server JSON logs** — `_meta.hostname` resolves from `HOSTNAME`/`HOST`/`COMPUTERNAME`, then the OS hostname (`Deno.hostname()` / `node:os` via `process.getBuiltinModule`), instead of defaulting to `"unknown"`.
 - **Tree-shakeable exports** — `sideEffects: false` (audited) with per-runtime conditional exports.
 
 ### Changed

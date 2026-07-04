@@ -102,12 +102,13 @@ export function detectRuntimeInfo(): RuntimeInfo {
   }
 
   if (globalAny.Deno != null) {
-    const denoHostname = resolveDenoHostname(globalAny.Deno);
     const denoVersion = globalAny.Deno?.version?.deno;
     return {
       name: "deno",
       version: denoVersion != null ? `deno/${denoVersion}` : undefined,
-      hostname: denoHostname ?? getEnvironmentHostname(globalAny.process, globalAny.Deno, globalAny.Bun, globalAny.location),
+      // Env-first like every other server runtime (HOSTNAME is the explicit override), then
+      // Deno.hostname()/os.hostname inside getEnvironmentHostname, then location.
+      hostname: getEnvironmentHostname(globalAny.process, globalAny.Deno, globalAny.Bun, globalAny.location),
     };
   }
 
@@ -181,12 +182,17 @@ export function createRuntimeMeta(info: RuntimeInfo): RuntimeMetaStatic {
 }
 
 /**
- * Resolve a host name from the runtime's environment variables (HOSTNAME/HOST/COMPUTERNAME) across
- * Node, Bun and Deno, falling back to `location.hostname`. Returns `undefined` when nothing is set.
+ * Resolve a host name for server runtimes. The environment variables (HOSTNAME/HOST/COMPUTERNAME)
+ * are consulted first — they are the explicit override and what containers set — then the OS hostname
+ * (`Deno.hostname()` on Deno, else `process.getBuiltinModule("node:os")` — Node 20.16+, Bun, Deno 2;
+ * the synchronous, import-free builtin accessor, so this module never imports `node:os`), then
+ * `location.hostname`. Returns
+ * `undefined` when nothing resolves. Every probe is guarded: Deno throws `NotCapable` on env reads
+ * without `--allow-env` and on `os.hostname()` without `--allow-sys`.
  */
 export function getEnvironmentHostname(
-  nodeProcess?: { env?: Record<string, string | undefined> },
-  deno?: { env?: { get?: (key: string) => string | undefined } },
+  nodeProcess?: { env?: Record<string, string | undefined>; getBuiltinModule?: (id: string) => unknown },
+  deno?: { env?: { get?: (key: string) => string | undefined }; hostname?: () => string },
   bun?: { env?: Record<string, string | undefined> },
   location?: { hostname?: string },
 ): string | undefined {
@@ -220,6 +226,32 @@ export function getEnvironmentHostname(
     }
   } catch {
     // ignore permission or access issues
+  }
+
+  try {
+    // Deno's native API first on Deno (same permission class as os.hostname: --allow-sys).
+    if (typeof deno?.hostname === "function") {
+      const value = deno.hostname();
+      if (value != null && value.length > 0) {
+        return value;
+      }
+    }
+  } catch {
+    // ignore — NotCapable without --allow-sys
+  }
+
+  try {
+    if (typeof nodeProcess?.getBuiltinModule === "function") {
+      const os = nodeProcess.getBuiltinModule("node:os") as { hostname?: () => string } | undefined;
+      if (typeof os?.hostname === "function") {
+        const value = os.hostname();
+        if (value != null && value.length > 0) {
+          return value;
+        }
+      }
+    }
+  } catch {
+    // ignore — Deno without --allow-sys throws NotCapable here
   }
 
   if (location?.hostname != null && location.hostname.length > 0) {

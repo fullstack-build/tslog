@@ -339,12 +339,12 @@ log.info({ userId: 42 }, "hi");
   "userId": 42,
   "_meta": {
     "v": 5,
-    "date": "2026-06-29T22:37:07.599Z",
-    "hostname": "unknown",
-    "logLevelId": 3,
-    "logLevelName": "INFO",
     "runtime": "node",
-    "runtimeVersion": "24.15.0"
+    "runtimeVersion": "24.15.0",
+    "hostname": "api-7f9c4",
+    "date": "2026-06-29T22:37:07.599Z",
+    "logLevelId": 3,
+    "logLevelName": "INFO"
   }
 }
 ```
