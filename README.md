@@ -159,7 +159,7 @@ bun run main.ts
 
 A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
 
-**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9KB gzip vs ~19KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
+**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.6KB gzip vs ~19.9KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
 
 **Enable TypeScript source-map support** so `tslog` can point at the correct line in your source:
 
@@ -180,6 +180,22 @@ npm install tslog
 ```
 
 Works out of the box on Hermes and JSC — Metro resolves the `react-native` entry automatically. `tslog` detects React Native (`_meta.runtime: "react-native"`, with the Hermes engine version when available), parses Hermes/JSC stack frames correctly, and defaults to pretty output in the Metro console.
+
+
+## Which build should I use?
+
+One package, purpose-built distributions. For most apps the answer is simply `tslog`: the main entry adapts to where it runs (colorized pretty output in your terminal or devtools during development, flat JSON in production/CI — see [Env-aware type resolution](#env-aware-type-resolution)), so the same import covers development *and* production without config. The other builds exist for the situations where the default trade-offs don't fit:
+
+| Situation | Import | Why |
+|-----------|--------|-----|
+| **Development** (server, browser, RN) | `tslog` | Zero config: colorized pretty output on an interactive TTY / in the devtools console, code positions via stack capture, config validation with did-you-mean hints. |
+| **Production** (services, containers, CI) | `tslog` | The very same import: non-TTY resolves to flat fields-first JSON automatically. Add `mask` for secrets/PII, `bindings` + `runInContext` for correlation, and transports to ship logs. |
+| **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.6KB vs ~19.9KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
+| **Testing** | `tslog/testing` | `createTestLogger()` captures every record and rendered line for assertions — no console noise, no spies. (Any build also accepts `type: "hidden"` to mute the console while still returning records.) |
+| **Browser debugging with native line numbers** | `tslog/lite` | Thin `console` wrappers with zero processing, so devtools still shows the *caller's* file:line instead of the logger's. |
+| **Reading production logs as a human** | `tslog` CLI | Pipe NDJSON into the bundled bin and get the local pretty rendering: `kubectl logs api \| npx tslog -l warn`. |
+
+All of them speak the same settings language and emit the same JSON shape, so switching between builds is an import change, not a rewrite.
 
 
 ## Comparison with other loggers
