@@ -34,12 +34,19 @@ export function resolveLogLevelId(level: TLogLevel | undefined, customLevels?: R
   if (typeof level === "number") {
     return level;
   }
-  // Additive custom levels win when present (so e.g. minLevel: "NOTICE" resolves), looked up by exact
-  // then upper-cased name so callers may use either casing for their custom level names.
+  // Additive custom levels win when present (so e.g. minLevel: "NOTICE" resolves). Lookup is fully
+  // case-insensitive — a level registered as `{ audit: 8 }` must resolve from "AUDIT" and vice versa,
+  // exactly like the seven default names (the fast exact/upper probes cover the common casings).
   if (customLevels != null) {
     const fromCustom = customLevels[level] ?? customLevels[level.toUpperCase()];
     if (typeof fromCustom === "number") {
       return fromCustom;
+    }
+    const lowered = level.toLowerCase();
+    for (const key of Object.keys(customLevels)) {
+      if (key.toLowerCase() === lowered && typeof customLevels[key] === "number") {
+        return customLevels[key];
+      }
     }
   }
   // Prefer the explicit name table, then fall back to the enum (kept for source compatibility).
@@ -57,7 +64,14 @@ export function resolveLogLevelId(level: TLogLevel | undefined, customLevels?: R
  * such as `3.5` are allowed so a level can slot between two defaults). Throws a `RangeError`/`TypeError` on
  * violation so misconfiguration fails fast at `addLevel`/normalize time.
  */
-export function validateCustomLevel(name: string, id: number): void {
+/**
+ * Lower-cased logger members a custom level method could otherwise clobber. Mixed-case members
+ * (`getSubLogger`, `attachTransport`, …) cannot collide because installed method names are always
+ * lower-cased; this list covers the members that ARE all-lowercase.
+ */
+const RESERVED_MEMBER_NAMES = new Set(["log", "child", "settings", "runtime", "flush", "use"]);
+
+export function validateCustomLevel(name: string, id: number, existing?: Record<string, number>): void {
   if (typeof name !== "string" || name.length === 0) {
     throw new TypeError(`tslog: custom level name must be a non-empty string (got ${JSON.stringify(name)}).`);
   }
@@ -66,6 +80,19 @@ export function validateCustomLevel(name: string, id: number): void {
   }
   if (NAME_TO_ID[name.toUpperCase()] != null) {
     throw new RangeError(`tslog: custom level "${name}" collides with a canonical level name; the seven default names are reserved.`);
+  }
+  const lowered = name.toLowerCase();
+  if (RESERVED_MEMBER_NAMES.has(lowered)) {
+    // Throwing keeps the TYPE surface honest: TCustomLevelMethods/addLevel would advertise a method
+    // that could never be installed, and a call would silently route into the generic log().
+    throw new RangeError(`tslog: custom level "${name}" collides with the logger member "${lowered}"; pick a different name.`);
+  }
+  if (existing != null) {
+    for (const key of Object.keys(existing)) {
+      if (key !== name && key.toLowerCase() === lowered) {
+        throw new RangeError(`tslog: custom level "${name}" differs only by case from the already-registered "${key}"; level names are case-insensitive.`);
+      }
+    }
   }
 }
 

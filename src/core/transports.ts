@@ -54,11 +54,11 @@ export function normalizeTransport<LogObj>(input: Transport<LogObj> | TransportF
  * Resolve a transport's {@link Transport.minLevel} (a number or a level name) to a numeric id.
  * Returns `Number.NEGATIVE_INFINITY` when no `minLevel` is set so the transport receives everything.
  */
-function resolveTransportMinLevel<LogObj>(transport: Transport<LogObj>): number {
+function resolveTransportMinLevel<LogObj>(transport: Transport<LogObj>, customLevels?: Record<string, number>): number {
   if (transport.minLevel == null) {
     return Number.NEGATIVE_INFINITY;
   }
-  return resolveLogLevelId(transport.minLevel) ?? Number.NEGATIVE_INFINITY;
+  return resolveLogLevelId(transport.minLevel, customLevels) ?? Number.NEGATIVE_INFINITY;
 }
 
 /**
@@ -146,6 +146,7 @@ export function dispatchToTransports<LogObj>(
   logLevelId: number,
   defaultFormat: TLogFormat<LogObj>,
   formatResolver: FormatResolver<LogObj>,
+  customLevels?: Record<string, number>,
 ): void {
   if (transports.length === 0) {
     return;
@@ -178,7 +179,7 @@ export function dispatchToTransports<LogObj>(
   };
 
   for (const transport of transports) {
-    if (logLevelId < resolveTransportMinLevel(transport)) {
+    if (logLevelId < resolveTransportMinLevel(transport, customLevels)) {
       continue;
     }
     const format = transport.format ?? defaultFormat;

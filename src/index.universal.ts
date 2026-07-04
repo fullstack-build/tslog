@@ -2,7 +2,7 @@ import { BaseLogger } from "./BaseLogger.js";
 import { settingsFromEnv } from "./core/fromEnv.js";
 import type { EnvironmentProvider } from "./env/environment.js";
 import { selectEnvironment } from "./env/environment.universal.js";
-import type { ILogObj, ILogObjMeta, ISettingsParam } from "./interfaces.js";
+import type { ILogObj, ILogObjMeta, ISettingsParam, TCustomLevelMethods } from "./interfaces.js";
 import { LogLevel } from "./interfaces.js";
 
 export * from "./BaseLogger.js";
@@ -192,4 +192,23 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
  * import { log } from "tslog";
  * log.info("hello");
  */
+/**
+ * Construct a {@link Logger} whose `customLevels` are visible as typed methods:
+ *
+ * @example
+ * const log = createLogger({ type: "json", customLevels: { AUDIT: 7 } });
+ * log.audit("permission granted", { userId: 42 }); // fully typed
+ *
+ * Notes: generic inference absorbs excess/typo'd settings keys at the TYPE level (the runtime
+ * validator still reports them, and throws under `strictConfig`); and passing an explicit `LogObj`
+ * type argument disables the settings inference (TypeScript has no partial inference) — in that case
+ * register levels via `addLevel(...)`, which types its method on the return value.
+ */
+export function createLogger<LogObj = ILogObj, const S extends ISettingsParam<LogObj> = ISettingsParam<LogObj>>(
+  settings?: S,
+  logObj?: LogObj,
+): Logger<LogObj> & TCustomLevelMethods<S, LogObj> {
+  return new Logger<LogObj>(settings, logObj) as Logger<LogObj> & TCustomLevelMethods<S, LogObj>;
+}
+
 export const log: Logger<ILogObj> = /* @__PURE__ */ new Logger<ILogObj>();

@@ -158,6 +158,20 @@ export interface Transport<LogObj> {
   [Symbol.asyncDispose]?(): Promise<void>;
 }
 
+/** The call signature installed for a registered custom level (see `addLevel`/`customLevels`). */
+export type TCustomLevelMethod<LogObj> = (...args: unknown[]) => (LogObj & ILogObjMeta) | undefined;
+
+/**
+ * The level methods a `customLevels` map adds to a logger, keyed by the lower-cased level names.
+ * Used by the per-entry `createLogger` helper to type `logger.audit(...)` from
+ * `createLogger({ customLevels: { AUDIT: 7 } })`, and by `addLevel`'s return type.
+ */
+export type TCustomLevelMethods<S, LogObj> = S extends { customLevels: infer C }
+  ? string extends keyof C
+    ? unknown // non-literal key set (Record<string, number>): no methods can be typed soundly
+    : { [K in keyof C & string as Lowercase<K>]: TCustomLevelMethod<LogObj> }
+  : unknown;
+
 /**
  * A bare transport function: receives the finished, meta-decorated record. Accepted by
  * `attachTransport` for convenience and wrapped into a {@link Transport} (with no `flush`).
@@ -512,6 +526,19 @@ export interface ISettingsParam<LogObj> {
    */
   customLevels?: Record<string, number>;
   /**
+   * Static fields bound to every record this logger emits (JSON output), the idiomatic channel for
+   * per-request/per-tenant correlation data. Bindings merge down the sub-logger chain
+   * (`child({ bindings })` extends the parent's) and always LOSE to per-call fields on a key
+   * collision, so a single log call can override a bound value. Values are plain data — functions
+   * are not invoked (use the `logObj` constructor argument for per-call generators). Masked once at
+   * logger construction with the `mask` settings; treat the resolved `settings.bindings` as
+   * read-only afterwards (runtime reassignment bypasses masking — create a child with `bindings`
+   * instead). Keys colliding with the configured message/meta keys, `__proto__`, or integer-like
+   * names are dropped with a development warning.
+   * @example { name: "api", bindings: { tenant: "acme", region: "eu" } }
+   */
+  bindings?: Record<string, unknown>;
+  /**
    * Opt-in strict configuration validation (E6). When `true`, a hard misconfiguration that would otherwise
    * only emit a development warning (e.g. an unknown `minLevel` name or a typo'd pretty template placeholder)
    * instead throws a typed {@link TslogConfigError} carrying a `code`, the offending `setting` path, and a
@@ -572,6 +599,8 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   middleware: LogMiddleware<LogObj>[];
   /** Resolved additive custom levels (always present, possibly empty). See {@link ISettingsParam.customLevels}. */
   customLevels: Record<string, number>;
+  /** Resolved bound fields (parent chain merged), or `undefined` when none are set. See {@link ISettingsParam.bindings}. */
+  bindings?: Record<string, unknown>;
   /** Resolved strict-config flag (always present). See {@link ISettingsParam.strictConfig}. */
   strictConfig: boolean;
 }

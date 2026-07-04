@@ -5,7 +5,7 @@ import { resolveLogLevelId as resolveLevelId, validateCustomLevel } from "./core
 import { type LogObjDeps, recursiveCloneAndExecuteFunctions, toLogObj } from "./core/logObj.js";
 import { MaskingEngine } from "./core/masking.js";
 import { attachMaskedArgs, resolveFormatter, runMiddleware } from "./core/pipeline.js";
-import { normalizeSettings, resolveLogLevelId, validateSettingsParam } from "./core/settings.js";
+import { devWarningsEnabled, emitConfigWarning, normalizeSettings, resolveLogLevelId, validateSettingsParam } from "./core/settings.js";
 import { attachTransport, dispatchToTransports, disposeAll, flushAll } from "./core/transports.js";
 import type { EnvironmentProvider } from "./env/environment.js";
 import type {
@@ -16,6 +16,7 @@ import type {
   ISettingsParam,
   LogContext,
   LogMiddleware,
+  TCustomLevelMethod,
   TLogFormat,
   TLogLevelName,
   Transport,
@@ -58,6 +59,11 @@ export class BaseLogger<LogObj> {
   // everything but only disposes transports it owns — a request-scoped `await using child` must not
   // terminate the root logger's file/worker/http sinks.
   private inheritedTransports?: WeakSet<object>;
+  // Whether any custom levels are registered (kept in sync by the constructor and addLevel) — gates
+  // the per-call id/name drift check so default-config logging pays a single boolean test.
+  private hasCustomLevels = false;
+  // The pre-mask bindings as supplied by the caller; the source getSubLogger merges from (see above).
+  private rawBindings?: Record<string, unknown>;
 
   constructor(
     settings: ISettingsParam<LogObj> | undefined,
@@ -100,6 +106,71 @@ export class BaseLogger<LogObj> {
     }
 
     this.captureStackForMeta = this._shouldCaptureStack();
+
+    // Bindings are static per logger: sanitize and mask them ONCE here instead of on every call.
+    // `rawBindings` keeps the pre-mask values so getSubLogger can merge WITHOUT re-masking the
+    // parent's already-masked values (a "hash"/function censor is not idempotent — re-masking would
+    // corrupt correlation tokens on every sub-logger generation).
+    if (this.settings.bindings != null) {
+      this.rawBindings = { ...this.settings.bindings };
+      this._sanitizeBindings(this.settings.bindings);
+      this.settings.bindings = this.maskingEngine.mask([this.settings.bindings])[0] as Record<string, unknown>;
+    }
+
+    // Install a real level method for every registered custom level (logger.audit(...) etc.).
+    for (const [name, id] of Object.entries(this.settings.customLevels)) {
+      this.hasCustomLevels = true;
+      this._installCustomLevelMethod(name, id);
+    }
+  }
+
+  /**
+   * Define `this[name.toLowerCase()](...)` for a registered custom level so call sites stop repeating
+   * the (id, name) pair. A name whose lower-cased form collides with an existing logger member (e.g.
+   * "flush", "info") is NOT installed — the level still works via `log(id, name, ...)` — and a dev
+   * warning explains why.
+   */
+  private _installCustomLevelMethod(name: string, id: number): void {
+    const methodName = name.toLowerCase();
+    const existing = (this as unknown as Record<string, unknown>)[methodName];
+    // Refuse to clobber ANY existing member (methods like "flush", but also fields like "settings" or
+    // "runtime") unless it is a custom-level method we installed ourselves (re-registration).
+    if (existing !== undefined && (existing as { __tslogCustomLevel?: string })?.__tslogCustomLevel === undefined) {
+      // Defensive only: validateCustomLevel already rejects the known-reserved lowercase members.
+      if (devWarningsEnabled()) {
+        emitConfigWarning(
+          `custom level "${name}" collides with the existing logger member "${methodName}"; no method was installed — use log(${id}, ${JSON.stringify(name)}, ...) instead.`,
+        );
+      }
+      return;
+    }
+    const method = (...args: unknown[]): unknown => this.log(id, name, ...args);
+    (method as unknown as { __tslogCustomLevel: string }).__tslogCustomLevel = name;
+    Object.defineProperty(this, methodName, {
+      value: method,
+      enumerable: false,
+      configurable: true,
+      writable: true,
+    });
+  }
+
+  /**
+   * Drop binding keys that would corrupt the record shape: a key equal to the configured message key
+   * or meta property hijacks message promotion, and an integer-like key gets hoisted by JS object
+   * enumeration (and permanently bails the precompiled JSON line plan). Warns in development.
+   */
+  private _sanitizeBindings(bindings: Record<string, unknown>): void {
+    for (const key of Object.keys(bindings)) {
+      const integerLike = /^(?:0|[1-9]\d*)$/.test(key);
+      if (key === this.settings.json.messageKey || key === this.settings.meta.property || key === "__proto__" || integerLike) {
+        delete bindings[key];
+        if (devWarningsEnabled()) {
+          emitConfigWarning(
+            `binding "${key}" was dropped: ${integerLike ? "integer-like keys are hoisted by JS object semantics" : "it collides with a reserved record key"} — rename the binding.`,
+          );
+        }
+      }
+    }
   }
 
   /**
@@ -139,6 +210,15 @@ export class BaseLogger<LogObj> {
       return;
     }
 
+    // A registered custom level called with a drifting id (log(3, "AUDIT") while AUDIT is 8) is
+    // almost certainly a bug — warn in development. One property read when custom levels exist.
+    if (this.hasCustomLevels) {
+      const registered = this.settings.customLevels[logLevelName];
+      if (registered !== undefined && registered !== logLevelId && devWarningsEnabled()) {
+        emitConfigWarning(`log(${logLevelId}, ${JSON.stringify(logLevelName)}) does not match the registered id ${registered} for that custom level.`);
+      }
+    }
+
     const resolvedArgs = this._resolveLogArguments(args);
     // Skip the spread when there is no prefix — `args` is this call's own rest array, safe to pass on.
     let logArgs = this.settings.prefix.length > 0 ? [...this.settings.prefix, ...resolvedArgs] : resolvedArgs;
@@ -175,7 +255,7 @@ export class BaseLogger<LogObj> {
 
     // Execute default LogObj functions for every log (e.g. requestId), then build the flat log object.
     const thisLogObj: LogObj | undefined = this.logObj != null ? recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
-    const logObj: LogObj = toLogObj(maskedArgs, this.settings.argumentsArrayName, this.logObjDeps, thisLogObj);
+    const logObj: LogObj = toLogObj(maskedArgs, this.settings.argumentsArrayName, this.logObjDeps, thisLogObj, this.settings.bindings);
 
     // Attach the runtime _meta block (incl. v: 5 via the JSON renderer) to produce the finished record.
     const record: LogObj & ILogObjMeta = this._addMetaToLogObj(logObj, effectiveLevelId, effectiveLevelName);
@@ -224,8 +304,13 @@ export class BaseLogger<LogObj> {
     // shared across transports that request the same format), every transport isolated in try/catch.
     if (this.settings.attachedTransports.length > 0) {
       const defaultFormat: TLogFormat<LogObj> = this.settings.type === "json" ? "json" : "pretty";
-      dispatchToTransports(this.settings.attachedTransports, record, effectiveLevelId, defaultFormat, (rec, format) =>
-        resolveFormatter<LogObj>(format, this.runtime)(rec, this.settings),
+      dispatchToTransports(
+        this.settings.attachedTransports,
+        record,
+        effectiveLevelId,
+        defaultFormat,
+        (rec, format) => resolveFormatter<LogObj>(format, this.runtime)(rec, this.settings),
+        this.settings.customLevels,
       );
     }
 
@@ -311,12 +396,17 @@ export class BaseLogger<LogObj> {
    * (e.g. `"NOTICE"`) resolves against it. The canonical seven names keep working; a name colliding with a
    * default level throws. Mutates this logger's resolved settings and returns `this` for chaining.
    *
-   * @example logger.addLevel("NOTICE", 3.5).log(3.5, "NOTICE", "heads up");
+   * Also installs a real level method named after the lower-cased level, so call sites stop
+   * repeating the (id, name) pair — and returns `this` typed with that method.
+   *
+   * @example logger.addLevel("NOTICE", 3.5).notice("heads up");
    */
-  public addLevel(name: string, id: number): this {
-    validateCustomLevel(name, id);
+  public addLevel<Name extends string>(name: Name, id: number): string extends Name ? this : this & Record<Lowercase<Name>, TCustomLevelMethod<LogObj>> {
+    validateCustomLevel(name, id, this.settings.customLevels);
     this.settings.customLevels[name] = id;
-    return this;
+    this.hasCustomLevels = true;
+    this._installCustomLevelMethod(name, id);
+    return this as string extends Name ? this : this & Record<Lowercase<Name>, TCustomLevelMethod<LogObj>>;
   }
 
   /**
@@ -421,6 +511,10 @@ export class BaseLogger<LogObj> {
             : undefined,
       // merge all prefixes instead of overwriting them
       prefix: [...this.settings.prefix, ...(settings?.prefix ?? [])],
+      // bindings merge down the chain: the child's extend (and win over) the parent's. Merge from the
+      // RAW (pre-mask) values — the child constructor masks the merged object exactly once, so
+      // non-idempotent censors ("hash", functions) never re-process already-masked values.
+      bindings: this.rawBindings != null || settings?.bindings != null ? { ...this.rawBindings, ...settings?.bindings } : undefined,
     };
 
     const subLogger: BaseLogger<LogObj> = new (

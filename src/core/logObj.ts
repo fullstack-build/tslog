@@ -132,6 +132,19 @@ export const SPREAD_SHAPE_HINT: unique symbol = Symbol("tslog.logObj.spreadShape
 /** The two hinted spread shapes (see {@link SPREAD_SHAPE_HINT}). */
 export type TSpreadShape = "message-first" | "object-first";
 
+/**
+ * Symbol-keyed carrier for bound fields on a record whose root IS a lone serialized Error
+ * (`log.error(err)` spreads the IErrorObject as the record itself). Merging bindings into that root
+ * would bury them inside the rendered error payload; the JSON renderer reads this hint instead and
+ * emits the bound fields at the top level, exactly where they land for every other call shape.
+ */
+export const BOUND_FIELDS_HINT: unique symbol = Symbol("tslog.logObj.boundFields");
+
+/** Read the bound-fields hint off a record, when the lone-Error shape had to carry bindings aside. */
+export function getBoundFieldsHint(record: object): Record<string, unknown> | undefined {
+  return (record as Record<symbol, Record<string, unknown> | undefined>)[BOUND_FIELDS_HINT];
+}
+
 /** Read the spread-shape hint off a record, if the call shape set one. */
 export function getSpreadShapeHint(record: object): TSpreadShape | undefined {
   return (record as Record<symbol, TSpreadShape | undefined>)[SPREAD_SHAPE_HINT];
@@ -159,10 +172,19 @@ function isPlainSpreadObject(value: unknown): value is Record<string, unknown> {
  *   record with {@link SPREAD_SHAPE_HINT} so the JSON renderer can spread the object's fields at the
  *   top level; Buffers, Maps, Sets, class instances and arrays keep their positional bucket so their
  *   own serialization semantics (`toJSON`, inspect) stay intact.
+ * - `bindings` (static bound fields, already masked at logger construction) are spread FIRST, so
+ *   per-call fields and the default LogObj always win on a key collision.
  */
-export function toLogObj<LogObj>(args: unknown[], argumentsArrayName: string | undefined, deps: LogObjDeps, clonedLogObj: LogObj = {} as LogObj): LogObj {
+export function toLogObj<LogObj>(
+  args: unknown[],
+  argumentsArrayName: string | undefined,
+  deps: LogObjDeps,
+  clonedLogObj: LogObj = {} as LogObj,
+  bindings?: Record<string, unknown>,
+): LogObj {
   // Detect the spread shapes on the ORIGINAL args, before the Error mapping below turns a logged
   // Error into a plain serializable object that would wrongly qualify as spreadable fields.
+  const loneError = args.length === 1 && deps.isError(args[0]);
   let spreadShape: TSpreadShape | undefined;
   if (argumentsArrayName == null && args.length === 2 && !deps.isError(args[0]) && !deps.isError(args[1])) {
     if (typeof args[0] === "string" && isPlainSpreadObject(args[1]) && deps.isBuffer(args[1]) !== true) {
@@ -172,14 +194,40 @@ export function toLogObj<LogObj>(args: unknown[], argumentsArrayName: string | u
     }
   }
   args = args?.map((arg) => (deps.isError(arg) ? toErrorObject(arg as Error, deps) : arg));
+  // For the hinted spread shapes the renderer spreads the object's fields but never overwrites keys
+  // already on the record — so binding keys that collide with the spread object must be dropped HERE
+  // for "per-call fields win" to hold.
+  let effectiveBindings = bindings;
+  if (spreadShape !== undefined && bindings != null) {
+    const spreadSource = (spreadShape === "message-first" ? args[1] : args[0]) as Record<string, unknown>;
+    for (const key of Object.keys(bindings)) {
+      if (Object.hasOwn(spreadSource, key)) {
+        if (effectiveBindings === bindings) {
+          effectiveBindings = { ...bindings };
+        }
+        delete (effectiveBindings as Record<string, unknown>)[key];
+      }
+    }
+  }
   if (argumentsArrayName == null) {
     if (args.length === 1 && !Array.isArray(args[0]) && deps.isBuffer(args[0]) !== true && !(args[0] instanceof Date)) {
-      clonedLogObj = typeof args[0] === "object" && args[0] != null ? { ...args[0], ...clonedLogObj } : { 0: args[0], ...clonedLogObj };
+      if (loneError && effectiveBindings != null) {
+        // A lone Error spreads ITSELF as the record root; bindings merged there would end up inside
+        // the rendered error payload. Carry them aside for the renderer to emit at the top level.
+        clonedLogObj = { ...(args[0] as object), ...clonedLogObj } as LogObj;
+        (clonedLogObj as Record<symbol, unknown>)[BOUND_FIELDS_HINT] = effectiveBindings;
+      } else {
+        clonedLogObj =
+          typeof args[0] === "object" && args[0] != null
+            ? ({ ...effectiveBindings, ...args[0], ...clonedLogObj } as LogObj)
+            : ({ ...effectiveBindings, 0: args[0], ...clonedLogObj } as LogObj);
+      }
     } else {
-      clonedLogObj = { ...clonedLogObj, ...args };
+      clonedLogObj = { ...effectiveBindings, ...clonedLogObj, ...args };
     }
   } else {
     clonedLogObj = {
+      ...effectiveBindings,
       ...clonedLogObj,
       [argumentsArrayName]: args,
     };

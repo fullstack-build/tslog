@@ -1,13 +1,6 @@
 # Beautiful logging experience for TypeScript
 
-[![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org)
-![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square)
-[![npm version](https://img.shields.io/npm/v/tslog?color=76c800&logoColor=76c800&style=flat-square)](https://www.npmjs.com/package/tslog)
-![CI: GitHub](https://github.com/fullstack-build/tslog/actions/workflows/ci.yml/badge.svg)
-[![codecov.io](https://codecov.io/github/fullstack-build/tslog/coverage.svg?branch=master)](https://codecov.io/github/fullstack-build/tslog?branch=master)
-[![code style: biome](https://img.shields.io/badge/code_style-biome-60a5fa.svg?style=flat-square)](https://biomejs.dev)
-[![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/fullstack-build)
-[![GitHub stars](https://img.shields.io/github/stars/fullstack-build/tslog.svg?style=social&label=Star)](https://github.com/fullstack-build/tslog)
+[![lang: Typescript](https://img.shields.io/badge/Language-Typescript-Blue.svg?style=flat-square)](https://www.typescriptlang.org) ![License: MIT](https://img.shields.io/npm/l/tslog?logo=tslog&style=flat-square) [![npm version](https://img.shields.io/npm/v/tslog?color=76c800&logoColor=76c800&style=flat-square)](https://www.npmjs.com/package/tslog) ![CI: GitHub](https://github.com/fullstack-build/tslog/actions/workflows/ci.yml/badge.svg) [![codecov.io](https://codecov.io/github/fullstack-build/tslog/coverage.svg?branch=master)](https://codecov.io/github/fullstack-build/tslog?branch=master) [![code style: biome](https://img.shields.io/badge/code_style-biome-60a5fa.svg?style=flat-square)](https://biomejs.dev) [![](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/fullstack-build) [![GitHub stars](https://img.shields.io/github/stars/fullstack-build/tslog.svg?style=social&label=Star)](https://github.com/fullstack-build/tslog)
 
 
 > Powerful, fast and expressive logging for TypeScript and JavaScript
@@ -15,25 +8,22 @@
 ![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog.png "tslog pretty output in browser and Node.js")
 
 > [!NOTE]
-> **This is `tslog` v5.** It is a deliberate, breaking redesign — ESM-only, grouped settings, a new
-> fields-first JSON shape, and middleware instead of `overwrite.*`. **If you are on the 4.x line, `4.11.0`
-> is a safe place to stay** — most of the v5 performance wins were back-ported there with zero breaking
-> changes. Upgrade when you want the new capabilities. See **[Upgrading from v4?](#upgrading-from-v4)**.
+> **This is `tslog` v5.** It is a deliberate, breaking redesign — ESM-only, grouped settings, a new fields-first JSON shape, and middleware instead of `overwrite.*`. **If you are on the 4.x line, `4.11.0` is a safe place to stay** — most of the v5 performance wins were back-ported there with zero breaking changes. Upgrade when you want the new capabilities. See **[Upgrading from v4?](#upgrading-from-v4)**.
 
 
 ## Highlights
 
-🏗 **Universal** — one logger for Node.js, the browser, Deno, Bun, workers and React Native<br>
-🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines<br>
-🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY / `NO_COLOR`, with no config<br>
-🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation<br>
-🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`<br>
-🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself<br>
-👮 **Fully typed** — written in TypeScript 7, native ESM, accurate source-mapped line numbers<br>
-🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation<br>
-👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names<br>
-🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal<br>
-🤓 **Pretty errors & stack traces** — structured, fully serializable, lazy by default for speed<br>
+🏗 **Universal** — one logger for Node.js, the browser, Deno, Bun, workers and React Native
+🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
+🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY / `NO_COLOR`, with no config
+🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation
+🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
+🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
+👮 **Fully typed** — written in TypeScript 7, native ESM, accurate source-mapped line numbers
+🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation
+👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names
+🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal
+🤓 **Pretty errors & stack traces** — structured, fully serializable, lazy by default for speed
 
 
 ## Example
@@ -79,8 +69,7 @@ Donations help me allocate more time for my open source work.
 
 ## Install
 
-`tslog` is published to npm as a single ESM package. **How you pull it in depends on the runtime** — npm
-for Node.js, `bun add` for Bun, an `npm:` specifier (or import map) for Deno, and a CDN URL for the browser:
+`tslog` is published to npm as a single ESM package. **How you pull it in depends on the runtime** — npm for Node.js, `bun add` for Bun, an `npm:` specifier (or import map) for Deno, and a CDN URL for the browser:
 
 | Runtime     | Install / import                                                  |
 |-------------|-------------------------------------------------------------------|
@@ -92,9 +81,7 @@ for Node.js, `bun add` for Bun, an `npm:` specifier (or import map) for Deno, an
 The per-runtime details are below.
 
 > [!IMPORTANT]
-> **tslog v5 is ESM-only and requires Node.js ≥ 20.** There is no CommonJS build and no `require("tslog")`.
-> If you cannot move to ESM or off Node 16/18 yet, stay on **`tslog@4.11.0`** — it keeps CJS, Node 16+ and
-> the v4 JSON shape. See **[Upgrading from v4?](#upgrading-from-v4)**.
+> **tslog v5 is ESM-only and requires Node.js ≥ 20.** There is no CommonJS build and no `require("tslog")`. If you cannot move to ESM or off Node 16/18 yet, stay on **`tslog@4.11.0`** — it keeps CJS, Node 16+ and the v4 JSON shape. See **[Upgrading from v4?](#upgrading-from-v4)**.
 
 ### Node.js
 
@@ -121,13 +108,11 @@ Set `"type": "module"` in your `package.json` and run Node with source maps for 
 
 After building (`npm run build`), start your app with `npm start`.
 
-To run TypeScript directly, use a current ESM-aware runner, e.g.
-`node --enable-source-maps --import tsx src/index.ts`.
+To run TypeScript directly, use a current ESM-aware runner, e.g. `node --enable-source-maps --import tsx src/index.ts`.
 
 ### Deno
 
-There is no install step in Deno — the `npm:` specifier pulls `tslog` from npm and caches it on first run
-(or add it to an import map / `deno add npm:tslog` if you prefer a bare `"tslog"` import):
+There is no install step in Deno — the `npm:` specifier pulls `tslog` from npm and caches it on first run (or add it to an import map / `deno add npm:tslog` if you prefer a bare `"tslog"` import):
 
 ```ts
 // main.ts
@@ -172,8 +157,7 @@ bun run main.ts
 </script>
 ```
 
-A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global
-`window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
+A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
 
 **Enable TypeScript source-map support** so `tslog` can point at the correct line in your source:
 
@@ -190,13 +174,9 @@ A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, ex
 
 ## Comparison with other loggers
 
-How `tslog` compares to the most popular JavaScript loggers. **This table looks only at what each
-library does in its core package, out of the box** — because most of these can be extended with
-plugins, and a fair comparison has to draw the line somewhere. The line is "what you get from a fresh
-`install` with no extra packages."
+How `tslog` compares to the most popular JavaScript loggers. **This table looks only at what each library does in its core package, out of the box** — because most of these can be extended with plugins, and a fair comparison has to draw the line somewhere. The line is "what you get from a fresh `install` with no extra packages."
 
-**Legend:** ✅ built-in / on by default · ➕ available, but only by adding a separate plugin or package ·
-🟡 partial / manual / needs hand-rolling · ❌ not available
+**Legend:** ✅ built-in / on by default · ➕ available, but only by adding a separate plugin or package · 🟡 partial / manual / needs hand-rolling · ❌ not available
 
 | Feature (core package only)            | **tslog**               | pino             | winston           | bunyan           | consola        |
 |----------------------------------------|-------------------------|------------------|-------------------|------------------|----------------|
@@ -218,16 +198,9 @@ plugins, and a fair comparison has to draw the line somewhere. The line is "what
 | First-class TypeScript types           | ✅                      | ✅               | 🟡 loose          | 🟡               | ✅             |
 
 > [!NOTE]
-> A ➕ does **not** mean a competitor "can't" do something — pino, winston and the rest have rich plugin
-> ecosystems, and a ➕ is often a one-line `install` away. The point of comparing core packages is that
-> `tslog` aims to give you universal runtime support, pretty **and** structured output, masking, error
-> formatting and correlation **from a single zero-dependency install**, with transports/presets opting in
-> as tree-shakeable subpaths only when you need them.
-
-Different jobs still favor different tools: reach for **pino** when raw server-side JSON throughput is the
-only thing that matters, **winston** when you want its mature transport ecosystem and don't mind the
-configuration, and **consola** for pure CLI/terminal flair. `tslog` is built for the case where one logger
-has to be good in the browser *and* the server, readable in dev *and* machine-parseable in prod.
+> A ➕ does **not** mean a competitor "can't" do something — pino, winston and the rest have rich plugin ecosystems, and a ➕ is often a one-line `install` away. The point of comparing core packages is that `tslog` aims to give you universal runtime support, pretty **and** structured output, masking, error formatting and correlation **from a single zero-dependency install**, with transports/presets opting in as tree-shakeable subpaths only when you need them.
+>
+>`tslog` is built for the case where one logger has to be good in the browser *and* the server, readable in dev *and* machine-parseable in prod.
 
 
 ## Core concepts
@@ -259,8 +232,7 @@ log.error("I am an error log.");
 log.fatal(new Error("I am a pretty Error with a stacktrace."));
 ```
 
-Use `minLevel` to suppress everything below a threshold (number or name). The `LogLevel` enum
-avoids magic numbers:
+Use `minLevel` to suppress everything below a threshold (number or name). The `LogLevel` enum avoids magic numbers:
 
 ```typescript
 import { Logger, LogLevel } from "tslog";
@@ -272,45 +244,44 @@ log.warn("visible");
 log.setMinLevel("DEBUG"); // change at runtime
 ```
 
-**Custom levels** are declared with `customLevels` and dispatched through the generic `log()` method
-(`log(levelId, levelName, ...args)`):
+**Custom levels** declared with `customLevels` (or added at runtime with `addLevel`) install real level methods named after the lower-cased level. Use `createLogger` to get them fully typed, and level names resolve case-insensitively everywhere (`minLevel`, `isLevelEnabled`):
 
 ```typescript
-const log = new Logger({
-  customLevels: { audit: 8, metric: 9 },
-});
-log.log(8, "AUDIT", { actor: "ada" }, "deleted account");
+import { createLogger } from "tslog";
+
+const log = createLogger({ customLevels: { AUDIT: 8, METRIC: 9 } });
+log.audit({ actor: "ada" }, "deleted account"); // typed method
+log.addLevel("NOTICE", 3.5).notice("heads up"); // runtime registration, chainable
+
+const quiet = new Logger({ customLevels: { AUDIT: 8 }, minLevel: "audit" }); // any casing works
 ```
+
+The generic `log(levelId, levelName, ...args)` dispatch still works; a call whose id drifts from the registered one warns in development. Names that collide with a logger member (`log`, `flush`, …), a canonical level, or another registered level in a different casing are rejected at construction.
 
 ### Sub-loggers — `child()` / `getSubLogger()`
 
-A sub-logger inherits the parent's settings (group-merged) and default `logObj`. Names accumulate into
-`_meta.parentNames`, so you can trace which module or request produced a line. `child()` is an alias for
-`getSubLogger()`.
+A sub-logger inherits the parent's settings (group-merged) and default `logObj`. Names accumulate into `_meta.parentNames`, so you can trace which module or request produced a line. `child()` is an alias for `getSubLogger()`.
+
+Bind static fields with `bindings`: they land on every JSON record, merge down the child chain, always lose to per-call fields on a collision, and are masked once with the logger's `mask` settings.
 
 ```typescript
-const main = new Logger({ name: "app" });
+const main = new Logger({ name: "app", bindings: { service: "checkout" } });
 const db = main.getSubLogger({ name: "db" });
-const query = db.child({ name: "query", minLevel: "DEBUG" });
+const query = db.child({ name: "query", minLevel: "DEBUG", bindings: { pool: "primary" } });
+query.info("slow query", { ms: 812 });
+// → {"message":"slow query","ms":812,"service":"checkout","pool":"primary",…}
 
 query.debug("select 1");
 // _meta.name = "query", _meta.parentNames = ["app", "db"]
 ```
 
-You can override the default `logObj` per child by passing a second argument:
-`main.getSubLogger({ name: "worker" }, { tenant: "acme" })`.
+You can override the default `logObj` per child by passing a second argument: `main.getSubLogger({ name: "worker" }, { tenant: "acme" })`.
 
 ### Settings are grouped
 
-v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`,
-`maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing;
-the groups cover everything else.
+v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`, `maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing; the groups cover everything else.
 
-**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`,
-`minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`,
-`persistLevel` / `persistLevelKey` (browser opt-in), `strictConfig` (throw a typed `TslogConfigError`
-on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in
-development with a did-you-mean suggestion).
+**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
@@ -339,14 +310,12 @@ When `type` is omitted, `tslog` picks the output for the environment:
 - **CI / non-TTY / `NO_COLOR`** → `json`
 - **Browser** → `pretty` with CSS styling
 
-It honors `NO_COLOR` and `FORCE_COLOR`, and applies to both `new Logger()` and the ready-made `log` export.
-`Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
+It honors `NO_COLOR` and `FORCE_COLOR`, and applies to both `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
 
 
 ## Structured JSON output
 
-`tslog`'s JSON is **flat and fields-first** — message, level and time at the top, your fields spread next
-to them, and runtime metadata nested under `_meta` with a schema version (`v: 5`).
+`tslog`'s JSON is **flat and fields-first** — message, level and time at the top, your fields spread next to them, and runtime metadata nested under `_meta` with a schema version (`v: 5`).
 
 ```typescript
 const log = new Logger({ type: "json" });
@@ -382,8 +351,7 @@ How arguments map to output:
 | `log.info("a", "b")` | `message: "a"`, `"1": "b"` |
 | `log.error(new Error("x"))` | serialized under `error` (cause chain preserved) |
 
-`name` / `parentNames` only appear when set (no `[undefined]` noise). Every key name is configurable via
-the `json` group, so you can match an existing schema:
+`name` / `parentNames` only appear when set (no `[undefined]` noise). Every key name is configurable via the `json` group, so you can match an existing schema:
 
 ```typescript
 new Logger({
@@ -395,8 +363,7 @@ new Logger({
 
 ## Masking secrets
 
-One of the most common ways secrets leak is through logs. Configure masking once on the logger and it
-applies recursively to every log. All masking lives under the `mask` group.
+One of the most common ways secrets leak is through logs. Configure masking once on the logger and it applies recursively to every log. All masking lives under the `mask` group.
 
 ```typescript
 const log = new Logger({
@@ -411,20 +378,14 @@ const log = new Logger({
 });
 ```
 
-Masking is leak-proof by construction: `regex` patterns are always applied **globally** (every
-occurrence in a string is redacted, whether or not you wrote the `g` flag), shared references and
-circular structures resolve to the same *masked* clone (a secret can never escape through a second
-reference to the same object), and `mask.keys` / `regex` also apply **inside `Map` and `Set`**
-contents (`mask.paths` does not descend into them).
+Masking is leak-proof by construction: `regex` patterns are always applied **globally** (every occurrence in a string is redacted, whether or not you wrote the `g` flag), shared references and circular structures resolve to the same *masked* clone (a secret can never escape through a second reference to the same object), and `mask.keys` / `regex` also apply **inside `Map` and `Set`** contents (`mask.paths` does not descend into them).
 
 The `censor` option controls *how* a match is replaced:
 
 - a **string** — replace with that literal
 - `"remove"` — drop the key entirely
 - a **function** — custom logic returning the replacement
-- `"hash"` — replace with a fast, synchronous, non-cryptographic correlation token
-  (e.g. `"[hash:1a2b3c4d]"`, label configurable via `hashLabel`) so you can correlate a redacted value
-  across logs without ever storing it
+- `"hash"` — replace with a fast, synchronous, non-cryptographic correlation token (e.g. `"[hash:1a2b3c4d]"`, label configurable via `hashLabel`) so you can correlate a redacted value across logs without ever storing it
 
 ```typescript
 const log = new Logger({ mask: { keys: ["ssn"], censor: "hash", hashLabel: "hash" } });
@@ -433,9 +394,7 @@ const log = new Logger({ mask: { keys: ["ssn"], censor: "hash", hashLabel: "hash
 
 ## Transports
 
-A transport receives every (level-permitted) log record and decides where it goes — a file, an HTTP
-endpoint, an in-memory buffer, Slack, anything. `tslog` ships file, HTTP, ring-buffer and worker-thread
-transports as tree-shakeable subpaths, and you can write your own against the `Transport` contract.
+A transport receives every (level-permitted) log record and decides where it goes — a file, an HTTP endpoint, an in-memory buffer, Slack, anything. `tslog` ships file, HTTP, ring-buffer and worker-thread transports as tree-shakeable subpaths, and you can write your own against the `Transport` contract.
 
 ```ts
 interface Transport<LogObj> {
@@ -448,8 +407,7 @@ interface Transport<LogObj> {
 }
 ```
 
-`attachTransport` accepts a full `Transport` object **or** a bare function, and **returns a detach
-function**:
+`attachTransport` accepts a full `Transport` object **or** a bare function, and **returns a detach function**:
 
 ```typescript
 const log = new Logger();
@@ -462,8 +420,7 @@ const detach = log.attachTransport((record) => {
 detach();
 ```
 
-Transports are isolated (a throwing transport cannot break logging) and inherited by sub-loggers. Flush
-buffered transports and dispose cleanly:
+Transports are isolated (a throwing transport cannot break logging) and inherited by sub-loggers. Flush buffered transports and dispose cleanly:
 
 ```typescript
 await log.flush();
@@ -472,15 +429,7 @@ await log.flush();
 await using scoped = new Logger({ /* ... */ });
 ```
 
-Delivery guarantees: `log.flush()` awaits in-flight **async transport writes** as well as each
-transport's own `flush()`. Disposing a sub-logger flushes shared transports but only disposes the
-ones the child itself attached. The built-in transports register guarded exit hooks by default:
-the file transport drains synchronously even on `process.exit(...)` or an uncaught exception (and
-never crashes the process on fs errors — they are contained, reported via `onError`, and the open is
-retried); the http transport bounds every request with a timeout, retries with backoff, caps its
-buffer (oldest lines drop first), and flushes on `beforeExit`/`pagehide`; the worker transport keeps
-its thread unref'd so it never blocks process exit, drains on `beforeExit`, and survives a dead
-worker by respawning (then falling back to inline writes).
+Delivery guarantees: `log.flush()` awaits in-flight **async transport writes** as well as each transport's own `flush()`. Disposing a sub-logger flushes shared transports but only disposes the ones the child itself attached. The built-in transports register guarded exit hooks by default: the file transport drains synchronously even on `process.exit(...)` or an uncaught exception (and never crashes the process on fs errors — they are contained, reported via `onError`, and the open is retried); the http transport bounds every request with a timeout, retries with backoff, caps its buffer (oldest lines drop first), and flushes on `beforeExit`/`pagehide`; the worker transport keeps its thread unref'd so it never blocks process exit, drains on `beforeExit`, and survives a dead worker by respawning (then falling back to inline writes).
 
 ### Built-in transport subpaths
 
@@ -509,13 +458,9 @@ log.attachTransport(workerTransport({ destination: "file", path: "app.log", form
 ## Middleware & pipeline
 
 > [!IMPORTANT]
-> v4's `overwrite.*` hooks (`mask`, `toLogObj`, `addMeta`, `formatMeta`, `formatLogObj`,
-> `transportFormatted`, `transportJSON`, `addPlaceholders`) are **removed in v5.** Use `use()` middleware
-> for log mutation/dropping and per-transport `format` for custom output shapes.
+> v4's `overwrite.*` hooks (`mask`, `toLogObj`, `addMeta`, `formatMeta`, `formatLogObj`, `transportFormatted`, `transportJSON`, `addPlaceholders`) are **removed in v5.** Use `use()` middleware for log mutation/dropping and per-transport `format` for custom output shapes.
 
-`logger.use(middleware)` appends a middleware to the pipeline. A middleware receives the log context
-(`args`, `meta`, `settings`, `logLevelId`, `logLevelName`), and can mutate it or drop the log by
-returning `null` / `false`:
+`logger.use(middleware)` appends a middleware to the pipeline. A middleware receives the log context (`args`, `meta`, `settings`, `logLevelId`, `logLevelName`), and can mutate it or drop the log by returning `null` / `false`:
 
 ```typescript
 const log = new Logger();
@@ -530,20 +475,16 @@ log.use((ctx) => {
 log.use((ctx) => (ctx.args[0] === "/health" ? null : ctx));
 ```
 
-For custom output formatting, set `format` on a transport (a `"pretty" | "json"` string or a
-`LogFormatter` function) rather than overriding a global transport.
+For custom output formatting, set `format` on a transport (a `"pretty" | "json"` string or a `LogFormatter` function) rather than overriding a global transport.
 
 
 ## Presets
 
-Presets are tree-shakeable subpaths that emit logs in a foreign schema, so `tslog` drops into existing
-tooling. They are off by default — import and wire them explicitly.
+Presets are tree-shakeable subpaths that emit logs in a foreign schema, so `tslog` drops into existing tooling. They are off by default — import and wire them explicitly.
 
 ### pino — `tslog/presets/pino`
 
-`pinoFormat()` produces pino-compatible NDJSON (integer `level` 10–60, `time` epoch ms, `msg`), so
-`pino-pretty` and pino transports keep working. `pinoTransport()` wires it up in one call; `toPinoLevel(id)`
-maps a tslog level id to its pino number.
+`pinoFormat()` produces pino-compatible NDJSON (integer `level` 10–60, `time` epoch ms, `msg`), so `pino-pretty` and pino transports keep working. `pinoTransport()` wires it up in one call; `toPinoLevel(id)` maps a tslog level id to its pino number.
 
 ```typescript
 import { pinoFormat, pinoTransport } from "tslog/presets/pino";
@@ -554,9 +495,7 @@ log.attachTransport(pinoTransport()); // or attach a transport with { format: pi
 
 ### OpenTelemetry — `tslog/otel`
 
-`otelFormat()` / `toOtelRecord()` emit OTel log records with the correct `SeverityNumber`
-(`levelToSeverityNumber`, `OtelSeverityNumber`); `otelTraceContext()` correlates with the active
-trace/span; `stringifyOtelRecord()` serializes a record.
+`otelFormat()` / `toOtelRecord()` emit OTel log records with the correct `SeverityNumber` (`levelToSeverityNumber`, `OtelSeverityNumber`); `otelTraceContext()` correlates with the active trace/span; `stringifyOtelRecord()` serializes a record.
 
 ```typescript
 import { otelFormat, otelTraceContext } from "tslog/otel";
@@ -568,8 +507,7 @@ log.use((ctx) => (Object.assign(ctx.meta, otelTraceContext()), ctx));
 
 ### GenAI / agents — `tslog/presets/genai`
 
-`genai()` / `genaiAttributes()` / `genaiSummary()` build OTel-GenAI semantic-convention attributes
-(`gen_ai.*`: model, tokens, tool calls) for LLM and agent apps.
+`genai()` / `genaiAttributes()` / `genaiSummary()` build OTel-GenAI semantic-convention attributes (`gen_ai.*`: model, tokens, tool calls) for LLM and agent apps.
 
 ```typescript
 import { genai } from "tslog/presets/genai";
@@ -580,8 +518,7 @@ log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "compl
 
 ## Pretty output & templates
 
-Pretty output is configured entirely under the `pretty` group. Templates use `{{placeholder}}` tokens
-and per-placeholder styles.
+Pretty output is configured entirely under the `pretty` group. Templates use `{{placeholder}}` tokens and per-placeholder styles.
 
 ```typescript
 const log = new Logger({
@@ -637,8 +574,7 @@ On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.i
   ```
 
 - **`defineConfig(...)`** gives a typed, validated settings object you can share across loggers.
-- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). When `meta.attachContext` is on,
-  the context fields attach to `_meta`, so every log inside the callback carries the same correlation id:
+- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). When `meta.attachContext` is on, the context fields attach to `_meta`, so every log inside the callback carries the same correlation id:
 
   ```typescript
   const log = new Logger({ meta: { attachContext: true } });
@@ -676,16 +612,11 @@ logger.info({ ok: true }, "tested");
 
 ## Performance
 
-`tslog` is fast, but this README is honest rather than chasing a leaderboard claim — **it does not claim
-to be faster than pino.** The defaults are tuned for a great developer experience; for hot production
-paths, the biggest lever is stack capture.
+`tslog` is fast, but this README is honest rather than chasing a leaderboard claim — **it does not claim to be faster than pino.** The defaults are tuned for a great developer experience; for hot production paths, the biggest lever is stack capture.
 
-- **Lazy stack capture by default.** Stack frames (and therefore log-position lookup) are captured lazily,
-  so you only pay for them when something actually reads them.
-- **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths,
-  or `"full"` when you want complete frames for debugging.
-- **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with
-  `sideEffects: false`, so unused features never reach your bundle.
+- **Lazy stack capture by default.** Stack frames (and therefore log-position lookup) are captured lazily, so you only pay for them when something actually reads them.
+- **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths, or `"full"` when you want complete frames for debugging.
+- **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with `sideEffects: false`, so unused features never reach your bundle.
 
 See **[benchmarks/RESULTS.md](./benchmarks/RESULTS.md)** for measured numbers and the methodology.
 
@@ -693,18 +624,11 @@ See **[benchmarks/RESULTS.md](./benchmarks/RESULTS.md)** for measured numbers an
 ## <a name="upgrading-from-v4"></a>Upgrading from v4?
 
 > [!IMPORTANT]
-> **`tslog@4.11.0` is the safe staying point.** Most of the v5 performance wins (faster lazy stack capture,
-> transport isolation, masking fixes) were back-ported to **4.11.0 with zero breaking changes**. If you are
-> on the 4.x line and just want the wins, `npm install tslog@4.11.0` keeps your existing settings, CJS
-> `require`, Node 16+, and the v4 JSON shape exactly as they are. There is no deprecation pressure.
+> **`tslog@4.11.0` is the safe staying point.** Most of the v5 performance wins (faster lazy stack capture, transport isolation, masking fixes) were back-ported to **4.11.0 with zero breaking changes**. If you are on the 4.x line and just want the wins, `npm install tslog@4.11.0` keeps your existing settings, CJS `require`, Node 16+, and the v4 JSON shape exactly as they are. There is no deprecation pressure.
 
-Move to **v5** when you actually want its new capabilities: env-aware default output, the flat fields-first
-JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent
-DX. v5 is ESM-only and requires Node ≥ 20.
+Move to **v5** when you actually want its new capabilities: env-aware default output, the flat fields-first JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent DX. v5 is ESM-only and requires Node ≥ 20.
 
-👉 **Full guide: [MIGRATION_v4_to_v5.md](./MIGRATION_v4_to_v5.md)** — it maps every removed v4 setting
-(`stylePrettyLogs`, `prettyLogTemplate`, `maskValuesOfKeys`, `metaProperty`, `hideLogPositionForProduction`,
-the whole `overwrite.*` family, …) to its v5 replacement.
+👉 **Full guide: [MIGRATION_v4_to_v5.md](./MIGRATION_v4_to_v5.md)** — it maps every removed v4 setting (`stylePrettyLogs`, `prettyLogTemplate`, `maskValuesOfKeys`, `metaProperty`, `hideLogPositionForProduction`, the whole `overwrite.*` family, …) to its v5 replacement.
 
 
 ## License

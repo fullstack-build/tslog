@@ -1,4 +1,4 @@
-import { getSpreadShapeHint } from "../core/logObj.js";
+import { getBoundFieldsHint, getSpreadShapeHint } from "../core/logObj.js";
 import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.js";
 
 /**
@@ -247,6 +247,17 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
   } else {
     // Whole record is one spread error: gather its own (non-meta) fields into a single IErrorObject.
     errors.push(stripMeta(record, metaProperty) as unknown as IErrorObject);
+    // Bound fields were carried aside for this shape (merging them into the error root would bury
+    // them in the error payload) — emit them as regular top-level user fields instead.
+    const boundFields = getBoundFieldsHint(recordObj);
+    if (boundFields != null) {
+      for (const key of Object.keys(boundFields)) {
+        if (key === "__proto__" || key === metaProperty || Object.hasOwn(userFields, key)) {
+          continue;
+        }
+        userFields[key] = boundFields[key];
+      }
+    }
   }
 
   // pino-style `log.info({ fields }, "message")` (M2.1): a leading plain object followed by a string.
@@ -712,7 +723,7 @@ function renderPlannedLine<LogObj>(record: LogObj & ILogObjMeta, settings: ISett
       line += `${plan.messagePrefix}${messageJson},`;
     }
   }
-  line += chunk.head + iso + '"';
+  line += `${chunk.head}${iso}"`;
 
   // User fields: everything except meta, the message source (and the two positional keys consumed by a
   // spread shape), "__proto__", and the reserved head keys. Integer-like keys would be hoisted first by

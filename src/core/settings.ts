@@ -57,6 +57,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "attachedTransports",
   "middleware",
   "customLevels",
+  "bindings",
   "strictConfig",
 ]);
 
@@ -367,7 +368,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
   const customLevels: Record<string, number> = {};
   if (settings?.customLevels != null) {
     for (const [name, id] of Object.entries(settings.customLevels)) {
-      validateCustomLevel(name, id);
+      validateCustomLevel(name, id, customLevels);
       customLevels[name] = id;
     }
   }
@@ -451,6 +452,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
     attachedTransports: (settings?.attachedTransports ?? []).map((transport) => normalizeTransport(transport)),
     middleware: [...(settings?.middleware ?? [])],
     customLevels,
+    bindings: settings?.bindings != null ? { ...settings.bindings } : undefined,
     strictConfig: settings?.strictConfig ?? false,
   };
 }

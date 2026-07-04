@@ -192,7 +192,8 @@ const log = new Logger({
 | `attachedTransports` | `attachedTransports` *(now `Transport \| TransportFn`; see §8)* |
 | `overwrite.*` | **REMOVED → `middleware` / `logger.use()` / per-transport `format`; see §4** |
 | *(new)* | `middleware` — middleware chain seed |
-| *(new)* | `customLevels` — additive custom levels |
+| *(new)* | `customLevels` — additive custom levels (installed as real methods; `createLogger` types them) |
+| *(new)* | `bindings` — static fields on every record; merge down the child chain, per-call fields win |
 | *(new)* | `strictConfig` — throw `TslogConfigError` on misconfiguration |
 
 > Tip: `defineConfig({ ... })` (re-exported from `tslog`) gives you a typed, autocompleted settings object
