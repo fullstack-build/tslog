@@ -70,6 +70,10 @@
       "types": "./dist/types/subpaths/lite.d.ts",
       "default": "./dist/esm/subpaths/lite.js"
     },
+    "./slim": {
+      "types": "./dist/types/subpaths/slim.d.ts",
+      "default": "./dist/esm/subpaths/slim.js"
+    },
     "./console": {
       "types": "./dist/types/subpaths/wrapConsole.d.ts",
       "default": "./dist/esm/subpaths/wrapConsole.js"

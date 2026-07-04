@@ -34,8 +34,12 @@ Flat, fields-first: `{ message, level, levelId, time, ...yourFields, error?, _me
 - `tslog/transports/ringbuffer` — `ringBufferTransport({ size })` (in-memory; `.dump()`/`.clear()`).
 - `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format, maxRespawns })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself; the worker is unref'd so it never blocks process exit, drains on `beforeExit`, and a dead worker respawns then falls back to inline writes).
 
+## Size-critical builds (subpath)
+- `tslog/slim` — `Logger`/`createLogger` with the SAME JSON pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size. No masking (`mask` settings THROW), no pretty (`type: "pretty"` throws; default type is "json"), no stack capture (`_meta.path` absent, error `stack` arrays empty), no `fromEnv`, no settings validation.
+
 ## Notes for code generation
 - Prefer `type: "json"` and `minLevel: "INFO"` for machine-read logs.
+- Never pass `mask` settings to `tslog/slim` (they throw) — use the full `tslog` entry where masking is needed.
 - Use `getSubLogger`/`child` per request/agent, `runInContext` for correlation.
 - Always set `mask.keys`/`mask.paths` when logging objects that may hold secrets or prompts.
 

@@ -233,6 +233,19 @@ if (log.isLevelEnabled("DEBUG")) {
 }
 ```
 
+## 12b. Smallest browser / edge bundle (`tslog/slim`)
+
+The full entry ships masking, pretty rendering, and stack parsing whether or not your config uses them (output `type` is a runtime value, so bundlers cannot drop them). When bundle size matters more, `tslog/slim` is the same structured-JSON pipeline at less than half the size — and it fails HONESTLY: `mask` settings and `type: "pretty"` throw instead of being silently ignored.
+
+```ts
+import { Logger } from "tslog/slim"; // ~9KB gzip vs ~19KB for the full browser entry
+
+const log = new Logger({ name: "edge", bindings: { service: "checkout" } });
+log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-first JSON
+```
+
+Kept: levels, sub-loggers, bindings, custom levels, middleware, `runInContext` correlation, transports. Dropped: masking, pretty output, stack capture (`_meta.path`; error `stack` arrays are empty), `fromEnv`, settings validation. Develop against the full entry, ship slim.
+
 ## 13. Configure from environment / typed config
 
 ```ts

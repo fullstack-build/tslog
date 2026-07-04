@@ -23,6 +23,7 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 - **React Native support** — detected via `navigator.product` (`_meta.runtime: "react-native"`, Hermes engine version when available), Hermes/JSC stack frames parsed with a hybrid parser, pretty output by default.
 - **Real hostname in server JSON logs** — `_meta.hostname` resolves from `HOSTNAME`/`HOST`/`COMPUTERNAME`, then the OS hostname (`Deno.hostname()` / `node:os` via `process.getBuiltinModule`), instead of defaulting to `"unknown"`.
 - **Tree-shakeable exports** — `sideEffects: false` (audited) with per-runtime conditional exports.
+- **`tslog/slim`** — the smallest structured-JSON build (~9KB gzip vs ~19KB for the full browser entry, budget-checked in CI): the same pipeline minus masking, pretty output, and stack capture; `mask` settings and `type: "pretty"` throw instead of silently degrading.
 
 ### Changed
 - **ESM-only** and **Node >=20**; the project now targets **TypeScript 7 / ES2022**.

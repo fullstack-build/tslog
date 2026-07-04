@@ -159,6 +159,8 @@ bun run main.ts
 
 A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
 
+**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9KB gzip vs ~19KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
+
 **Enable TypeScript source-map support** so `tslog` can point at the correct line in your source:
 
 ```json5
@@ -609,6 +611,7 @@ On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.i
 | Import | What it gives you |
 |--------|-------------------|
 | `tslog/lite` | `lite` (ready instance), `LiteLogger`, `createLiteLogger(opts?)` — minimal console wrappers, no mask/stack/clone, preserves native console line numbers |
+| `tslog/slim` | `Logger`, `createLogger` — the smallest structured-JSON build: the full pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size, minus masking/pretty/stack capture (`mask` and `type: "pretty"` throw instead of silently degrading) |
 | `tslog/testing` | `createTestLogger(settings?)` → `{ logger, logs, lines, clear }`, plus `mockLogger(settings?)` |
 | `tslog/throttle` | `throttle({ windowMs, key?, now? })` middleware (off by default), `defaultThrottleKey` |
 | `tslog/serializers` | `stdSerializers` `{ err, req, res, user }`, the `serialize(map)` middleware helper, and the individual serializers |
