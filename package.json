@@ -14,7 +14,7 @@
     "url": "https://github.com/fullstack-build/tslog/issues"
   },
   "type": "module",
-  "module": "./dist/esm/index.node.js",
+  "module": "./dist/esm/index.universal.js",
   "types": "./dist/types/index.d.ts",
   "browser": {
     "tslog": "./dist/browser/index.js",
