@@ -12,7 +12,7 @@ import { Logger, log } from "tslog"; // class + ready-to-use default instance
 - `log.info|warn|error|debug|trace|silly|fatal(...)` — fields-first or string-first: `log.info({ userId: 42 }, "ready")` or `log.info("ready", { userId: 42 })`.
 - `log.getSubLogger({ name })` / `log.child({ name })` — child logger (aliases); inherits settings, names, prefixes, transports. Bind static fields via `bindings: { tenant }` — merged down the chain, per-call fields win, masked once at construction.
 - Custom levels install real methods: `createLogger({ customLevels: { AUDIT: 7 } }).audit(...)` (typed) or `log.addLevel("NOTICE", 3.5).notice(...)`; names resolve case-insensitively.
-- `log.runInContext({ requestId }, fn)` — AsyncLocalStorage correlation: fields attach to every log inside `fn`, across awaits. `log.getContext()` reads them.
+- `log.runInContext({ requestId }, fn)` — AsyncLocalStorage correlation: fields attach to every log inside `fn`, across awaits. `log.getContext()` reads them. Auto-resolves on Node/Deno/Bun; on Cloudflare Workers pass `contextStorage: new AsyncLocalStorage()` (from "node:async_hooks", needs the nodejs_als or nodejs_compat flag).
 - `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` awaits async transport writes + each transport's `flush()`; `await using` disposes owned transports (a child never disposes inherited ones).
 
 ## Settings are GROUPED (no flat keys)

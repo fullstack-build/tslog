@@ -1,5 +1,5 @@
 import type { AsyncContextFields, AsyncContextStore } from "./core/asyncContext.js";
-import { createAsyncContextStore } from "./core/asyncContext.js";
+import { createAsyncContextStore, createAsyncContextStoreFromInstance } from "./core/asyncContext.js";
 import { DEFAULT_PERSIST_LEVEL_KEY, readPersistedLevel, writePersistedLevel } from "./core/levelPersistence.js";
 import { resolveLogLevelId as resolveLevelId, validateCustomLevel } from "./core/levels.js";
 import { type LogObjDeps, recursiveCloneAndExecuteFunctions, toLogObj } from "./core/logObj.js";
@@ -51,10 +51,15 @@ export class BaseLogger<LogObj> {
   private readonly captureStackForMeta: boolean;
   private readonly maskingEngine: MaskingEngine<LogObj>;
   private readonly logObjDeps: LogObjDeps;
-  // Async context store (M2.13). Created lazily on first `runInContext`/`getContext`/`log` that needs it, so
-  // merely constructing a logger never resolves `AsyncLocalStorage`. Shared with sub-loggers (see getSubLogger)
-  // so a context entered on a parent propagates to its children.
-  private asyncContextStore?: AsyncContextStore;
+  // Async context store (M2.13), held in a BOX shared across the whole sub-logger family (see
+  // getSubLogger). The store itself is created lazily on the first `runInContext`/`getContext` so merely
+  // constructing a logger never resolves `AsyncLocalStorage` — but because the box is shared, whichever
+  // family member materializes it first makes the store visible to every other member, regardless of
+  // creation order. The hot path only pays a null check on the box's slot.
+  private asyncContextBox: { store?: AsyncContextStore } = {};
+  // One warning per logger: runInContext() on a runtime without AsyncLocalStorage is a silent no-op
+  // otherwise, and "my requestId never shows up" is a top support question on edge runtimes.
+  private warnedContextNoop = false;
   // Transports inherited from a parent logger (set by getSubLogger). Disposing THIS logger flushes
   // everything but only disposes transports it owns — a request-scoped `await using child` must not
   // terminate the root logger's file/worker/http sinks.
@@ -121,6 +126,13 @@ export class BaseLogger<LogObj> {
     for (const [name, id] of Object.entries(this.settings.customLevels)) {
       this.hasCustomLevels = true;
       this._installCustomLevelMethod(name, id);
+    }
+
+    // An INJECTED contextStorage is materialized eagerly (there is nothing to lazily resolve — the
+    // instance already exists): the hot path reads asyncContextBox.store, so a context entered via the
+    // instance's own `als.run(...)` (outside runInContext) must be visible from the very first log call.
+    if (this.settings.contextStorage != null) {
+      this.asyncContextBox.store = createAsyncContextStoreFromInstance(this.settings.contextStorage);
     }
   }
 
@@ -267,7 +279,7 @@ export class BaseLogger<LogObj> {
       // Auto-attach the active async context's fields (M2.13) FIRST, so explicit middleware-stashed meta
       // (set this call) takes precedence over inherited context fields on a key collision.
       if (this.settings.meta.attachContext) {
-        const activeContext = this.asyncContextStore?.getStore();
+        const activeContext = this.asyncContextBox.store?.getStore();
         if (activeContext != null) {
           for (const key of Object.keys(activeContext)) {
             (recordMeta as unknown as Record<string, unknown>)[key] = activeContext[key];
@@ -354,12 +366,18 @@ export class BaseLogger<LogObj> {
    * constructing a logger never touches `AsyncLocalStorage`. Sub-loggers share their parent's store.
    */
   private _getAsyncContextStore(): AsyncContextStore {
-    if (this.asyncContextStore == null) {
-      // Prefer the runtime provider's resolver (Node resolves via createRequire); fall back to the core
-      // global/builtin probe. Either yields a graceful no-op store where AsyncLocalStorage is unavailable.
-      this.asyncContextStore = this.runtime.createAsyncContextStore != null ? this.runtime.createAsyncContextStore() : createAsyncContextStore();
+    if (this.asyncContextBox.store == null) {
+      if (this.settings.contextStorage != null) {
+        // A user-injected AsyncLocalStorage instance (the Cloudflare Workers `nodejs_als` seam) wins
+        // over automatic resolution.
+        this.asyncContextBox.store = createAsyncContextStoreFromInstance(this.settings.contextStorage);
+      } else {
+        // Prefer the runtime provider's resolver (Node resolves via createRequire); fall back to the core
+        // global/builtin probe. Either yields a graceful no-op store where AsyncLocalStorage is unavailable.
+        this.asyncContextBox.store = this.runtime.createAsyncContextStore != null ? this.runtime.createAsyncContextStore() : createAsyncContextStore();
+      }
     }
-    return this.asyncContextStore;
+    return this.asyncContextBox.store;
   }
 
   /**
@@ -378,7 +396,15 @@ export class BaseLogger<LogObj> {
    * });
    */
   public runInContext<T>(ctx: AsyncContextFields, fn: () => T): T {
-    return this._getAsyncContextStore().run(ctx, fn);
+    const store = this._getAsyncContextStore();
+    if (!store.enabled && !this.warnedContextNoop && devWarningsEnabled()) {
+      this.warnedContextNoop = true;
+      nativeConsoleMethod("warn")(
+        "tslog: runInContext() found no AsyncLocalStorage on this runtime — the function runs, but the context will NOT be attached to logs. " +
+          'On Cloudflare Workers enable the "nodejs_als" (or "nodejs_compat") compatibility flag and pass `contextStorage: new AsyncLocalStorage()` from "node:async_hooks".',
+      );
+    }
+    return store.run(ctx, fn);
   }
 
   /**
@@ -515,6 +541,9 @@ export class BaseLogger<LogObj> {
       // RAW (pre-mask) values — the child constructor masks the merged object exactly once, so
       // non-idempotent censors ("hash", functions) never re-process already-masked values.
       bindings: this.rawBindings != null || settings?.bindings != null ? { ...this.rawBindings, ...settings?.bindings } : undefined,
+      // A nullish child value inherits the parent's injected instance (passing `null` must not silently
+      // swap the family onto an auto-resolved store while still sharing the parent's box below).
+      contextStorage: settings?.contextStorage ?? this.settings.contextStorage,
     };
 
     const subLogger: BaseLogger<LogObj> = new (
@@ -525,10 +554,11 @@ export class BaseLogger<LogObj> {
         callerFrame?: number,
       ) => this
     )(subLoggerSettings, logObj ?? this.logObj, this.runtime, this.callerFrame);
-    // Share the async context store (M2.13) with the child so a context entered on the parent (or on any
-    // ancestor) propagates to sub-logger calls. Only shared once the parent has actually materialized one.
-    if (this.asyncContextStore != null) {
-      subLogger.asyncContextStore = this.asyncContextStore;
+    // Share the async context BOX (M2.13) with the child so a context entered anywhere in the family —
+    // even via a member created later — propagates to every member's calls. A child that injects its OWN
+    // `contextStorage` opts out of the family store and keeps its fresh box instead.
+    if (settings?.contextStorage == null || settings.contextStorage === this.settings.contextStorage) {
+      subLogger.asyncContextBox = this.asyncContextBox;
     }
     // Everything the child received from this logger's list is inherited (including what THIS logger
     // itself inherited): the child's disposers flush them but never dispose them.

@@ -97,12 +97,40 @@ export function createAsyncContextStore(ctor: AsyncLocalStorageCtor | undefined 
     return NOOP_STORE;
   }
 
+  return wrapStorageInstance(als);
+}
+
+/**
+ * Build an {@link AsyncContextStore} around a USER-SUPPLIED `AsyncLocalStorage`(-shaped) instance —
+ * the `contextStorage` setting. The injection seam exists for runtimes where automatic resolution
+ * cannot work, e.g. Cloudflare Workers under the `nodejs_als` compatibility flag: `node:async_hooks`
+ * is importable there, but there is no `process.getBuiltinModule` and no global to probe. The same
+ * nested-merge semantics as the auto-resolved store apply. A malformed instance (missing `run` or
+ * `getStore`) degrades to the no-op store rather than throwing mid-request.
+ */
+export function createAsyncContextStoreFromInstance(instance: { run: unknown; getStore: unknown }): AsyncContextStore {
+  // Guarded property reads: a hostile object with throwing `run`/`getStore` accessors must degrade to
+  // the no-op store, never crash logger construction.
+  try {
+    if (typeof instance?.run !== "function" || typeof instance?.getStore !== "function") {
+      return NOOP_STORE;
+    }
+  } catch {
+    return NOOP_STORE;
+  }
+  return wrapStorageInstance(instance as AsyncLocalStorageLike<AsyncContextFields>);
+}
+
+/** Shared ALS-instance wrapper: nested `run`s inherit the parent's fields, new fields win. */
+function wrapStorageInstance(als: AsyncLocalStorageLike<AsyncContextFields>): AsyncContextStore {
   return {
     enabled: true,
     run<T>(ctx: AsyncContextFields, fn: () => T): T {
       // Nested contexts inherit the parent's fields, with the new context's fields taking precedence.
+      // ALWAYS copy — storing the caller's object by reference would let later mutations of it (or of
+      // the bag returned by getContext()) silently rewrite the context of every log in the scope.
       const parent = als.getStore();
-      const merged: AsyncContextFields = parent != null ? { ...parent, ...ctx } : ctx;
+      const merged: AsyncContextFields = parent != null ? { ...parent, ...ctx } : { ...ctx };
       return als.run(merged, fn);
     },
     getStore(): AsyncContextFields | undefined {

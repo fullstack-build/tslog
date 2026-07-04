@@ -547,6 +547,34 @@ export interface ISettingsParam<LogObj> {
    * @example { strictConfig: true }
    */
   strictConfig?: boolean;
+  /**
+   * Bring-your-own `AsyncLocalStorage` for `runInContext`/`getContext`. tslog resolves the runtime's
+   * `AsyncLocalStorage` automatically on Node, Deno, and Bun; pass one here only where automatic
+   * resolution cannot work — most notably Cloudflare Workers with the `nodejs_als` compatibility flag,
+   * which enables the `node:async_hooks` import but no `process.getBuiltinModule`:
+   *
+   * ```ts
+   * import { AsyncLocalStorage } from "node:async_hooks"; // needs nodejs_als or nodejs_compat
+   * const log = new Logger({ contextStorage: new AsyncLocalStorage() });
+   * ```
+   *
+   * Accepts any object with `AsyncLocalStorage`'s `run`/`getStore` shape, so a custom scheduler-based
+   * implementation works too. Sub-loggers inherit it. When set, it takes precedence over the automatic
+   * resolution.
+   */
+  // biome-ignore lint/suspicious/noExplicitAny: existential — AsyncLocalStorage<T> for ANY user T must be assignable
+  contextStorage?: IContextStorage<any>;
+}
+
+/**
+ * The structural `AsyncLocalStorage` subset accepted by {@link ISettingsParam.contextStorage} — an
+ * instance of `node:async_hooks`' `AsyncLocalStorage<T>` satisfies it as-is, for ANY `T` (interface
+ * store types have no implicit index signature, so the store slot is intentionally loose; the runtime
+ * duck-check in the store wrapper is the actual guard).
+ */
+export interface IContextStorage<TStore = Record<string, unknown>> {
+  run<T>(store: TStore, fn: () => T): T;
+  getStore(): TStore | undefined;
 }
 
 /** Fully-resolved `pretty` group: every field of {@link IPrettySettings} defaulted (`enabled` resolved into `type`). */
@@ -603,6 +631,9 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   bindings?: Record<string, unknown>;
   /** Resolved strict-config flag (always present). See {@link ISettingsParam.strictConfig}. */
   strictConfig: boolean;
+  /** The injected async-context storage (kept by reference), or `undefined` for automatic resolution. See {@link ISettingsParam.contextStorage}. */
+  // biome-ignore lint/suspicious/noExplicitAny: existential — mirrors ISettingsParam.contextStorage
+  contextStorage?: IContextStorage<any>;
 }
 
 export interface ILogObj {

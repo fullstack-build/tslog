@@ -34,7 +34,7 @@ function handleRequest(req) {
 
 ## 3. Automatic request correlation with `runInContext` (AsyncLocalStorage)
 
-`runInContext(ctx, fn)` attaches its fields onto every log emitted inside `fn` — across `await`, timers, and nested sub-loggers — without threading ids through your code. Backed by `AsyncLocalStorage` on Node/Deno/Bun; a graceful no-op in browsers/edge. `getContext()` reads the active fields.
+`runInContext(ctx, fn)` attaches its fields onto every log emitted inside `fn` — across `await`, timers, and nested sub-loggers — without threading ids through your code. Backed by `AsyncLocalStorage`, auto-resolved on Node/Deno/Bun; a graceful no-op in browsers. `getContext()` reads the active fields.
 
 ```ts
 const log = new Logger({ type: "json" });
@@ -45,6 +45,20 @@ function withRequest(req, next) {
 
 // Anywhere inside the request — including deep sub-loggers — every log carries the ids under _meta:
 log.info("processing");
+```
+
+On **Cloudflare Workers**, auto-resolution can't work — inject the storage instead (enable the `nodejs_als` or `nodejs_compat` compatibility flag in `wrangler.toml`):
+
+```ts
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const log = new Logger({ type: "json", contextStorage: new AsyncLocalStorage() });
+
+export default {
+  async fetch(request, env, ctx) {
+    return log.runInContext({ requestId: crypto.randomUUID() }, () => handle(request));
+  },
+};
 ```
 
 ## 4. Redact secrets, PII, and prompts

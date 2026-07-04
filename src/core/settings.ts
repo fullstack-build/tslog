@@ -59,6 +59,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   "customLevels",
   "bindings",
   "strictConfig",
+  "contextStorage",
 ]);
 
 /** The keys accepted inside each settings group. Drives the unknown-key check for nested typos. */
@@ -165,6 +166,10 @@ export function devWarningsEnabled(): boolean {
   return safeEnvGet("NODE_ENV") !== "production";
 }
 
+// Malformed contextStorage instances already reported once — getSubLogger re-validates the parent's
+// resolved settings on every child construction, and one root typo must not warn per descendant.
+const reportedContextStorages = new WeakSet<object>();
+
 // Callers gate on devWarningsEnabled() before building a message, so this only emits.
 export function emitConfigWarning(message: string): void {
   try {
@@ -217,6 +222,40 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
         message: `minLevel ${resolved} is outside the default range 0-6; no default log method will be filtered as you might expect.`,
         suggestion: "Set minLevel to a number between 0 (SILLY) and 6 (FATAL), or register a customLevel for the out-of-range id.",
       });
+    }
+  }
+
+  // A malformed contextStorage would otherwise degrade to the no-op store and only surface as the
+  // (easily missed) runInContext warning — flag the shape mismatch at construction, where the typo is.
+  // Guarded reads (a throwing accessor counts as malformed), and each bad instance is reported once per
+  // process: sub-loggers re-validate the parent's resolved settings, which would re-warn per child.
+  try {
+    const storage = settings.contextStorage as { run?: unknown; getStore?: unknown } | null | undefined;
+    if (storage != null) {
+      let malformed = false;
+      try {
+        malformed = typeof storage.run !== "function" || typeof storage.getStore !== "function";
+      } catch {
+        malformed = true;
+      }
+      if (malformed && (strict || !reportedContextStorages.has(storage as object))) {
+        try {
+          reportedContextStorages.add(storage as object);
+        } catch {
+          // primitives can't be WeakSet'd — still report, just without dedup
+        }
+        report({
+          code: "INVALID_CONTEXT_STORAGE",
+          setting: "contextStorage",
+          message: "contextStorage does not look like an AsyncLocalStorage instance (needs run() and getStore()); runInContext will not propagate context.",
+          suggestion: 'Pass an INSTANCE, e.g. `contextStorage: new AsyncLocalStorage()` from "node:async_hooks" — not the class itself.',
+        });
+      }
+    }
+  } catch (error) {
+    // reading settings.contextStorage itself threw — hostile settings object; strict mode still throws
+    if (error instanceof TslogConfigError) {
+      throw error;
     }
   }
 
@@ -454,5 +493,8 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
     customLevels,
     bindings: settings?.bindings != null ? { ...settings.bindings } : undefined,
     strictConfig: settings?.strictConfig ?? false,
+    // Kept by REFERENCE (never cloned): this is a live AsyncLocalStorage instance whose identity is
+    // the whole point — sub-loggers must share the exact same store the caller injected.
+    contextStorage: settings?.contextStorage,
   };
 }
