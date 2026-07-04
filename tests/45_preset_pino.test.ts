@@ -82,9 +82,10 @@ describe("presets/pino", () => {
     expect(obj.msg).toBe("hello");
   });
 
-  test("errors are serialized under the err key (cause chain preserved)", () => {
+  test("errors are serialized under err in pino's shape: type + raw stack STRING, cause chain recursed", () => {
     const { logger, lines } = capture();
-    const err = new Error("boom", { cause: new Error("root cause") });
+    const err = new TypeError("boom", { cause: new Error("root cause") });
+    (err as unknown as Record<string, unknown>).code = "E_BOOM";
     logger.error("request failed", err);
     const obj = JSON.parse(lines[0]) as Record<string, unknown>;
 
@@ -92,11 +93,31 @@ describe("presets/pino", () => {
     expect(obj.msg).toBe("request failed");
     const serialized = obj.err as Record<string, unknown>;
     expect(serialized).toBeTruthy();
-    expect(serialized.name).toBe("Error");
+    // pino's err-serializer wire shape: `type` (class name), `message`, `stack` as the raw multi-line
+    // STRING pino-pretty and error trackers parse — NOT tslog's parsed frame array.
+    expect(serialized.type).toBe("TypeError");
     expect(serialized.message).toBe("boom");
-    expect((serialized.cause as Record<string, unknown>).message).toBe("root cause");
+    expect(typeof serialized.stack).toBe("string");
+    expect(serialized.stack as string).toContain("TypeError: boom");
+    expect(serialized.stack as string).toContain("    at ");
+    // extra enumerable own props ride along, like pino's serializer
+    expect(serialized.code).toBe("E_BOOM");
+    const cause = serialized.cause as Record<string, unknown>;
+    expect(cause.type).toBe("Error");
+    expect(cause.message).toBe("root cause");
+    expect(typeof cause.stack).toBe("string");
     // native Error handle is stripped, not serialized as {}.
     expect(serialized.nativeError).toBeUndefined();
+  });
+
+  test("errorShape: 'tslog' keeps the structured frame-array shape", () => {
+    const { logger, lines } = capture({ errorShape: "tslog" });
+    logger.error("request failed", new Error("boom"));
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    const serialized = obj.err as Record<string, unknown>;
+    expect(serialized.name).toBe("Error");
+    expect(Array.isArray(serialized.stack)).toBe(true);
+    expect(serialized.type).toBeUndefined();
   });
 
   test("custom messageKey/errorKey are honored", () => {
@@ -133,5 +154,40 @@ describe("presets/pino", () => {
     // The circular back-reference is replaced with the "[Circular]" marker somewhere in the chain,
     // so the line is valid JSON and round-trips without throwing.
     expect(JSON.stringify(obj)).toContain("[Circular]");
+  });
+});
+
+describe("presets/pino hand-built error-likes (review fixes)", () => {
+  function capture(opts?: Parameters<typeof pinoTransport>[1]) {
+    const lines: string[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport(pinoTransport((line) => lines.push(line), opts));
+    return { logger, lines };
+  }
+
+  test("a non-error cause on a hand-built error-like passes through verbatim instead of crashing", () => {
+    const { logger, lines } = capture();
+    expect(() => logger.error("hand-built", { nativeError: new Error("real"), name: "E", message: "m", stack: [], cause: "just a string" })).not.toThrow();
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    const serialized = obj.err as Record<string, unknown>;
+    expect(serialized.message).toBe("m");
+    expect(serialized.cause).toBe("just a string");
+  });
+
+  test("a non-array stack on a nested error-like is treated as absent", () => {
+    const { logger, lines } = capture();
+    const errorLike = {
+      nativeError: new Error("real"),
+      name: "E",
+      message: "m",
+      stack: [],
+      cause: { nativeError: new Error("inner"), name: "Inner", message: "im", stack: "bogus" },
+    };
+    expect(() => logger.error("nested", errorLike)).not.toThrow();
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    const cause = (obj.err as Record<string, unknown>).cause as Record<string, unknown>;
+    expect(cause.message).toBe("im");
+    // the native handle's real stack string is still preferred, so a stack IS present here
+    expect(typeof cause.stack).toBe("string");
   });
 });

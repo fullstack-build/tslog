@@ -18,7 +18,12 @@ import { toFlatJsonObject } from "../../render/json.js";
  *   "hostname": "host",                // optional, from _meta.hostname when enabled
  *   "msg": "user logged in",           // the message, from `messageKey`
  *   "userId": 42,                      // the user's own logged fields, spread at the top level
- *   "err": { ... }                     // any logged Error(s), under `errorKey`
+ *   "err": {                           // logged Error(s) in pino's serializer shape (errorShape: "pino")
+ *     "type": "Error",                 // the error's class name
+ *     "message": "boom",
+ *     "stack": "Error: boom\n    at ...", // the raw multi-line stack STRING pino-pretty/backends parse
+ *     "cause": { "type": ..., "message": ..., "stack": ... } // cause chain, recursively
+ *   }
  * }
  * ```
  *
@@ -79,6 +84,15 @@ export interface PinoFormatOptions {
   messageKey?: string;
   /** Top-level key under which logged errors are serialized. Default `"err"` (pino's convention). */
   errorKey?: string;
+  /**
+   * How a logged Error is serialized under {@link errorKey}.
+   * - `"pino"` (default): pino's err-serializer shape `{ type, message, stack, ...ownProps, cause? }`
+   *   with `stack` as the raw multi-line STRING — what pino-pretty, Datadog, GCP Error Reporting, and
+   *   Sentry's pino integration key on.
+   * - `"tslog"`: tslog's structured {@link IErrorObject} (`stack` as parsed frame objects) passed
+   *   through verbatim, for consumers that prefer structured frames.
+   */
+  errorShape?: "pino" | "tslog";
 }
 
 /** Resolved {@link PinoFormatOptions} with every field defaulted. */
@@ -153,6 +167,7 @@ function resolveOptions(opts?: PinoFormatOptions): ResolvedPinoOptions {
     hostname: opts?.hostname ?? true,
     messageKey: opts?.messageKey ?? "msg",
     errorKey: opts?.errorKey ?? "err",
+    errorShape: opts?.errorShape ?? "pino",
   };
 }
 
@@ -161,6 +176,111 @@ function readPid(): number | undefined {
   const proc = (globalThis as { process?: { pid?: unknown } }).process;
   const pid = proc?.pid;
   return typeof pid === "number" ? pid : undefined;
+}
+
+/** pino's err-serializer output: class name under `type`, the raw multi-line stack STRING under `stack`. */
+export interface PinoErrorObject {
+  type: string;
+  message: string;
+  stack?: string;
+  /**
+   * Nested cause chain in the same shape (pino-std-serializers' `errWithCause`) when the cause was a
+   * serialized error; a hand-built non-error cause value passes through verbatim.
+   */
+  cause?: unknown;
+  /** Extra enumerable own properties of the error (e.g. `code`), copied like pino's serializer does. */
+  [key: string]: unknown;
+}
+
+/** Recognize tslog's serialized {@link IErrorObject} (carries the native handle + parsed frames). */
+function isTslogErrorObject(value: unknown): value is IErrorObject {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+  const candidate = value as Record<string, unknown>;
+  return candidate.nativeError instanceof Error && typeof candidate.name === "string" && Array.isArray(candidate.stack);
+}
+
+/** The raw stack STRING for pino consumers: the native `Error#stack` when readable, else rebuilt from frames. */
+function pinoStackString(error: IErrorObject): string | undefined {
+  const native = error.nativeError;
+  if (native != null) {
+    try {
+      const stack = (native as { stack?: unknown }).stack;
+      if (typeof stack === "string") {
+        return stack;
+      }
+    } catch {
+      // hostile stack getter — fall through to the frame rebuild
+    }
+  }
+  // Hand-built error-likes may carry a non-array `stack`; treat it as absent rather than crashing.
+  if (!Array.isArray(error.stack) || error.stack.length === 0) {
+    return undefined;
+  }
+  const header = `${error.name}${error.message ? `: ${error.message}` : ""}`;
+  return [
+    header,
+    ...error.stack.map(
+      (frame) =>
+        `    at ${frame.method ?? "<anonymous>"} (${frame.fullFilePath ?? frame.filePath ?? "unknown"}:${frame.fileLine ?? "0"}:${frame.fileColumn ?? "0"})`,
+    ),
+  ].join("\n");
+}
+
+/**
+ * Re-shape a tslog {@link IErrorObject} into pino's serializer output (see {@link PinoErrorObject}):
+ * `type` from the error's class, `stack` as the raw string, extra enumerable own properties copied,
+ * and the `cause` chain recursed. Total: hostile getters skip that property, never throw.
+ */
+export function toPinoError(error: IErrorObject, depth = 0): PinoErrorObject {
+  const native = error.nativeError;
+  // pino's `type` is the constructor name; the serialized `name` is the fallback for error-likes.
+  let type = error.name !== "" ? error.name : "Error";
+  try {
+    const ctorName = native?.constructor?.name;
+    if (typeof ctorName === "string" && ctorName.length > 0) {
+      type = ctorName;
+    }
+  } catch {
+    // keep the serialized name
+  }
+  const out: PinoErrorObject = { type, message: error.message };
+  const stack = pinoStackString(error);
+  if (stack !== undefined) {
+    out.stack = stack;
+  }
+  if (native != null) {
+    let keys: string[] = [];
+    try {
+      keys = Object.keys(native);
+    } catch {
+      // hostile ownKeys trap — skip the extras, keep type/message/stack
+    }
+    for (const key of keys) {
+      if (key === "__proto__" || key === "cause" || Object.hasOwn(out, key)) {
+        continue;
+      }
+      try {
+        out[key] = (native as unknown as Record<string, unknown>)[key];
+      } catch {
+        // a throwing getter skips that property, keeps the rest
+      }
+    }
+  }
+  // The IErrorObject cause chain is already depth-capped by the core (maxErrorCauseDepth); the local
+  // cap is defense-in-depth against hand-built structures. A user-logged error-like can carry a cause
+  // of ANY shape (the pipeline normalizes real causes, hand-built ones arrive verbatim) — only
+  // recurse into genuine serialized errors and pass anything else through untouched.
+  if (error.cause != null && depth < 8) {
+    out.cause = isTslogErrorObject(error.cause) ? toPinoError(error.cause, depth + 1) : error.cause;
+  }
+  return out;
+}
+
+/** Apply {@link toPinoError} when the value really is a serialized tslog error; pass anything else through. */
+function reshapeError(value: unknown): unknown {
+  return isTslogErrorObject(value) ? toPinoError(value) : value;
 }
 
 /**
@@ -239,7 +359,8 @@ export function pinoFormat<LogObj>(opts?: PinoFormatOptions): LogFormatter<LogOb
     }
 
     if (hasError) {
-      out[resolved.errorKey] = errorValue;
+      out[resolved.errorKey] =
+        resolved.errorShape === "tslog" ? errorValue : Array.isArray(errorValue) ? errorValue.map(reshapeError) : reshapeError(errorValue);
     }
 
     return safeStringify(out);
