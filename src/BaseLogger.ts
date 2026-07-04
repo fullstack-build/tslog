@@ -382,7 +382,9 @@ export class BaseLogger<LogObj> {
     // Attached transports: each gated by its own minLevel and formatted per its own `format` (lazily,
     // shared across transports that request the same format), every transport isolated in try/catch.
     if (this.settings.attachedTransports.length > 0) {
-      const defaultFormat: TLogFormat<LogObj> = this.settings.type === "json" ? "json" : "pretty";
+      // Format-less transports follow the logger's type; `hidden` (the "transports own the output"
+      // production pattern) defaults to the structured json line, as documented in core/transports.
+      const defaultFormat: TLogFormat<LogObj> = this.settings.type === "pretty" ? "pretty" : "json";
       dispatchToTransports(
         this.settings.attachedTransports,
         record,

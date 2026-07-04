@@ -183,7 +183,18 @@ export function dispatchToTransports<LogObj>(
       continue;
     }
     const format = transport.format ?? defaultFormat;
-    runTransportIsolated(transport, record, lineFor(format));
+    // The FORMAT step is isolated exactly like the write step: a throwing formatter (a custom
+    // LogFormatter, or a hostile record blowing up a built-in renderer) must never escape into the
+    // caller's log() call or starve the other transports. The RECORD is still delivered — it is the
+    // primary payload (bare-fn transports never read the line at all); the line degrades to "".
+    let line: string;
+    try {
+      line = lineFor(format);
+    } catch (error) {
+      reportTransportError(transport, error);
+      line = "";
+    }
+    runTransportIsolated(transport, record, line);
   }
 }
 

@@ -416,3 +416,39 @@ describe("httpTransport exit flushing", () => {
     await logger[Symbol.asyncDispose]();
   });
 });
+
+describe("transport format-step isolation (review fix)", () => {
+  test("a throwing custom formatter never escapes the log call, and other transports still deliver", () => {
+    const delivered: string[] = [];
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({ type: "hidden" });
+      logger.attachTransport({
+        name: "hostile-format",
+        format: () => {
+          throw new Error("hostile formatter");
+        },
+        write: () => undefined,
+      });
+      logger.attachTransport({ name: "healthy", format: "json", write: (_record, line) => void delivered.push(line) });
+      expect(() => logger.info("isolated")).not.toThrow();
+      expect(delivered).toHaveLength(1);
+      expect(JSON.parse(delivered[0])).toMatchObject({ message: "isolated" });
+      // the failure was reported, not swallowed silently
+      expect(consoleSpy).toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  test("format-less transports on a hidden logger receive the JSON line (documented default)", () => {
+    const lines: string[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport({ name: "default-format", write: (_record, line) => void lines.push(line) });
+    logger.info("hidden default", { n: 1 });
+    expect(lines).toHaveLength(1);
+    const parsed = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(parsed.message).toBe("hidden default");
+    expect(parsed.n).toBe(1);
+  });
+});
