@@ -1,4 +1,8 @@
 import { BaseLogger } from "./BaseLogger.js";
+import { fullCoreFeatures } from "./core/features.full.js";
+export { fullCoreFeatures };
+export type { CoreFeatures, MaskingFeatureDeps, MaskingLike } from "./core/features.js";
+
 import { settingsFromEnv } from "./core/fromEnv.js";
 import type { EnvironmentProvider } from "./env/environment.js";
 import { createNodeEnvironment } from "./env/environment.node.js";
@@ -50,7 +54,7 @@ function getNodeEnvironment(): EnvironmentProvider {
  */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    super(settings, logObj, getNodeEnvironment(), Number.NaN);
+    super(settings, logObj, getNodeEnvironment(), Number.NaN, fullCoreFeatures);
   }
 
   /**

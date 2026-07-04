@@ -1,11 +1,12 @@
 import type { AsyncContextFields, AsyncContextStore } from "./core/asyncContext.js";
 import { createAsyncContextStore, createAsyncContextStoreFromInstance } from "./core/asyncContext.js";
+import { TslogConfigError } from "./core/config.js";
+import type { CoreFeatures, MaskingLike } from "./core/features.js";
 import { DEFAULT_PERSIST_LEVEL_KEY, readPersistedLevel, writePersistedLevel } from "./core/levelPersistence.js";
 import { resolveLogLevelId as resolveLevelId, validateCustomLevel } from "./core/levels.js";
 import { type LogObjDeps, recursiveCloneAndExecuteFunctions, toLogObj } from "./core/logObj.js";
-import { MaskingEngine } from "./core/masking.js";
 import { attachMaskedArgs, resolveFormatter, runMiddleware } from "./core/pipeline.js";
-import { devWarningsEnabled, emitConfigWarning, normalizeSettings, resolveLogLevelId, validateSettingsParam } from "./core/settings.js";
+import { devWarningsEnabled, emitConfigWarning, normalizeSettings, resolveLogLevelId } from "./core/settings.js";
 import { attachTransport, dispatchToTransports, disposeAll, flushAll } from "./core/transports.js";
 import type { EnvironmentProvider } from "./env/environment.js";
 import type {
@@ -22,11 +23,65 @@ import type {
   Transport,
   TransportFn,
 } from "./interfaces.js";
-import { buildPrettyMeta } from "./internal/metaFormatting.js";
 import { nativeConsoleMethod } from "./internal/nativeConsole.js";
-import { renderJson } from "./render/json.js";
+import { renderJsonUnplanned } from "./render/json.js";
+import { urlToObject } from "./urlToObj.js";
 
 export * from "./interfaces.js";
+
+// Fallbacks for a BaseLogger constructed WITHOUT an injected feature set (direct/advanced use — every
+// published entry injects one). JSON output uses the plan-free renderer (byte-identical lines) and
+// masking degrades to the engine's mask-off fast path (top-level URLs still expand). Settings that NAME
+// an absent subsystem are rejected loudly, per the CoreFeatures contract: silently dropping a user's
+// redaction config (or their strictConfig opt-in) is an incident, not a fallback. Pass the entries'
+// exported `fullCoreFeatures` as the fifth constructor argument to get the complete behavior.
+const FALLBACK_FEATURES: CoreFeatures = {
+  renderJson: renderJsonUnplanned,
+  validateSettings<LogObj>(settings: ISettingsParam<LogObj> | undefined): void {
+    if (settings == null) {
+      return;
+    }
+    const mask = settings.mask;
+    const masksSomething =
+      mask != null && ((mask.keys?.length ?? 0) > 0 || (mask.regex?.length ?? 0) > 0 || (mask.paths?.length ?? 0) > 0 || mask.censor != null);
+    if (masksSomething) {
+      throw new TslogConfigError({
+        code: "FEATURES_NO_MASKING",
+        setting: "mask",
+        message: "this BaseLogger was constructed without a feature set, so these mask settings would be silently ignored and secrets logged in plaintext.",
+        suggestion:
+          'Pass the full feature set as the fifth constructor argument: `new BaseLogger(settings, logObj, env, NaN, fullCoreFeatures)` (exported from "tslog").',
+      });
+    }
+    if (settings.type === "pretty" || settings.pretty?.enabled === true) {
+      throw new TslogConfigError({
+        code: "FEATURES_NO_PRETTY",
+        setting: "type",
+        message: "this BaseLogger was constructed without a feature set, so pretty output would lose its meta line.",
+        suggestion: "Pass the full feature set as the fifth constructor argument (`fullCoreFeatures`), or use the entry Logger classes.",
+      });
+    }
+    if (settings.strictConfig === true) {
+      throw new TslogConfigError({
+        code: "FEATURES_NO_VALIDATION",
+        setting: "strictConfig",
+        message: "this BaseLogger was constructed without a feature set, so the strict settings validation you opted into cannot run.",
+        suggestion: "Pass the full feature set as the fifth constructor argument (`fullCoreFeatures`), which includes the validator.",
+      });
+    }
+  },
+};
+
+const IDENTITY_MASKING: MaskingLike = {
+  mask(args: unknown[]): unknown[] {
+    for (let i = 0; i < args.length; i++) {
+      if (args[i] instanceof URL) {
+        return args.map((arg) => (arg instanceof URL ? urlToObject(arg) : arg));
+      }
+    }
+    return args;
+  },
+};
 
 /**
  * The core logging pipeline (BC11 — no module-level environment singleton).
@@ -41,7 +96,9 @@ export * from "./interfaces.js";
  *  - `index.browser.ts`   -> `createBrowserEnvironment()`
  *  - `index.universal.ts` -> `selectEnvironment()` (universal provider)
  *
- * The constructor takes `(settings?, logObj?, environment, callerFrame=NaN)`. `callerFrame` (M1.14,
+ * The constructor takes `(settings?, logObj?, environment, callerFrame=NaN, features?)`; `features` is
+ * the runtime-agnostic subsystem composition (masking/JSON renderer/validation — see `core/features.ts`),
+ * injected by every entry (`fullCoreFeatures` from the standard ones). `callerFrame` (M1.14,
  * renamed from `stackDepthLevel`) is the manual stack-frame index; `NaN` means auto-detect.
  */
 export class BaseLogger<LogObj> {
@@ -49,7 +106,8 @@ export class BaseLogger<LogObj> {
   public settings: ISettings<LogObj>;
   private readonly maxErrorCauseDepth = 5;
   private readonly captureStackForMeta: boolean;
-  private readonly maskingEngine: MaskingEngine<LogObj>;
+  private readonly maskingEngine: MaskingLike;
+  private readonly features: CoreFeatures;
   private readonly logObjDeps: LogObjDeps;
   // Async context store (M2.13), held in a BOX shared across the whole sub-logger family (see
   // getSubLogger). The store itself is created lazily on the first `runInContext`/`getContext` so merely
@@ -75,17 +133,20 @@ export class BaseLogger<LogObj> {
     private logObj: LogObj | undefined,
     environment: EnvironmentProvider,
     private callerFrame: number = Number.NaN,
+    features?: CoreFeatures,
   ) {
-    validateSettingsParam(settings);
+    this.features = features ?? FALLBACK_FEATURES;
+    this.features.validateSettings?.(settings);
     this.runtime = environment;
     // Normalize into the fully-populated settings object. The engine reads this live (never a copy),
     // so post-construction mutations (e.g. tests setting mask.keys/mask.placeholder) take effect.
     this.settings = normalizeSettings(settings);
 
-    this.maskingEngine = new MaskingEngine<LogObj>(this.settings, {
-      isError: (value): value is Error => this.runtime.isError(value),
-      isBuffer: (value) => this.runtime.isBuffer(value),
-    });
+    this.maskingEngine =
+      this.features.createMaskingEngine?.(this.settings, {
+        isError: (value): value is Error => this.runtime.isError(value),
+        isBuffer: (value) => this.runtime.isBuffer(value),
+      }) ?? IDENTITY_MASKING;
     this.logObjDeps = {
       isError: (value): value is Error => this.runtime.isError(value),
       isBuffer: (value) => this.runtime.isBuffer(value),
@@ -301,11 +362,11 @@ export class BaseLogger<LogObj> {
     // json -> the flat fields-first line; hidden -> no console output (transports still run).
     if (this.settings.type === "pretty") {
       const { args: prettyArgs, errors: prettyErrors } = this.runtime.prettyFormatLogObj(maskedArgs, this.settings);
-      const metaMarkup = buildPrettyMeta(this.settings, recordMeta).text;
+      const metaMarkup = this.features.buildPrettyMetaText?.(this.settings, recordMeta) ?? "";
       this.runtime.transportFormatted(metaMarkup, prettyArgs, prettyErrors, recordMeta, this.settings);
     } else if (this.settings.type === "json") {
       try {
-        nativeConsoleMethod("log")(renderJson(record, this.settings));
+        nativeConsoleMethod("log")(this.features.renderJson(record, this.settings));
         /* v8 ignore next 3 -- defensive: guards against a console.log implementation that itself throws */
       } catch {
         // never let the console sink crash logging
@@ -321,7 +382,7 @@ export class BaseLogger<LogObj> {
         record,
         effectiveLevelId,
         defaultFormat,
-        (rec, format) => resolveFormatter<LogObj>(format, this.runtime)(rec, this.settings),
+        (rec, format) => resolveFormatter<LogObj>(format, this.runtime, this.features.renderJson)(rec, this.settings),
         this.settings.customLevels,
       );
     }
@@ -552,8 +613,9 @@ export class BaseLogger<LogObj> {
         logObj: LogObj | undefined,
         environment: EnvironmentProvider,
         callerFrame?: number,
+        features?: CoreFeatures,
       ) => this
-    )(subLoggerSettings, logObj ?? this.logObj, this.runtime, this.callerFrame);
+    )(subLoggerSettings, logObj ?? this.logObj, this.runtime, this.callerFrame, this.features);
     // Share the async context BOX (M2.13) with the child so a context entered anywhere in the family —
     // even via a member created later — propagates to every member's calls. A child that injects its OWN
     // `contextStorage` opts out of the family store and keeps its fresh box instead.

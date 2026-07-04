@@ -193,12 +193,15 @@ export function errors<LogObj>(inner: FormatStage<LogObj>, provider: Environment
  * @returns a {@link LogFormatter} that turns a record + settings into the output line.
  *
  * @example
- * const fmt = resolveFormatter(transport.format ?? settings.type, this.runtime);
+ * const fmt = resolveFormatter(transport.format ?? settings.type, this.runtime, this.features.renderJson);
  * transport.write(record, fmt(record, settings));
  */
-export function resolveFormatter<LogObj>(format: TLogFormat<LogObj>, provider: EnvironmentProvider): LogFormatter<LogObj> {
+export function resolveFormatter<LogObj>(format: TLogFormat<LogObj>, provider: EnvironmentProvider, jsonLine: LogFormatter<LogObj>): LogFormatter<LogObj> {
   if (format === "json") {
-    return json<LogObj>();
+    // The JSON renderer is INJECTED (the entry's feature set supplies it) rather than resolved here:
+    // referencing the json() stage from this body would keep the precompiled line-plan renderer alive
+    // in every bundle, defeating the size-sensitive entries that inject the plan-free path.
+    return jsonLine;
   }
   if (format === "pretty") {
     return pretty<LogObj>(provider);
@@ -215,8 +218,8 @@ export function resolveFormatter<LogObj>(format: TLogFormat<LogObj>, provider: E
  * @param settings - the resolved settings (its `type` selects the stage).
  * @param provider - the runtime provider (needed for the pretty stage).
  * @example
- * const line = defaultFormatter(this.settings, this.runtime)(record, this.settings);
+ * const line = defaultFormatter(this.settings, this.runtime, this.features.renderJson)(record, this.settings);
  */
-export function defaultFormatter<LogObj>(settings: ISettings<LogObj>, provider: EnvironmentProvider): LogFormatter<LogObj> {
-  return resolveFormatter(settings.type === "json" ? "json" : "pretty", provider);
+export function defaultFormatter<LogObj>(settings: ISettings<LogObj>, provider: EnvironmentProvider, jsonLine: LogFormatter<LogObj>): LogFormatter<LogObj> {
+  return resolveFormatter(settings.type === "json" ? "json" : "pretty", provider, jsonLine);
 }

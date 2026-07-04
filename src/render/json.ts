@@ -423,6 +423,17 @@ export function renderJson<LogObj>(record: LogObj & ILogObjMeta, settings: ISett
       return fastLine;
     }
   }
+  return renderJsonUnplanned(record, settings);
+}
+
+/**
+ * The plan-free JSON rendering path: identical output to {@link renderJson}, without the precompiled
+ * line-plan machinery. This is the renderer size-sensitive entries (`tslog/slim`) inject — importing it
+ * lets a bundler tree-shake the whole plan compiler — and the fallback {@link renderJson} itself uses
+ * for shapes the plan does not cover. Byte-identity between the two paths is pinned by the differential
+ * suite (tests/56).
+ */
+export function renderJsonUnplanned<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): string {
   const { flat, awkward, scanned } = buildFlat(record, settings);
   // In stable mode the build already deep-walked every value and reported `awkward`, so we can pick the
   // serializer with zero extra work: clean → native `JSON.stringify` (fast), awkward → safe replacer.

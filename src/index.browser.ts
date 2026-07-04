@@ -1,4 +1,8 @@
 import { BaseLogger } from "./BaseLogger.js";
+import { fullCoreFeatures } from "./core/features.full.js";
+export { fullCoreFeatures };
+export type { CoreFeatures, MaskingFeatureDeps, MaskingLike } from "./core/features.js";
+
 import { settingsFromEnv } from "./core/fromEnv.js";
 import { createBrowserEnvironment } from "./env/environment.browser.js";
 import type { EnvironmentProvider } from "./env/environment.js";
@@ -58,7 +62,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
     // Auto-detect the caller frame (NaN) rather than hardcoding Safari/other frame counts (4/5), which
     // are brittle across engines (Safari, Bun, Deno collapse or omit frames differently). The provider's
     // pattern-based detection finds the first non-tslog frame regardless of runtime.
-    super(settings, logObj, getBrowserEnvironment(), Number.NaN);
+    super(settings, logObj, getBrowserEnvironment(), Number.NaN, fullCoreFeatures);
   }
 
   /**
