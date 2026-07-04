@@ -183,7 +183,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
 }
 
 /**
- * A ready-to-use default logger instance — pretty in an interactive TTY, JSON in CI/non-TTY/NO_COLOR (M3.2).
+ * A ready-to-use default logger instance — pretty in an interactive TTY, JSON in CI/non-TTY; NO_COLOR only strips colors (M3.2).
  * Import and log without any setup.
  * For structured logs, masking, or custom settings, create your own `new Logger({ ... })` instead.
  *

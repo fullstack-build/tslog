@@ -363,8 +363,8 @@ function resolveStackCapture<LogObj>(settings: ISettingsParam<LogObj> | undefine
 /**
  * Resolve the effective output `type` (M3.2). An explicit `type` always wins. Otherwise, when
  * `pretty.enabled` is set it decides (`true` -> "pretty", `false` -> "json"); when it is unset the
- * type is resolved from the environment (interactive TTY/not-CI/not-NO_COLOR -> "pretty", else "json";
- * browser -> "pretty").
+ * type is resolved from the environment (interactive non-CI TTY -> "pretty", else "json"; browser,
+ * worker, and React Native -> "pretty"; NO_COLOR only strips styling, never switches the format).
  */
 function resolveType<LogObj>(settings: ISettingsParam<LogObj> | undefined): "json" | "pretty" | "hidden" {
   if (settings?.type != null) {
@@ -377,17 +377,22 @@ function resolveType<LogObj>(settings: ISettingsParam<LogObj> | undefined): "jso
 }
 
 /**
- * Resolve pretty styling. Defaults to `pretty.style` (or `true`), but `NO_COLOR` forces styling off and
- * `FORCE_COLOR` forces it on — honored even within an explicit pretty type so piped/CI output stays plain.
+ * Resolve pretty styling. Precedence: an EXPLICIT `pretty.style` wins (per no-color.org, a user's
+ * deliberate configuration outranks the env hints — this is also what lets the CLI's --color/--no-color
+ * flags work under a conflicting NO_COLOR/FORCE_COLOR), then `FORCE_COLOR` forces styling on, then
+ * `NO_COLOR` forces it off, then the default `true`.
  */
 function resolveStyle<LogObj>(settings: ISettingsParam<LogObj> | undefined): boolean {
+  if (settings?.pretty?.style != null) {
+    return settings.pretty.style;
+  }
   if (forceColorRequested()) {
     return true;
   }
   if (noColorRequested()) {
     return false;
   }
-  return settings?.pretty?.style ?? true;
+  return true;
 }
 
 /**

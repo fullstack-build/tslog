@@ -17,7 +17,7 @@ log.info("request complete", { status: 200 });
 ```
 
 The default `type` is environment-aware: `new Logger()` is pretty + colorized in an interactive
-terminal, and JSON in CI / non-TTY / when `NO_COLOR` is set. Pass `type` to pin it.
+terminal, and JSON in CI / non-TTY (`NO_COLOR` just strips colors). Pass `type` to pin it.
 
 ## 2. Per-request (or per-agent) child logger
 

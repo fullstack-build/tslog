@@ -8,7 +8,7 @@ tslog v5 is a ground-up, ESM-only rewrite for modern runtimes: **pretty in dev, 
 ## Highlights
 
 ### Environment-aware output by default
-`new Logger()` and the ready-made `log` now pick their format from the environment: **pretty** in an interactive TTY, **JSON** in CI / non-TTY / `NO_COLOR`, pretty (CSS) in the browser. `NO_COLOR` and `FORCE_COLOR` are honored. The right thing in dev *and* prod with no config — set `type` explicitly only when you want to override it.
+`new Logger()` and the ready-made `log` now pick their format from the environment: **pretty** in an interactive TTY, **JSON** in CI / non-TTY, pretty (CSS) in the browser and on React Native. `NO_COLOR` strips colors without switching the format (uncolored pretty on a TTY); `FORCE_COLOR` forces styled pretty. The right thing in dev *and* prod with no config — set `type` explicitly only when you want to override it.
 
 ```ts
 import { log } from "tslog";

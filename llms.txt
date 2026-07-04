@@ -8,7 +8,7 @@ import { Logger, log } from "tslog"; // class + ready-to-use default instance
 ```
 
 ## Core API
-- `new Logger({ type: "json" })` — structured one-object-per-line output (production / observability / LLM ingestion). Default `type` is env-aware: pretty in an interactive TTY, json in CI / non-TTY / when `NO_COLOR` is set.
+- `new Logger({ type: "json" })` — structured one-object-per-line output (production / observability / LLM ingestion). Default `type` is env-aware: pretty in an interactive TTY, json in CI / non-TTY. `NO_COLOR` only strips colors (uncolored pretty on a TTY), never switches to json.
 - `log.info|warn|error|debug|trace|silly|fatal(...)` — fields-first or string-first: `log.info({ userId: 42 }, "ready")` or `log.info("ready", { userId: 42 })`.
 - `log.getSubLogger({ name })` / `log.child({ name })` — child logger (aliases); inherits settings, names, prefixes, transports. Bind static fields via `bindings: { tenant }` — merged down the chain, per-call fields win, masked once at construction.
 - Custom levels install real methods: `createLogger({ customLevels: { AUDIT: 7 } }).audit(...)` (typed) or `log.addLevel("NOTICE", 3.5).notice(...)`; names resolve case-insensitively.

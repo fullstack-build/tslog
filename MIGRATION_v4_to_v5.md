@@ -20,7 +20,7 @@
 You should upgrade to v5 when you want one or more of these. None of them exist on the 4.x line.
 
 - **Environment-aware default output.** `new Logger()` and the ready-made `log` are now **pretty in an
-  interactive TTY and JSON in CI / non-TTY / `NO_COLOR`** — the right thing in both dev and prod with no
+  interactive TTY and JSON in CI / non-TTY** — the right thing in both dev and prod with no
   config. (v4 was always `pretty`.)
 - **Flat, fields-first JSON.** The default `type: "json"` output is now a flat, observability-friendly
   object — `message` / `level` / `levelId` / `time` at the top level, your fields spread next to them,
@@ -359,7 +359,7 @@ security primitive), or a function `(value, path) => unknown`.
 ready-made `log` instance resolve the default `type` from the environment:
 
 - interactive **TTY** → `"pretty"` (colorized)
-- **CI / non-TTY / `NO_COLOR`** → `"json"` (structured)
+- **CI / non-TTY** → `"json"` (structured; `NO_COLOR` strips colors but never switches the format)
 
 ```ts
 // BEFORE (v4) — always pretty, even when piped to a file or in CI

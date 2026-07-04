@@ -110,9 +110,13 @@ export function stdoutIsTTY(): boolean {
  *
  * Browsers, web workers, and React Native always default to `"pretty"` (a developer-facing console).
  * On server runtimes the choice is environment-aware: an interactive stdout TTY that is NOT a CI run
- * and does NOT request `NO_COLOR` yields `"pretty"` (great for local development); everything else
- * (piped output, CI, non-TTY, `NO_COLOR`) yields `"json"` (great for production / observability / LLM
- * ingestion). `FORCE_COLOR` forces `"pretty"` regardless of the TTY check.
+ * yields `"pretty"` (great for local development); everything else (piped output, CI, non-TTY) yields
+ * `"json"` (great for production / observability / LLM ingestion). `FORCE_COLOR` forces `"pretty"`
+ * regardless of the TTY check.
+ *
+ * `NO_COLOR` deliberately does NOT influence the type: per https://no-color.org it means "no color",
+ * not "machine-readable output" — a TTY with `NO_COLOR` gets UNCOLORED pretty (styling is switched off
+ * separately, in the `pretty.style` resolution), not JSON.
  */
 export function resolveDefaultType(): "pretty" | "json" {
   if (isBrowserEnvironment() || isWorkerEnvironment() || isReactNativeEnvironment()) {
@@ -121,7 +125,7 @@ export function resolveDefaultType(): "pretty" | "json" {
   if (forceColorRequested()) {
     return "pretty";
   }
-  if (noColorRequested() || isContinuousIntegration()) {
+  if (isContinuousIntegration()) {
     return "json";
   }
   return stdoutIsTTY() ? "pretty" : "json";

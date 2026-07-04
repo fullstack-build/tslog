@@ -2,6 +2,7 @@
 import { resolveLogLevelId } from "../core/levels.js";
 import { Logger } from "../index.node.js";
 import type { IMeta, ISettings, TLogLevel } from "../interfaces.js";
+import { forceColorRequested, noColorRequested, stdoutIsTTY } from "../internal/environment.js";
 
 /**
  * `tslog/cli` + the `tslog` bin (M3.11) — a tiny NDJSON pretty-printer.
@@ -45,7 +46,7 @@ export interface CliOptions {
   readonly minLevel?: TLogLevel | string;
   /** Property name runtime metadata lives under in the input. Default: `"_meta"` (tslog's default). */
   readonly metaProperty?: string;
-  /** Force-enable/disable ANSI color in the rendered output. Default: follow the environment (NO_COLOR / TTY). */
+  /** Force-enable/disable ANSI color in the rendered output. Default: FORCE_COLOR/NO_COLOR, else color only on an interactive TTY. */
   readonly color?: boolean;
 }
 
@@ -203,11 +204,13 @@ export function parseAndFormatLine(
  */
 export function createCliFormatter(options: CliOptions = {}): CliFormatter {
   const metaProperty = options.metaProperty ?? "_meta";
+  // Style precedence: an explicit --color/--no-color flag wins outright (resolveStyle honors an explicit
+  // `pretty.style` over the env), then FORCE_COLOR / NO_COLOR, then the destination: ANSI only when
+  // stdout is an interactive TTY, so a bare pipe to a file or another process stays plain.
+  const style = options.color ?? (forceColorRequested() ? true : noColorRequested() ? false : stdoutIsTTY());
   const logger = new Logger<unknown>({
     type: "pretty",
-    // Grouped settings only (no flat keys): `pretty.style` drives ANSI. Omitted -> env-aware default
-    // (NO_COLOR / FORCE_COLOR are honored by normalize), so a bare pipe to a non-TTY stays plain.
-    ...(options.color != null ? { pretty: { style: options.color } } : {}),
+    pretty: { style },
   });
   const settings = logger.settings as unknown as ISettings<unknown>;
   const runtime = logger.runtime;

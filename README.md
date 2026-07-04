@@ -15,7 +15,7 @@
 
 🏗 **Universal** — one logger for Node.js, the browser, Deno, Bun, workers and React Native
 🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
-🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY / `NO_COLOR`, with no config
+🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY, with no config
 🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation
 🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
 🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
@@ -32,7 +32,7 @@
 import { Logger } from "tslog";
 
 // `new Logger()` is environment-aware: pretty + colorized in an interactive terminal,
-// flat JSON in CI / non-TTY / when NO_COLOR is set. Omit `type` to get the right thing
+// flat JSON in CI / non-TTY. Omit `type` to get the right thing
 // per environment, or set `type: "pretty" | "json" | "hidden"` to pin it.
 const log = new Logger({ minLevel: "INFO" });
 
@@ -314,11 +314,11 @@ const log = new Logger({
 
 When `type` is omitted, `tslog` picks the output for the environment:
 
-- **Interactive TTY** (not CI, `NO_COLOR` unset) → `pretty`, colorized
-- **CI / non-TTY / `NO_COLOR`** → `json`
-- **Browser** → `pretty` with CSS styling
+- **Interactive TTY** (not CI) → `pretty`, colorized
+- **CI / non-TTY** → `json`
+- **Browser / React Native** → `pretty` (CSS styling in the browser)
 
-It honors `NO_COLOR` and `FORCE_COLOR`, and applies to both `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
+`NO_COLOR` follows [no-color.org](https://no-color.org) semantics: it switches colors off, not formats — a TTY with `NO_COLOR` gets *uncolored pretty*, while piped/CI output stays `json`. `FORCE_COLOR` forces colorized pretty. Both apply to `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
 
 
 ## Structured JSON output

@@ -364,7 +364,8 @@ export interface IPrettySettings {
   /**
    * Explicitly enable/disable pretty output regardless of the environment-aware default `type` resolution.
    * When `false`, the logger falls back to `"json"` (unless an explicit `type` is set). When omitted, the
-   * default `type` is resolved from the environment (interactive TTY → pretty, CI/non-TTY/NO_COLOR → json).
+   * default `type` is resolved from the environment (interactive non-CI TTY, browser, React Native → pretty;
+   * CI/non-TTY → json; NO_COLOR only strips styling, never switches the format).
    * @example { pretty: { enabled: false } }
    */
   enabled?: boolean;
