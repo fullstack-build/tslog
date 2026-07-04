@@ -1,6 +1,7 @@
 import { BaseLogger, createNodeEnvironment, Logger as FullLogger, fullCoreFeatures } from "../src/index.node.js";
 import type { IMeta } from "../src/interfaces.js";
 import { createLogger, Logger as SlimLogger } from "../src/subpaths/slim.js";
+import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
 
 // tslog/slim (S1): the same structured-JSON pipeline as the full entries, minus masking, pretty
 // output, stack capture, and settings validation — with HONEST failures (throws) where a silently
@@ -8,16 +9,12 @@ import { createLogger, Logger as SlimLogger } from "../src/subpaths/slim.js";
 
 type AnyRecord = Record<string, unknown> & { _meta: IMeta & Record<string, unknown> };
 
+// Captures both sink targets: slim prints via console.log, the full Node logger via the buffered
+// stdout sink (process.stdout.write).
 function captureJsonLine(run: (spy: () => void) => void): string {
-  const lines: string[] = [];
-  const spy = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
-    lines.push(String(line));
-  });
-  try {
+  const lines = captureDefaultJsonLines(() => {
     run(() => undefined);
-  } finally {
-    spy.mockRestore();
-  }
+  });
   expect(lines).toHaveLength(1);
   return lines[0];
 }

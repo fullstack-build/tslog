@@ -23,6 +23,7 @@ import {
   stripAnsi,
 } from "./shared.js";
 import { buildStackTrace, clampIndex, findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "./stackTrace.js";
+import { getStdoutJsonSink } from "./stdoutSink.node.js";
 
 /**
  * Node.js {@link EnvironmentProvider}.
@@ -162,6 +163,15 @@ export function createNodeEnvironment(): EnvironmentProvider {
     },
     transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
       nativeConsoleMethod("log")(jsonStringifyRecursive(json));
+    },
+    // The default json sink (review 13): batched fd-1 writes instead of per-line console.log. The
+    // sink singleton (and its exit hooks) is created on the FIRST json line, so pretty/hidden loggers
+    // never touch it and importing this module stays side-effect free.
+    writeJsonLine(line: string): void {
+      getStdoutJsonSink().write(line);
+    },
+    flushJsonSink(): Promise<void> {
+      return getStdoutJsonSink().flush();
     },
     createAsyncContextStore(): AsyncContextStore {
       // Node-only provider: AsyncLocalStorage is always available. Resolve it lazily (on first use) via

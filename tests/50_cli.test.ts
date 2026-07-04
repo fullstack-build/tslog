@@ -2,6 +2,7 @@ import { PassThrough } from "node:stream";
 import { describe, expect, test } from "vitest";
 import { Logger } from "../src/index.node.js";
 import { createCliFormatter, parseAndFormatLine, parseCliArgs, parseLine, runCli } from "../src/subpaths/cli.js";
+import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
 
 // M3.11 — `tslog/cli` + the `tslog` bin: read NDJSON from stdin, pretty-print each line via tslog's own
 // pretty formatter, filter by -l/--level, pass non-JSON lines through unchanged. The pure transform
@@ -10,17 +11,11 @@ import { createCliFormatter, parseAndFormatLine, parseCliArgs, parseLine, runCli
 /** Capture the JSON lines a `type: "json"` logger would write, so we feed REAL tslog NDJSON to the CLI. */
 function captureJsonLines(emit: (log: Logger<unknown>) => void): string[] {
   const log = new Logger<unknown>({ type: "json" });
-  const lines: string[] = [];
-  const original = console.log;
-  console.log = (...args: unknown[]) => {
-    lines.push(args.map(String).join(" "));
-  };
-  try {
+  // The node entry writes json through the buffered stdout sink, not console.log — the shared helper
+  // captures both and forces the sink flush.
+  return captureDefaultJsonLines(() => {
     emit(log);
-  } finally {
-    console.log = original;
-  }
-  return lines;
+  });
 }
 
 describe("tslog/cli (M3.11)", () => {

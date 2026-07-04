@@ -1,6 +1,7 @@
 import { createNodeEnvironment } from "../src/env/environment.node.js";
 import { BaseLogger, Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
+import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
 
 interface ILogObj {
   name: string;
@@ -17,11 +18,15 @@ describe("JSON: LogObj", () => {
       name: "test",
     };
     const logger = new BaseLogger<ILogObj>({ type: "json" }, defaultLogObject, createNodeEnvironment());
-    const logMsg = logger.log(1234, "testLevel", "Test");
+    // The NODE provider routes json through the buffered stdout sink, not console.log.
+    let logMsg: (ILogObj & Record<string, unknown>) | undefined;
+    const emitted = captureDefaultJsonLines(() => {
+      logMsg = logger.log(1234, "testLevel", "Test") as (ILogObj & Record<string, unknown>) | undefined;
+    }).join("\n");
     expect(logMsg?.name).toContain(defaultLogObject.name);
-    expect(getConsoleLog()).toContain(`"name":"test",`);
+    expect(emitted).toContain(`"name":"test",`);
     // v5 flat shape: a bare-string arg is promoted from index key "0" to the top-level message key.
-    expect(getConsoleLog()).toContain(`"message":"Test",`);
+    expect(emitted).toContain(`"message":"Test",`);
   });
 
   test("Logger with LogObj", (): void => {

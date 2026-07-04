@@ -465,6 +465,14 @@ log.attachTransport(pinoTransport((line) => process.stdout.write(`${line}\n`)));
 
 ---
 
+## 7b. JSON output on Node bypasses `console.log`
+
+v4 printed every JSON line via `console.log`. v5's Node entry writes `type: "json"` lines through a
+buffered stdout sink (batched `process.stdout.write`, drained by `flush()`/`await using`/exit hooks)
+for pino-class throughput. If you intercepted logs by patching `console.log` — e.g. in tests — spy on
+`process.stdout.write` instead, or use `type: "hidden"` and attach a transport (the supported way to
+own the output). Browser, Deno, Bun, and worker builds still print via `console.log`.
+
 ## 8. `stackDepthLevel` → `callerFrame`; `loggerEnvironment` removed (BC11)
 
 **Breaking:** the manual stack-frame index constructor argument was renamed `stackDepthLevel` → `callerFrame`.

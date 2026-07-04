@@ -366,10 +366,16 @@ export class BaseLogger<LogObj> {
       this.runtime.transportFormatted(metaMarkup, prettyArgs, prettyErrors, recordMeta, this.settings);
     } else if (this.settings.type === "json") {
       try {
-        nativeConsoleMethod("log")(this.features.renderJson(record, this.settings));
-        /* v8 ignore next 3 -- defensive: guards against a console.log implementation that itself throws */
+        const line = this.features.renderJson(record, this.settings);
+        // The runtime's default sink when it has one (Node: batched fd-1 writes), console otherwise.
+        if (this.runtime.writeJsonLine != null) {
+          this.runtime.writeJsonLine(line);
+        } else {
+          nativeConsoleMethod("log")(line);
+        }
+        /* v8 ignore next 3 -- defensive: guards against a sink/console implementation that itself throws */
       } catch {
-        // never let the console sink crash logging
+        // never let the default sink crash logging
       }
     }
 
@@ -508,11 +514,21 @@ export class BaseLogger<LogObj> {
   }
 
   /**
-   * Await every attached transport's `flush()`, so buffered output is written before the process exits.
-   * Transports without a `flush` are skipped; a failing flush is isolated and never rejects this promise.
+   * Await every attached transport's `flush()` — and the runtime's default JSON sink (the Node entry
+   * batches stdout writes) — so buffered output is written before the process exits. Transports
+   * without a `flush` are skipped; a failing flush is isolated and never rejects this promise.
    */
   public async flush(): Promise<void> {
-    await flushAll(this.settings.attachedTransports);
+    await Promise.all([flushAll(this.settings.attachedTransports), this._flushDefaultSink()]);
+  }
+
+  /** Flush the runtime's default JSON sink, isolating any failure (mirrors `flushAll`'s contract). */
+  private async _flushDefaultSink(): Promise<void> {
+    try {
+      await this.runtime.flushJsonSink?.();
+    } catch {
+      // a failing sink flush must never reject flush()/dispose
+    }
   }
 
   /** The transports this logger owns (constructor-supplied or attached here; not inherited from a parent). */
@@ -530,7 +546,7 @@ export class BaseLogger<LogObj> {
    * child must not terminate the root logger's sinks.
    */
   public async [Symbol.asyncDispose](): Promise<void> {
-    await flushAll(this.settings.attachedTransports);
+    await Promise.all([flushAll(this.settings.attachedTransports), this._flushDefaultSink()]);
     await disposeAll(this._ownedTransports());
   }
 
@@ -545,6 +561,7 @@ export class BaseLogger<LogObj> {
     // Fire-and-forget (a sync disposer cannot await), but SEQUENCED: disposing a transport while its
     // in-flight writes are still being flushed would tear the sink down under them. Only owned
     // transports are disposed (see above).
+    void this._flushDefaultSink();
     void flushAll(this.settings.attachedTransports).then(() => disposeAll(this._ownedTransports()));
   }
 

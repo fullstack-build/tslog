@@ -70,6 +70,21 @@ export interface EnvironmentProvider {
   /** Print a JSON log object as a single line to the runtime's console. */
   transportJSON<LogObj>(json: LogObj & ILogObjMeta): void;
   /**
+   * Write one finished `type: "json"` line to this runtime's DEFAULT structured sink.
+   *
+   * Optional: providers that omit it get `console.log` (BaseLogger's fallback). The Node provider
+   * implements it with a buffered fd-1 writer that batches a whole event-loop turn's lines into one
+   * `process.stdout.write` — the review-13 fix for the per-line `util.format` + stream-write cost.
+   * Browser/universal providers deliberately omit it (devtools and edge consoles want `console.log`).
+   */
+  writeJsonLine?(line: string): void;
+  /**
+   * Flush whatever {@link writeJsonLine} has buffered. Wired into `BaseLogger.flush()` and both
+   * disposers so "flush the logger" also drains the default sink, not just attached transports.
+   * Must never throw; may return a promise that resolves once the sink has accepted the data.
+   */
+  flushJsonSink?(): Promise<void> | void;
+  /**
    * Build the {@link AsyncContextStore} backing `logger.runInContext` (M2.13) for this runtime.
    *
    * Optional: a provider that omits it (or returns a no-op store) means ALS context is unavailable on that
