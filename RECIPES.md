@@ -142,19 +142,32 @@ const log = new Logger({ type: "hidden" }); // suppress console, let the transpo
 log.attachTransport(pinoTransport((line) => process.stdout.write(line + "\n")));
 log.info({ userId: 42 }, "user logged in");
 // → {"level":30,"time":1751191872000,"pid":12345,"hostname":"…","msg":"user logged in","userId":42}
+// Errors ship in pino's serializer shape: err: { type, message, stack: "<raw multi-line string>", cause? }
+// (pino-pretty and error trackers parse it as-is; pinoFormat({ errorShape: "tslog" }) keeps frame arrays.)
 ```
 
-## 9. OpenTelemetry logs
+## 9. OpenTelemetry logs — POST straight to a collector (OTLP/JSON)
+
+`otlpFormat` emits real OTLP/JSON (camelCase proto3 fields, typed attributes, `exception.*` mapping
+for logged errors); `otlpBatchBody` merges each HTTP batch into ONE envelope, so the transport can
+POST directly to a collector's `/v1/logs` endpoint.
 
 ```ts
-import { otelFormat } from "tslog/otel";
+import { otlpFormat, otlpBatchBody } from "tslog/otel";
+import { httpTransport } from "tslog/transports/http";
 
-const log = new Logger();
-log.attachTransport({
-  format: otelFormat({ getSpanContext: () => log.getContext() }),
-  write: (_record, line) => otlpQueue.push(line),
-});
+const log = new Logger({ type: "hidden" });
+log.attachTransport(
+  httpTransport({
+    url: "http://collector:4318/v1/logs",
+    format: otlpFormat({ resource: { "service.name": "checkout" }, getSpanContext: () => log.getContext() }),
+    encodeBody: otlpBatchBody,
+  }),
+);
 ```
+
+For a custom (non-collector) pipeline that prefers the spec's prose field names (`Timestamp`, `Body`,
+`Attributes`, ...), use `otelFormat`/`toOtelRecord` instead — collectors do not ingest that shape.
 
 ## 10. Write to a file (Node), with flush on shutdown
 
@@ -258,3 +271,35 @@ const log = Logger.fromEnv({ name: "api" });
 const settings = defineConfig({ type: "json", mask: { keys: ["password"] } });
 const log2 = new Logger(settings);
 ```
+
+## 14. Deterministic logs in tests (snapshots without fake timers)
+
+`createTestLogger` can freeze ONLY the logger's clock (interval-driven transports and user timers keep
+running — no `vi.useFakeTimers()` sledgehammer) and normalize machine-varying meta for snapshots.
+
+```ts
+import { createTestLogger, normalizeMeta } from "tslog/testing";
+
+// Frozen per-logger clock:
+const { logger, logs, lines } = createTestLogger({ type: "json" }, { now: () => new Date("2026-01-01T00:00:00Z") });
+
+// Snapshot-stable output (epoch clock, hostname/runtimeVersion pinned, no _meta.path):
+const snap = createTestLogger({ type: "json" }, { normalize: true });
+snap.logger.info("ready", { port: 3000 });
+expect(snap.lines[0]).toMatchSnapshot();
+
+// Or scrub output captured elsewhere:
+expect(normalizeMeta(capturedJsonLine)).toMatchSnapshot();
+```
+
+The same seam works on any logger in production: `new Logger({ clock: () => new Date(...) })`.
+
+## 15. Timestamp control (`json.time`)
+
+```ts
+new Logger({ type: "json", json: { time: "epoch" } }); // "time": 1751191872000 — pino-style epoch ms
+new Logger({ type: "json", json: { time: false } });   // no top-level time key — diff-friendly CI output
+new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } }); // ns (Loki)
+```
+
+`_meta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.

@@ -307,12 +307,12 @@ You can override the default `logObj` per child by passing a second argument: `m
 
 v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`, `maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing; the groups cover everything else.
 
-**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
+**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
 | `pretty`  | `template`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `inspectOptions`, `enabled` |
-| `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
+| `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `time` (`"iso" \| "epoch" \| false \| fn`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
 | `mask`    | `keys` (`[]`), `caseInsensitive`, `regex` (`RegExp[]`), `placeholder` (`"[***]"`), `paths` (JSONPath-lite), `censor` (`string \| "remove" \| "hash" \| fn`), `hashLabel` (`"hash"`) |
 | `stack`   | `capture` (`"off" \| "lazy" \| "auto" \| "full"`), `internalFramePatterns` (`RegExp[]`) |
 | `meta`    | `property` (`"_meta"`), `attachContext` |
@@ -385,6 +385,31 @@ new Logger({
   json: { messageKey: "msg", levelKey: "severity", timeKey: "@timestamp", errorKey: "err" },
 });
 ```
+
+### Timestamps & the clock seam
+
+The top-level timestamp representation is configurable via `json.time` (the `_meta.date` inside the
+runtime block always stays a UTC ISO string), and the clock itself is injectable:
+
+```typescript
+new Logger({ type: "json", json: { time: "epoch" } });        // "time": 1751191872000 (pino-style ms)
+new Logger({ type: "json", json: { time: false } });          // no top-level time key (diff-friendly)
+new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } }); // ns for Loki
+new Logger({ clock: () => new Date(0) });                     // frozen clock — deterministic tests
+```
+
+A throwing/invalid `clock` or `time` function never breaks logging (the runtime date / ISO string is
+kept). Sub-loggers inherit the parent's clock.
+
+### Batched stdout on Node
+
+On the Node entry, `type: "json"` lines are written through a **buffered stdout sink**: a whole
+event-loop turn's lines are batched into one `process.stdout.write` (flushing early past ~8 KB), which
+removes the per-line `console.log` overhead that dominates logger throughput. Delivery is safeguarded:
+`await logger.flush()` (and `await using`) resolves only after stdout accepted everything, and
+`process.exit()` / uncaught exceptions trigger a synchronous drain via exit hooks. Note that code
+intercepting `console.log` will no longer see JSON output on Node — spy on `process.stdout.write`, or
+use `type: "hidden"` plus a transport. Browser/universal (Deno, Bun, workers) builds keep `console.log`.
 
 
 ## Masking secrets
@@ -519,17 +544,34 @@ const log = new Logger();
 log.attachTransport(pinoTransport()); // or attach a transport with { format: pinoFormat() }
 ```
 
+Errors are emitted in pino's serializer shape — `err: { type, message, stack }` with `stack` as the
+raw multi-line string (what `pino-pretty`, Datadog, GCP Error Reporting, and Sentry parse), `cause`
+chain recursed. Prefer tslog's structured frame arrays instead? `pinoFormat({ errorShape: "tslog" })`.
+
 ### OpenTelemetry — `tslog/otel`
 
-`otelFormat()` / `toOtelRecord()` emit OTel log records with the correct `SeverityNumber` (`levelToSeverityNumber`, `OtelSeverityNumber`); `otelTraceContext()` correlates with the active trace/span; `stringifyOtelRecord()` serializes a record.
+`otlpFormat()` / `toOtlpJson()` emit **real OTLP/JSON** — the `resourceLogs[].scopeLogs[].logRecords[]`
+envelope with camelCase proto3 fields, typed attributes, `exception.*` semconv mapping for logged
+errors, and correct `severityNumber`s — so batches POST straight to a collector's `/v1/logs`:
 
 ```typescript
-import { otelFormat, otelTraceContext } from "tslog/otel";
+import { otelTraceContext, otlpBatchBody, otlpFormat } from "tslog/otel";
+import { httpTransport } from "tslog/transports/http";
 
-const log = new Logger();
-log.attachTransport({ format: otelFormat(), write: (rec, line) => sendToCollector(line) });
-log.use((ctx) => (Object.assign(ctx.meta, otelTraceContext()), ctx));
+const log = new Logger({ type: "hidden" });
+log.attachTransport(
+  httpTransport({
+    url: "http://collector:4318/v1/logs",
+    format: otlpFormat({ resource: { "service.name": "checkout" } }),
+    encodeBody: otlpBatchBody, // merges each batch into ONE OTLP envelope per POST
+  }),
+);
+log.use(otelTraceContext({ getSpanContext: () => trace.getActiveSpan()?.spanContext() })); // trace correlation (`trace` from @opentelemetry/api)
 ```
+
+`otelFormat()` / `toOtelRecord()` additionally emit the *data-model prose shape* (`Timestamp`, `Body`,
+`Attributes`, ...) for custom pipelines — note that shape is not a wire format and collectors will not
+ingest it directly.
 
 ### GenAI / agents — `tslog/presets/genai`
 
@@ -649,6 +691,7 @@ logger.info({ ok: true }, "tested");
 
 `tslog` is fast, but this README is honest rather than chasing a leaderboard claim — **it does not claim to be faster than pino.** The defaults are tuned for a great developer experience; for hot production paths, the biggest lever is stack capture.
 
+- **Batched stdout by default (Node).** JSON lines are buffered and written to stdout once per event-loop turn instead of one `console.log` per line — the same trick as pino's `sonic-boom`, with flush/exit-hook safeguards (see *Batched stdout on Node* above).
 - **Lazy stack capture by default.** Stack frames (and therefore log-position lookup) are captured lazily, so you only pay for them when something actually reads them.
 - **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths, or `"full"` when you want complete frames for debugging.
 - **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with `sideEffects: false`, so unused features never reach your bundle.

@@ -24,9 +24,17 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 - **Real hostname in server JSON logs** — `_meta.hostname` resolves from `HOSTNAME`/`HOST`/`COMPUTERNAME`, then the OS hostname (`Deno.hostname()` / `node:os` via `process.getBuiltinModule`), instead of defaulting to `"unknown"`.
 - **Tree-shakeable exports** — `sideEffects: false` (audited) with per-runtime conditional exports.
 - **`tslog/slim`** — the smallest structured-JSON build (~9KB gzip vs ~19KB for the full browser entry, budget-checked in CI): the same pipeline minus masking, pretty output, and stack capture; `mask` settings and `type: "pretty"` throw instead of silently degrading.
+- **Buffered stdout sink (Node)** — the Node entry writes `type: "json"` lines through a batched `process.stdout.write` (one write per event-loop turn, early flush past ~8KB) instead of per-line `console.log`; drained by `logger.flush()`, `await using`, and guarded `beforeExit`/`exit` hooks (a bare `process.exit()` loses nothing). Browser/universal entries keep `console.log`.
+- **Time seam** — an injectable top-level `clock: () => Date` (deterministic tests, offset/monotonic stamping; inherited by sub-loggers, hostile clocks ignored) and `json.time: "iso" | "epoch" | false | fn` controlling the top-level timestamp representation (`_meta.date` stays UTC ISO).
+- **Deterministic test output** — `createTestLogger(settings, { now, normalize })`: `now` freezes only that logger's clock (no fake-timer sledgehammer), `normalize: true` yields snapshot-stable records/lines; plus a standalone `normalizeMeta(recordOrLine)` scrubber (all in `tslog/testing`).
+- **Real OTLP/JSON in `tslog/otel`** — `otlpFormat`/`toOtlpJson`/`toOtlpLogRecord`/`toOtlpAnyValue`/`stringifyOtlpRequest` emit the collector wire format (camelCase proto3 fields, typed attributes, `resourceLogs[].scopeLogs[].logRecords[]` envelope, `exception.*` semconv mapping for logged errors), and `otlpBatchBody` pairs with the http transport's new `encodeBody` option to POST merged batches straight to `/v1/logs`.
+- **pino-shaped errors in `tslog/presets/pino`** — logged errors now serialize as pino's `err: { type, message, stack: "<raw string>", cause? }` (what pino-pretty and error trackers parse); `errorShape: "tslog"` keeps the structured frame arrays.
+- **`httpTransport({ encodeBody })`** — custom body encoder for endpoints whose payload is neither NDJSON nor a JSON array (used by the OTLP pairing above).
 
 ### Changed
 - **ESM-only** and **Node >=20**; the project now targets **TypeScript 7 / ES2022**.
+- **JSON output on Node no longer goes through `console.log`** (see the buffered stdout sink above) — code intercepting `console.log` must spy on `process.stdout.write` or use `type: "hidden"` plus a transport.
+- **`tslog/otel` resource precedence** — in `toOtelRecord`, `resource` attributes now win over colliding per-record fields (resource identity semantics); in the OTLP shape they live in the envelope, separate from record attributes.
 - The default JSON shape is fields-first with `_meta.v: 5`; `name`/`parentNames` appear only when set (no `"[undefined]"` noise).
 - **Masking is off by default** — `mask.keys` starts empty; enable it explicitly.
 
