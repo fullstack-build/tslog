@@ -592,7 +592,9 @@ Error trackers and log platforms plug in as transports — no vendor-specific lo
 
 ### Sentry
 
-Forward `ERROR`/`FATAL` records to [Sentry](https://sentry.io) while keeping your normal console/JSON output. The record a transport receives still carries the **native `Error` instance** (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain, proper issue grouping — not a stringified copy:
+[Sentry](https://sentry.io) has two ingestion paths: **issues** (error tracking) and **[Sentry Logs](https://docs.sentry.io/platforms/javascript/guides/node/logs/)** (structured logs, searchable next to your traces). A tslog transport covers each — run one or both.
+
+**Errors → Sentry issues.** Forward `ERROR`/`FATAL` records while keeping your normal console/JSON output. The record a transport receives still carries the **native `Error` instance** (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain, proper issue grouping — not a stringified copy:
 
 ```typescript
 import * as Sentry from "@sentry/node";
@@ -623,7 +625,31 @@ log.attachTransport({
 log.error(new Error("payment failed")); // → console output + a Sentry issue, logged fields as `extra`
 ```
 
-Because transports are inherited, every sub-logger reports to Sentry too — and transport isolation means a Sentry outage can never break your logging.
+**Everything → Sentry Logs.** Enable logs in `Sentry.init` (`enableLogs: true`, current `@sentry/node`) and forward every record through `Sentry.logger.*` — the seven tslog levels map one-to-one, with `SILLY` joining `trace`:
+
+```typescript
+import * as Sentry from "@sentry/node";
+import { Logger } from "tslog";
+
+Sentry.init({ dsn: process.env.SENTRY_DSN, enableLogs: true });
+
+const log = new Logger();
+const toSentry = { SILLY: "trace", TRACE: "trace", DEBUG: "debug", INFO: "info", WARN: "warn", ERROR: "error", FATAL: "fatal" } as const;
+
+log.attachTransport({
+  name: "sentry-logs",
+  format: "json", // `line` is the flat JSON record; its fields become Sentry log attributes
+  write(_record, line) {
+    const { _meta, message, ...attributes } = JSON.parse(line);
+    const method = toSentry[_meta.logLevelName as keyof typeof toSentry] ?? "info";
+    Sentry.logger[method](String(message ?? ""), attributes);
+  },
+});
+
+log.info({ userId: 42 }, "user logged in"); // → console output + a Sentry log with a `userId` attribute
+```
+
+Run both transports side by side: every record becomes a searchable Sentry log, and `ERROR`/`FATAL` additionally become issues. Because transports are inherited, every sub-logger reports to Sentry too — and transport isolation means a Sentry outage can never break your logging.
 
 ### Better Stack (Logtail)
 

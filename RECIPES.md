@@ -133,9 +133,9 @@ const detach = log.attachTransport({
 });
 ```
 
-## 7b. Send errors to Sentry
+## 7b. Send errors and logs to Sentry
 
-The record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy.
+Errors as Sentry issues: the record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy.
 
 ```ts
 import * as Sentry from "@sentry/node";
@@ -154,6 +154,22 @@ log.attachTransport({
       .find((candidate): candidate is Error => candidate instanceof Error);
     if (nativeError) Sentry.captureException(nativeError, { level, extra: fields });
     else Sentry.captureMessage(String(fields.message ?? line), { level, extra: fields });
+  },
+});
+```
+
+Records as [Sentry Logs](https://docs.sentry.io/platforms/javascript/guides/node/logs/): enable logs in the SDK (`Sentry.init({ dsn, enableLogs: true })`) and forward every record through `Sentry.logger.*` — the seven tslog levels map one-to-one, with `SILLY` joining `trace`. Runs fine alongside the issues transport above.
+
+```ts
+const toSentry = { SILLY: "trace", TRACE: "trace", DEBUG: "debug", INFO: "info", WARN: "warn", ERROR: "error", FATAL: "fatal" } as const;
+
+log.attachTransport({
+  name: "sentry-logs",
+  format: "json", // fields of the flat JSON record become Sentry log attributes
+  write(_record, line) {
+    const { _meta, message, ...attributes } = JSON.parse(line);
+    const method = toSentry[_meta.logLevelName as keyof typeof toSentry] ?? "info";
+    Sentry.logger[method](String(message ?? ""), attributes);
   },
 });
 ```
