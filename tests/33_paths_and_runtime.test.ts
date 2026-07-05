@@ -150,7 +150,7 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
   });
 });
 
-describe("detectRuntimeInfo / getEnvironmentHostname / resolveDenoHostname fallbacks", () => {
+describe("detectRuntimeInfo / getEnvironmentHostname fallbacks", () => {
   function metaFor(): IMeta {
     const env = createNodeEnvironment();
     return env.getMeta(3, "INFO", 0, true) as IMeta;
@@ -185,7 +185,7 @@ describe("detectRuntimeInfo / getEnvironmentHostname / resolveDenoHostname fallb
     expect(meta.hostname).toBe("edge-host");
   });
 
-  test("resolveDenoHostname swallows a throwing Deno.hostname() and falls back to location.hostname", () => {
+  test("getEnvironmentHostname swallows a throwing Deno.hostname() and falls back to location.hostname", () => {
     delete globalAny.window;
     delete globalAny.document;
     delete globalAny.Bun;

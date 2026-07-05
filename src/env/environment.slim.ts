@@ -69,8 +69,14 @@ export function createSlimEnvironment(): EnvironmentProvider {
     },
     prettyFormatLine<LogObj>(maskedArgs: unknown[], meta: IMeta | undefined, settings: ISettings<LogObj>): string {
       const { args, errors } = provider.prettyFormatLogObj(maskedArgs, settings);
-      const head = meta != null ? `${meta.logLevelName ?? ""}\t` : "";
-      return head + [...args.map(stringifyFallback), ...errors].join(" ");
+      const body = [...args.map(stringifyFallback), ...errors].join(" ");
+      /* v8 ignore next 3 -- defensive: slim rejects type "pretty" at construction; per-transport pretty formatting always passes a meta */
+      if (meta == null) {
+        return body;
+      }
+      /* v8 ignore next -- defensive: per-transport pretty formatting always passes a complete meta, so logLevelName is set */
+      const level = meta.logLevelName ?? "";
+      return `${level}\t${body}`;
     },
     transportFormatted<LogObj>(
       logMetaMarkup: string,

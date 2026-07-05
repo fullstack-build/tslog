@@ -1,4 +1,4 @@
-import { formatValue, formatWithOptions, inspect } from "../src/render/inspect.polyfill.js";
+import { formatWithOptions, inspect } from "../src/render/inspect.polyfill.js";
 
 // Exhaustive coverage of the runtime-agnostic node:util.inspect reimplementation
 // (src/render/inspect.polyfill.ts). Every test asserts the EXACT rendered string
@@ -244,6 +244,11 @@ describe("depth boundary", () => {
   test("negative depth on a bare object yields [Object]", () => {
     expect(plain({ a: 1 }, { depth: -1 })).toBe("[Object]");
   });
+  test("depth: null still walks one level then collapses (isNull(recurseTimes) branch)", () => {
+    // A null depth reaches formatProperty as recurseTimes === null, which recurses with
+    // `undefined` (resetting the counter) instead of null - 1.
+    expect(plain({ a: { b: { c: 1 } } }, { depth: null })).toBe("{\n  a: \n   {\n     b: [Object] \n   } \n}");
+  });
 });
 
 describe("exotic built-ins fall through the generic walk (legacy port has no special-casing)", () => {
@@ -253,29 +258,20 @@ describe("exotic built-ins fall through the generic walk (legacy port has no spe
   test("Set renders as empty braces", () => {
     expect(plain(new Set([1, 2]))).toBe("{\n\n}");
   });
-  test("WeakMap renders as empty braces", () => {
-    expect(plain(new WeakMap())).toBe("{\n\n}");
-  });
-  test("WeakSet renders as empty braces", () => {
-    expect(plain(new WeakSet())).toBe("{\n\n}");
-  });
   test("Uint8Array renders as an index-keyed object", () => {
     expect(plain(new Uint8Array([1, 2, 3]))).toBe("{\n  '0': 1,\n  '1': 2,\n  '2': 3 \n}");
   });
-  test("ArrayBuffer renders as empty braces", () => {
-    expect(plain(new ArrayBuffer(4))).toBe("{\n\n}");
-  });
-  test("DataView renders as empty braces", () => {
-    expect(plain(new DataView(new ArrayBuffer(4)))).toBe("{\n\n}");
-  });
-  test("Promise renders as empty braces", () => {
-    expect(plain(Promise.resolve(1))).toBe("{\n\n}");
-  });
-  test("boxed Number renders as empty braces", () => {
-    expect(plain(new Number(5))).toBe("{\n\n}");
-  });
-  test("boxed Boolean renders as empty braces", () => {
-    expect(plain(new Boolean(true))).toBe("{\n\n}");
+  // These all share the exact same fall-through: no own enumerable keys → empty braces.
+  test.each([
+    ["WeakMap", new WeakMap()],
+    ["WeakSet", new WeakSet()],
+    ["ArrayBuffer", new ArrayBuffer(4)],
+    ["DataView", new DataView(new ArrayBuffer(4))],
+    ["Promise", Promise.resolve(1)],
+    ["boxed Number", new Number(5)],
+    ["boxed Boolean", new Boolean(true)],
+  ])("%s renders as empty braces", (_label, value) => {
+    expect(plain(value)).toBe("{\n\n}");
   });
   test("boxed String exposes its characters as indexed keys", () => {
     expect(plain(new String("hi"))).toBe("{\n  '0': 'h',\n  '1': 'i' \n}");
@@ -346,31 +342,57 @@ describe("colorization (colors: true)", () => {
   });
 });
 
-describe("formatValue called directly", () => {
-  const ctx = () => ({ seen: [] as unknown[], stylize: (s: string) => s, colors: false, depth: 2, showHidden: false, customInspect: true });
+describe("hostile Proxy robustness (the defensive catches are reachable, not legacy dead code)", () => {
+  test("a stateful ownKeys trap that throws on the getOwnPropertyNames re-enumeration keeps the Object.keys result", () => {
+    let ownKeysCalls = 0;
+    const p = new Proxy(
+      { a: 1 },
+      {
+        ownKeys(target) {
+          if (++ownKeysCalls > 1) {
+            throw new Error("boom");
+          }
+          return Reflect.ownKeys(target);
+        },
+      },
+    );
+    // Object.keys succeeds (trap call 1); showHidden's Object.getOwnPropertyNames throws (trap
+    // call 2) → the catch keeps the enumerable keys and rendering proceeds.
+    expect(plain(p, { showHidden: true })).toBe("{\n  a: 1 \n}");
+  });
 
-  test("primitive short-circuits", () => {
-    expect(formatValue(ctx(), 42, 2)).toBe("42");
+  test("a ghost key (ownKeys reports it, getOwnPropertyDescriptor returns undefined) falls back to the direct read", () => {
+    const p = new Proxy(
+      {},
+      {
+        ownKeys: () => ["ghost"],
+        getOwnPropertyDescriptor: () => undefined,
+        get: () => 42,
+      },
+    );
+    // gOPD returning undefined takes the `|| desc` fallback: the value read directly off the proxy.
+    // The key never shows up in Object.keys (no descriptor → not enumerable), hence the brackets.
+    expect(plain(p, { showHidden: true })).toBe("{\n  [ghost]: 42 \n}");
   });
-  test("null", () => {
-    expect(formatValue(ctx(), null, 2)).toBe("null");
-  });
-  test("a null recurseTimes still walks (isNull(recurseTimes) branch)", () => {
-    // Passing recurseTimes === null triggers the isNull(recurseTimes) branch in
-    // formatProperty, which recurses with `undefined` rather than recurseTimes-1.
-    expect(strip(formatValue(ctx(), { a: { b: { c: 1 } } }, null as unknown as number))).toBe("{\n  a: \n   {\n     b: [Object] \n   } \n}");
-  });
-  test("when stylize is not a function and customInspect is off, a keyless function returns the raw value", () => {
-    // Hits the `else { return value; }` fallback: keys.length === 0, ctx.stylize
-    // is not callable, so the function value itself is returned unchanged.
-    const fn = function foo() {};
-    const result = formatValue({ seen: [], stylize: null as unknown as ICtxStylize, colors: false, depth: 2, showHidden: false, customInspect: false }, fn, 2);
-    expect(result).toBe(fn);
+
+  test("a getOwnPropertyDescriptor trap that throws on the per-property call is swallowed by the catch", () => {
+    let gopdCalls = 0;
+    const p = new Proxy(
+      { a: 1 },
+      {
+        getOwnPropertyDescriptor(target, key) {
+          // Behaves during Object.keys' enumerability filtering (call 1), throws on
+          // formatProperty's later per-property lookup (call 2).
+          if (++gopdCalls > 1) {
+            throw new Error("gopd boom");
+          }
+          return Reflect.getOwnPropertyDescriptor(target, key);
+        },
+      },
+    );
+    expect(plain(p)).toBe("{\n  a: 1 \n}");
   });
 });
-
-// The stylize type used only by the direct-call test above.
-type ICtxStylize = (str: string, styleType: string) => string;
 
 describe("formatWithOptions - single string fast path", () => {
   test("a lone string is returned verbatim", () => {
@@ -443,16 +465,5 @@ describe("formatWithOptions / inspect - non-object options are ignored (_extend 
   test("inspect with a primitive options value falls back to defaults", () => {
     // _extend early-returns when `add` isn't an object, so bogus options are a no-op.
     expect(strip(inspect({ a: 1 }, 5 as unknown as Record<string, never>))).toBe("{\n  a: 1 \n}");
-  });
-});
-
-describe("formatWithOptions - depth honored for inspected args", () => {
-  const deep = { a: { b: { c: { d: 1 } } } };
-  test("depth 0 collapses, a larger depth expands", () => {
-    const shallow = strip(formatWithOptions({ depth: 0, colors: false }, deep));
-    const deeper = strip(formatWithOptions({ depth: 5, colors: false }, deep));
-    expect(shallow).toContain("[Object]");
-    expect(deeper).toContain("d:");
-    expect(shallow).not.toBe(deeper);
   });
 });

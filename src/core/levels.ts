@@ -1,5 +1,4 @@
 import type { TLogLevel } from "../interfaces.js";
-import { LogLevel } from "../interfaces.js";
 
 /**
  * Canonical default level table: id -> name. The seven names are stable across v5; additive custom
@@ -49,14 +48,10 @@ export function resolveLogLevelId(level: TLogLevel | undefined, customLevels?: R
       }
     }
   }
-  // Prefer the explicit name table, then fall back to the enum (kept for source compatibility).
-  const fromTable = NAME_TO_ID[level] ?? NAME_TO_ID[level.toUpperCase()];
-  if (typeof fromTable === "number") {
-    return fromTable;
-  }
-  const fromEnum = (LogLevel as unknown as Record<string, number>)[level.toUpperCase()];
-  /* v8 ignore next -- the LogLevel enum's string keys are identical to NAME_TO_ID's, so if the table miss above fell through, the enum misses too; `fromEnum` is always undefined here and the `? fromEnum` branch is unreachable */
-  return typeof fromEnum === "number" ? fromEnum : undefined;
+  // Resolve via the canonical name table. The LogLevel enum's string keys are identical to
+  // NAME_TO_ID's (and enum VALUES arrive as numbers, handled above), so no enum fallback is
+  // needed: an unknown name yields undefined and the caller applies its own default.
+  return NAME_TO_ID[level] ?? NAME_TO_ID[level.toUpperCase()];
 }
 
 /**

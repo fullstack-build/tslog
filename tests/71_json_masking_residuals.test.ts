@@ -60,9 +60,8 @@ describe("render/json: spread-error bound-field collisions (buildFlat slow path)
 
 describe("render/json: stableKeyOrder awkward-vs-clean serializer choice (renderJsonUnplanned)", () => {
   // In stable mode buildFlat deep-walks every value and reports `awkward` (scanned=true), so
-  // renderJsonUnplanned picks the serializer with no extra scan: clean → native `JSON.stringify`,
-  // awkward → the safe replacer. Both arms are pinned here on the FAST path (a single logged object,
-  // where deepSortKeys runs with the awk flag) so the scanned=true branch is genuinely exercised.
+  // renderJsonUnplanned picks the serializer with no extra scan: clean → native `JSON.stringify`. The
+  // awkward arm of the same choice is pinned by the bigint test in the deepSortKeys describe below.
   test("a clean single-object record serializes via native JSON.stringify under stableKeyOrder", () => {
     const logger = hidden({ json: { stableKeyOrder: true } });
     const record = logger.info({ z: 1, a: { d: 4, c: 3 }, list: [1, 2, 3] }) as AnyRecord;
@@ -75,16 +74,6 @@ describe("render/json: stableKeyOrder awkward-vs-clean serializer choice (render
     expect(line).not.toContain("[undefined]");
     expect(line).not.toContain("[Circular]");
   });
-
-  test("a single-object record with a bigint takes the safe replacer branch under stableKeyOrder", () => {
-    const logger = hidden({ json: { stableKeyOrder: true } });
-    // A single logged object keeps the fast path (scanned=true); the bigint flips awkward=true, so
-    // renderJsonUnplanned routes through jsonStringifySafe (the awkward arm of the scanned branch).
-    const record = logger.info({ amount: 42n }) as AnyRecord;
-    const line = renderJsonUnplanned(record, logger.settings);
-    expect(line).toContain('"amount":"42"');
-    expect(line).toBe(renderJson(record, logger.settings));
-  });
 });
 
 describe("render/json: deepSortKeys awkward-flag leaves (stableKeyOrder)", () => {
@@ -92,8 +81,11 @@ describe("render/json: deepSortKeys awkward-flag leaves (stableKeyOrder)", () =>
   // so awkwardness is observed in the sort pass. A bigint / explicit-undefined PRIMITIVE leaf sets the
   // flag at the scalar branch; a native Error (a non-plain object) sets it at the class-instance branch.
   // Each case logs a SINGLE object (the fast path) so deepSortKeys actually receives the awk flag.
-  test("a bigint field (primitive leaf) flips the awkward flag and stringifies as a string", () => {
+  test("a bigint field (primitive leaf) flips the awkward flag onto the safe replacer and stringifies", () => {
     const logger = hidden({ json: { stableKeyOrder: true } });
+    // A single logged object keeps the fast path (scanned=true); the bigint flips awkward=true, so
+    // renderJsonUnplanned routes through jsonStringifySafe (the awkward arm of the scanned branch) and
+    // the planned path agrees byte-for-byte.
     const record = logger.info({ amount: 9007199254740993n }) as AnyRecord;
     const line = renderJson(record, logger.settings);
     expect(line).toContain('"amount":"9007199254740993"');
@@ -111,10 +103,14 @@ describe("render/json: deepSortKeys awkward-flag leaves (stableKeyOrder)", () =>
   test("a native Error as a direct user field (non-plain leaf) flips the awkward flag", () => {
     const logger = hidden({ json: { stableKeyOrder: true } });
     // The Error is a class instance: deepSortKeys passes it through by reference but sets awk.hit,
-    // so the safe replacer runs and drops the native handle without throwing.
-    const record = logger.info({ err: new Error("direct error") }) as AnyRecord;
+    // so the safe replacer runs and DROPS the native handle (replacer → undefined, so the `err` key is
+    // absent from the emitted line) while sibling fields still serialize.
+    const record = logger.info({ err: new Error("direct error"), kept: true }) as AnyRecord;
     const line = renderJson(record, logger.settings);
-    expect((JSON.parse(line)._meta as Record<string, unknown>).v).toBe(5);
+    const parsed = JSON.parse(line) as Record<string, unknown>;
+    expect("err" in parsed).toBe(false);
+    expect(parsed.kept).toBe(true);
+    expect((parsed._meta as Record<string, unknown>).v).toBe(5);
     expect(line).toBe(renderJsonUnplanned(record, logger.settings));
   });
 });
@@ -136,27 +132,21 @@ describe("render/json: line-plan residual bail-outs (renderPlannedLine / buildLi
     });
   });
 
-  test("stack capture on makes buildLinePlan return false via the `path` meta key", () => {
-    // A `path` meta key (stack capture) is an unknown non-static key that permanently unplannable-marks
-    // the logger: buildLinePlan returns false through the `key === "path" ? false : null` true arm.
-    const logger = new Logger<AnyRecord>({ type: "hidden", stack: { capture: "full" }, clock: () => FIXED });
-    const record = logger.info("with path", { a: 1 }) as AnyRecord;
-    const line = renderJson(record, logger.settings);
-    expect(line).toContain('"path":');
-    expect(line).toBe(renderJsonUnplanned(record, logger.settings));
-  });
-
   test("a plan-eligible record whose static meta value later changes bails plan validation", () => {
-    // First render builds a plan from a clean record. A second record with the SAME meta key count but
-    // a MUTATED static value (hostname) must fail the per-record static-value check (line 700) and fall
-    // back to the object path — the plan's cached hostname no longer matches.
+    // First render builds a plan from a clean record. Middleware (the public `use` API) then overrides
+    // the static `hostname` on the NEXT record's _meta: same meta key count, mutated static value — the
+    // per-record static-value check fails and the renderer falls back to the object path, because the
+    // plan's cached hostname no longer matches.
     const logger = hidden();
     const warm = logger.info("warm") as AnyRecord;
     renderJson(warm, logger.settings); // builds + caches a valid plan
+    logger.use((ctx) => {
+      ctx.meta.hostname = "changed-host";
+      return ctx;
+    });
     const next = logger.info("next") as AnyRecord;
-    (next._meta as unknown as Record<string, unknown>).hostname = "changed-host";
     const line = renderJson(next, logger.settings);
-    // Fallback output carries the mutated hostname and matches the object path exactly.
+    // Fallback output carries the overridden hostname and matches the object path exactly.
     expect(line).toContain('"hostname":"changed-host"');
     expect(line).toBe(renderJsonUnplanned(next, logger.settings));
   });
@@ -224,10 +214,10 @@ describe("masking: mask() URL fast path with mixed arguments", () => {
   });
 });
 
-describe("masking: Map key match with hash vs. placeholder censor", () => {
-  // A Map key matching mask.keys redacts its value. With censor:"hash" the value becomes the stable
-  // correlation token (the hash true-arm); with the default censor it becomes the placeholder (the
-  // false arm) — this pins the hash side that the placeholder tests do not.
+describe("masking: Map key match with the hash censor", () => {
+  // A Map key matching mask.keys redacts its value. With censor:"hash" it becomes the stable
+  // correlation token (the hash true-arm); the placeholder false-arm (default censor) is pinned by
+  // tests/26_advanced_masking.test.ts, which also asserts source-Map non-mutation.
   test("censor:'hash' redacts a matching Map key's value with a correlation token", () => {
     const logger = hidden({ mask: { keys: ["k"], censor: "hash" } });
     const map = new Map<string, unknown>([
@@ -241,19 +231,6 @@ describe("masking: Map key match with hash vs. placeholder censor", () => {
     // Same secret hashes the same whether inside a Map or a plain object (value-only correlation).
     const objRecord = logger.info({ k: "secret-value" }) as AnyRecord;
     expect(masked.get("k")).toBe(objRecord.k);
-  });
-
-  test("the default censor redacts a matching Map key's value with the placeholder", () => {
-    // With no `censor` configured, a matching Map key falls to the placeholder arm (not the hash token).
-    const logger = hidden({ mask: { keys: ["k"] } });
-    const map = new Map<string, unknown>([
-      ["k", "secret-value"],
-      ["plain", "visible"],
-    ]);
-    const record = logger.info({ m: map }) as AnyRecord;
-    const masked = record.m as Map<string, unknown>;
-    expect(masked.get("k")).toBe("[***]");
-    expect(masked.get("plain")).toBe("visible");
   });
 });
 
@@ -296,35 +273,12 @@ describe("masking: hashing a value that contains a bigint (stringifyForHash repl
   });
 });
 
-describe("masking: MaskingEngine legacy recursiveCloneAndMaskValuesOfKeys API", () => {
-  // The v4-compat public method is still exercised directly by callers that pass raw (possibly numeric)
-  // keys. Constructing the engine directly pins the paths-active and paths-inactive context setup, the
-  // numeric-key stringification in buildKeySet, and the getMaskPaths nullish/empty-path handling.
-  test("with mask.paths active it builds the inProgress/inertClones guards and masks numeric keys", () => {
-    const settings = hidden({ mask: { paths: ["a.b"] } }).settings;
-    const engine = new MaskingEngine(settings as never, maskPredicates);
-    // A numeric mask key is stringified in buildKeySet (the String(key) arm) to match string prop names.
-    const out = engine.recursiveCloneAndMaskValuesOfKeys({ 42: "secret", other: "ok" }, [42]);
-    expect((out as Record<string, unknown>)["42"]).toBe("[***]");
-    expect((out as Record<string, unknown>).other).toBe("ok");
-  });
-
-  test("with no mask.paths the guards are left undefined (paths-inactive context)", () => {
-    const settings = hidden({ mask: { keys: ["s"] } }).settings;
-    const engine = new MaskingEngine(settings as never, maskPredicates);
-    const out = engine.recursiveCloneAndMaskValuesOfKeys({ s: "secret", ok: 1 }, ["s"]);
-    expect((out as Record<string, unknown>).s).toBe("[***]");
-    expect((out as Record<string, unknown>).ok).toBe(1);
-  });
-
-  test("getMaskPaths returns [] when mask.paths is nullish", () => {
-    const settings = hidden().settings;
-    (settings.mask as Record<string, unknown>).paths = undefined;
-    const engine = new MaskingEngine(settings as never, maskPredicates);
-    expect(engine.getMaskPaths()).toEqual([]);
-  });
-
-  test("getMaskPaths skips empty-string / non-string path entries when compiling", () => {
+describe("masking: getMaskPaths compilation of degenerate path entries", () => {
+  // The broader v4-compat recursiveCloneAndMaskValuesOfKeys surface (stringified keys, regex, Map/Set/URL
+  // pass-through) is pinned by tests/22 and tests/36. This keeps the residuals reachable from real user
+  // config: path entries that produce no usable matcher ("" is a legal-but-empty config value), and the
+  // legacy method honoring v5 mask.paths plus its documented raw `(number | string)[]` keys parameter.
+  test("skips empty-string / non-string path entries; the surviving path censors via the legacy API", () => {
     const settings = hidden({ mask: { paths: ["", "a.b"] } }).settings;
     // Smuggle a non-string entry alongside the empty string to hit the `typeof path !== "string"` arm.
     (settings.mask.paths as unknown[]).unshift(123 as never);
@@ -333,5 +287,11 @@ describe("masking: MaskingEngine legacy recursiveCloneAndMaskValuesOfKeys API", 
     // Only the one usable dotted path compiles; "" and the numeric entry are skipped.
     expect(compiled).toHaveLength(1);
     expect(compiled[0].segments).toEqual(["a", "b"]);
+    // The surviving path drives censoring through the legacy method too (the paths-ACTIVE context), and
+    // a RAW numeric key — the legacy signature accepts (number | string)[] — masks its string prop name.
+    const out = engine.recursiveCloneAndMaskValuesOfKeys({ a: { b: "leak", keep: "ok" }, 42: "num-secret" }, [42]) as Record<string, unknown>;
+    expect((out.a as Record<string, unknown>).b).toBe("[***]");
+    expect((out.a as Record<string, unknown>).keep).toBe("ok");
+    expect(out["42"]).toBe("[***]");
   });
 });

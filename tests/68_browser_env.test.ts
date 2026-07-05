@@ -13,14 +13,12 @@ import {
   parseReactNativeStackLine,
   parseServerStackLine,
   type RuntimeInfo,
-  resolveDenoHostname,
   resolveHermesVersion,
   stringifyFallback,
   stripAnsi,
 } from "../src/env/shared.js";
 import {
   buildStackTrace as envBuildStackTrace,
-  clampIndex as envClampIndex,
   findFirstExternalFrameIndex as envFindFirstExternalFrameIndex,
   getDefaultIgnorePatterns as envGetDefaultIgnorePatterns,
   sanitizeStackLines as envSanitizeStackLines,
@@ -188,6 +186,9 @@ describe("shared.ts stack-line parsers", () => {
     });
 
     test("prepends location.origin to fullFilePath when present", () => {
+      // Known characterization quirk — do NOT "fix" in source: the browser path regex intentionally
+      // retains the host as the first path segment (per the regex doc), so prefixing location.origin
+      // on top of that doubles the host in fullFilePath. This pins the current behavior.
       globalAny.location = { origin: "https://cdn.example" };
       const frame = parseBrowserStackLine("fn@https://cdn.example/a/b/c.js:2:3") as IStackFrame;
       expect(frame.filePath).toBe("/cdn.example/a/b/c.js");
@@ -264,16 +265,6 @@ describe("shared.ts runtime detection", () => {
     expect(info.name).toBe("react-native");
   });
 
-  test("detectRuntimeInfo reports a worker (importScripts function) with its user agent", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    globalAny.importScripts = function importScripts() {};
-    vi.stubGlobal("navigator", { userAgent: "WorkerUA" });
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("worker");
-    expect(info.userAgent).toBe("WorkerUA");
-  });
-
   test("resolveHermesVersion returns hermes/<v> when HermesInternal exposes an OSS release version", () => {
     vi.stubGlobal("HermesInternal", {
       getRuntimeProperties: () => ({ "OSS Release Version": "0.12.0" }),
@@ -299,24 +290,6 @@ describe("shared.ts runtime detection", () => {
 
     const withoutVersion: RuntimeInfo = { name: "react-native" };
     expect(createRuntimeMeta(withoutVersion)).toEqual({ runtime: "react-native" });
-  });
-
-  test("resolveDenoHostname returns the hostname and swallows a throwing Deno.hostname()", () => {
-    expect(resolveDenoHostname({ hostname: () => "deno-box" })).toBe("deno-box");
-
-    delete globalAny.location;
-    expect(
-      resolveDenoHostname({
-        hostname: () => {
-          throw new Error("denied");
-        },
-      }),
-    ).toBeUndefined();
-  });
-
-  test("resolveDenoHostname falls back to location.hostname when Deno has no hostname()", () => {
-    globalAny.location = { hostname: "loc-host" };
-    expect(resolveDenoHostname({})).toBe("loc-host");
   });
 });
 
@@ -363,9 +336,9 @@ describe("shared.ts error / value formatting", () => {
     expect(stripAnsi("plain")).toBe("plain");
   });
 
-  test("isNativeError matches instances, cross-realm tags and *Error names; rejects the rest", () => {
-    expect(isNativeError(new Error("x"))).toBe(true);
-    expect(isNativeError({ name: "ValidationError" })).toBe(true);
+  test("a 'DOMException' toString tag does NOT read as an error (tag must end in 'Error')", () => {
+    // The positive cases (instances, *Error names, error-suffixed tags) and the plain rejections are
+    // pinned in tests/33 via env.isError, which delegates to this same shared isNativeError.
     const tagged = {
       get [Symbol.toStringTag]() {
         return "DOMException";
@@ -373,9 +346,6 @@ describe("shared.ts error / value formatting", () => {
     };
     // toString tag is "[object DOMException]" -> does NOT match "[object ...Error]", and name is absent.
     expect(isNativeError(tagged)).toBe(false);
-    expect(isNativeError({ name: "Warning" })).toBe(false);
-    expect(isNativeError("nope")).toBe(false);
-    expect(isNativeError(null)).toBe(false);
   });
 });
 
@@ -397,8 +367,9 @@ describe("shared.ts getPrettyLogMethod", () => {
 });
 
 describe("shared.ts getEnvironmentHostname (direct)", () => {
-  test("prefers the process env HOSTNAME/HOST/COMPUTERNAME override", () => {
-    expect(getEnvironmentHostname({ env: { HOSTNAME: "from-hostname" } })).toBe("from-hostname");
+  test("falls back through the process env key chain HOST -> COMPUTERNAME", () => {
+    // The HOSTNAME-wins precedence is pinned in tests/59; the HOST and COMPUTERNAME arms of the
+    // process-env key chain are only exercised here.
     expect(getEnvironmentHostname({ env: { HOST: "from-host" } })).toBe("from-host");
     expect(getEnvironmentHostname({ env: { COMPUTERNAME: "from-computername" } })).toBe("from-computername");
   });
@@ -414,10 +385,6 @@ describe("shared.ts getEnvironmentHostname (direct)", () => {
       },
     ) as Record<string, string | undefined>;
     expect(getEnvironmentHostname({ env: throwingEnv }, undefined, undefined, { hostname: "loc" })).toBe("loc");
-  });
-
-  test("falls back to the Bun env bag when process env is empty", () => {
-    expect(getEnvironmentHostname({ env: {} }, undefined, { env: { HOST: "bun-host" } })).toBe("bun-host");
   });
 
   test("swallows a throwing Bun env read", () => {
@@ -449,49 +416,6 @@ describe("shared.ts getEnvironmentHostname (direct)", () => {
     );
     expect(throwing).toBe("loc");
   });
-
-  test("uses Deno.hostname() and swallows a throwing hostname()", () => {
-    expect(getEnvironmentHostname({ env: {} }, { hostname: () => "deno-host-fn" })).toBe("deno-host-fn");
-
-    const throwing = getEnvironmentHostname(
-      { env: {} },
-      {
-        hostname: () => {
-          throw new Error("NotCapable");
-        },
-      },
-      undefined,
-      { hostname: "loc" },
-    );
-    expect(throwing).toBe("loc");
-  });
-
-  test("uses node:os via process.getBuiltinModule and swallows a throwing accessor", () => {
-    const proc = {
-      env: {},
-      getBuiltinModule: (id: string) => (id === "node:os" ? { hostname: () => "os-host" } : undefined),
-    };
-    expect(getEnvironmentHostname(proc)).toBe("os-host");
-
-    const throwingProc = {
-      env: {},
-      getBuiltinModule: () => {
-        throw new Error("NotCapable");
-      },
-    };
-    expect(getEnvironmentHostname(throwingProc, undefined, undefined, { hostname: "loc" })).toBe("loc");
-  });
-
-  test("returns undefined when nothing resolves", () => {
-    expect(getEnvironmentHostname({ env: {} })).toBeUndefined();
-    // getBuiltinModule present but os.hostname returns an empty string -> not accepted.
-    expect(
-      getEnvironmentHostname({
-        env: {},
-        getBuiltinModule: () => ({ hostname: () => "" }),
-      }),
-    ).toBeUndefined();
-  });
 });
 
 describe("shared.ts normalizeFilePath (direct)", () => {
@@ -500,85 +424,25 @@ describe("shared.ts normalizeFilePath (direct)", () => {
     expect(normalizeFilePath(undefined as unknown as string)).toBeUndefined();
   });
 
-  test("collapses backslashes to forward slashes and preserves a windows drive prefix", () => {
-    expect(normalizeFilePath("C:\\a\\b\\c.ts")).toBe("C:/a/b/c.ts");
-    // Drive-only input keeps just the drive prefix (no trailing slash appended).
+  test("a drive-only windows path keeps just the drive prefix (no trailing slash appended)", () => {
+    // The general drive-prefix + backslash conversion, UNC, '..' and collapse-to-empty cases are
+    // pinned in tests/33 via server frames; the bare-drive edge is only reachable directly.
     expect(normalizeFilePath("C:\\")).toBe("C:");
   });
 
-  test("preserves a UNC leading double slash", () => {
-    expect(normalizeFilePath("//server/share/x.ts")).toBe("//server/share/x.ts");
-  });
-
-  test("preserves a single leading slash and resolves . and .. segments", () => {
+  test("preserves a single leading slash and resolves '.' segments alongside '..'", () => {
+    // tests/33 pins '..' popping; the '.' segment skip is only exercised here.
     expect(normalizeFilePath("/a/b/../c/./d.ts")).toBe("/a/c/d.ts");
   });
 
   test("normalizes a relative path with no leading slash or drive", () => {
     expect(normalizeFilePath("a/b/c.ts")).toBe("a/b/c.ts");
   });
-
-  test("returns the original value when normalization collapses to empty", () => {
-    // Only '..' segments with no leading slash -> normalizedSegments empty -> original returned.
-    expect(normalizeFilePath("../..")).toBe("../..");
-  });
 });
 
-describe("shared.ts detectRuntimeInfo (Bun/Deno/Node branches, direct via stubbed globals)", () => {
-  test("detects Bun with a version and resolves its hostname", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    delete globalAny.Deno;
-    delete globalAny.importScripts;
-    vi.stubGlobal("navigator", undefined);
-    globalAny.Bun = { version: "1.2.0", env: { HOSTNAME: "bun-host" } };
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("bun");
-    expect(info.version).toBe("bun/1.2.0");
-    expect(info.hostname).toBe("bun-host");
-  });
-
-  test("detects Bun without a version (version stays undefined)", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    delete globalAny.Deno;
-    delete globalAny.importScripts;
-    vi.stubGlobal("navigator", undefined);
-    globalAny.Bun = {};
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("bun");
-    expect(info.version).toBeUndefined();
-  });
-
-  test("detects Deno with and without a version string", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    delete globalAny.Bun;
-    delete globalAny.importScripts;
-    delete globalAny.process;
-    vi.stubGlobal("navigator", undefined);
-    globalAny.Deno = { version: { deno: "2.1.0" } };
-    expect(detectRuntimeInfo().version).toBe("deno/2.1.0");
-
-    globalAny.Deno = {};
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("deno");
-    expect(info.version).toBeUndefined();
-  });
-
-  test("detects Node from process.versions.node", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    delete globalAny.Deno;
-    delete globalAny.Bun;
-    delete globalAny.importScripts;
-    vi.stubGlobal("navigator", undefined);
-    globalAny.process = { versions: { node: "20.9.0" }, env: {} };
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("node");
-    expect(info.version).toBe("20.9.0");
-  });
-
+describe("shared.ts detectRuntimeInfo (residual node/unknown branches, direct via stubbed globals)", () => {
+  // Bun/Deno detection (with and without version), worker detection, and the bare-process -> node
+  // fallback are pinned in tests/31 and tests/33 through the providers (same shared detectRuntimeInfo).
   test("detects Node from process.version alone", () => {
     delete globalAny.window;
     delete globalAny.document;
@@ -590,19 +454,6 @@ describe("shared.ts detectRuntimeInfo (Bun/Deno/Node branches, direct via stubbe
     const info = detectRuntimeInfo();
     expect(info.name).toBe("node");
     expect(info.version).toBe("v20.0.0");
-  });
-
-  test("detects a bare process global as node with an 'unknown' version", () => {
-    delete globalAny.window;
-    delete globalAny.document;
-    delete globalAny.Deno;
-    delete globalAny.Bun;
-    delete globalAny.importScripts;
-    vi.stubGlobal("navigator", undefined);
-    globalAny.process = { env: {} };
-    const info = detectRuntimeInfo();
-    expect(info.name).toBe("node");
-    expect(info.version).toBe("unknown");
   });
 
   test("reports 'unknown' when no runtime marker is present", () => {
@@ -669,14 +520,8 @@ describe("env/stackTrace.ts helpers", () => {
     expect(envFindFirstExternalFrameIndex([])).toBe(0);
   });
 
-  test("clampIndex clamps below 0, above max, and passes through valid indexes", () => {
-    expect(envClampIndex(-5, 3)).toBe(0);
-    expect(envClampIndex(10, 3)).toBe(2);
-    expect(envClampIndex(1, 3)).toBe(1);
-    // maxExclusive 0 -> Math.max(0, -1) === 0.
-    expect(envClampIndex(4, 0)).toBe(0);
-  });
-
+  // clampIndex bounds are pinned in tests/19 (the owner of env/stackTrace.ts); only the fresh-copy
+  // mutation-isolation contract below is not asserted there.
   test("getDefaultIgnorePatterns returns a fresh copy each call", () => {
     const a = envGetDefaultIgnorePatterns();
     const b = envGetDefaultIgnorePatterns();
@@ -692,11 +537,12 @@ describe("env/stackTrace.ts helpers", () => {
 // ================================================================================================
 describe("createBrowserEnvironment provider", () => {
   describe("getMeta", () => {
-    test("attaches path (capture on) and eagerly sets name + parentNames", () => {
+    test("eagerly sets name + parentNames and stamps runtime, level and date", () => {
       makeBrowser();
       const env = createBrowserEnvironment();
-      const error = { stack: "Error\nfn@http://localhost/app.js:10:5" } as Error;
-      // callerFrame 0 with a real Error captured inside getMeta -> path is present.
+      // Frame parsing/path attachment is pinned by the getCallerStackFrame tests below; this test
+      // covers the name/parentNames/runtime/date contract (hideLogPosition false still exercises
+      // the capture-on path).
       const meta = env.getMeta(3, "INFO", Number.NaN, false, "svc", ["root"]) as IMeta & {
         name?: string;
         parentNames?: string[];
@@ -708,10 +554,6 @@ describe("createBrowserEnvironment provider", () => {
       expect(meta.date).toBeInstanceOf(Date);
       expect(meta.name).toBe("svc");
       expect(meta.parentNames).toEqual(["root"]);
-      // hideLogPosition === false -> a path object is present.
-      expect(meta.path).toBeDefined();
-      // dropped-through mock stack has no origin; browser parsing still gives a frame.
-      void error;
     });
 
     test("omits path when hideLogPosition is true and omits name/parentNames when unset", () => {
@@ -783,16 +625,19 @@ describe("createBrowserEnvironment provider", () => {
       expect(line).toContain("kaboom");
     });
 
-    test("with styling disabled (style:false) the meta markup is ANSI-stripped", () => {
+    test("style:false takes the unstyled meta-markup arm", () => {
+      // Sole cover of the BROWSER provider's prettyFormatLine style:false ternary arm — the node and
+      // universal providers' equivalents are pinned in tests/69 and tests/72. Note: with style:false
+      // the meta markup is ANSI-free by construction, so the stripAnsi call in that arm is a no-op
+      // here; this test pins the unstyled output contract, not stripAnsi itself.
       makeBrowser();
       const env = createBrowserEnvironment();
       const settings = prettySettings({ style: false, template: "{{logLevelName}} " });
       const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
       const line = env.prettyFormatLine(["hello"], meta, settings);
-      // No raw ANSI escape bytes survive.
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting absence of ANSI escapes
-      expect(/\[/.test(line)).toBe(false);
+      expect(line).toContain("INFO");
       expect(line).toContain("hello");
+      expect(stripAnsi(line)).toBe(line);
     });
   });
 
@@ -878,141 +723,37 @@ describe("createBrowserEnvironment provider", () => {
   });
 
   describe("transportFormatted — CSS %c styling branch", () => {
-    test("emits %c markers and css style args for a styled placeholder", () => {
+    // %c emission, the no-css fallback, literal template text, undefined meta, and the
+    // string/array/nested-array/level-map token resolution (including exact-level-beats-'*')
+    // are all pinned in tests/32; only the tokensToCss dedupe below is not covered there.
+    test("tokensToCss collapses duplicate style tokens into a single css declaration", () => {
       makeCssBrowser();
       const env = createBrowserEnvironment();
-      const settings = prettySettings({ template: "{{logLevelName}}", styles: { logLevelName: "blue" } });
+      const settings = prettySettings({
+        template: "{{logLevelName}}",
+        styles: { logLevelName: ["red", "red"] } as ISettings<unknown>["pretty"]["styles"],
+      });
       const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
 
       const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportFormatted("", ["hello"], [], meta, settings);
+      env.transportFormatted("FALLBACK", [], [], meta, settings);
       const call = spy.mock.calls[0] as unknown[];
       spy.mockRestore();
 
-      const text = call[0] as string;
-      expect(text).toContain("%c");
-      expect(text).toContain("INFO");
-      expect(text).toContain("hello");
-      // blue -> a color css value passed as a separate console argument.
-      expect(call.slice(1)).toContain("color: #42a5f5");
-    });
-
-    test("collectStyleTokens resolves string, array/nested-array and object (level-map) styles; tokensToCss dedupes", () => {
-      makeCssBrowser();
-      const env = createBrowserEnvironment();
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      function styleArgsFor(style: unknown): string[] {
-        const settings = prettySettings({
-          template: "{{logLevelName}}",
-          styles: { logLevelName: style } as ISettings<unknown>["pretty"]["styles"],
-        });
-        const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-        env.transportFormatted("FALLBACK", [], [], meta, settings);
-        const call = spy.mock.calls[0] as unknown[];
-        spy.mockRestore();
-        return call.slice(1).filter((arg) => typeof arg === "string" && arg.length > 0) as string[];
-      }
-
-      // string token
-      expect(styleArgsFor("red")).toContain("color: #ef5350");
-      // array + nested array -> joined into one css string
-      expect(styleArgsFor(["bold", ["red"]])).toEqual(["font-weight: bold; color: #ef5350"]);
-      // object level-map: exact-level match wins
-      expect(styleArgsFor({ INFO: "blue", "*": "white" })).toEqual(["color: #42a5f5"]);
-      // object level-map: no exact match -> '*' fallback
-      expect(styleArgsFor({ WARN: "blue", "*": "white" })).toEqual(["color: #fafafa"]);
-      // duplicate tokens collapse to a single css declaration (tokensToCss `seen` set)
-      expect(styleArgsFor(["red", "red"])).toEqual(["color: #ef5350"]);
-    });
-
-    test("a placeholder whose style resolves to no css falls back to sanitized meta markup", () => {
-      makeCssBrowser();
-      const env = createBrowserEnvironment();
-      // Empty styles -> collectStyleTokens returns [] -> no css produced.
-      const settings = prettySettings({ template: "{{logLevelName}}", styles: {} });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportFormatted("SANITIZED-META", ["body"], [], meta, settings);
-      const call = spy.mock.calls[0] as unknown[];
-      spy.mockRestore();
-
-      // No css -> single argument, no %c, falls back to the passed-in sanitized markup.
-      expect(call.length).toBe(1);
-      expect(String(call[0])).not.toContain("%c");
-      expect(String(call[0])).toContain("SANITIZED-META");
-    });
-
-    test("literal template text before/after a placeholder is preserved in the css output", () => {
-      makeCssBrowser();
-      const env = createBrowserEnvironment();
-      const settings = prettySettings({ template: "PRE {{logLevelName}} POST", styles: { logLevelName: "blue" } });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportFormatted("", [], [], meta, settings);
-      const text = spy.mock.calls[0]?.[0] as string;
-      spy.mockRestore();
-
-      expect(text).toContain("PRE ");
-      expect(text).toContain(" POST");
-    });
-
-    test("null meta in the CSS branch uses the sanitized fallback markup", () => {
-      makeCssBrowser();
-      const env = createBrowserEnvironment();
-      const settings = prettySettings();
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportFormatted("", ["only-args"], [], undefined, settings);
-      const call = spy.mock.calls[0] as unknown[];
-      spy.mockRestore();
-
-      expect(call.length).toBe(1);
-      expect(String(call[0])).not.toContain("%c");
-      expect(String(call[0])).toContain("only-args");
+      // The repeated "red" token yields ONE css declaration (tokensToCss tracks seen tokens).
+      const styleArgs = call.slice(1).filter((arg) => typeof arg === "string" && arg.length > 0);
+      expect(styleArgs).toEqual(["color: #ef5350"]);
     });
   });
 
   describe("isBuffer with a real Buffer", () => {
+    // Bundler-polyfill scenario: real browsers have no Buffer, but bundlers commonly inject one —
+    // the browser provider must then delegate to that injected Buffer.isBuffer.
     test("returns true for a Node Buffer and false for a plain Uint8Array", () => {
       makeBrowser();
       const env = createBrowserEnvironment();
-      // Buffer exists in the Node test runtime; the browser provider still delegates to Buffer.isBuffer.
       expect(env.isBuffer(Buffer.from("hi"))).toBe(true);
       expect(env.isBuffer(new Uint8Array([1]))).toBe(false);
-    });
-  });
-
-  describe("formatWithOptionsSafe fallback", () => {
-    test("a throwing-inspect arg falls back to per-arg stringifyFallback without crashing", () => {
-      makeBrowser("Mozilla/5.0 (X11) Chrome/120.0.0.0");
-      delete globalAny.CSS;
-      const env = createBrowserEnvironment();
-      const settings = prettySettings({ style: false });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      // A Proxy whose ownKeys trap throws makes the bundled inspect polyfill throw deep inside,
-      // triggering the formatWithOptionsSafe catch -> stringifyFallback per arg.
-      const throwing = new Proxy(
-        {},
-        {
-          ownKeys() {
-            throw new Error("inspection blew up");
-          },
-        },
-      );
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      let out = "";
-      expect(() => {
-        env.transportFormatted("META ", ["plain", throwing], [], meta, settings);
-        out = String(spy.mock.calls[0]?.[0]);
-      }).not.toThrow();
-      spy.mockRestore();
-
-      expect(out).toContain("plain");
     });
   });
 

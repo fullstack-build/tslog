@@ -362,6 +362,7 @@ export class BaseLogger<LogObj> {
     // json -> the flat fields-first line; hidden -> no console output (transports still run).
     if (this.settings.type === "pretty") {
       const { args: prettyArgs, errors: prettyErrors } = this.runtime.prettyFormatLogObj(maskedArgs, this.settings);
+      /* v8 ignore next -- FALLBACK_FEATURES rejects pretty without a full feature set (FEATURES_NO_PRETTY), so no live logger reaches this "" fallback */
       const metaMarkup = this.features.buildPrettyMetaText?.(this.settings, recordMeta) ?? "";
       this.runtime.transportFormatted(metaMarkup, prettyArgs, prettyErrors, recordMeta, this.settings);
     } else if (this.settings.type === "json") {
@@ -373,7 +374,6 @@ export class BaseLogger<LogObj> {
         } else {
           nativeConsoleMethod("log")(line);
         }
-        /* v8 ignore next 3 -- defensive: guards against a sink/console implementation that itself throws */
       } catch {
         // never let the default sink crash logging
       }
@@ -699,9 +699,11 @@ export class BaseLogger<LogObj> {
     if (capture === "full" || capture === "lazy") {
       return true;
     }
-    // "auto": for json the type-driven default already resolved to "off" (so we never reach here with
-    // json under auto). For pretty/hidden, capture only when the template references a code-position
-    // placeholder so the cost is paid solely when it is actually rendered.
+    // "auto": for json the TYPE-DRIVEN default already resolved to "off", but an EXPLICIT
+    // `stack.capture: "auto"` still reaches here (set directly, or inherited by a sub-logger whose
+    // parent resolved "auto" and which switches to type: "json"); json has no template to consult,
+    // so auto means capture. For pretty/hidden, capture only when the template references a
+    // code-position placeholder so the cost is paid solely when it is actually rendered.
     if (this.settings.type === "json") {
       return true;
     }

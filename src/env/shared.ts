@@ -261,25 +261,6 @@ export function getEnvironmentHostname(
   return undefined;
 }
 
-/** Resolve a Deno host name via `Deno.hostname()`, swallowing permission errors, then `location.hostname`. */
-export function resolveDenoHostname(deno?: { hostname?: () => string }): string | undefined {
-  try {
-    if (typeof deno?.hostname === "function") {
-      const value = deno.hostname();
-      if (value != null && value.length > 0) {
-        return value;
-      }
-    }
-  } catch {
-    // ignore inability to resolve hostname via Deno APIs
-  }
-  const locationHostname = (globalThis as { location?: { hostname?: string } }).location?.hostname;
-  if (locationHostname != null && locationHostname.length > 0) {
-    return locationHostname;
-  }
-  return undefined;
-}
-
 /** True for DOM environments (both `window` and `document` present). */
 export function isBrowserEnvironment(): boolean {
   return typeof window !== "undefined" && typeof document !== "undefined";
@@ -412,7 +393,6 @@ export function parseServerStackLine(rawLine: string | undefined, getCwd: () => 
  */
 export function parseBrowserStackLine(line: string | undefined): IStackFrame | undefined {
   const href = (globalThis as { location?: { origin?: string } }).location?.origin;
-  /* v8 ignore next 3 -- defensive: buildStackTrace only ever feeds non-null lines into the parser */
   if (line == null) {
     return undefined;
   }
@@ -585,7 +565,6 @@ export function stringifyFallback(value: unknown): string {
 
   try {
     return JSON.stringify(value);
-    /* v8 ignore next 3 -- defensive: only reached for values JSON.stringify rejects (e.g. BigInt) while the primary inspect path has already failed */
   } catch {
     return String(value);
   }

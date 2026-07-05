@@ -194,7 +194,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   // object walk below would render them as an empty `{}`. Show the href instead, like native inspect.
   if (typeof URL !== "undefined" && value instanceof URL) {
     /* v8 ignore next -- the ?? fallback is dead: formatPrimitive on the string href always returns a non-nullish result */
-    return `URL { ${formatPrimitive(ctx, value.href) ?? `'${value.href}'`} }`;
+    return `URL { ${formatPrimitive(ctx, value.href) ?? `'${String(value.href)}'`} }`;
   }
 
   // Look up the keys of the object.
@@ -204,9 +204,9 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
     if (ctx.showHidden && Object.getOwnPropertyNames) {
       keys = Object.getOwnPropertyNames(value);
     }
-    /* v8 ignore next 3 -- IE-era defensive catch: any value that fails getOwnPropertyNames already threw at Object.keys(value) above */
   } catch {
-    // ignore
+    // A stateful Proxy can satisfy Object.keys above and still throw from its ownKeys trap on this
+    // second enumeration — keep the enumerable keys already collected.
   }
 
   // IE doesn't make error fields non-enumerable
@@ -231,6 +231,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
       if (isError(value)) {
         return formatError(value as Error);
       }
+      /* v8 ignore next 3 -- stylize is always a function via the public inspect(); legacy port branch kept for structural fidelity */
     } else {
       return value;
     }
@@ -307,15 +308,12 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
     // ignore
   }
   try {
-    // ie10 › Object.getOwnPropertyDescriptor(window.location, 'hash')
-    // throws TypeError: Object doesn't support this action
-    /* v8 ignore next 3 -- IE-era defensive: Object.getOwnPropertyDescriptor is always present in modern engines, and the `|| desc` fallback only matters for the same legacy hosts */
-    if (Object.getOwnPropertyDescriptor) {
-      desc = Object.getOwnPropertyDescriptor(value, key) || desc;
-    }
-    /* v8 ignore next 3 -- IE10-era defensive catch; getOwnPropertyDescriptor does not throw for the plain objects this polyfill inspects */
+    // A Proxy's getOwnPropertyDescriptor trap can throw (which is why the catch must stay), and a trap
+    // paired with a ghost-reporting ownKeys can return undefined — `|| desc` keeps the value captured
+    // by the direct property read above in that case.
+    desc = Object.getOwnPropertyDescriptor(value, key) || desc;
   } catch {
-    // ignore
+    // ignore — fall back to the desc captured from the direct property read
   }
   if (desc.get) {
     if (desc.set) {

@@ -187,15 +187,18 @@ describe("wrapConsole / restoreConsole (M3.10)", () => {
     });
 
     test("a nested console.* call inside a forwarded log routes to the saved native method, not the wrapper", () => {
-      // Directly exercise the `forwarding` latch (wrapConsole.ts lines 98-101): while the wrapper is
-      // handling a console.* → logger call, a nested console.* must go straight to the captured native
-      // method instead of re-entering the wrapper. We use a ConsoleLikeLogger whose level method itself
-      // calls console.log, so the forwarder is genuinely re-entered rather than bypassed via the
+      // Directly exercise the `forwarding` latch in wrapConsole: while the wrapper is handling a
+      // console.* → logger call, a nested console.* must go straight to the captured native method
+      // instead of re-entering the wrapper. We use a ConsoleLikeLogger whose level method itself calls
+      // console.log, so the forwarder is genuinely re-entered rather than bypassed via the
       // NATIVE_CONSOLE_KEY sink used by the real json/pretty loggers.
       const realLog = console.log;
-      const nativeCalls: unknown[][] = [];
-      // Install a spy BEFORE wrapping so wrapConsole captures it as the "native" console.log.
-      console.log = (...args: unknown[]): void => void nativeCalls.push(args);
+      const nativeCalls: { receiver: unknown; args: unknown[] }[] = [];
+      // Install a spy BEFORE wrapping so wrapConsole captures it as the "native" console.log. A function
+      // expression (not an arrow) so the dispatch receiver (`this`) is observable.
+      console.log = function (this: unknown, ...args: unknown[]): void {
+        nativeCalls.push({ receiver: this, args });
+      };
       try {
         const loggerCalls: unknown[][] = [];
         const logger: ConsoleLikeLogger = {
@@ -215,38 +218,14 @@ describe("wrapConsole / restoreConsole (M3.10)", () => {
         // The outer call was routed once into the logger…
         expect(loggerCalls).toEqual([["outer"]]);
         // …and the logger's own nested console.log reached the saved native method exactly once,
-        // without re-entering the wrapper (which would have re-called logger.info).
-        expect(nativeCalls).toEqual([["nested-from-logger"]]);
+        // without re-entering the wrapper (which would have re-called logger.info)…
+        expect(nativeCalls).toHaveLength(1);
+        expect(nativeCalls[0].args).toEqual(["nested-from-logger"]);
+        // …dispatched with the console object as the receiver, as a real native method expects.
+        expect(nativeCalls[0].receiver).toBe(console);
       } finally {
         restoreConsole();
         console.log = realLog;
-      }
-    });
-
-    test("a nested console call routes native even when the original method reference is present", () => {
-      // Second angle on lines 98-101: confirm the nested call uses `originalMethods?.[method]?.apply`
-      // with the correct receiver (console) and args, for a non-log method too (console.error).
-      const realError = console.error;
-      const nativeErrCalls: unknown[][] = [];
-      console.error = (...args: unknown[]): void => void nativeErrCalls.push(args);
-      try {
-        const logger: ConsoleLikeLogger = {
-          debug: () => {},
-          info: () => {},
-          warn: () => {},
-          error(...args: unknown[]): void {
-            // Nested console.error while forwarding an error → native path.
-            console.error("nested-err", ...args);
-          },
-        };
-        wrapConsole(logger);
-
-        console.error("outer-err");
-
-        expect(nativeErrCalls).toEqual([["nested-err", "outer-err"]]);
-      } finally {
-        restoreConsole();
-        console.error = realError;
       }
     });
 

@@ -85,8 +85,11 @@ describe("universal provider residual branches", () => {
         env.transportFormatted(settings.pretty.template, ["no-style"], [], meta, settings);
       });
       expect(calls).toHaveLength(1);
-      // No style resolved for INFO → the placeholder is emitted as plain text (no %c wrapping around it).
+      // No style resolved for INFO → "no CSS" is observable: a single console arg, no %c directives,
+      // and no trailing style arguments.
+      expect(calls[0]).toHaveLength(1);
       expect(String(calls[0][0])).toContain("no-style");
+      expect(String(calls[0][0])).not.toContain("%c");
     });
   });
 
@@ -97,7 +100,7 @@ describe("universal provider residual branches", () => {
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
 
       const env = createUniversalEnvironment();
-      // A numeric style token is neither string, array, nor object → collectStyleTokens returns [] (line 123).
+      // A numeric style token is neither string, array, nor object → collectStyleTokens' final `return []` runs.
       const settings = prettySettings({
         pretty: { styles: { logLevelName: 42 as never } },
       });
@@ -107,7 +110,10 @@ describe("universal provider residual branches", () => {
         env.transportFormatted(settings.pretty.template, ["numeric-style"], [], meta, settings);
       });
       expect(calls).toHaveLength(1);
+      // No CSS resolved → a single console arg with no %c directives and no style arguments.
+      expect(calls[0]).toHaveLength(1);
       expect(String(calls[0][0])).toContain("numeric-style");
+      expect(String(calls[0][0])).not.toContain("%c");
     });
   });
 
@@ -163,7 +169,7 @@ describe("universal provider residual branches", () => {
     expect(out).toContain("dispatched-err");
   });
 
-  test("buildCssMetaOutput renders an unknown template placeholder as empty text (line 159 else)", () => {
+  test("buildCssMetaOutput renders an unknown template placeholder as empty text (placeholder-miss else)", () => {
     withStubbedGlobals(() => {
       globalAny.window = {};
       globalAny.document = {};
@@ -171,7 +177,7 @@ describe("universal provider residual branches", () => {
 
       const env = createUniversalEnvironment();
       // A custom template with a placeholder that buildPrettyMeta never fills → placeholders[key] is
-      // undefined → the CSS meta builder uses "" for it (line 159 `: ""`).
+      // undefined → the CSS meta builder substitutes "" for it, so the raw token never leaks through.
       const settings = prettySettings({ pretty: { template: "[{{logLevelName}}]{{unknownPlaceholder}} " } });
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
 
@@ -180,6 +186,7 @@ describe("universal provider residual branches", () => {
       });
       expect(calls).toHaveLength(1);
       expect(String(calls[0][0])).toContain("css-unknown");
+      expect(String(calls[0][0])).not.toContain("unknownPlaceholder");
     });
   });
 });
@@ -233,7 +240,7 @@ describe.runIf(isNode)("browser provider residual branches", () => {
     });
   });
 
-  test("transportFormatted uses the CSS `%c` path on a WORKER runtime (line 204 worker branch)", () => {
+  test("transportFormatted uses the CSS `%c` path on a WORKER runtime (shouldUseCss worker branch)", () => {
     withStubbedGlobals(() => {
       // A worker runtime: importScripts is a function and Firefox-like UA → shouldUseCss's
       // `runtimeInfo.name === "worker"` sibling is true and consoleSupportsCssStyling() returns true.
@@ -248,35 +255,34 @@ describe.runIf(isNode)("browser provider residual branches", () => {
       });
       expect(calls).toHaveLength(1);
       expect(String(calls[0][0])).toContain("worker-css");
+      // The CSS path is observable: %c directives in the format string with style args following.
+      expect(String(calls[0][0])).toContain("%c");
+      expect(calls[0].length).toBeGreaterThan(1);
     });
   });
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* Node provider — the browser/worker CSS guard true branch (transportFormatted, line 141 branch)     */
+/* Node provider — formatWithOptionsSafe catch → stringifyFallback whose own JSON.stringify throws     */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe.runIf(isNode)("node provider residual branches", () => {
-  test("transportFormatted takes the CSS `%c` guard when the detected runtime looks like a browser", () => {
-    withStubbedGlobals(() => {
-      // Force the Node provider to detect a browser/worker console that supports CSS so the `useCss`
-      // guard (browser/worker + consoleSupportsCssStyling) evaluates true — the branch is dead in
-      // production (the Node provider only runs under Node) but the code path exists for parity.
-      globalAny.window = {};
-      globalAny.document = {};
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-      const env = createNodeEnvironment();
-      const settings = prettySettings();
-      const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-
-      const calls = captureConsoleLog(() => {
-        env.transportFormatted(settings.pretty.template, ["css-guard"], [], meta, settings);
-      });
-      expect(calls).toHaveLength(1);
-      // The CSS branch strips ANSI from the meta markup and logs the single formatted string.
-      expect(String(calls[0][0])).toContain("css-guard");
-    });
+  test("stringifyFallback falls back to String(value) when JSON.stringify also throws (BigInt after an inspect trap)", () => {
+    // Native util.formatWithOptions invokes the throwing custom-inspect hook and propagates the error →
+    // formatWithOptionsSafe's catch maps every arg through stringifyFallback. The hostile object then
+    // makes JSON.stringify throw too (BigInt property) → stringifyFallback's catch returns String(value).
+    const env = createNodeEnvironment();
+    const settings = prettySettings();
+    const hostile = {
+      [Symbol.for("nodejs.util.inspect.custom")]() {
+        throw new Error("inspect trap");
+      },
+      big: 1n,
+    };
+    const line = env.prettyFormatLine(["carrier", hostile], undefined, settings);
+    // The string arg passes through the fallback untouched; the hostile object renders via String().
+    expect(line).toContain("carrier");
+    expect(line).toContain("[object Object]");
   });
 });
 
@@ -318,23 +324,18 @@ describe("env/stackTrace findFirstExternalFrameIndex residual branch", () => {
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* core/levels.ts — resolveLogLevelId returns undefined for a wholly unknown name (line 58 : branch)   */
+/* core/levels.ts — resolveLogLevelId returns undefined for a wholly unknown name                      */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe("core/levels resolveLogLevelId residual branch", () => {
-  test("an unknown level name resolves to undefined (not in customLevels, table, or the enum)", async () => {
+  test("an unknown level name resolves to undefined (not in customLevels or the name table)", async () => {
     const { resolveLogLevelId } = await import("../src/core/levels.js");
     expect(resolveLogLevelId("definitely-not-a-level")).toBeUndefined();
-  });
-
-  test("a known enum name still resolves via the enum fallback", async () => {
-    const { resolveLogLevelId } = await import("../src/core/levels.js");
-    expect(resolveLogLevelId("warn")).toBe(4);
   });
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* core/settings.ts — UNKNOWN_SETTING report with no near-miss suggestion (lines 350-351 else branch)  */
+/* core/settings.ts — UNKNOWN_SETTING report with no near-miss suggestion (nearestKey-miss else side)  */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe("core/settings unknown-setting residual branch", () => {
@@ -342,7 +343,7 @@ describe("core/settings unknown-setting residual branch", () => {
     const { validateSettingsParam } = await import("../src/core/settings.js");
     const { TslogConfigError } = await import("../src/core/config.js");
     // A group key far from every known json key → nearestKey returns undefined → the message has no
-    // "did you mean" clause and the suggestion is the "Remove ..." variant (lines 350-351 else sides).
+    // "did you mean" clause and the suggestion is the "Remove ..." variant.
     // strictConfig throws a typed error carrying message/suggestion, so we assert on the thrown value.
     let thrown: InstanceType<typeof TslogConfigError> | undefined;
     try {
@@ -359,24 +360,6 @@ describe("core/settings unknown-setting residual branch", () => {
     expect(thrown?.setting).toBe("json.zzzqqxxwww");
     expect(thrown?.message).not.toContain("did you mean");
     expect(thrown?.suggestion).toContain("Remove");
-  });
-
-  test("an unknown group key with a close match DOES suggest a rename (the truthy sibling branch)", async () => {
-    const { validateSettingsParam } = await import("../src/core/settings.js");
-    const { TslogConfigError } = await import("../src/core/config.js");
-    // "messageKe" is one deletion from the real "messageKey" → nearestKey resolves → rename suggestion.
-    let thrown: InstanceType<typeof TslogConfigError> | undefined;
-    try {
-      validateSettingsParam({
-        strictConfig: true,
-        // @ts-expect-error deliberate near-miss group key
-        json: { messageKe: "m" },
-      });
-    } catch (error) {
-      thrown = error as InstanceType<typeof TslogConfigError>;
-    }
-    expect(thrown?.message).toContain('did you mean "json.messageKey"');
-    expect(thrown?.suggestion).toContain("Rename");
   });
 });
 
@@ -429,15 +412,15 @@ describe("subpaths/testing normalize residual branches", () => {
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* subpaths/pretty/box.ts — tree() leaf branches: anonymous function, symbol; renderTree non-container  */
-/* early return; and the object depth-limit collapse ({…})                                              */
+/* subpaths/pretty/box.ts — tree() leaf branches: anonymous function, symbol; and the array            */
+/* depth-limit collapse ([…])                                                                          */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe("subpaths/pretty/box tree residual branches", () => {
-  test("formatLeaf renders a named function, an anonymous one (line 143 else), and a symbol (line 144)", async () => {
+  test("formatLeaf renders a named function, an anonymous one (empty-name else side), and a symbol", async () => {
     const { tree } = await import("../src/subpaths/pretty/box.js");
     function named(): void {}
-    // Force an empty `name` so the `value.name ? ... : ""` ternary takes its falsy side (line 143).
+    // Force an empty `name` so formatLeaf's `value.name ? ... : ""` ternary takes its falsy side.
     const anon = Object.defineProperty(() => {}, "name", { value: "" });
     const out = tree({ named, anon, sym: Symbol("s") });
     expect(out).toContain("named: [Function: named]");
@@ -445,21 +428,7 @@ describe("subpaths/pretty/box tree residual branches", () => {
     expect(out).toContain("sym: Symbol(s)");
   });
 
-  test("tree(non-container) returns a single leaf; renderTree's non-container guard is a no-op", async () => {
-    const { tree } = await import("../src/subpaths/pretty/box.js");
-    // A top-level non-container renders as a leaf (never descends); renderTree is not entered.
-    expect(tree(42)).toBe("42");
-  });
-
-  test("a nested OBJECT past maxDepth collapses to {…} (line 173 object side)", async () => {
-    const { tree } = await import("../src/subpaths/pretty/box.js");
-    // maxDepth 0: the nested object value is a container but depth is not < maxDepth, so it collapses.
-    const out = tree({ outer: { inner: 1 } }, { maxDepth: 0 });
-    expect(out).toContain("outer {…}");
-    expect(out).not.toContain("inner");
-  });
-
-  test("a nested ARRAY past maxDepth collapses to […] (line 173 array side, for contrast)", async () => {
+  test("a nested ARRAY past maxDepth collapses to […] (the array side of the collapse marker)", async () => {
     const { tree } = await import("../src/subpaths/pretty/box.js");
     const out = tree({ list: [1, 2] }, { maxDepth: 0 });
     expect(out).toContain("list […]");

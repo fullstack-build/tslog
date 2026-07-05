@@ -13,17 +13,17 @@
 
 ## Highlights
 
-🏗 **Universal** — one logger for Node.js, the browser, Deno, Bun, workers and React Native
-🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
-🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY, with no config
-🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation
-🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
-🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
-👮 **Fully typed** — written in TypeScript 7, native ESM, accurate source-mapped line numbers
-🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation
-👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names
-🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal
-🤓 **Pretty errors & stack traces** — structured, fully serializable, lazy by default for speed
+- 🏗 **Universal** — one logger for Node.js, browser, Deno, Bun, workers and React Native
+- 🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
+- 🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY, with no config
+- 🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation
+- 🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
+- 🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
+- 👮 **Fully typed** — written in TypeScript 7, native ESM, accurate source-mapped line numbers
+- 🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation
+- 👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names
+- 🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal
+- 🤓 **Pretty errors & stack traces** — structured, fully serializable, lazy by default for speed
 
 
 ## Example

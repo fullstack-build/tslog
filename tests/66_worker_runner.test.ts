@@ -196,10 +196,11 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
     expect(port.postMessage).toHaveBeenCalledWith({ type: "flushed", id: 99 });
   });
 
-  test("no listener is wired when parentPort is null (worker not spawned as a thread)", async () => {
+  test("importing the runner with a null parentPort does not throw", async () => {
     vi.resetModules();
     vi.doMock("node:worker_threads", () => ({ parentPort: null, workerData: { destination: "stdout", eol: "\n", encoding: "utf8", append: true } }));
-    // Importing with a null port must not throw and must register no handler (the `if (port != null)` guard).
+    // Import-safety smoke test: with a null port there is nothing to observe from outside — the
+    // `if (port != null)` guard just has to keep the module import from throwing.
     await expect(import(RUNNER)).resolves.toBeDefined();
   });
 });

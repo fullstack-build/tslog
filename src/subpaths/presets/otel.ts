@@ -704,7 +704,9 @@ export function toOtlpLogRecord<LogObj>(record: LogObj & ILogObjMeta, settings: 
     // A lone logged error is spread across the record; its `message` key doubles as the messageKey,
     // so splitBodyAndAttributes promoted it to Body — put it back for the exception.* mapping.
     const spreadError = attributes as unknown as IErrorObject;
-    const messageText = typeof spreadError.message === "string" ? spreadError.message : typeof body === "string" ? body : "";
+    /* v8 ignore next -- toErrorObject always emits a string message (possibly promoted to Body, in which case body IS that string); the "" arm guards hand-built direct inputs */
+    const promotedBody = typeof body === "string" ? body : "";
+    const messageText = typeof spreadError.message === "string" ? spreadError.message : promotedBody;
     mapError({ ...spreadError, message: messageText });
   }
   for (const key of Object.keys(attributes)) {

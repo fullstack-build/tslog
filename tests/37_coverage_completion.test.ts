@@ -73,8 +73,8 @@ describe("Coverage completion: runtime detection fallbacks", () => {
   });
 
   test("Deno env.get throwing a permission error is caught while resolving hostname", () => {
-    // resolveDenoHostname has no Deno.hostname() and no location, so it returns undefined and
-    // detection falls through to getEnvironmentHostname, where Deno.env.get throws and is caught.
+    // With no Deno.hostname() and no location, getEnvironmentHostname reaches its Deno.env.get
+    // probe, which throws the permission error and is caught.
     delete globalAny.window;
     delete globalAny.document;
     delete globalAny.Bun;

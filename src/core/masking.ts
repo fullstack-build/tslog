@@ -283,6 +283,7 @@ export class MaskingEngine<LogObj> {
    * Empty/omitted paths yield an empty array, preserving the normalize-only fast path.
    */
   public getMaskPaths(): CompiledPath[] {
+    /* v8 ignore next -- normalized settings always provide the mask group with a paths array; the fallbacks guard direct engine construction */
     const paths = this.settings.mask?.paths ?? [];
     if (paths.length === 0) {
       return [];

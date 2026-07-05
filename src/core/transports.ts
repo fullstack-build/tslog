@@ -104,7 +104,6 @@ function reportTransportError<LogObj>(transport: Transport<LogObj>, error: unkno
   try {
     const label = transport.name != null ? ` "${transport.name}"` : "";
     nativeConsoleMethod("error")(`tslog: attached transport${label} threw an error`, error);
-    /* v8 ignore next 3 -- defensive: guards against a console.error implementation that itself throws */
   } catch {
     // ignore secondary failures while reporting the transport error
   }

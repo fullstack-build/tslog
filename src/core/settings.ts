@@ -175,7 +175,6 @@ const reportedContextStorages = new WeakSet<object>();
 export function emitConfigWarning(message: string): void {
   try {
     nativeConsoleMethod("warn")(`tslog: ${message}`);
-    /* v8 ignore next 3 -- defensive: guards against a console.warn implementation that itself throws */
   } catch {
     // never let a diagnostic crash logging
   }

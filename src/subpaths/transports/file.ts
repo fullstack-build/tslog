@@ -214,7 +214,7 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
         const created = createWriteStream(filePath, { flags: append ? "a" : "w", encoding }) as unknown as WriteStream & WritableLike;
         // Without an `error` listener an async open failure (EACCES, ENOTDIR) is an uncaught
         // exception that kills the process — the one thing a logging sink must never do.
-        (created.on ?? created.once).call(created, "error", (error: unknown) => {
+        created.on("error", (error: unknown) => {
           handleError(error, streamReady ? "write" : "open");
           if (stream === created) {
             // Abandon the broken stream AND the cached open, so the next write truly reopens.

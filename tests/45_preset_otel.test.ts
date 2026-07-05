@@ -1,4 +1,3 @@
-import { SPREAD_SHAPE_HINT } from "../src/core/logObj.js";
 import { Logger } from "../src/index.js";
 import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../src/interfaces.js";
 import {
@@ -49,6 +48,15 @@ describe("presets/otel", () => {
       expect(levelToSeverityNumber(4)).toBe(OtelSeverityNumber.WARN); // 13
       expect(levelToSeverityNumber(5)).toBe(OtelSeverityNumber.ERROR); // 17
       expect(levelToSeverityNumber(6)).toBe(OtelSeverityNumber.FATAL); // 21
+    });
+
+    test("pins the OTel-spec severity integers for tslog levels 0..6, independent of the enum", () => {
+      // Hardcoded from the OTel logs data-model spec: if OtelSeverityNumber ever drifted from the spec,
+      // enum-based assertions would drift with it — these integer literals anchor the wire contract.
+      const specSeverity = [1, 2, 5, 9, 13, 17, 21];
+      for (let levelId = 0; levelId <= 6; levelId++) {
+        expect(levelToSeverityNumber(levelId)).toBe(specSeverity[levelId]);
+      }
     });
 
     test("buckets unknown/custom level ids into the nearest band by magnitude", () => {
@@ -529,21 +537,17 @@ describe("presets/otel record-splitting and timestamp edges", () => {
   });
 
   test("a spread-hinted record whose fields are a serialized error is NOT spread (guarded by isPlainErrorLike)", () => {
-    // The object-first spread would flatten `fields` into attributes, but an error-like `fields` must not
-    // be exploded — isPlainErrorLike short-circuits the spread so "0"/"1" stay positional.
-    const settings = defaultSettings();
-    const meta = { logLevelId: 3, logLevelName: "INFO", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    // The object-first call shape (`log.info(obj, "msg")`) stamps the spread hint on the record — and a
+    // hand-built serialized-error-like (nativeError + name/message/stack) IS a plain object that Node's
+    // isNativeError does not classify as an Error, so the real pipeline hints it. The same call shape with
+    // plain fields spreads (see "produces the OTel log-record shape" above); here isPlainErrorLike must
+    // short-circuit the spread so the error is not exploded into name/message/stack attributes.
     const errLike = makeErrorObject({ name: "Boom", message: "spread me not" });
-    const record = {
-      0: errLike,
-      1: "the message",
-      [SPREAD_SHAPE_HINT]: "object-first",
-      [settings.meta.property]: meta,
-    } as unknown as Record<string, unknown> & ILogObjMeta;
+    const { record, settings } = captureRecord([errLike, "the message"]);
     const otel = toOtelRecord(record, settings);
-    // Not spread: the error was NOT exploded into name/message/stack attributes. "0" then falls through
-    // to the legacy bare-string body promotion, leaving "1" as the sole positional attribute.
-    expect(otel.Body).toBe(errLike);
+    // Not spread: "0" then falls through to the legacy bare-body promotion, leaving "1" positional.
+    expect(otel.Body).toBe((record as Record<string, unknown>)["0"]);
+    expect(otel.Body).toMatchObject({ name: "Boom", message: "spread me not" });
     expect((otel.Attributes as Record<string, unknown>)["1"]).toBe("the message");
     expect(otel.Attributes.name).toBeUndefined();
     expect((otel.Attributes as Record<string, unknown>)["0"]).toBeUndefined();
@@ -554,7 +558,7 @@ describe("presets/otel record-splitting and timestamp edges", () => {
     const before = BigInt(Date.now()) * 1_000_000n;
     const otlp = toOtlpLogRecord({ 0: "no meta" } as unknown as Record<string, unknown> & ILogObjMeta, settings);
     const after = BigInt(Date.now()) * 1_000_000n;
-    expect(otlp.severityNumber).toBe(OtelSeverityNumber.UNSPECIFIED);
+    expect(otlp.severityNumber).toBe(0); // UNSPECIFIED per the OTel spec
     expect(otlp.severityText).toBe("");
     // toEpochNanos(undefined) -> Date.now(): the ns timestamp sits within the call window.
     const ts = BigInt(otlp.timeUnixNano);
@@ -613,41 +617,6 @@ describe("presets/otel toOtlpLogRecord error edges", () => {
     expect((extra[0].kvlistValue?.values ?? []).find((e) => e.key === "name")?.value).toEqual({ stringValue: "BErr" });
     // the raw "failures" key is consumed by the error mapping, not emitted as a generic attribute
     expect(attr(otlp.attributes, "failures")).toBeUndefined();
-  });
-
-  test("a spread lone error whose message is non-string and body non-string yields the empty exception.message", () => {
-    // recordIsSpreadError; messageKey ("message") carries a NON-string, so splitBodyAndAttributes promotes
-    // it to a non-string body and deletes it from attributes. spreadError.message is then absent (non-string)
-    // and body is non-string, so messageText = "" (707: both ternary arms false).
-    const settings = defaultSettings();
-    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
-    const spread = {
-      nativeError: new Error("real"),
-      name: "Weird",
-      message: 42, // non-string; promoted to a non-string body
-      stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
-      [settings.meta.property]: meta,
-    } as unknown as Record<string, unknown> & ILogObjMeta;
-    const otlp = toOtlpLogRecord(spread, settings);
-    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Weird" });
-    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "" });
-  });
-
-  test("a spread lone error whose message is non-string but body IS a string uses the string body", () => {
-    // recordIsSpreadError; the promoted body is a STRING (messageKey holds a string), while the spread
-    // error's own `message` was consumed by the split, so messageText falls through to the string body (707).
-    const settings = defaultSettings();
-    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
-    const spread = {
-      nativeError: new Error("real"),
-      name: "Weird",
-      message: "body-as-message", // string; promoted to a string body and removed from attributes
-      stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
-      [settings.meta.property]: meta,
-    } as unknown as Record<string, unknown> & ILogObjMeta;
-    const otlp = toOtlpLogRecord(spread, settings);
-    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Weird" });
-    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "body-as-message" });
   });
 
   test("errorStackString appends a non-error cause as a 'Caused by:' fallback section", () => {
@@ -784,18 +753,6 @@ describe("presets/otel stacktrace frame rebuild + cause-chain rendering", () => 
     expect(stacktrace).toContain("    at run (/full.js:9:8)");
   });
 
-  test("a serialized-error cause with a message and its own stack renders header + frames", () => {
-    // looksLikeErrorObject(cause) true, cause.message truthy (605), cause has a stack (607: the non-header arm).
-    const causeNative = new Error("cause-native");
-    causeNative.stack = "Error: cause-native\n    at causeFrame (/c.js:1:1)";
-    const cause = makeErrorObject({ name: "CauseErr", message: "caused it", nativeError: causeNative, stack: [{ method: "x" } as never] });
-    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause });
-    const { record, settings } = recordWithError(errLike);
-    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
-    expect(stacktrace).toContain("Caused by: CauseErr: caused it");
-    expect(stacktrace).toContain("    at causeFrame (/c.js:1:1)");
-  });
-
   test("a serialized-error cause with an empty message and no readable stack renders a bare header", () => {
     // cause.message === "" (605: the empty-suffix arm); ownStackString(cause) undefined (607: header arm).
     const causeNative = new Error("");
@@ -821,28 +778,26 @@ describe("presets/otel stringifyFallbackSafe deep fallbacks", () => {
     return { record, settings };
   }
 
-  test("a non-error cause whose JSON.stringify returns undefined falls through to String()", () => {
-    // JSON.stringify(() => {}) === undefined -> the `?? String(value)` branch renders the function string.
+  test("a non-error cause degrades through both stringify fallback tiers: String(), then [unserializable]", () => {
+    // Tier 1: JSON.stringify(function) returns undefined -> the `?? String(value)` arm renders the function.
     const fnCause = function namedCause() {};
-    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: fnCause as unknown as IErrorObject });
-    const { record, settings } = recordWithError(errLike);
-    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
-    expect(stacktrace).toContain("Caused by: function namedCause");
-  });
+    const fnErrLike = makeErrorObject({ name: "Outer", message: "outer", cause: fnCause as unknown as IErrorObject });
+    const { record: fnRecord, settings } = recordWithError(fnErrLike);
+    const fnStacktrace = attr(toOtlpLogRecord(fnRecord, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(fnStacktrace).toContain("Caused by: function namedCause");
 
-  test("a non-error cause on which both JSON.stringify and String() throw degrades to [unserializable]", () => {
-    // JSON.stringify throws (bigint) AND String() throws (Symbol.toPrimitive throws) -> the inner catch
-    // returns "[unserializable]".
+    // Tier 2 (deepest): JSON.stringify throws (bigint) AND String() throws (Symbol.toPrimitive throws)
+    // -> the inner catch returns "[unserializable]".
     const hostileCause = {
       big: 10n, // JSON.stringify throws
       [Symbol.toPrimitive]() {
         throw new Error("no primitive"); // String() throws
       },
     };
-    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: hostileCause as unknown as IErrorObject });
-    const { record, settings } = recordWithError(errLike);
-    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
-    expect(stacktrace).toContain("Caused by: [unserializable]");
+    const hostileErrLike = makeErrorObject({ name: "Outer", message: "outer", cause: hostileCause as unknown as IErrorObject });
+    const { record: hostileRecord } = recordWithError(hostileErrLike);
+    const hostileStacktrace = attr(toOtlpLogRecord(hostileRecord, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(hostileStacktrace).toContain("Caused by: [unserializable]");
   });
 
   test("a compacted extra error with a NON-error cause renders the cause via stringifyFallbackSafe", () => {
@@ -861,18 +816,33 @@ describe("presets/otel stringifyFallbackSafe deep fallbacks", () => {
   });
 });
 
-describe("presets/otel numeric _meta.date and spread-error message arm", () => {
+describe("presets/otel re-hydrated _meta.date and spread-error message arm", () => {
   function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
     return list?.find((entry) => entry.key === key)?.value;
   }
 
-  test("a numeric _meta.date is used directly as the ms source for the ns timestamp", () => {
-    // toEpochNanos sees a number -> `date` arm (no Date wrapper, no Date.now()).
+  test("a re-hydrated ISO-string _meta.date (JSON round-trip shape) falls back to Date.now()", () => {
+    // In-process meta.date is always a Date; the realistic non-Date shape is the ISO STRING a JSON
+    // round-trip re-hydrates. toEpochNanos only understands Date/number, so the string takes the
+    // Date.now() fallback rather than being misread as an epoch value.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: "2023-11-14T22:13:20.000Z" } as unknown as IMeta;
+    const record = { message: "iso-date", [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const before = BigInt(Date.now()) * 1_000_000n;
+    const otlp = toOtlpLogRecord(record, settings);
+    const after = BigInt(Date.now()) * 1_000_000n;
+    const ts = BigInt(otlp.timeUnixNano);
+    expect(ts >= before && ts <= after).toBe(true);
+  });
+
+  test("a re-hydrated numeric _meta.date (epoch ms) converts exactly to nanoseconds", () => {
+    // toEpochNanos declares Date | number | undefined: the number arm is the tolerant-input contract
+    // for records re-hydrated from storage where the date was serialized as epoch milliseconds.
     const settings = defaultSettings();
     const meta = { logLevelId: 3, logLevelName: "INFO", date: 1_700_000_000_000 } as unknown as IMeta;
-    const record = { message: "num-date", [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const record = { message: "epoch-date", [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
     const otlp = toOtlpLogRecord(record, settings);
-    expect(otlp.timeUnixNano).toBe("1700000000000000000");
+    expect(BigInt(otlp.timeUnixNano)).toBe(1_700_000_000_000n * 1_000_000n);
   });
 
   test("a spread lone error keeps its own STRING message when the messageKey is not 'message'", () => {

@@ -271,21 +271,20 @@ describe("presets/pino toPinoError (error re-shaping edge cases)", () => {
     expect(out.safe).toBe("ok");
   });
 
-  test("recurses a genuine serialized cause and passes a non-error cause through verbatim", () => {
-    // A genuine serialized cause (nativeError instanceof Error, name string, stack array) is recursed;
-    // its `type` follows the native constructor name, so a Root subclass yields type "Root".
+  test("a recursed serialized cause takes its type from the native constructor name (subclass -> 'Root')", () => {
+    // Cause recursion and non-error-cause passthrough are covered by the pipeline tests above; the signal
+    // here is that the recursed cause's `type` follows the NATIVE constructor name, not the serialized name.
     class Root extends Error {}
-    const rootNative = new Root("root");
     const withErrorCause = toPinoError(
-      makeErrorObject({ message: "outer", cause: makeErrorObject({ nativeError: rootNative, name: "Root", message: "root" }) }),
+      makeErrorObject({ message: "outer", cause: makeErrorObject({ nativeError: new Root("root"), name: "Root", message: "root" }) }),
     );
     expect((withErrorCause.cause as { type?: string }).type).toBe("Root");
-
-    const withPlainCause = toPinoError(makeErrorObject({ message: "outer", cause: { just: "an object" } }));
-    expect(withPlainCause.cause).toEqual({ just: "an object" });
   });
 
   test("no native handle and an empty parsed stack yields no stack; empty name falls back to type 'Error'", () => {
+    // Pins the DIRECT-EXPORT contract of toPinoError: this input cannot reach it from the pipeline
+    // (toErrorObject always sets a nativeError handle and a non-empty string name), but toPinoError is a
+    // public export and must stay total for hand-built error objects.
     // native absent -> the native-stack read is skipped; stack is [] -> pinoStackString returns undefined,
     // so `out.stack` stays unset. name === "" -> `type` uses the "Error" fallback (no ctor to override it).
     const out = toPinoError(makeErrorObject({ nativeError: undefined, name: "", message: "m", stack: [] }));
@@ -338,12 +337,15 @@ describe("presets/pino pinoFormat direct edge cases", () => {
     expect(Object.hasOwn(obj, "time")).toBe(false);
   });
 
-  test("a non-Date _meta.date is emitted verbatim (not epoch/ISO-converted)", () => {
+  test("a re-hydrated ISO-string _meta.date (JSON round-trip shape) is emitted verbatim", () => {
+    // In-process meta.date is always a Date; the realistic non-Date shape is the ISO STRING a JSON
+    // round-trip re-hydrates. pinoFormat's non-Date arm passes it through verbatim (no epoch conversion).
     const settings = settingsOf();
-    const meta = { logLevelId: 3, logLevelName: "INFO", date: 1_700_000_000_000 } as unknown as IMeta;
-    const line = pinoFormat()({ 0: "num", [settings.meta.property]: meta } as never, settings as never);
+    const iso = "2023-11-14T22:13:20.000Z";
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: iso } as unknown as IMeta;
+    const line = pinoFormat()({ 0: "iso", [settings.meta.property]: meta } as never, settings as never);
     const obj = JSON.parse(line) as Record<string, unknown>;
-    expect(obj.time).toBe(1_700_000_000_000);
+    expect(obj.time).toBe(iso);
   });
 
   test("safeStringify renders bigint fields as strings and undefined as [undefined]", () => {

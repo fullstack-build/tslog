@@ -175,7 +175,6 @@ function createStdoutJsonSink(): StdoutJsonSink {
       try {
         while (offset < bytes.length) {
           const written = fsWriteSync(fd, bytes.subarray(offset));
-          /* v8 ignore next 3 -- unreachable with real fs.writeSync: a non-empty write returns >=1 or throws, never 0; guards a pathological fd */
           if (!(written > 0)) {
             break;
           }

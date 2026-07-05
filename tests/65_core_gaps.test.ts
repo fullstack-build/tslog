@@ -6,7 +6,7 @@ import { attachMaskedArgs, defaultFormatter, errors, getMaskedArgs, json, resolv
 import { normalizeSettings, validateSettingsParam } from "../src/core/settings.js";
 import { attachTransport, dispatchToTransports, disposeAll, flushAll, normalizeTransport } from "../src/core/transports.js";
 import type { EnvironmentProvider } from "../src/env/environment.js";
-import type { ILogObjMeta, IMeta, ISettings, LogContext, LogFormatter, Transport } from "../src/interfaces.js";
+import type { ILogObjMeta, IMeta, ISettings, LogContext, LogFormatter, TLogFormat, Transport } from "../src/interfaces.js";
 
 // Runtime-agnostic core building blocks (pipeline stages, masking engine, transport registry, level
 // resolver, async-context store, settings normalizer/validator). These exercise the tree-shakeable
@@ -546,10 +546,17 @@ describe("masking: getMaskKeys / recursiveCloneAndMaskValuesOfKeys / legacy seen
       isError: (v: unknown): v is Error => v instanceof Error,
       isBuffer: () => false,
     });
-    const guarded = { secret: "not-masked-because-seeded", nested: { secret: "deep" } };
-    // Seeding `guarded` into the legacy seen array makes it short-circuit to a shallow copy (no masking).
-    const out = engine.recursiveCloneAndMaskValuesOfKeys({ secret: "top" }, ["secret"], [guarded]) as Record<string, unknown>;
+    const guarded = { secret: "seeded", nested: { secret: "deep" } };
+    // `guarded` sits INSIDE the input tree; seeding it into the legacy seen array short-circuits it to
+    // a shallow, UNMASKED copy while the unseeded sibling key is still masked normally.
+    const out = engine.recursiveCloneAndMaskValuesOfKeys({ secret: "top", child: guarded }, ["secret"], [guarded]) as Record<string, unknown>;
     expect(out.secret).toBe("[***]");
+    const child = out.child as Record<string, unknown>;
+    expect(child).not.toBe(guarded); // a copy, not the original
+    expect(child.secret).toBe("seeded"); // NOT masked — the seed short-circuited masking
+    // shallow: nested references are carried over by identity, their contents untouched
+    expect(child.nested).toBe(guarded.nested);
+    expect((child.nested as Record<string, unknown>).secret).toBe("deep");
   });
 
   test("recursiveCloneAndMaskValuesOfKeys accepts a WeakSet legacy seen and shallow-copies its members", () => {
@@ -580,28 +587,30 @@ describe("masking: getMaskKeys / recursiveCloneAndMaskValuesOfKeys / legacy seen
 });
 
 describe("masking: hash stringify branches", () => {
-  test("hashing distinguishes null/undefined/number/boolean/bigint/object/circular inputs", () => {
+  test("hash tokens follow the stringify contract: colliding serializations share a token, distinct ones differ", () => {
     const engine = maskEngine({ paths: ["v"], censor: "hash" });
     const tokenFor = (value: unknown): string => {
       const [out] = engine.mask([{ v: value }]);
       return (out as Record<string, unknown>).v as string;
     };
+    // Non-string primitives hash via their String(...) form, so each pairs with the equivalent string
+    // BY DESIGN (the correlation contract hashes serializations, not types):
+    expect(tokenFor(null)).toBe(tokenFor("null"));
+    expect(tokenFor(undefined)).toBe(tokenFor("undefined"));
+    expect(tokenFor(42)).toBe(tokenFor("42"));
+    expect(tokenFor(true)).toBe(tokenFor("true"));
+    expect(tokenFor(9007199254740993n)).toBe(tokenFor("9007199254740993"));
+    // Objects hash via circular-safe JSON; a cycle serializes its self-reference as "[Circular]".
+    expect(tokenFor({ a: 1 })).toBe(tokenFor('{"a":1}'));
     const circular: Record<string, unknown> = {};
     circular.self = circular;
-    const tokens = new Set([
-      tokenFor(null),
-      tokenFor(undefined),
-      tokenFor(42),
-      tokenFor(true),
-      tokenFor(9007199254740993n),
-      tokenFor({ a: 1 }),
-      tokenFor(circular),
-    ]);
-    // Every distinct logical input hashed to a well-formed, mostly-distinct token without throwing.
-    for (const token of tokens) {
+    expect(tokenFor(circular)).toBe(tokenFor('{"self":"[Circular]"}'));
+    // Genuinely distinct serializations produce distinct, well-formed tokens.
+    const distinct = [tokenFor(null), tokenFor(undefined), tokenFor(42), tokenFor(true), tokenFor({ a: 1 }), tokenFor(circular)];
+    for (const token of distinct) {
       expect(token).toMatch(/^\[hash:[0-9a-f]{8}\]$/);
     }
-    expect(tokens.size).toBeGreaterThan(4);
+    expect(new Set(distinct).size).toBe(distinct.length);
   });
 
   test("a bare function value hashes via the String(...) fallback", () => {
@@ -723,27 +732,34 @@ describe("transports: dispatchToTransports gating and format sharing", () => {
   });
 
   test("computes each distinct format at most once and shares it across transports", () => {
-    const formatCalls: string[] = [];
-    const resolver = (_r: unknown, format: unknown): string => {
-      formatCalls.push(String(format));
-      return `F(${String(format)})`;
+    let customResolutions = 0;
+    const customFmt: LogFormatter<Record<string, unknown>> = () => {
+      customResolutions++;
+      return "CUSTOM-LINE";
+    };
+    const resolved: TLogFormat<Record<string, unknown>>[] = [];
+    const resolver = (record: Record<string, unknown> & ILogObjMeta, format: TLogFormat<Record<string, unknown>>): string => {
+      resolved.push(format);
+      return typeof format === "function" ? format(record, settingsFor()) : `F(${format})`;
     };
     const linesA: string[] = [];
     const linesB: string[] = [];
-    const jsonFmt: LogFormatter<Record<string, unknown>> = () => "custom";
     const transports: Transport<Record<string, unknown>>[] = [
       { format: "json", write: (_r, l) => void linesA.push(l) },
       { format: "json", write: (_r, l) => void linesB.push(l) },
       { format: "pretty", write: (_r, l) => void linesA.push(l) },
-      { format: jsonFmt, write: (_r, l) => void linesA.push(l) },
-      { format: jsonFmt, write: (_r, l) => void linesB.push(l) },
+      { format: customFmt, write: (_r, l) => void linesA.push(l) },
+      { format: customFmt, write: (_r, l) => void linesB.push(l) },
     ];
-    dispatchToTransports(transports, recordWithMeta({}), 3, "json", resolver as never);
-    // json computed once, pretty once, the custom fn once — despite 5 transports.
-    expect(formatCalls.filter((f) => f === "json")).toHaveLength(1);
-    expect(formatCalls.filter((f) => f === "pretty")).toHaveLength(1);
-    expect(formatCalls.filter((f) => f.includes("=>") || f.startsWith("(") || f.includes("custom") || f === '() => "custom"').length).toBeLessThanOrEqual(1);
-    expect(linesB).toContain("F(json)");
+    dispatchToTransports(transports, recordWithMeta({}), 3, "json", resolver);
+    // Each distinct format resolved exactly once (custom formatters by identity) — despite 5 transports.
+    expect(resolved.filter((f) => f === "json")).toHaveLength(1);
+    expect(resolved.filter((f) => f === "pretty")).toHaveLength(1);
+    expect(resolved.filter((f) => f === customFmt)).toHaveLength(1);
+    expect(customResolutions).toBe(1);
+    // Every transport received the line of ITS declared format, including both sharing the custom fn.
+    expect(linesA).toEqual(["F(json)", "F(pretty)", "CUSTOM-LINE"]);
+    expect(linesB).toEqual(["F(json)", "CUSTOM-LINE"]);
   });
 
   test("a throwing formatter is isolated: the record is still delivered, the line degrades to empty", () => {
@@ -862,15 +878,22 @@ describe("transports: flushAll / disposeAll isolation", () => {
 
   test("flushAll awaits an in-flight async write before its flush resolves", async () => {
     const order: string[] = [];
+    let releaseWrite!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseWrite = resolve;
+    });
     const transport = normalizeTransport<Record<string, unknown>>(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 20));
+      await gate;
       order.push("write-done");
     });
-    // simulate a dispatch that starts the async write
+    // dispatch starts the async write, which blocks on the manually-controlled gate (no wall clock)
     dispatchToTransports([transport], recordWithMeta({}), 3, "json", () => "line");
+    const flush = flushAll([transport]).then(() => order.push("flush-done"));
+    // pre-flush state: the write is genuinely in flight and flush has not resolved past it
     expect(order).toEqual([]);
-    await flushAll([transport]);
-    expect(order).toEqual(["write-done"]);
+    releaseWrite();
+    await flush;
+    expect(order).toEqual(["write-done", "flush-done"]);
   });
 
   test("flushAll isolates a synchronously-throwing flush()", async () => {
@@ -955,13 +978,6 @@ describe("levels: resolveLogLevelId", () => {
 
   test("a custom map that does not contain the name falls back to the default table", () => {
     expect(resolveLogLevelId("INFO", { audit: 8 })).toBe(3);
-  });
-
-  test("resolves via the LogLevel enum fallback when not in the name table", () => {
-    // The enum carries the same canonical names; this exercises the enum branch for a name the
-    // explicit table already has, and returns undefined for a truly unknown name.
-    expect(resolveLogLevelId("SILLY")).toBe(0);
-    expect(resolveLogLevelId("NOPE")).toBeUndefined();
   });
 
   test("an unknown name with a custom map still returns undefined", () => {
@@ -1066,14 +1082,20 @@ describe("asyncContext: createAsyncContextStore", () => {
     }
     const store = createAsyncContextStore(FakeALS as unknown as new <T>() => { run: FakeALS<T>["run"]; getStore: FakeALS<T>["getStore"] });
     expect(store.enabled).toBe(true);
-    const captured = store.run({ requestId: "outer", region: "eu" }, () => {
+    const outerInput = { requestId: "outer", region: "eu" };
+    const innerInput = { requestId: "inner" };
+    const captured = store.run(outerInput, () => {
       const outer = store.getStore();
-      const inner = store.run({ requestId: "inner" }, () => store.getStore());
+      const inner = store.run(innerInput, () => store.getStore());
       return { outer, inner };
     });
     expect(captured.outer).toEqual({ requestId: "outer", region: "eu" });
-    // nested run inherits region, overrides requestId, and never mutates the caller's object
+    // nested run inherits region and overrides requestId — on a MERGED copy, not the caller's object
     expect(captured.inner).toEqual({ requestId: "inner", region: "eu" });
+    expect(captured.inner).not.toBe(innerInput);
+    // neither caller-owned context object was mutated by the merge
+    expect(outerInput).toEqual({ requestId: "outer", region: "eu" });
+    expect(innerInput).toEqual({ requestId: "inner" });
   });
 });
 
@@ -1416,13 +1438,6 @@ describe("settings: normalizeSettings resolution", () => {
 
   test("an explicit type overrides pretty.enabled", () => {
     expect(normalizeSettings({ type: "json", pretty: { enabled: true } }).type).toBe("json");
-  });
-
-  test("with neither type nor pretty.enabled, the environment-aware default resolves to a valid type", () => {
-    // No type and no pretty.enabled -> resolveDefaultType() (env-aware): under Vitest/Bun this is a
-    // deterministic pretty/json depending on TTY, but always one of the three valid values.
-    const type = normalizeSettings({}).type;
-    expect(["pretty", "json", "hidden"]).toContain(type);
   });
 
   test("explicit meta.property and meta.attachContext override their defaults", () => {

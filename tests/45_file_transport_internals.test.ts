@@ -112,7 +112,7 @@ describe.runIf(isNode)("fileTransport (opened-stream internals)", () => {
       await waitFor(() => controllable.chunks.length === 2);
 
       // flushSync: the FIRST submitted entry is skipped (rewriting it would duplicate on process.exit),
-      // every other entry is rescued to the real file via openSync/writeSync (file.ts 332-339).
+      // every other entry is rescued to the real file via openSync/writeSync.
       transport.flushSync();
       expect(await readFile(path, "utf8")).toBe("rescued\n");
       // Confirm the withheld writes so the disposer's flush() can drain (otherwise it would await forever).
@@ -137,8 +137,8 @@ describe.runIf(isNode)("fileTransport (opened-stream internals)", () => {
       first.confirmNext();
       await transport.flush();
 
-      // Now the stream errors: streamReady is true, so this is a "write" error (file.ts 211), and the
-      // broken stream is abandoned (stream=null, opening=null) so the next write reopens a fresh one.
+      // Now the stream errors: streamReady is true, so this is a "write" error, and the broken
+      // stream is abandoned (stream=null, opening=null) so the next write reopens a fresh one.
       first.emitError(new Error("late failure"));
       expect(seen).toContain("write");
 
@@ -159,7 +159,7 @@ describe.runIf(isNode)("fileTransport (opened-stream internals)", () => {
       const realFs = await vi.importActual<typeof import("node:fs")>("node:fs");
       vi.doMock("node:fs", () => ({ ...realFs, createWriteStream: () => controllable.stream }));
 
-      // Capture the ExitHook the transport registers so we can invoke its callbacks directly (file.ts 270-271).
+      // Capture the ExitHook the transport registers so we can invoke its callbacks directly.
       let captured: { drainSync?: () => void; flushAsync?: () => Promise<void> | void } | undefined;
       const realHooks = await vi.importActual<typeof import("../src/internal/exitHooks.js")>("../src/internal/exitHooks.js");
       vi.doMock("../src/internal/exitHooks.js", () => ({
@@ -172,60 +172,26 @@ describe.runIf(isNode)("fileTransport (opened-stream internals)", () => {
       vi.resetModules();
       const fileTransport = (await import("../src/subpaths/transports/file.js")).fileTransport;
 
-      // exitHooks defaults to true, so the first write registers the hook (file.ts 269-272).
+      // exitHooks defaults to true, so the first write registers the hook.
       const transport = fileTransport<unknown>({ path });
-      transport.write(META, "queued");
+      // Two submitted-but-unconfirmed writes (callbacks withheld): the FIRST is the single
+      // possibly-mid-syscall entry, the second is queued behind it in the stream's memory buffer.
+      transport.write(META, "mid-syscall");
       await waitFor(() => controllable.chunks.length === 1);
+      transport.write(META, "rescued-by-hook");
+      await waitFor(() => controllable.chunks.length === 2);
       expect(captured).toBeDefined();
-      expect(typeof captured?.drainSync).toBe("function");
-      expect(typeof captured?.flushAsync).toBe("function");
-      // Confirm the write so the entry leaves `unconfirmed` and the hook callbacks don't deadlock.
-      controllable.confirmNext();
 
-      // Invoke the registered hook's closures: drainSync -> transport.flushSync(), flushAsync ->
-      // transport.flush() (file.ts 270-271). Both must run without throwing.
-      expect(() => captured?.drainSync?.()).not.toThrow();
-      await expect(Promise.resolve(captured?.flushAsync?.())).resolves.toBeUndefined();
-      await transport[Symbol.asyncDispose]();
-    });
-  });
+      // The hook's drainSync closure is transport.flushSync(): it must skip the first (mid-syscall)
+      // entry and rescue the second to the real file via its own fd.
+      captured?.drainSync?.();
+      expect(await readFile(path, "utf8")).toBe("rescued-by-hook\n");
 
-  test("registers the error listener via `once` when the stream has no `on` method", async () => {
-    await withTempDir(async (dir) => {
-      const path = join(dir, "once.log");
-      // A stream exposing ONLY `once` (no `on`): the transport falls back to `once` for the error
-      // listener (file.ts 214, the `created.on ?? created.once` branch).
-      const chunks: string[] = [];
-      let errorListener: ((error: unknown) => void) | undefined;
-      const onceOnlyStream = {
-        write(chunk: string, callback?: (error?: Error | null) => void): boolean {
-          chunks.push(chunk);
-          callback?.(null);
-          return true;
-        },
-        once(event: string, listener: (...args: unknown[]) => void): unknown {
-          if (event === "error") {
-            errorListener = listener as (error: unknown) => void;
-          }
-          return onceOnlyStream;
-        },
-        end(callback?: () => void): unknown {
-          callback?.();
-          return onceOnlyStream;
-        },
-        writableEnded: false,
-      };
-      const seen: string[] = [];
-      const fileTransport = await loadFileTransport(() => onceOnlyStream);
-      const transport = fileTransport<unknown>({ path, exitHooks: false, onError: (_error, context) => seen.push(context) });
-
-      transport.write(META, "hello");
-      await waitFor(() => chunks.length === 1);
-      await transport.flush();
-      // The `once`-registered error listener is wired and abandons the stream when it fires.
-      expect(errorListener).toBeDefined();
-      errorListener?.(new Error("late boom"));
-      expect(seen).toContain("write");
+      // The hook's flushAsync closure is transport.flush(): it resolves once the stream confirms the
+      // still-tracked first write.
+      const flushed = Promise.resolve(captured?.flushAsync?.());
+      controllable.confirmAll();
+      await expect(flushed).resolves.toBeUndefined();
       await transport[Symbol.asyncDispose]();
     });
   });

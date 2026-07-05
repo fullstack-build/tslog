@@ -162,10 +162,14 @@ describe("throttle (M4.7)", () => {
     test("null vs undefined vs missing are all distinct tags", () => {
       const nullKey = keyFor(null);
       const undefKey = keyFor(undefined);
+      // A zero-arg call digests to just the level prefix — distinct from an explicit null/undefined arg.
+      const missingKey = defaultThrottleKey({ logLevelId: 3, args: [] } as never);
       // Distinct primitives must not collide; each is stable against itself.
       expect(nullKey).toBe(keyFor(null));
       expect(undefKey).toBe(keyFor(undefined));
       expect(nullKey).not.toBe(undefKey);
+      expect(nullKey).not.toBe(missingKey);
+      expect(undefKey).not.toBe(missingKey);
     });
 
     test("number, boolean and bigint tag by first letter of typeof + value", () => {
@@ -182,18 +186,17 @@ describe("throttle (M4.7)", () => {
 
     test("function tags by name; anonymous functions share the empty-name tag", () => {
       function named(): void {}
-      const same = (): void => {};
-      // Named function is stable and distinct from a differently-named one.
+      const assigned = (): void => {};
+      // Named functions are stable and distinct from differently-named ones (an assigned arrow gets its
+      // variable name via NamedEvaluation).
       expect(keyFor(named)).toBe(keyFor(named));
-      expect(keyFor(named)).not.toBe(keyFor(same));
-      // A function whose `name` is absent (undefined) exercises the `?? ""` fallback → tags as "fn:".
-      const noName = (): void => {};
-      Object.defineProperty(noName, "name", { value: undefined });
-      expect(keyFor(noName)).toBe(keyFor(noName));
-      // It collapses with another name-less function (both fall back to the empty tag).
-      const noName2 = (): void => {};
-      Object.defineProperty(noName2, "name", { value: undefined });
-      expect(keyFor(noName)).toBe(keyFor(noName2));
+      expect(keyFor(named)).not.toBe(keyFor(assigned));
+      // Genuinely anonymous functions (no NamedEvaluation → name is "") share the empty-name "fn:" tag.
+      const anonymous = [(): void => {}][0];
+      const anonymous2 = [(): void => {}][0];
+      expect(anonymous.name).toBe("");
+      expect(keyFor(anonymous)).toBe(keyFor(anonymous2));
+      expect(keyFor(anonymous)).not.toBe(keyFor(named));
     });
 
     test("symbol tags by its string form", () => {

@@ -22,7 +22,6 @@ function getLocalStorage(): Storage | undefined {
     // `localStorage` may be undefined (Node), or a getter that throws (privacy modes / sandboxed iframes).
     const storage = (globalThis as { localStorage?: Storage }).localStorage;
     return storage != null && typeof storage.getItem === "function" ? storage : undefined;
-    /* v8 ignore next 3 -- defensive: some engines throw merely on touching the property */
   } catch {
     return undefined;
   }
@@ -40,7 +39,6 @@ export function readPersistedLevel(key: string = DEFAULT_PERSIST_LEVEL_KEY): str
   try {
     const value = storage.getItem(key);
     return value == null || value === "" ? undefined : value;
-    /* v8 ignore next 3 -- defensive: getItem can throw in restricted contexts */
   } catch {
     return undefined;
   }
@@ -57,7 +55,6 @@ export function writePersistedLevel(levelId: number, key: string = DEFAULT_PERSI
   }
   try {
     storage.setItem(key, String(levelId));
-    /* v8 ignore next 3 -- defensive: setItem can throw (quota / private mode) */
   } catch {
     // never let persistence crash logging
   }

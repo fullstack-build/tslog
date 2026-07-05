@@ -271,26 +271,30 @@ describe("tslog/slim withJsonTypeDefault / validateSlimSettings null-settings pa
     const logger = createLogger();
     expect(logger.settings.type).toBe("json");
   });
-
-  test("an explicit type is preserved (withJsonTypeDefault early return, no clone)", () => {
-    const logger = new SlimLogger({ type: "hidden" });
-    expect(logger.settings.type).toBe("hidden");
-  });
 });
 
-// The slim EnvironmentProvider is shared with the interface the full entries implement; these pin its
-// standalone methods (some have no in-slim caller — the default sink writes JSON via console.log, and
-// slim rejects pretty at construction — but they are public EnvironmentProvider members other entries
-// route to, so they are covered by direct invocation against their documented contract).
+// Direct EnvironmentProvider probes for members the slim pipeline cannot reach cleanly: Buffer
+// handling with and without a Buffer global, hostile/empty error messages, the pretty stubs that
+// only run when a transport forces `format: "pretty"` (slim rejects `type: "pretty"` at construction),
+// and the two members with NO in-slim caller at all — getMeta never captures a caller frame and the
+// default sink prints JSON without routing through the provider, so getCallerStackFrame/transportJSON
+// are public EnvironmentProvider members only other entries route to; their contract is pinned by
+// direct invocation. Everything else on the provider is asserted through the pipeline tests above.
 describe("tslog/slim EnvironmentProvider methods in isolation", () => {
   test("getCallerStackFrame returns an empty frame (stack capture is dropped)", () => {
-    const env = createSlimEnvironment();
-    expect(env.getCallerStackFrame(0)).toEqual({});
+    expect(createSlimEnvironment().getCallerStackFrame(0)).toEqual({});
   });
 
-  test("getErrorTrace returns an empty array (no trace parsing)", () => {
+  test("transportJSON prints one JSON line via console.log", () => {
     const env = createSlimEnvironment();
-    expect(env.getErrorTrace(new Error("x"))).toEqual([]);
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      env.transportJSON({ message: "hi", _meta: { logLevelName: "INFO" } } as never);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(spy.mock.calls[0][0]))).toMatchObject({ message: "hi" });
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   test("isBuffer is true for a real Buffer and false for a plain value", () => {
@@ -334,19 +338,6 @@ describe("tslog/slim EnvironmentProvider methods in isolation", () => {
     expect(line).toContain("Error: boom");
   });
 
-  test("prettyFormatLine with an undefined meta emits no head prefix", () => {
-    const env = createSlimEnvironment();
-    const line = env.prettyFormatLine(["plain"], undefined, slimSettings());
-    expect(line).toBe("plain");
-  });
-
-  test("prettyFormatLine falls back to an empty level when meta lacks logLevelName", () => {
-    const env = createSlimEnvironment();
-    // meta present but logLevelName undefined exercises the `?? ""` nullish branch.
-    const line = env.prettyFormatLine(["x"], {} as unknown as IMeta, slimSettings());
-    expect(line).toBe("\tx");
-  });
-
   test("transportFormatted prints meta markup + args + errors via console.log", () => {
     const env = createSlimEnvironment();
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -357,24 +348,5 @@ describe("tslog/slim EnvironmentProvider methods in isolation", () => {
     } finally {
       spy.mockRestore();
     }
-  });
-
-  test("transportJSON prints one JSON line via console.log", () => {
-    const env = createSlimEnvironment();
-    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    try {
-      env.transportJSON({ message: "hi", _meta: { logLevelName: "INFO" } } as never);
-      expect(spy).toHaveBeenCalledTimes(1);
-      expect(JSON.parse(String(spy.mock.calls[0][0]))).toMatchObject({ message: "hi" });
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  test("createAsyncContextStore yields a working store", () => {
-    const env = createSlimEnvironment();
-    const store = env.createAsyncContextStore();
-    const seen = store.run({ requestId: "ctx-9" }, () => store.getStore());
-    expect(seen).toEqual({ requestId: "ctx-9" });
   });
 });

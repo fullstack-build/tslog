@@ -4,7 +4,7 @@ import { type AsyncContextStore, createAsyncContextStore } from "../core/asyncCo
 import { buildMeta, type MetaDeps } from "../core/meta.js";
 import { formatTemplate } from "../formatTemplate.js";
 import type { ILogObjMeta, IMeta, ISettings, IStackFrame } from "../interfaces.js";
-import { consoleSupportsCssStyling, safeGetCwd } from "../internal/environment.js";
+import { safeGetCwd } from "../internal/environment.js";
 import { collectErrorCauses, safeErrorString } from "../internal/errorUtils.js";
 import type { InspectOptions } from "../internal/InspectOptions.interface.js";
 import { jsonStringifyRecursive } from "../internal/jsonStringifyRecursive.js";
@@ -126,19 +126,10 @@ export function createNodeEnvironment(): EnvironmentProvider {
     transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], logMeta: IMeta | undefined, settings: ISettings<LogObj>): void {
       const prettyLogs = settings.pretty.style !== false;
       const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
-      const sanitizedMetaMarkup = stripAnsi(logMetaMarkup);
-      const metaMarkupForText = prettyLogs ? logMetaMarkup : sanitizedMetaMarkup;
+      // CSS `%c` styling is browser/worker-only and lives in those providers; the Node provider always
+      // takes the plain-text path (ANSI colors via inspectOptions when pretty styling is on).
+      const metaMarkupForText = prettyLogs ? logMetaMarkup : stripAnsi(logMetaMarkup);
       const log = getPrettyLogMethod(logMeta?.logLevelName, settings.pretty.levelMethod);
-
-      // CSS `%c` styling only applies to browser/worker consoles. On Node this guard is always false,
-      // so the text path below runs. Kept for parity with the monolith's branching.
-      const useCss = prettyLogs && (runtimeInfo.name === "browser" || runtimeInfo.name === "worker") && consoleSupportsCssStyling();
-      /* v8 ignore next 4 -- defensive: the Node provider only ever runs under Node, where useCss is false */
-      if (useCss) {
-        settings.pretty.inspectOptions.colors = false;
-        log(sanitizedMetaMarkup + formatWithOptionsSafe(settings.pretty.inspectOptions, logArgs) + logErrorsStr);
-        return;
-      }
 
       settings.pretty.inspectOptions.colors = prettyLogs;
       const formattedArgs = formatWithOptionsSafe(settings.pretty.inspectOptions, logArgs);
@@ -224,8 +215,9 @@ function stringifyFallback(value: unknown): string {
 
   try {
     return JSON.stringify(value);
-    /* v8 ignore next 3 -- defensive: only reached for values JSON.stringify rejects (e.g. BigInt) while the primary inspect path has already failed */
   } catch {
+    // Reached for values JSON.stringify rejects (e.g. BigInt properties) after the primary inspect
+    // path has already thrown; String() is the last resort.
     return String(value);
   }
 }

@@ -381,6 +381,26 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
     }
   });
 
+  test("drainSync breaks after a zero-byte writeSync and hands the whole chunk to the stream", async () => {
+    // A pathological fd can make fs.writeSync return 0 without throwing. The drain loop must not spin
+    // forever on it: exactly one attempt, break, and the ENTIRE un-written chunk goes to the stream
+    // fallback (nothing torn, nothing dropped).
+    const stdout = fakeStdout(77);
+    const getter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);
+    const writeSyncSpy = vi.spyOn(fs, "writeSync").mockImplementation((() => 0) as never);
+    try {
+      const { sink, runExitDrain } = await freshSinkWithExitDrain();
+      sink.write('{"m":"zero-write"}');
+      runExitDrain();
+      // One writeSync call, no retry: the `written > 0` guard breaks the loop immediately.
+      expect(writeSyncSpy).toHaveBeenCalledTimes(1);
+      expect(stdout.captured).toEqual(['{"m":"zero-write"}\n']);
+    } finally {
+      writeSyncSpy.mockRestore();
+      getter.mockRestore();
+    }
+  });
+
   test("drainSync sends the whole buffer to the stream when the fd is unusable (write throws)", async () => {
     // A closed fd makes fs.writeSync throw synchronously (EBADF) on the FIRST write — offset never
     // advances, so the entire chunk becomes the remainder handed to the stream fallback.

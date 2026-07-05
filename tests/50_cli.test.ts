@@ -175,6 +175,12 @@ describe("tslog/cli (M3.11)", () => {
       const [line] = captureJsonLines((log) => log.silly("very low level"));
       expect(transform(line)).not.toBeNull();
     });
+
+    test("an unknown --level name resolves to no filter (-Infinity)", () => {
+      // resolveLogLevelId returns undefined for an unknown name -> the no-filter (-Infinity) fallback.
+      const { minLevelId } = createCliFormatter({ minLevel: "no-such-level", color: false });
+      expect(minLevelId).toBe(Number.NEGATIVE_INFINITY);
+    });
   });
 
   describe("parseAndFormatLine", () => {
@@ -278,20 +284,31 @@ describe("tslog/cli (M3.11)", () => {
     test("with no env override, color follows whether stdout is a TTY", () => {
       vi.stubEnv("NO_COLOR", "");
       vi.stubEnv("FORCE_COLOR", "");
-      // Force a non-TTY stdout so stdoutIsTTY() -> false and the output stays plain (cli.ts 210 final arm).
       const [line] = captureJsonLines((log) => log.warn("piped"));
-      const originalIsTTY = process.stdout.isTTY;
-      Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
-      const rendered = createCliFormatter().transform(line);
-      Object.defineProperty(process.stdout, "isTTY", { value: originalIsTTY, configurable: true });
+      // Swap stdout's TTY flag both ways, restoring the ORIGINAL descriptor in finally so a failing
+      // assertion cannot leak a fake stdout state into every later test in this worker.
+      const originalDescriptor = Object.getOwnPropertyDescriptor(process.stdout, "isTTY");
+      let styled: string | null = null;
+      let rendered: string | null = null;
+      try {
+        // stdoutIsTTY() -> true resolves style to true: ANSI styling present.
+        Object.defineProperty(process.stdout, "isTTY", { value: true, configurable: true });
+        styled = createCliFormatter().transform(line);
+        // stdoutIsTTY() -> false keeps the output plain.
+        Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
+        rendered = createCliFormatter().transform(line);
+      } finally {
+        if (originalDescriptor != null) {
+          Object.defineProperty(process.stdout, "isTTY", originalDescriptor);
+        } else {
+          // biome-ignore lint/performance/noDelete: restore the property-absent state the test started from
+          delete (process.stdout as unknown as { isTTY?: boolean }).isTTY;
+        }
+      }
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the PRESENCE of an ANSI escape.
+      expect(styled).toMatch(/\x1b\[/);
       // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the ABSENCE of an ANSI escape.
       expect(rendered).not.toMatch(/\[/);
-    });
-
-    test("an unknown --level name resolves to no filter (-Infinity)", () => {
-      // resolveLogLevelId returns undefined for an unknown name -> `?? -Infinity` (cli.ts 221).
-      const { minLevelId } = createCliFormatter({ minLevel: "no-such-level", color: false });
-      expect(minLevelId).toBe(Number.NEGATIVE_INFINITY);
     });
   });
 

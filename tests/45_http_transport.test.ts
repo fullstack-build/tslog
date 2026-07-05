@@ -405,11 +405,11 @@ describe("httpTransport delivery hardening", () => {
       },
     });
 
-    // Two writes start the (hanging) pump; then flood far past 1000 drops. droppedTotal reports at 1 and
-    // then every 1000th line (http.ts 329, the `droppedTotal % 1000 === 0` branch).
+    // Two writes start the pump, which detaches the first batch synchronously and hangs in the fake
+    // fetch; then flood far past 1000 drops. droppedTotal reports at 1 and then every 1000th line
+    // (the `droppedTotal % 1000 === 0` branch).
     transport.write(record, '{"n":0}');
     transport.write(record, '{"n":1}');
-    await new Promise((resolve) => setTimeout(resolve, 5));
     for (let i = 0; i < 1100; i++) {
       transport.write(record, `{"n":${i + 2}}`);
     }
@@ -480,14 +480,30 @@ describe("httpTransport per-attempt abort signal", () => {
 });
 
 describe("httpTransport error reporting and custom encoders", () => {
-  test("a failed batch with no onError is silently dropped (reportError early-returns)", async () => {
-    // No onError -> reportError hits the `onError == null` early return (http.ts 224-226); nothing throws.
-    const fetchImpl: FetchLike = async () => {
-      throw new Error("network down");
+  test("a failed batch with no onError is silently dropped (reportError early-returns), not re-queued", async () => {
+    // No onError -> reportError hits its `onError == null` early return; nothing throws. Fail only the
+    // first attempt so the follow-up batch proves the failed one was dropped rather than re-queued.
+    const bodies: string[] = [];
+    let attempts = 0;
+    const fetchImpl: FetchLike = async (_url, init) => {
+      attempts++;
+      if (attempts === 1) {
+        throw new Error("network down");
+      }
+      bodies.push(init.body);
+      return { ok: true, status: 200 };
     };
     const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, retries: 0, fetchImpl });
     expect(() => transport.write(record, '{"a":1}')).not.toThrow();
     await expect(transport.flush?.()).resolves.toBeUndefined();
+    // retries: 0 -> the failed batch was attempted exactly once, then dropped.
+    expect(attempts).toBe(1);
+
+    transport.write(record, '{"a":2}');
+    await transport.flush?.();
+    // The second request carries ONLY the new line: the failed batch was dropped, not re-queued.
+    expect(attempts).toBe(2);
+    expect(bodies).toEqual(['{"a":2}']);
   });
 
   test("a custom encodeBody controls the request body and content-type", async () => {

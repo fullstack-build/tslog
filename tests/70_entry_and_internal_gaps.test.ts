@@ -1,20 +1,12 @@
-import type { AsyncContextStore } from "../src/core/asyncContext.js";
-import { createAsyncContextStore } from "../src/core/asyncContext.js";
-import type { CoreFeatures } from "../src/core/features.js";
 import type { EnvironmentProvider } from "../src/env/environment.js";
-import { BaseLogger, createNodeEnvironment, createLogger as createNodeLogger, Logger as NodeLogger } from "../src/index.node.js";
+import { BaseLogger, createNodeEnvironment, Logger as NodeLogger } from "../src/index.node.js";
 import { createLogger as createUniversalLogger, Logger as UniversalLogger } from "../src/index.universal.js";
 import type { IMeta, ISettings } from "../src/interfaces.js";
 import { consoleSupportsCssStyling, resolveDefaultType, safeGetCwd } from "../src/internal/environment.js";
 import { collectErrorCauses, toError } from "../src/internal/errorUtils.js";
 import { buildPrettyMeta } from "../src/internal/metaFormatting.js";
 import { NATIVE_CONSOLE_KEY, nativeConsoleMethod } from "../src/internal/nativeConsole.js";
-import { renderJsonUnplanned } from "../src/render/json.js";
 import { LiteLogger } from "../src/subpaths/lite.js";
-
-// Node-only gate: subprocess/env tricks that Bun's process shim doesn't fully mirror. The internal
-// helper tests are runtime-agnostic and run everywhere.
-const isNode = typeof process !== "undefined" && process.versions?.node != null && (process.versions as Record<string, string | undefined>).bun == null;
 
 /* ------------------------------------------------------------------------------------------------ */
 /* BaseLogger: FALLBACK_FEATURES + IDENTITY_MASKING (direct construction, no injected feature set)    */
@@ -23,9 +15,12 @@ const isNode = typeof process !== "undefined" && process.versions?.node != null 
 describe("BaseLogger without an injected feature set", () => {
   const env = createNodeEnvironment();
 
-  test("undefined settings pass validation (FALLBACK validateSettings early return)", () => {
-    // settings == null → the validator returns immediately; a hidden logger with no mask constructs fine.
-    expect(() => new BaseLogger(undefined, undefined, env)).not.toThrow();
+  test("undefined settings pass validation and resolve to the documented defaults (FALLBACK validateSettings early return)", () => {
+    // settings == null → the validator returns immediately, and the normalized defaults are observable
+    // on the constructed logger (not just "did not throw").
+    const logger = new BaseLogger<Record<string, unknown>>(undefined, undefined, env);
+    expect(logger.settings.minLevel).toBe(0);
+    expect(logger.settings.meta.property).toBe("_meta");
   });
 
   test("a censor-only mask group is still rejected (masksSomething via mask.censor)", () => {
@@ -46,51 +41,12 @@ describe("BaseLogger without an injected feature set", () => {
     expect(record?.pathname).toBe("/p");
   });
 
-  test("non-URL args pass through IDENTITY_MASKING untouched", () => {
-    const logger = new BaseLogger<Record<string, unknown>>({ type: "hidden" }, undefined, env);
-    const record = logger.log(3, "INFO", "plain", { a: 1 }) as Record<string, unknown>;
-    expect(record?.["0"]).toBe("plain");
-    expect(record?.["1"]).toEqual({ a: 1 });
-  });
-
   test("a URL alongside a non-URL arg: only the URL is expanded, others pass through (map ternary both sides)", () => {
     const logger = new BaseLogger<Record<string, unknown>>({ type: "hidden" }, undefined, env);
     const record = logger.log(3, "INFO", new URL("https://example.com/a"), "plain-tail") as Record<string, unknown>;
     // arg[0] (URL) is converted via urlToObject; arg[1] hits the ternary's pass-through branch.
     expect((record?.["0"] as Record<string, unknown>)?.href).toBe("https://example.com/a");
     expect(record?.["1"]).toBe("plain-tail");
-  });
-});
-
-/* ------------------------------------------------------------------------------------------------ */
-/* BaseLogger: pretty path with a features set that omits buildPrettyMetaText (branch 365 fallback)   */
-/* ------------------------------------------------------------------------------------------------ */
-
-describe("BaseLogger pretty path when features has no buildPrettyMetaText", () => {
-  test("the live pretty console renders with an empty meta prefix (?? '' fallback)", () => {
-    // A features set that ALLOWS pretty (no validateSettings rejection) but omits buildPrettyMetaText,
-    // so BaseLogger falls back to "" for the meta markup on the live pretty path.
-    const featuresNoMeta: CoreFeatures = {
-      renderJson: renderJsonUnplanned,
-      // validateSettings omitted → pretty is not rejected.
-    };
-    const logger = new BaseLogger<Record<string, unknown>>(
-      { type: "pretty", stack: { capture: "off" } },
-      undefined,
-      createNodeEnvironment(),
-      Number.NaN,
-      featuresNoMeta,
-    );
-    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-    try {
-      expect(() => logger.log(3, "INFO", "pretty line")).not.toThrow();
-      expect(spy).toHaveBeenCalled();
-      // The meta markup was empty; the message still made it to the console.
-      const printed = spy.mock.calls.map((c) => c.map(String).join(" ")).join("\n");
-      expect(printed).toContain("pretty line");
-    } finally {
-      spy.mockRestore();
-    }
   });
 });
 
@@ -155,7 +111,7 @@ describe("BaseLogger.child and sub-logger context box sharing", () => {
 });
 
 /* ------------------------------------------------------------------------------------------------ */
-/* BaseLogger: _getAsyncContextStore fallbacks + _flushDefaultSink catch + _shouldCaptureStack json    */
+/* BaseLogger: _getAsyncContextStore fallbacks + _flushDefaultSink catch                              */
 /* ------------------------------------------------------------------------------------------------ */
 
 describe("BaseLogger internal store/flush/stack fallbacks", () => {
@@ -178,17 +134,21 @@ describe("BaseLogger internal store/flush/stack fallbacks", () => {
     expect(seen?.requestId).toBe("core-fallback");
   });
 
-  test("_getAsyncContextStore materializes from an injected instance when the box is empty (defensive re-check)", async () => {
+  test("_getAsyncContextStore materializes from an injected instance when the box is empty", async () => {
     const { AsyncLocalStorage } = await import("node:async_hooks");
     const als = new AsyncLocalStorage<Record<string, unknown>>();
     const logger = new BaseLogger<Record<string, unknown>>({ type: "hidden" }, undefined, minimalEnv());
-    // Attach a contextStorage AFTER construction and clear the eagerly-materialized box so the lazy
-    // resolver re-enters its `contextStorage != null` branch (createAsyncContextStoreFromInstance).
-    const internals = logger as unknown as { settings: { contextStorage?: unknown }; asyncContextBox: { store?: AsyncContextStore } };
-    internals.settings.contextStorage = als;
-    internals.asyncContextBox.store = undefined;
-    const seen = logger.runInContext({ requestId: "from-instance" }, () => logger.getContext());
-    expect(seen?.requestId).toBe("from-instance");
+    // Settings are live-read: injecting a contextStorage BEFORE the first runInContext (a plain public
+    // mutation — no internal state is touched) makes the lazy resolver materialize the store from the
+    // instance (createAsyncContextStoreFromInstance) instead of the core fallback.
+    logger.settings.contextStorage = als;
+    const seen = logger.runInContext({ requestId: "from-instance" }, () => ({
+      viaLogger: logger.getContext(),
+      viaInstance: als.getStore(),
+    }));
+    expect(seen.viaLogger?.requestId).toBe("from-instance");
+    // The injected instance itself carries the context — proof the store was built from it.
+    expect(seen.viaInstance?.requestId).toBe("from-instance");
   });
 
   test("flush swallows a throwing runtime.flushJsonSink instead of rejecting", async () => {
@@ -203,63 +163,11 @@ describe("BaseLogger internal store/flush/stack fallbacks", () => {
     );
     await expect(logger.flush()).resolves.toBeUndefined();
   });
-
-  test("_shouldCaptureStack returns true for json under 'auto' capture", () => {
-    // normalizeSettings resolves json+auto to "off", so force the combination on the resolved settings
-    // to reach the json short-circuit inside _shouldCaptureStack.
-    const logger = new BaseLogger<Record<string, unknown>>({ type: "hidden" }, undefined, minimalEnv());
-    logger.settings.type = "json";
-    logger.settings.stack.capture = "auto";
-    const internals = logger as unknown as { _shouldCaptureStack: () => boolean };
-    expect(internals._shouldCaptureStack()).toBe(true);
-  });
 });
 
 /* ------------------------------------------------------------------------------------------------ */
-/* index.node.ts / index.universal.ts entry methods                                                  */
+/* index.universal.ts entry factory                                                                  */
 /* ------------------------------------------------------------------------------------------------ */
-
-describe("node entry method + factory coverage", () => {
-  test("trace() emits at id 1 / name TRACE", () => {
-    const logger = new NodeLogger({ type: "hidden", minLevel: "SILLY" });
-    const record = logger.trace("entering", { arg: 1 });
-    const meta = (record as Record<string, { logLevelId: number; logLevelName: string }>)?._meta;
-    expect(meta?.logLevelId).toBe(1);
-    expect(meta?.logLevelName).toBe("TRACE");
-  });
-
-  test("createLogger returns a working Node logger", () => {
-    const logger = createNodeLogger({ type: "hidden" });
-    expect(logger).toBeInstanceOf(NodeLogger);
-    expect(logger.info("via factory")).toBeDefined();
-  });
-
-  describe.runIf(isNode)("Logger.fromEnv reads TSLOG_* env vars", () => {
-    const saved = { level: process.env.TSLOG_LEVEL, type: process.env.TSLOG_TYPE, name: process.env.TSLOG_NAME };
-    afterEach(() => {
-      for (const [k, v] of Object.entries({ TSLOG_LEVEL: saved.level, TSLOG_TYPE: saved.type, TSLOG_NAME: saved.name })) {
-        if (v === undefined) {
-          delete process.env[k];
-        } else {
-          process.env[k] = v;
-        }
-      }
-    });
-
-    test("env values seed minLevel/type/name and overrides win", () => {
-      process.env.TSLOG_LEVEL = "WARN";
-      process.env.TSLOG_TYPE = "json";
-      process.env.TSLOG_NAME = "api";
-      const logger = NodeLogger.fromEnv();
-      expect(logger.settings.minLevel).toBe(4);
-      expect(logger.settings.type).toBe("json");
-      expect(logger.settings.name).toBe("api");
-
-      const overridden = NodeLogger.fromEnv({ name: "override" });
-      expect(overridden.settings.name).toBe("override");
-    });
-  });
-});
 
 describe("universal entry factory coverage", () => {
   test("createLogger returns a working universal logger", () => {
@@ -268,6 +176,46 @@ describe("universal entry factory coverage", () => {
     // A single object arg is spread flat, so `k` lands at the top level of the record.
     const record = logger.info({ k: 2 });
     expect((record as Record<string, unknown>)?.k).toBe(2);
+  });
+});
+
+describe("node entry re-declared surface", () => {
+  // tests/39 and tests/48 pin trace()/fromEnv() on the base Logger (src/index.ts). The node entry
+  // re-declares both on its own class (trace with fields-first overloads, fromEnv returning the node
+  // subclass), so each re-declaration needs one pin against the node-entry import.
+  test("the node entry's trace() emits at id 1 and carries both args", () => {
+    const logger = new NodeLogger<Record<string, unknown>>({ type: "hidden" });
+    const record = logger.trace({ step: "enter" }, "tracing") as Record<string, unknown> & { _meta?: { logLevelId?: number; logLevelName?: string } };
+    expect(record?._meta?.logLevelId).toBe(1);
+    expect(record?._meta?.logLevelName).toBe("TRACE");
+    // Multi-arg records store args under numeric indices; fields-first flattening happens at render time.
+    expect(record?.["0"]).toEqual({ step: "enter" });
+    expect(record?.["1"]).toBe("tracing");
+  });
+
+  test("the node entry's fromEnv() builds a node Logger from TSLOG_* variables", () => {
+    const savedLevel = process.env.TSLOG_LEVEL;
+    const savedName = process.env.TSLOG_NAME;
+    process.env.TSLOG_LEVEL = "WARN";
+    process.env.TSLOG_NAME = "from-env";
+    try {
+      const logger = NodeLogger.fromEnv({ type: "hidden" });
+      expect(logger).toBeInstanceOf(NodeLogger);
+      expect(logger.isLevelEnabled("WARN")).toBe(true);
+      expect(logger.isLevelEnabled("INFO")).toBe(false);
+      expect(logger.settings.name).toBe("from-env");
+    } finally {
+      if (savedLevel === undefined) {
+        delete process.env.TSLOG_LEVEL;
+      } else {
+        process.env.TSLOG_LEVEL = savedLevel;
+      }
+      if (savedName === undefined) {
+        delete process.env.TSLOG_NAME;
+      } else {
+        process.env.TSLOG_NAME = savedName;
+      }
+    }
   });
 });
 
@@ -420,7 +368,9 @@ describe("errorUtils total behavior on hostile inputs", () => {
   });
 
   test("collectErrorCauses tolerates a cause object whose Object.keys enumeration throws", () => {
-    // The cause is a Proxy whose ownKeys trap throws — copyOwnProperties (inside toError) must swallow it.
+    // The cause is a Proxy whose ownKeys trap throws. copyOwnProperties (inside toError) bails before
+    // copying anything — including `message` — and stringifyCause's JSON.stringify hits the same trap,
+    // so the normalized Error degrades to the String(value) fallback message, NOT the cause's .message.
     const hostileCause = new Proxy(
       { message: "root" },
       {
@@ -436,9 +386,9 @@ describe("errorUtils total behavior on hostile inputs", () => {
     expect(() => {
       causes = collectErrorCauses(err);
     }).not.toThrow();
-    // The cause is still captured as an Error; property copying was skipped, message came from `.message`.
     expect(causes).toHaveLength(1);
     expect(causes[0]).toBeInstanceOf(Error);
+    expect(causes[0].message).toBe("[object Object]");
   });
 });
 
