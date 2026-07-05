@@ -155,24 +155,46 @@ describe("shared.ts stack-line parsers", () => {
       expect(frame.fileLine).toBe("5");
       expect(frame.fileColumn).toBe("1");
       expect(frame.method).toBeUndefined();
-      // No location.origin stubbed -> fullFilePath equals the captured path.
-      expect(frame.fullFilePath).toBe(frame.filePath);
+      // The frame carries its own absolute URL, so fullFilePath is that URL (position stripped) even
+      // without a location.origin; filePath keeps the host as its first segment (per the regex doc).
+      expect(frame.fullFilePath).toBe("https://host.example/assets/app.js");
+      expect(frame.filePath).toBe("/host.example/assets/app.js");
     });
 
-    test("prepends location.origin to fullFilePath when present", () => {
-      // Known characterization quirk — do NOT "fix" in source: the browser path regex intentionally
-      // retains the host as the first path segment (per the regex doc), so prefixing location.origin
-      // on top of that doubles the host in fullFilePath. This pins the current behavior.
-      globalAny.location = { origin: "https://cdn.example" };
+    test("the frame's own URL wins over location.origin — no doubled or cross-origin host", () => {
+      // The captured path retains the host as the first path segment, so blindly prefixing
+      // location.origin used to yield https://cdn.example/cdn.example/a/b/c.js. The frame URL is
+      // authoritative now: a page-origin prefix is only for scheme-less frames.
+      globalAny.location = { origin: "https://page.example" };
       const frame = parseBrowserStackLine("fn@https://cdn.example/a/b/c.js:2:3") as IStackFrame;
       expect(frame.filePath).toBe("/cdn.example/a/b/c.js");
-      expect(frame.fullFilePath).toBe("https://cdn.example/cdn.example/a/b/c.js");
+      expect(frame.fullFilePath).toBe("https://cdn.example/a/b/c.js");
     });
 
-    test("drops a query string from the captured file path", () => {
+    test("keeps the port in fullFilePath while only line/column are stripped", () => {
+      const frame = parseBrowserStackLine("fn@http://localhost:8080/assets/app.js:7:11") as IStackFrame;
+      expect(frame.fullFilePath).toBe("http://localhost:8080/assets/app.js");
+      expect(frame.fileLine).toBe("7");
+      expect(frame.fileColumn).toBe("11");
+    });
+
+    test("prepends location.origin to a scheme-less origin-relative frame", () => {
+      globalAny.location = { origin: "https://page.example" };
+      const frame = parseBrowserStackLine("fn@/assets/app.js:1:2") as IStackFrame;
+      expect(frame.filePath).toBe("/assets/app.js");
+      expect(frame.fullFilePath).toBe("https://page.example/assets/app.js");
+    });
+
+    test("a scheme-less frame without location.origin keeps the bare path as fullFilePath", () => {
+      const frame = parseBrowserStackLine("fn@/assets/app.js:1:2") as IStackFrame;
+      expect(frame.fullFilePath).toBe("/assets/app.js");
+    });
+
+    test("drops a query string from both the captured file path and fullFilePath", () => {
       const frame = parseBrowserStackLine("fn@https://host.dev/a/bundle.js?v=9:4:2") as IStackFrame;
       expect(frame.filePath).toBe("/host.dev/a/bundle.js");
       expect(frame.filePath).not.toContain("?");
+      expect(frame.fullFilePath).toBe("https://host.dev/a/bundle.js");
       expect(frame.fileLine).toBe("4");
     });
   });

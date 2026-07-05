@@ -413,8 +413,21 @@ export function parseBrowserStackLine(line: string | undefined): IStackFrame | u
   const fileColumn = match[3];
   const fileName = pathParts[pathParts.length - 1];
 
+  // The captured path retains the host as its first segment (see BROWSER_PATH_REGEX), so a frame that
+  // carries its own absolute URL is authoritative for fullFilePath — prefixing location.origin on top
+  // of it would double the host (and pick the wrong one for cross-origin scripts). The page origin is
+  // only prepended to origin-relative frames that have no scheme of their own.
+  const urlMatch = line.match(/(?:https?|file):\/\/[^\s)]+/);
+  let fullFilePath: string;
+  if (urlMatch != null) {
+    // Strip the trailing :line[:column] first (a query string may itself contain colons), then the query.
+    fullFilePath = urlMatch[0].replace(/(?::\d+){1,2}$/, "").replace(/\?.*$/, "");
+  } else {
+    fullFilePath = href ? `${href}${filePath}` : filePath;
+  }
+
   return {
-    fullFilePath: href ? `${href}${filePath}` : filePath,
+    fullFilePath,
     fileName,
     fileNameWithLine: fileName && fileLine ? `${fileName}:${fileLine}` : undefined,
     fileColumn,
