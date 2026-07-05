@@ -193,6 +193,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   // URLs carry no own enumerable properties (everything lives in prototype getters), so the generic
   // object walk below would render them as an empty `{}`. Show the href instead, like native inspect.
   if (typeof URL !== "undefined" && value instanceof URL) {
+    /* v8 ignore next -- the ?? fallback is dead: formatPrimitive on the string href always returns a non-nullish result */
     return `URL { ${formatPrimitive(ctx, value.href) ?? `'${value.href}'`} }`;
   }
 
@@ -203,6 +204,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
     if (ctx.showHidden && Object.getOwnPropertyNames) {
       keys = Object.getOwnPropertyNames(value);
     }
+    /* v8 ignore next 3 -- IE-era defensive catch: any value that fails getOwnPropertyNames already threw at Object.keys(value) above */
   } catch {
     // ignore
   }
@@ -307,9 +309,11 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
   try {
     // ie10 › Object.getOwnPropertyDescriptor(window.location, 'hash')
     // throws TypeError: Object doesn't support this action
+    /* v8 ignore next 3 -- IE-era defensive: Object.getOwnPropertyDescriptor is always present in modern engines, and the `|| desc` fallback only matters for the same legacy hosts */
     if (Object.getOwnPropertyDescriptor) {
       desc = Object.getOwnPropertyDescriptor(value, key) || desc;
     }
+    /* v8 ignore next 3 -- IE10-era defensive catch; getOwnPropertyDescriptor does not throw for the plain objects this polyfill inspects */
   } catch {
     // ignore
   }

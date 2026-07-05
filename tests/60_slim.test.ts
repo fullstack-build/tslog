@@ -1,7 +1,14 @@
+import { createSlimEnvironment } from "../src/env/environment.slim.js";
 import { BaseLogger, createNodeEnvironment, Logger as FullLogger, fullCoreFeatures } from "../src/index.node.js";
-import type { IMeta } from "../src/interfaces.js";
+import type { IMeta, ISettings } from "../src/interfaces.js";
 import { createLogger, Logger as SlimLogger } from "../src/subpaths/slim.js";
 import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
+
+// A resolved settings object to feed the provider methods directly (the pipeline hands them exactly
+// this). Sourced from a real slim Logger so it carries the true resolved shape, not a hand-fake.
+function slimSettings(): ISettings<Record<string, unknown>> {
+  return new SlimLogger<Record<string, unknown>>({ type: "hidden" }).settings as unknown as ISettings<Record<string, unknown>>;
+}
 
 // tslog/slim (S1): the same structured-JSON pipeline as the full entries, minus masking, pretty
 // output, stack capture, and settings validation — with HONEST failures (throws) where a silently
@@ -200,5 +207,174 @@ describe("tslog/slim keeps the rest of the pipeline", () => {
     const record = logger.info(new URL("https://example.com/path?q=1"));
     const url = record?.["0"] ?? record;
     expect(JSON.stringify(url)).toContain('"href":"https://example.com/path?q=1"');
+  });
+});
+
+describe("tslog/slim every level method emits at the right id/name", () => {
+  const cases: Array<{ method: "silly" | "trace" | "debug" | "info" | "warn" | "error" | "fatal"; id: number; name: string }> = [
+    { method: "silly", id: 0, name: "SILLY" },
+    { method: "trace", id: 1, name: "TRACE" },
+    { method: "debug", id: 2, name: "DEBUG" },
+    { method: "info", id: 3, name: "INFO" },
+    { method: "warn", id: 4, name: "WARN" },
+    { method: "error", id: 5, name: "ERROR" },
+    { method: "fatal", id: 6, name: "FATAL" },
+  ];
+
+  for (const { method, id, name } of cases) {
+    test(`${method}() → id ${id}, name ${name}`, () => {
+      const logger = new SlimLogger<AnyRecord>({ type: "hidden", minLevel: "SILLY" });
+      // Single-object fields-first form merges `k` at the top level of the record.
+      const record = logger[method]({ k: 1 });
+      expect(record?._meta.logLevelId).toBe(id);
+      expect(record?._meta.logLevelName).toBe(name);
+      expect(record?.k).toBe(1);
+    });
+  }
+
+  test("the numeric log() entry emits at an arbitrary id/name", () => {
+    const logger = new SlimLogger<AnyRecord>({ type: "hidden" });
+    const record = logger.log(3, "INFO", "direct") as AnyRecord | undefined;
+    expect(record?._meta.logLevelId).toBe(3);
+    expect(record?._meta.logLevelName).toBe("INFO");
+  });
+});
+
+describe("tslog/slim getSubLogger override returns a slim Logger and merges settings", () => {
+  test("getSubLogger (not the child alias) merges bindings and carries name/parentNames", () => {
+    const root = new SlimLogger<AnyRecord>({ type: "hidden", name: "root", bindings: { tenant: "acme" } });
+    const sub = root.getSubLogger({ name: "sub", bindings: { requestId: "r-9" } });
+    expect(sub).toBeInstanceOf(SlimLogger);
+    const record = sub.info("nested");
+    expect(record?.tenant).toBe("acme");
+    expect(record?.requestId).toBe("r-9");
+    expect(record?._meta.name).toBe("sub");
+    expect(record?._meta.parentNames).toEqual(["root"]);
+  });
+
+  test("a slim sub-logger's own mask group stays frozen (re-validated inert defaults)", () => {
+    const root = new SlimLogger<AnyRecord>({ type: "hidden" });
+    const sub = root.getSubLogger({ name: "s" });
+    expect(() => {
+      (sub.settings.mask.keys as string[]).push("password");
+    }).toThrow(TypeError);
+  });
+});
+
+describe("tslog/slim withJsonTypeDefault / validateSlimSettings null-settings paths", () => {
+  test("no settings at all still defaults type to json and constructs cleanly", () => {
+    const logger = new SlimLogger();
+    expect(logger.settings.type).toBe("json");
+  });
+
+  test("createLogger with no settings defaults to json too", () => {
+    const logger = createLogger();
+    expect(logger.settings.type).toBe("json");
+  });
+
+  test("an explicit type is preserved (withJsonTypeDefault early return, no clone)", () => {
+    const logger = new SlimLogger({ type: "hidden" });
+    expect(logger.settings.type).toBe("hidden");
+  });
+});
+
+// The slim EnvironmentProvider is shared with the interface the full entries implement; these pin its
+// standalone methods (some have no in-slim caller — the default sink writes JSON via console.log, and
+// slim rejects pretty at construction — but they are public EnvironmentProvider members other entries
+// route to, so they are covered by direct invocation against their documented contract).
+describe("tslog/slim EnvironmentProvider methods in isolation", () => {
+  test("getCallerStackFrame returns an empty frame (stack capture is dropped)", () => {
+    const env = createSlimEnvironment();
+    expect(env.getCallerStackFrame(0)).toEqual({});
+  });
+
+  test("getErrorTrace returns an empty array (no trace parsing)", () => {
+    const env = createSlimEnvironment();
+    expect(env.getErrorTrace(new Error("x"))).toEqual([]);
+  });
+
+  test("isBuffer is true for a real Buffer and false for a plain value", () => {
+    const env = createSlimEnvironment();
+    // Node/Bun both expose Buffer, so the ternary's positive branch is live here.
+    expect(env.isBuffer(Buffer.from("hi"))).toBe(true);
+    expect(env.isBuffer("hi")).toBe(false);
+    expect(env.isBuffer({})).toBe(false);
+  });
+
+  test("isBuffer degrades to false when Buffer is not present", () => {
+    const env = createSlimEnvironment();
+    const savedBuffer = (globalThis as { Buffer?: unknown }).Buffer;
+    try {
+      // Remove Buffer entirely so the `typeof Buffer !== "undefined"` guard takes its false branch.
+      (globalThis as { Buffer?: unknown }).Buffer = undefined;
+      expect(env.isBuffer(new Uint8Array([1, 2, 3]))).toBe(false);
+    } finally {
+      (globalThis as { Buffer?: unknown }).Buffer = savedBuffer;
+    }
+  });
+
+  test("prettyFormatErrorObj renders name: message, and just the name when message is empty", () => {
+    const env = createSlimEnvironment();
+    const settings = slimSettings();
+    expect(env.prettyFormatErrorObj(new Error("boom"), settings)).toBe("Error: boom");
+    // Empty message exercises the `message ? ... : ""` false branch — name only, no trailing colon.
+    const bare = new Error("");
+    bare.name = "BareError";
+    expect(env.prettyFormatErrorObj(bare, settings)).toBe("BareError");
+  });
+
+  test("prettyFormatLine prefixes the level when meta is present and splits errors out", () => {
+    const env = createSlimEnvironment();
+    const settings = slimSettings();
+    const meta = { logLevelName: "WARN" } as unknown as IMeta;
+    const line = env.prettyFormatLine(["hello", 42, new Error("boom")], meta, settings);
+    expect(line).toContain("WARN\t");
+    expect(line).toContain("hello");
+    expect(line).toContain("42");
+    expect(line).toContain("Error: boom");
+  });
+
+  test("prettyFormatLine with an undefined meta emits no head prefix", () => {
+    const env = createSlimEnvironment();
+    const line = env.prettyFormatLine(["plain"], undefined, slimSettings());
+    expect(line).toBe("plain");
+  });
+
+  test("prettyFormatLine falls back to an empty level when meta lacks logLevelName", () => {
+    const env = createSlimEnvironment();
+    // meta present but logLevelName undefined exercises the `?? ""` nullish branch.
+    const line = env.prettyFormatLine(["x"], {} as unknown as IMeta, slimSettings());
+    expect(line).toBe("\tx");
+  });
+
+  test("transportFormatted prints meta markup + args + errors via console.log", () => {
+    const env = createSlimEnvironment();
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      env.transportFormatted("MARK ", ["a", 1], ["Error: e"], undefined, slimSettings());
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][0]).toBe("MARK a 1 Error: e");
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("transportJSON prints one JSON line via console.log", () => {
+    const env = createSlimEnvironment();
+    const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      env.transportJSON({ message: "hi", _meta: { logLevelName: "INFO" } } as never);
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(String(spy.mock.calls[0][0]))).toMatchObject({ message: "hi" });
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("createAsyncContextStore yields a working store", () => {
+    const env = createSlimEnvironment();
+    const store = env.createAsyncContextStore();
+    const seen = store.run({ requestId: "ctx-9" }, () => store.getStore());
+    expect(seen).toEqual({ requestId: "ctx-9" });
   });
 });

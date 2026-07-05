@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,7 +10,22 @@ import { fileTransport } from "../src/subpaths/transports/file.js";
 // drains, an async disposer that flushes+closes, lazy (side-effect-free) stream opening, and the
 // rotation-by-composition seam (a supplied `stream`).
 
+// The transport imports node:fs directly, so the whole suite is Node-only (Bun ships node:fs too, but
+// the fd/`writeSync` and stream-error timing below are Node-specific enough to gate on Node).
+const isNode = process.versions.node != null && (process.versions as Record<string, string | undefined>).bun == null;
+
 const META = {} as ILogObjMeta;
+
+/** Poll until `predicate()` is true or the deadline passes — avoids racing on async stream events. */
+async function waitFor(predicate: () => boolean, timeoutMs = 1000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate()) {
+    if (Date.now() > deadline) {
+      throw new Error("waitFor: condition not met within timeout");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
 
 async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   const dir = await mkdtemp(join(tmpdir(), "tslog-file-transport-"));
@@ -21,7 +36,7 @@ async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
   }
 }
 
-describe("fileTransport", () => {
+describe.runIf(isNode)("fileTransport", () => {
   test("throws when neither path nor stream is supplied", () => {
     expect(() => fileTransport({})).toThrow(TypeError);
   });
@@ -242,5 +257,293 @@ describe("fileTransport", () => {
     // flush() uses allSettled internally, so a write error does not reject flush either.
     await expect(transport.flush()).resolves.toBeUndefined();
     await transport[Symbol.asyncDispose]();
+  });
+
+  // --- Error reporting: the onError callback and the default console.error report ------------------
+
+  test("onError callback receives a write error with the 'write' context (custom sink)", async () => {
+    const seen: { error: unknown; context: string }[] = [];
+    const fakeStream = {
+      write(_chunk: string, callback?: (error?: Error | null) => void): boolean {
+        callback?.(new Error("disk full"));
+        return true;
+      },
+      once(): unknown {
+        return this;
+      },
+      end(callback?: () => void): unknown {
+        callback?.();
+        return this;
+      },
+      writableEnded: false,
+    };
+    const transport = fileTransport({ stream: fakeStream, onError: (error, context) => seen.push({ error, context }) });
+    transport.write(META, "boom");
+    await transport.flush();
+    expect(seen).toHaveLength(1);
+    expect((seen[0].error as Error).message).toBe("disk full");
+    expect(seen[0].context).toBe("write");
+    await transport[Symbol.asyncDispose]();
+  });
+
+  test("a throwing onError callback never escapes the transport", async () => {
+    const fakeStream = {
+      write(_chunk: string, callback?: (error?: Error | null) => void): boolean {
+        callback?.(new Error("disk full"));
+        return true;
+      },
+      once(): unknown {
+        return this;
+      },
+      end(callback?: () => void): unknown {
+        callback?.();
+        return this;
+      },
+      writableEnded: false,
+    };
+    const transport = fileTransport({
+      stream: fakeStream,
+      onError: () => {
+        throw new Error("callback blew up");
+      },
+    });
+    expect(() => transport.write(META, "x")).not.toThrow();
+    await expect(transport.flush()).resolves.toBeUndefined();
+    await transport[Symbol.asyncDispose]();
+  });
+
+  test("default error report goes to console.error ONCE per burst and re-arms after a successful write", async () => {
+    const reports: unknown[][] = [];
+    const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      reports.push(args);
+    });
+    try {
+      let fail = true;
+      const fakeStream = {
+        write(_chunk: string, callback?: (error?: Error | null) => void): boolean {
+          callback?.(fail ? new Error("boom") : null);
+          return true;
+        },
+        once(): unknown {
+          return this;
+        },
+        end(callback?: () => void): unknown {
+          callback?.();
+          return this;
+        },
+        writableEnded: false,
+      };
+      // No onError -> default console.error path (file.ts 184-191).
+      const transport = fileTransport({ stream: fakeStream, name: "audit" });
+      transport.write(META, "one");
+      transport.write(META, "two"); // second failure in the same burst is suppressed
+      await transport.flush();
+      expect(reports).toHaveLength(1);
+      expect(String(reports[0][0])).toContain('file transport "audit" write failed');
+
+      // A successful write re-arms the report, so the next failure reports again.
+      fail = false;
+      transport.write(META, "ok");
+      await transport.flush();
+      fail = true;
+      transport.write(META, "boom again");
+      await transport.flush();
+      expect(reports).toHaveLength(2);
+      await transport[Symbol.asyncDispose]();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test("even a throwing console.error never escapes the default report", async () => {
+    // A hostile console whose error() throws must not turn a logging failure into a crash (file.ts 189-191).
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {
+      throw new Error("console is hostile");
+    });
+    try {
+      const fakeStream = {
+        write(_chunk: string, callback?: (error?: Error | null) => void): boolean {
+          callback?.(new Error("boom"));
+          return true;
+        },
+        once(): unknown {
+          return this;
+        },
+        end(callback?: () => void): unknown {
+          callback?.();
+          return this;
+        },
+        writableEnded: false,
+      };
+      const transport = fileTransport({ stream: fakeStream });
+      expect(() => transport.write(META, "x")).not.toThrow();
+      await expect(transport.flush()).resolves.toBeUndefined();
+      await transport[Symbol.asyncDispose]();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  // --- Open failures: the stream 'error' listener and the failed-open catch -----------------------
+
+  test("a failed open (path is an existing directory) is reported and does not crash", async () => {
+    await withTempDir(async (dir) => {
+      const seen: { error: unknown; context: string }[] = [];
+      // Point the transport at the directory itself: createWriteStream on a dir emits EISDIR on 'error'.
+      const transport = fileTransport({ path: dir, onError: (error, context) => seen.push({ error, context }) });
+      transport.write(META, "line");
+      await transport.flush();
+      await waitFor(() => seen.length > 0);
+      // The stream 'error' listener fired (streamReady was false → "open"), file.ts 211-217.
+      expect(seen.some((s) => s.context === "open")).toBe(true);
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
+  test("a broken stream is abandoned so the next write retries a fresh open (directory appears later)", async () => {
+    await withTempDir(async (dir) => {
+      const path = join(dir, "later", "app.log");
+      // Pre-create a FILE where the parent dir needs to be, so mkdir(dirname) fails with ENOTDIR on
+      // the first write → the async open rejects → the opening.catch runs (file.ts 224-228).
+      const blocker = join(dir, "later");
+      await import("node:fs/promises").then((fs) => fs.writeFile(blocker, "not a dir"));
+      const seen: string[] = [];
+      const transport = fileTransport({ path, onError: (_error, context) => seen.push(context) });
+      transport.write(META, "first");
+      await transport.flush();
+      await waitFor(() => seen.includes("open"));
+      expect(seen).toContain("open");
+
+      // Remove the blocker so the parent directory can now be created; the next write must reopen.
+      await rm(blocker);
+      transport.write(META, "second");
+      await transport.flush();
+      await waitFor(() => existsSync(path));
+      expect(await readFile(path, "utf8")).toBe("second\n");
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
+  test("a synchronous throw from stream.write is contained (writeChunk catch)", async () => {
+    const seen: { context: string }[] = [];
+    const fakeStream = {
+      write(): boolean {
+        throw new Error("write threw synchronously");
+      },
+      once(): unknown {
+        return this;
+      },
+      end(callback?: () => void): unknown {
+        callback?.();
+        return this;
+      },
+      writableEnded: false,
+    };
+    const transport = fileTransport({ stream: fakeStream, onError: (_error, context) => seen.push({ context }) });
+    expect(() => transport.write(META, "x")).not.toThrow();
+    await expect(transport.flush()).resolves.toBeUndefined();
+    // file.ts 247-250: the sync throw is caught and reported as a "write" failure.
+    expect(seen).toEqual([{ context: "write" }]);
+    await transport[Symbol.asyncDispose]();
+  });
+
+  // --- flushSync (exit-path machinery) ------------------------------------------------------------
+
+  test("flushSync is a no-op for a caller-supplied stream", () => {
+    const chunks: string[] = [];
+    const fakeStream = {
+      write(chunk: string, callback?: (error?: Error | null) => void): boolean {
+        chunks.push(chunk);
+        callback?.(null);
+        return true;
+      },
+      once(): unknown {
+        return this;
+      },
+      end(callback?: () => void): unknown {
+        callback?.();
+        return this;
+      },
+      writableEnded: false,
+    };
+    const transport = fileTransport({ stream: fakeStream });
+    transport.write(META, "queued");
+    // ownsStream is false → flushSync returns without touching any fd (file.ts 317).
+    expect(() => transport.flushSync()).not.toThrow();
+  });
+
+  test("flushSync with nothing queued is a no-op", async () => {
+    await withTempDir(async (dir) => {
+      const transport = fileTransport({ path: join(dir, "sync-empty.log") });
+      expect(() => transport.flushSync()).not.toThrow();
+      expect(existsSync(join(dir, "sync-empty.log"))).toBe(false);
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
+  test("flushSync drains queued lines synchronously with its own fd before any stream opens", async () => {
+    await withTempDir(async (dir) => {
+      const path = join(dir, "nested", "sync.log");
+      const transport = fileTransport({ path });
+      // Queue writes but DO NOT await flush() — the stream has not opened yet, so the entries are still
+      // unconfirmed and unsubmitted. flushSync must mkdir + openSync + writeSync them all (file.ts 320-339).
+      transport.write(META, "sync one");
+      transport.write(META, "sync two");
+      transport.flushSync();
+      expect(readFileSync(path, "utf8")).toBe("sync one\nsync two\n");
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
+  test("flushSync honors append:false by truncating when no stream ever opened", async () => {
+    await withTempDir(async (dir) => {
+      const path = join(dir, "sync-trunc.log");
+      mkdirSync(dir, { recursive: true });
+      await import("node:fs/promises").then((fs) => fs.writeFile(path, "OLD DATA\n"));
+      const transport = fileTransport({ path, append: false });
+      transport.write(META, "fresh");
+      transport.flushSync(); // no stream opened → openSync with "w" truncates (file.ts 324).
+      expect(readFileSync(path, "utf8")).toBe("fresh\n");
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
+  test("flushSync reports a write failure via handleError when openSync throws", async () => {
+    await withTempDir(async (dir) => {
+      const seen: string[] = [];
+      // Path whose parent is a FILE: mkdirSync(dirname) throws ENOTDIR synchronously (file.ts 343-344).
+      const blocker = join(dir, "blk");
+      await import("node:fs/promises").then((fs) => fs.writeFile(blocker, "x"));
+      const path = join(blocker, "deep", "app.log");
+      const transport = fileTransport({ path, exitHooks: false, onError: (_error, context) => seen.push(context) });
+      transport.write(META, "queued");
+      transport.flushSync();
+      expect(seen).toContain("write");
+      await transport.flush().catch(() => undefined);
+    });
+  });
+
+  // --- Dispose: end() throwing --------------------------------------------------------------------
+
+  test("a stream whose end() throws is contained and reported as a 'close' failure", async () => {
+    const seen: string[] = [];
+    const fakeStream = {
+      write(_chunk: string, callback?: (error?: Error | null) => void): boolean {
+        callback?.(null);
+        return true;
+      },
+      once(): unknown {
+        return this;
+      },
+      end(): unknown {
+        throw new Error("end blew up");
+      },
+      writableEnded: false,
+    };
+    const transport = fileTransport({ stream: fakeStream, onError: (_error, context) => seen.push(context) });
+    transport.write(META, "x");
+    // dispose must resolve even though end() throws (file.ts 370-373).
+    await expect(transport[Symbol.asyncDispose]()).resolves.toBeUndefined();
+    expect(seen).toContain("close");
   });
 });

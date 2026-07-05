@@ -197,6 +197,10 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
   const unconfirmed = new Map<Promise<void>, { chunk: string; submitted: boolean }>();
 
   async function ensureStream(): Promise<WritableLike | null> {
+    // Defensive: ensureStream is only ever called from write's slow path, which its own `stream != null`
+    // guard enters only when `stream` is null; there is no await between that check and this call, so
+    // `stream` cannot already be set on entry here.
+    /* v8 ignore next 3 -- unreachable, see comment above */
     if (stream != null) {
       return stream;
     }

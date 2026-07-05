@@ -36,6 +36,7 @@ import { renderJsonUnplanned } from "../render/json.js";
 
 /** Reject the settings that name subsystems this entry does not ship. Runs BEFORE normalization. */
 function validateSlimSettings<LogObj>(settings: ISettingsParam<LogObj> | undefined): void {
+  /* v8 ignore next 3 -- unreachable via the slim entry: the constructor always runs settings through withJsonTypeDefault (which turns null into { type: "json" }) before validation, and sub-loggers pass a fully-built settings object; the guard only satisfies the CoreFeatures.validateSettings(undefined) contract. */
   if (settings == null) {
     return;
   }

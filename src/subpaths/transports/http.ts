@@ -237,6 +237,9 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
    * time-bounded so a hung connection can never stall the chain.
    */
   const send = async (lines: readonly string[]): Promise<void> => {
+    // Defensive: `send` is only called by `drainOnce` with `buffer.splice(0, batchSize)` inside a
+    // `while (buffer.length > 0)` loop, so the batch is never empty in practice.
+    /* v8 ignore next 3 -- unreachable, see comment above */
     if (lines.length === 0) {
       return;
     }
@@ -326,6 +329,9 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
         if (droppedTotal === 1 || droppedTotal % 1000 === 0) {
           reportError(
             new Error(`tslog httpTransport: buffer full (${maxBufferedLines}), dropped ${droppedTotal} lines so far`),
+            // `dropped` is `buffer.shift()` guarded by `buffer.length > maxBufferedLines` (>= 1), so it is
+            // always a string here; the `[]` fallback is defensive only.
+            /* v8 ignore next -- `dropped` is never null under the length guard above */
             dropped != null ? [dropped] : [],
           );
         }

@@ -130,6 +130,7 @@ function createStdoutJsonSink(): StdoutJsonSink {
     // stdout is unusable (destroyed, or an exotic runtime without a stream): degrade to the console
     // path this sink replaced. Never throw into the log call.
     try {
+      /* v8 ignore next -- the `: chunk` arm is unreachable: every writeChunk caller passes a newline-terminated chunk; the branch defends future callers */
       nativeConsoleMethod("log")(chunk.endsWith("\n") ? chunk.slice(0, -1) : chunk);
     } catch {
       // last resort: drop
@@ -174,6 +175,7 @@ function createStdoutJsonSink(): StdoutJsonSink {
       try {
         while (offset < bytes.length) {
           const written = fsWriteSync(fd, bytes.subarray(offset));
+          /* v8 ignore next 3 -- unreachable with real fs.writeSync: a non-empty write returns >=1 or throws, never 0; guards a pathological fd */
           if (!(written > 0)) {
             break;
           }

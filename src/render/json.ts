@@ -549,6 +549,7 @@ function buildLinePlan<LogObj>(meta: IMeta, settings: ISettings<LogObj>): JsonLi
   const json = settings.json;
   // Defense-in-depth: renderJson gates on `json.time === "iso"` before ever reaching the plan (the
   // head chunk hardwires the quoted ISO time slot). Bail here too in case a future caller skips the gate.
+  /* v8 ignore next 3 -- unreachable defensive guard: buildLinePlan's sole caller (renderPlannedLine) is only reached from renderJson when json.time === "iso"; buildLinePlan is not exported, so no test path can enter with a non-"iso" mode */
   if (json.time !== "iso") {
     return false;
   }

@@ -155,6 +155,7 @@ function isContainer(value: unknown): value is object {
 }
 
 function renderTree(node: unknown, prefix: string, depth: number, maxDepth: number, out: string[]): void {
+  /* v8 ignore next -- defensive: both callers (tree() and the recursion below) only invoke renderTree with a container, so this guard's early-return is unreachable */
   if (!isContainer(node)) return;
 
   const entries: [string, unknown][] = Array.isArray(node) ? node.map((v, i) => [String(i), v]) : Object.entries(node);

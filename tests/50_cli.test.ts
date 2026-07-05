@@ -1,5 +1,5 @@
 import { PassThrough } from "node:stream";
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Logger } from "../src/index.node.js";
 import { createCliFormatter, parseAndFormatLine, parseCliArgs, parseLine, runCli } from "../src/subpaths/cli.js";
 import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
@@ -35,6 +35,75 @@ describe("tslog/cli (M3.11)", () => {
       expect(parseLine("")).toEqual({ kind: "raw", line: "" });
       expect(parseLine("[1,2,3]")).toEqual({ kind: "raw", line: "[1,2,3]" });
       expect(parseLine("{ broken json")).toEqual({ kind: "raw", line: "{ broken json" });
+    });
+
+    test("a valid JSON scalar/null is treated as raw passthrough", () => {
+      // Parses successfully but is not an object -> raw (cli.ts parseLine null/non-object guard).
+      expect(parseLine("null")).toEqual({ kind: "raw", line: "null" });
+      expect(parseLine("42")).toEqual({ kind: "raw", line: "42" });
+    });
+
+    test("reads a string logLevelId from _meta (serialized form) and reconstructs the level", () => {
+      // Everything in serialized JSON can be a string; readLevelId coerces "5" -> 5 (cli.ts 69-72).
+      const parsed = parseLine('{"message":"m","_meta":{"logLevelId":"5","logLevelName":"ERROR","date":"2026-07-05T00:00:00.000Z"}}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta?.logLevelId).toBe(5);
+      expect(parsed.meta?.date).toBeInstanceOf(Date);
+    });
+
+    test("falls back to the top-level `levelId` envelope field when _meta lacks logLevelId", () => {
+      // No logLevelId in _meta -> readLevelId reads record.levelId (cli.ts 74-75).
+      const parsed = parseLine('{"message":"m","levelId":4,"_meta":{"logLevelName":"WARN"}}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta?.logLevelId).toBe(4);
+    });
+
+    test("a JSON object without a _meta property parses with meta undefined", () => {
+      // raw _meta is null/absent -> reconstructMeta early-returns undefined (cli.ts 85-87).
+      const parsed = parseLine('{"message":"no meta here","user":"bob"}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta).toBeUndefined();
+    });
+
+    test("a non-object _meta value is ignored (meta undefined)", () => {
+      const parsed = parseLine('{"message":"m","_meta":"not an object"}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta).toBeUndefined();
+    });
+
+    test("reconstructs meta defaults from a bare _meta: missing level/date/name/runtime", () => {
+      // _meta present but with none of the level/date/name/parentNames/runtime fields, and no top-level
+      // levelId -> levelId defaults to 0, name stays undefined, date defaults to now, runtime -> "node"
+      // (cli.ts 89-95, 104), levelName falls back to record.level string.
+      const parsed = parseLine('{"level":"info","_meta":{"name":"[undefined]","parentNames":"not-an-array","runtime":123}}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta?.logLevelId).toBe(0);
+      expect(parsed.meta?.logLevelName).toBe("info"); // from record.level
+      expect(parsed.meta?.name).toBeUndefined(); // "[undefined]" -> undefined
+      expect(parsed.meta?.parentNames).toBeUndefined(); // non-array -> undefined
+      expect(parsed.meta?.runtime).toBe("node"); // non-string -> "node"
+      expect(parsed.meta?.date).toBeInstanceOf(Date);
+    });
+
+    test("levelName is empty when neither _meta.logLevelName nor record.level is a string", () => {
+      const parsed = parseLine('{"_meta":{"date":"2026-07-05T00:00:00.000Z"}}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta?.logLevelName).toBe("");
+    });
+
+    test("keeps a real _meta.name and parentNames array", () => {
+      // A genuine (non-"[undefined]") string name survives, and an array parentNames is kept (cli.ts 94-95).
+      const parsed = parseLine('{"message":"m","_meta":{"logLevelId":3,"name":"worker-7","parentNames":["root","api"]}}');
+      expect(parsed.kind).toBe("json");
+      if (parsed.kind !== "json") throw new Error("unreachable");
+      expect(parsed.meta?.name).toBe("worker-7");
+      expect(parsed.meta?.parentNames).toEqual(["root", "api"]);
     });
   });
 
@@ -123,6 +192,41 @@ describe("tslog/cli (M3.11)", () => {
       expect(parseAndFormatLine(info, ctx)).toBeNull();
       expect(parseAndFormatLine("raw line", ctx)).toBe("raw line");
     });
+
+    test("a record with no discernible level uses the -Infinity fallback for its level id", () => {
+      const logger = new Logger<unknown>({ type: "pretty", pretty: { style: false } });
+      // With NO filter (minLevelId = -Infinity), an unlevelled record still prints: readLevelId returns
+      // undefined -> the `?? -Infinity` fallback (cli.ts 191), and -Infinity is not < -Infinity.
+      const noFilterCtx = {
+        prettyFormatLine: logger.runtime.prettyFormatLine.bind(logger.runtime) as never,
+        settings: logger.settings as never,
+        minLevelId: Number.NEGATIVE_INFINITY,
+        metaProperty: "_meta",
+      };
+      const rendered = parseAndFormatLine('{"message":"unlevelled"}', noFilterCtx);
+      expect(rendered).not.toBeNull();
+      expect(rendered).toContain("unlevelled");
+
+      // And with any real filter set, that same -Infinity level is treated as below it, so it is dropped.
+      const filteredCtx = { ...noFilterCtx, minLevelId: 0 };
+      expect(parseAndFormatLine('{"message":"unlevelled"}', filteredCtx)).toBeNull();
+    });
+
+    test("a record with only envelope/meta fields falls back to rendering the whole record", () => {
+      const logger = new Logger<unknown>({ type: "pretty", pretty: { style: false } });
+      const ctx = {
+        prettyFormatLine: logger.runtime.prettyFormatLine.bind(logger.runtime) as never,
+        settings: logger.settings as never,
+        minLevelId: Number.NEGATIVE_INFINITY,
+        metaProperty: "_meta",
+      };
+      // Only envelope keys (level/levelId/time) + _meta, no message/fields/positional args -> recordToArgs
+      // produces an empty args list and falls back to pushing the whole record (cli.ts 140-142).
+      const rendered = parseAndFormatLine('{"level":"info","levelId":3,"time":"2026-07-05T00:00:00.000Z","_meta":{"logLevelId":3}}', ctx);
+      expect(rendered).not.toBeNull();
+      // The record itself is rendered, so its envelope keys appear in the pretty output.
+      expect(rendered).toContain("levelId");
+    });
   });
 
   describe("parseCliArgs", () => {
@@ -137,6 +241,57 @@ describe("tslog/cli (M3.11)", () => {
 
     test("ignores a trailing --level with no value", () => {
       expect(parseCliArgs(["--level"])).toEqual({});
+    });
+
+    test("parses a numeric --level=<n> value as a number", () => {
+      // The `--level=` numeric branch (cli.ts 243): a digits-only value becomes a number.
+      expect(parseCliArgs(["--level=3"])).toEqual({ minLevel: 3 });
+    });
+  });
+
+  describe("color resolution (no explicit --color/--no-color)", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    test("FORCE_COLOR opts into styled output", () => {
+      vi.stubEnv("FORCE_COLOR", "1");
+      vi.stubEnv("NO_COLOR", "");
+      // No `color` option -> forceColorRequested() branch (cli.ts 210) resolves style to true.
+      const [line] = captureJsonLines((log) => log.warn("styled"));
+      const rendered = createCliFormatter().transform(line);
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the presence of an ANSI escape.
+      expect(rendered).toMatch(/\[/);
+    });
+
+    test("NO_COLOR suppresses styled output", () => {
+      vi.stubEnv("NO_COLOR", "1");
+      vi.stubEnv("FORCE_COLOR", "");
+      // noColorRequested() branch (cli.ts 210) resolves style to false.
+      const [line] = captureJsonLines((log) => log.warn("plain"));
+      const rendered = createCliFormatter().transform(line);
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the ABSENCE of an ANSI escape.
+      expect(rendered).not.toMatch(/\[/);
+    });
+
+    test("with no env override, color follows whether stdout is a TTY", () => {
+      vi.stubEnv("NO_COLOR", "");
+      vi.stubEnv("FORCE_COLOR", "");
+      // Force a non-TTY stdout so stdoutIsTTY() -> false and the output stays plain (cli.ts 210 final arm).
+      const [line] = captureJsonLines((log) => log.warn("piped"));
+      const originalIsTTY = process.stdout.isTTY;
+      Object.defineProperty(process.stdout, "isTTY", { value: false, configurable: true });
+      const rendered = createCliFormatter().transform(line);
+      Object.defineProperty(process.stdout, "isTTY", { value: originalIsTTY, configurable: true });
+      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting the ABSENCE of an ANSI escape.
+      expect(rendered).not.toMatch(/\[/);
+    });
+
+    test("an unknown --level name resolves to no filter (-Infinity)", () => {
+      // resolveLogLevelId returns undefined for an unknown name -> `?? -Infinity` (cli.ts 221).
+      const { minLevelId } = createCliFormatter({ minLevel: "no-such-level", color: false });
+      expect(minLevelId).toBe(Number.NEGATIVE_INFINITY);
     });
   });
 

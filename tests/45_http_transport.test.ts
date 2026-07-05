@@ -377,6 +377,52 @@ describe("httpTransport delivery hardening", () => {
     expect(seen[0]?.lines).toEqual(['{"n":3}']); // the dropped sample
   });
 
+  test("the buffer-full drop report re-fires every 1000th dropped line", async () => {
+    let releaseFirst: (() => void) | undefined;
+    let call = 0;
+    const fetchImpl: FetchLike = () => {
+      call++;
+      if (call === 1) {
+        // Hang the first send so every later write piles into the capped buffer and drops.
+        return new Promise((resolve) => {
+          releaseFirst = () => resolve({ ok: true, status: 200 });
+        });
+      }
+      return Promise.resolve({ ok: true, status: 200 });
+    };
+    const reports: number[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 2,
+      maxBufferedLines: 2,
+      retries: 0,
+      fetchImpl,
+      onError: (error) => {
+        const match = /dropped (\d+) lines/.exec(String(error));
+        if (match != null) {
+          reports.push(Number(match[1]));
+        }
+      },
+    });
+
+    // Two writes start the (hanging) pump; then flood far past 1000 drops. droppedTotal reports at 1 and
+    // then every 1000th line (http.ts 329, the `droppedTotal % 1000 === 0` branch).
+    transport.write(record, '{"n":0}');
+    transport.write(record, '{"n":1}');
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    for (let i = 0; i < 1100; i++) {
+      transport.write(record, `{"n":${i + 2}}`);
+    }
+
+    // The first drop reports at 1, and the 1000th drop reports at 1000.
+    expect(reports).toContain(1);
+    expect(reports).toContain(1000);
+
+    releaseFirst?.();
+    await transport.flush?.();
+    await transport[Symbol.asyncDispose]?.();
+  });
+
   test("a cap smaller than the batch size still drains (threshold clamps to the cap)", async () => {
     const { calls, fetchImpl } = makeFakeFetch();
     const transport = httpTransport({
@@ -403,5 +449,82 @@ describe("httpTransport delivery hardening", () => {
     await transport.flush?.();
 
     expect(calls[0].init.keepalive).toBe(true);
+  });
+});
+
+describe("httpTransport per-attempt abort signal", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  test("timeoutMs <= 0 disables the abort signal (no `signal` on the request)", async () => {
+    const { calls, fetchImpl } = makeFakeFetch();
+    // timeoutMs: 0 -> attemptSignal returns undefined immediately (http.ts 205-207); init.signal is unset.
+    const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, timeoutMs: 0, fetchImpl });
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.signal).toBeUndefined();
+  });
+
+  test("no abort signal is attached when the runtime lacks AbortSignal.timeout", async () => {
+    // Stub AbortSignal without a `timeout` factory: attemptSignal returns undefined (http.ts 209).
+    vi.stubGlobal("AbortSignal", {});
+    const { calls, fetchImpl } = makeFakeFetch();
+    const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, timeoutMs: 5000, fetchImpl });
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.signal).toBeUndefined();
+  });
+});
+
+describe("httpTransport error reporting and custom encoders", () => {
+  test("a failed batch with no onError is silently dropped (reportError early-returns)", async () => {
+    // No onError -> reportError hits the `onError == null` early return (http.ts 224-226); nothing throws.
+    const fetchImpl: FetchLike = async () => {
+      throw new Error("network down");
+    };
+    const transport = httpTransport({ url: "https://logs.example/ingest", batchSize: 1, retries: 0, fetchImpl });
+    expect(() => transport.write(record, '{"a":1}')).not.toThrow();
+    await expect(transport.flush?.()).resolves.toBeUndefined();
+  });
+
+  test("a custom encodeBody controls the request body and content-type", async () => {
+    const { calls, fetchImpl } = makeFakeFetch();
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 2,
+      fetchImpl,
+      // Custom encoder takes precedence over bodyFormat (http.ts 246).
+      encodeBody: (lines) => ({ body: `COUNT=${lines.length}|${lines.join(";")}`, contentType: "application/x-custom" }),
+    });
+    transport.write(record, '{"a":1}');
+    transport.write(record, '{"a":2}');
+    await transport.flush?.();
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.body).toBe('COUNT=2|{"a":1};{"a":2}');
+    expect(calls[0].init.headers["content-type"]).toBe("application/x-custom");
+  });
+
+  test("a throwing custom encodeBody fails the batch like a delivery error (reported, dropped)", async () => {
+    const { calls, fetchImpl } = makeFakeFetch();
+    const seen: { error: unknown; lines: readonly string[] }[] = [];
+    const transport = httpTransport({
+      url: "https://logs.example/ingest",
+      batchSize: 1,
+      fetchImpl,
+      encodeBody: () => {
+        throw new Error("encoder blew up");
+      },
+      onError: (error, lines) => seen.push({ error, lines }),
+    });
+    transport.write(record, '{"a":1}');
+    await transport.flush?.();
+    // The encoder threw before any fetch -> no request was made, batch reported + dropped (http.ts 247-252).
+    expect(calls).toHaveLength(0);
+    expect(seen).toHaveLength(1);
+    expect((seen[0].error as Error).message).toBe("encoder blew up");
+    expect(seen[0].lines).toEqual(['{"a":1}']);
   });
 });

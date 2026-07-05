@@ -1,5 +1,6 @@
+import { SPREAD_SHAPE_HINT } from "../src/core/logObj.js";
 import { Logger } from "../src/index.js";
-import type { ILogObjMeta, ISettings } from "../src/interfaces.js";
+import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../src/interfaces.js";
 import {
   levelToSeverityNumber,
   type OtelLogRecord,
@@ -435,5 +436,460 @@ describe("presets/otel OTLP review fixes", () => {
     });
     expect(uppercase.traceId).toBe("a".repeat(32));
     expect(uppercase.spanId).toBe("b".repeat(16));
+  });
+});
+
+/** Settings whose json/meta key names match the runtime defaults, for direct hand-built-record tests. */
+function defaultSettings(): ISettings<unknown> {
+  return new Logger({ type: "hidden" }).settings as unknown as ISettings<unknown>;
+}
+
+/** Build a serialized-tslog {@link IErrorObject} (native handle + parsed frames), with overrides. */
+function makeErrorObject(overrides: Partial<IErrorObject> & { nativeError?: unknown } = {}): IErrorObject {
+  return {
+    nativeError: new Error("real"),
+    name: "E",
+    message: "m",
+    stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
+    ...overrides,
+  } as IErrorObject;
+}
+
+describe("presets/otel toOtlpAnyValue exhaustive value kinds", () => {
+  test("functions and symbols degrade to their String() form", () => {
+    expect(toOtlpAnyValue(() => {})).toEqual({ stringValue: expect.stringContaining("=>") });
+    const sym = Symbol("s");
+    expect(toOtlpAnyValue(sym)).toEqual({ stringValue: "Symbol(s)" });
+  });
+
+  test("Dates map to an ISO stringValue; an invalid Date maps to 'Invalid Date'", () => {
+    const iso = "2026-07-05T00:00:00.000Z";
+    expect(toOtlpAnyValue(new Date(iso))).toEqual({ stringValue: iso });
+    expect(toOtlpAnyValue(new Date(Number.NaN))).toEqual({ stringValue: "Invalid Date" });
+  });
+
+  test("a raw Error becomes a kvlist of name/message/stack (stack included when present)", () => {
+    const err = new Error("kaboom");
+    const kv = toOtlpAnyValue(err).kvlistValue?.values ?? [];
+    const byKey = (k: string) => kv.find((e) => e.key === k)?.value;
+    expect(byKey("name")).toEqual({ stringValue: "Error" });
+    expect(byKey("message")).toEqual({ stringValue: "kaboom" });
+    expect(typeof byKey("stack")?.stringValue).toBe("string");
+  });
+
+  test("a raw Error with name/message/stack scrubbed uses the safe fallbacks and omits stack", () => {
+    // Defeat every readable prop: name/message resolve to the "Error"/"" fallbacks; a non-string stack
+    // (deleted -> undefined) is omitted entirely.
+    const err = Object.create(Error.prototype) as Error;
+    Object.defineProperty(err, "name", { value: 123 }); // non-string -> safeStringProp returns undefined
+    Object.defineProperty(err, "message", { value: undefined });
+    Object.defineProperty(err, "stack", { value: undefined });
+    const kv = toOtlpAnyValue(err).kvlistValue?.values ?? [];
+    const byKey = (k: string) => kv.find((e) => e.key === k)?.value;
+    expect(byKey("name")).toEqual({ stringValue: "Error" });
+    expect(byKey("message")).toEqual({ stringValue: "" });
+    expect(byKey("stack")).toBeUndefined();
+  });
+
+  test("a raw Error whose stack getter throws still serializes name/message and omits stack", () => {
+    const err = new Error("boom");
+    Object.defineProperty(err, "stack", {
+      get() {
+        throw new Error("hostile stack");
+      },
+    });
+    const kv = toOtlpAnyValue(err).kvlistValue?.values ?? [];
+    const byKey = (k: string) => kv.find((e) => e.key === k)?.value;
+    expect(byKey("message")).toEqual({ stringValue: "boom" });
+    expect(byKey("stack")).toBeUndefined();
+  });
+
+  test("an object whose ownKeys trap throws degrades to '[unserializable]'", () => {
+    const hostile = new Proxy(
+      {},
+      {
+        ownKeys() {
+          throw new Error("no keys");
+        },
+      },
+    );
+    expect(toOtlpAnyValue(hostile)).toEqual({ stringValue: "[unserializable]" });
+  });
+});
+
+describe("presets/otel record-splitting and timestamp edges", () => {
+  test("a record with no message/positional key leaves Body undefined and keeps all fields as attributes", () => {
+    // No "0", no messageKey, no spread hint -> splitBodyAndAttributes falls through to body: undefined.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const record = { alpha: 1, beta: "two", [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otel = toOtelRecord(record, settings);
+    expect(otel.Body).toBeUndefined();
+    expect(otel.Attributes).toEqual({ alpha: 1, beta: "two" });
+  });
+
+  test("a spread-hinted record whose fields are a serialized error is NOT spread (guarded by isPlainErrorLike)", () => {
+    // The object-first spread would flatten `fields` into attributes, but an error-like `fields` must not
+    // be exploded — isPlainErrorLike short-circuits the spread so "0"/"1" stay positional.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const errLike = makeErrorObject({ name: "Boom", message: "spread me not" });
+    const record = {
+      0: errLike,
+      1: "the message",
+      [SPREAD_SHAPE_HINT]: "object-first",
+      [settings.meta.property]: meta,
+    } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otel = toOtelRecord(record, settings);
+    // Not spread: the error was NOT exploded into name/message/stack attributes. "0" then falls through
+    // to the legacy bare-string body promotion, leaving "1" as the sole positional attribute.
+    expect(otel.Body).toBe(errLike);
+    expect((otel.Attributes as Record<string, unknown>)["1"]).toBe("the message");
+    expect(otel.Attributes.name).toBeUndefined();
+    expect((otel.Attributes as Record<string, unknown>)["0"]).toBeUndefined();
+  });
+
+  test("no _meta block: OTLP severity is UNSPECIFIED and the timestamp falls back to Date.now()", () => {
+    const settings = defaultSettings();
+    const before = BigInt(Date.now()) * 1_000_000n;
+    const otlp = toOtlpLogRecord({ 0: "no meta" } as unknown as Record<string, unknown> & ILogObjMeta, settings);
+    const after = BigInt(Date.now()) * 1_000_000n;
+    expect(otlp.severityNumber).toBe(OtelSeverityNumber.UNSPECIFIED);
+    expect(otlp.severityText).toBe("");
+    // toEpochNanos(undefined) -> Date.now(): the ns timestamp sits within the call window.
+    const ts = BigInt(otlp.timeUnixNano);
+    expect(ts >= before && ts <= after).toBe(true);
+    expect(otlp.body).toEqual({ stringValue: "no meta" });
+  });
+});
+
+describe("presets/otel toOtlpLogRecord error edges", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+
+  test("multiple logged errors: the first maps to exception.*, the rest compact under the error key", () => {
+    const { record, settings } = captureRecord(["multi", new Error("first"), new TypeError("second")]);
+    const otlp = toOtlpLogRecord(record, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Error" });
+    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "first" });
+    // The extra error rides under json.errorKey as a compact kvlist array (no native handle).
+    const extra = attr(otlp.attributes, settings.json.errorKey)?.arrayValue?.values ?? [];
+    expect(extra).toHaveLength(1);
+    const extraKv = extra[0].kvlistValue?.values ?? [];
+    expect(extraKv.find((e) => e.key === "name")?.value).toEqual({ stringValue: "TypeError" });
+    expect(extraKv.find((e) => e.key === "message")?.value).toEqual({ stringValue: "second" });
+  });
+
+  test("a compacted extra error keeps its cause chain (compactError recursion + string stack)", () => {
+    // First error owns the semconv slots; the SECOND error (with a cause) is compacted, exercising the
+    // compactError cause recursion and the frame-rebuilt stack string.
+    const primary = new Error("primary");
+    const secondary = new Error("secondary", { cause: new Error("deep cause") });
+    const { record, settings } = captureRecord(["boom", primary, secondary]);
+    const otlp = toOtlpLogRecord(record, settings);
+    const extra = attr(otlp.attributes, settings.json.errorKey)?.arrayValue?.values ?? [];
+    const kv = extra[0].kvlistValue?.values ?? [];
+    const byKey = (k: string) => kv.find((e) => e.key === k)?.value;
+    expect(byKey("name")).toEqual({ stringValue: "Error" });
+    expect(byKey("message")).toEqual({ stringValue: "secondary" });
+    expect(typeof byKey("stack")?.stringValue).toBe("string");
+    // the compacted cause is a nested kvlist with its own name/message
+    const causeKv = byKey("cause")?.kvlistValue?.values ?? [];
+    expect(causeKv.find((e) => e.key === "message")?.value).toEqual({ stringValue: "deep cause" });
+  });
+
+  test("an attribute holding an ARRAY of serialized errors maps them all (first -> exception.*, rest compacted)", () => {
+    // tslog does not produce this shape itself, but toOtlpLogRecord defends against an attribute value
+    // that is an array of serialized errors: each is mapped in order.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const errors = [makeErrorObject({ name: "AErr", message: "a" }), makeErrorObject({ name: "BErr", message: "b" })];
+    const record = { message: "arr", failures: errors, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(record, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "AErr" });
+    const extra = attr(otlp.attributes, settings.json.errorKey)?.arrayValue?.values ?? [];
+    expect(extra).toHaveLength(1);
+    expect((extra[0].kvlistValue?.values ?? []).find((e) => e.key === "name")?.value).toEqual({ stringValue: "BErr" });
+    // the raw "failures" key is consumed by the error mapping, not emitted as a generic attribute
+    expect(attr(otlp.attributes, "failures")).toBeUndefined();
+  });
+
+  test("a spread lone error whose message is non-string and body non-string yields the empty exception.message", () => {
+    // recordIsSpreadError; messageKey ("message") carries a NON-string, so splitBodyAndAttributes promotes
+    // it to a non-string body and deletes it from attributes. spreadError.message is then absent (non-string)
+    // and body is non-string, so messageText = "" (707: both ternary arms false).
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const spread = {
+      nativeError: new Error("real"),
+      name: "Weird",
+      message: 42, // non-string; promoted to a non-string body
+      stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
+      [settings.meta.property]: meta,
+    } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(spread, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Weird" });
+    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "" });
+  });
+
+  test("a spread lone error whose message is non-string but body IS a string uses the string body", () => {
+    // recordIsSpreadError; the promoted body is a STRING (messageKey holds a string), while the spread
+    // error's own `message` was consumed by the split, so messageText falls through to the string body (707).
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const spread = {
+      nativeError: new Error("real"),
+      name: "Weird",
+      message: "body-as-message", // string; promoted to a string body and removed from attributes
+      stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
+      [settings.meta.property]: meta,
+    } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(spread, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Weird" });
+    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "body-as-message" });
+  });
+
+  test("errorStackString appends a non-error cause as a 'Caused by:' fallback section", () => {
+    // A serialized error whose cause is a plain (non-error) value: the cause chain closes with a
+    // Caused-by fallback rendered through stringifyFallbackSafe.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const errLike = makeErrorObject({
+      name: "Outer",
+      message: "outer",
+      nativeError: (() => {
+        const e = new Error("outer");
+        e.stack = undefined; // force ownStackString to rebuild from frames
+        return e;
+      })(),
+      cause: { code: "E_PLAIN" } as unknown as IErrorObject,
+    });
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(record, settings);
+    const stacktrace = attr(otlp.attributes, "exception.stacktrace")?.stringValue ?? "";
+    // frame-rebuilt own stack (no header, just the "    at" frame) + the plain-cause fallback line.
+    expect(stacktrace).toContain("    at fn (/a.js:1:2)");
+    expect(stacktrace).toContain('Caused by: {"code":"E_PLAIN"}');
+  });
+
+  test("a lone error with an empty parsed stack and no native stack yields no stacktrace attribute", () => {
+    // ownStackString: native stack unreadable AND stack array empty -> undefined -> no exception.stacktrace.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const native = new Error("x");
+    native.stack = undefined;
+    const errLike = makeErrorObject({ name: "NoStack", message: "ns", nativeError: native, stack: [] });
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(record, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "NoStack" });
+    expect(attr(otlp.attributes, "exception.stacktrace")).toBeUndefined();
+  });
+
+  test("isolates a throwing getSpanContext in toOtlpLogRecord (no trace id injected, log survives)", () => {
+    const { record, settings } = captureRecord(["safe"]);
+    const otlp = toOtlpLogRecord(record, settings, {
+      getSpanContext: () => {
+        throw new Error("tracer down");
+      },
+    });
+    expect(otlp.traceId).toBeUndefined();
+    expect(otlp.spanId).toBeUndefined();
+    expect(otlp.body).toEqual({ stringValue: "safe" });
+  });
+});
+
+describe("presets/otel stringifyFallbackSafe / errorStackString cause fallbacks", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+
+  test("a non-error cause that is a plain string is emitted verbatim as the Caused-by section", () => {
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: "just a string" as unknown as IErrorObject });
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("Caused by: just a string");
+  });
+
+  test("a non-error cause whose JSON.stringify throws falls back through String()", () => {
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    // A cause object that is neither an error-like nor JSON-serializable (bigint + a hostile toString that
+    // still yields a string) exercises stringifyFallbackSafe's JSON.stringify->String() fallback.
+    const hostileCause = {
+      big: 10n, // JSON.stringify throws on bigint
+      toString() {
+        return "hostile-cause-string";
+      },
+    };
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: hostileCause as unknown as IErrorObject });
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("Caused by: hostile-cause-string");
+  });
+});
+
+describe("presets/otel toOtlpJson envelope edges", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+
+  test("accepts an ARRAY of records and emits empty resource attributes when no resource is given", () => {
+    const { record, settings } = captureRecord(["one"]);
+    const { record: record2 } = captureRecord(["two"]);
+    const request = toOtlpJson([record, record2], settings);
+    expect(request.resourceLogs[0].resource.attributes).toEqual([]);
+    const logRecords = request.resourceLogs[0].scopeLogs[0].logRecords;
+    expect(logRecords).toHaveLength(2);
+    expect(logRecords[0].body).toEqual({ stringValue: "one" });
+    expect(logRecords[1].body).toEqual({ stringValue: "two" });
+  });
+
+  test("otlpBatchBody with zero lines emits an empty resourceLogs envelope", () => {
+    const { body, contentType } = otlpBatchBody([]);
+    expect(contentType).toBe("application/json");
+    expect(JSON.parse(body)).toEqual({ resourceLogs: [] });
+  });
+});
+
+describe("presets/otel stacktrace frame rebuild + cause-chain rendering", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+
+  /** Build an IErrorObject-holding record with a mapped lone error under a plain key (`err`). */
+  function recordWithError(errLike: IErrorObject): { record: Record<string, unknown> & ILogObjMeta; settings: ISettings<unknown> } {
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    return { record, settings };
+  }
+
+  test("rebuilds the stacktrace from parsed frames, filling every per-field fallback for empty frames", () => {
+    // Native stack absent -> ownStackString rebuilds from the frame array. A fully empty frame exercises
+    // the `<anonymous>`/`unknown`/`0`/`0` fallbacks; a `fullFilePath` frame exercises the preferred path.
+    const native = new Error("x");
+    native.stack = undefined;
+    const errLike = makeErrorObject({
+      name: "Framed",
+      message: "fm",
+      nativeError: native,
+      stack: [{} as never, { fullFilePath: "/full.js", fileLine: "9", fileColumn: "8", method: "run" } as never],
+    });
+    const { record, settings } = recordWithError(errLike);
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("    at <anonymous> (unknown:0:0)");
+    expect(stacktrace).toContain("    at run (/full.js:9:8)");
+  });
+
+  test("a serialized-error cause with a message and its own stack renders header + frames", () => {
+    // looksLikeErrorObject(cause) true, cause.message truthy (605), cause has a stack (607: the non-header arm).
+    const causeNative = new Error("cause-native");
+    causeNative.stack = "Error: cause-native\n    at causeFrame (/c.js:1:1)";
+    const cause = makeErrorObject({ name: "CauseErr", message: "caused it", nativeError: causeNative, stack: [{ method: "x" } as never] });
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause });
+    const { record, settings } = recordWithError(errLike);
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("Caused by: CauseErr: caused it");
+    expect(stacktrace).toContain("    at causeFrame (/c.js:1:1)");
+  });
+
+  test("a serialized-error cause with an empty message and no readable stack renders a bare header", () => {
+    // cause.message === "" (605: the empty-suffix arm); ownStackString(cause) undefined (607: header arm).
+    const causeNative = new Error("");
+    causeNative.stack = undefined;
+    const cause = makeErrorObject({ name: "BareCause", message: "", nativeError: causeNative, stack: [] });
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause });
+    const { record, settings } = recordWithError(errLike);
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    // header with no ": message" suffix and no following frames.
+    expect(stacktrace).toContain("Caused by: BareCause");
+    expect(stacktrace).not.toContain("Caused by: BareCause:");
+  });
+});
+
+describe("presets/otel stringifyFallbackSafe deep fallbacks", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+  function recordWithError(errLike: IErrorObject): { record: Record<string, unknown> & ILogObjMeta; settings: ISettings<unknown> } {
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const record = { message: "boom", err: errLike, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    return { record, settings };
+  }
+
+  test("a non-error cause whose JSON.stringify returns undefined falls through to String()", () => {
+    // JSON.stringify(() => {}) === undefined -> the `?? String(value)` branch renders the function string.
+    const fnCause = function namedCause() {};
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: fnCause as unknown as IErrorObject });
+    const { record, settings } = recordWithError(errLike);
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("Caused by: function namedCause");
+  });
+
+  test("a non-error cause on which both JSON.stringify and String() throw degrades to [unserializable]", () => {
+    // JSON.stringify throws (bigint) AND String() throws (Symbol.toPrimitive throws) -> the inner catch
+    // returns "[unserializable]".
+    const hostileCause = {
+      big: 10n, // JSON.stringify throws
+      [Symbol.toPrimitive]() {
+        throw new Error("no primitive"); // String() throws
+      },
+    };
+    const errLike = makeErrorObject({ name: "Outer", message: "outer", cause: hostileCause as unknown as IErrorObject });
+    const { record, settings } = recordWithError(errLike);
+    const stacktrace = attr(toOtlpLogRecord(record, settings).attributes, "exception.stacktrace")?.stringValue ?? "";
+    expect(stacktrace).toContain("Caused by: [unserializable]");
+  });
+
+  test("a compacted extra error with a NON-error cause renders the cause via stringifyFallbackSafe", () => {
+    // compactError's `looksLikeErrorObject(cause) ? ... : stringifyFallbackSafe(cause)` -> the plain-cause arm.
+    const settings = defaultSettings();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const primary = makeErrorObject({ name: "Primary", message: "primary" });
+    const secondary = makeErrorObject({ name: "Secondary", message: "secondary", cause: { plain: "cause" } as unknown as IErrorObject });
+    const record = { message: "boom", a: primary, b: secondary, [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(record, settings);
+    const extra = attr(otlp.attributes, settings.json.errorKey)?.arrayValue?.values ?? [];
+    const kv = extra[0].kvlistValue?.values ?? [];
+    const causeValue = kv.find((e) => e.key === "cause")?.value;
+    // the plain cause is stringified, not recursed into a kvlist.
+    expect(causeValue).toEqual({ stringValue: '{"plain":"cause"}' });
+  });
+});
+
+describe("presets/otel numeric _meta.date and spread-error message arm", () => {
+  function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
+    return list?.find((entry) => entry.key === key)?.value;
+  }
+
+  test("a numeric _meta.date is used directly as the ms source for the ns timestamp", () => {
+    // toEpochNanos sees a number -> `date` arm (no Date wrapper, no Date.now()).
+    const settings = defaultSettings();
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: 1_700_000_000_000 } as unknown as IMeta;
+    const record = { message: "num-date", [settings.meta.property]: meta } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(record, settings);
+    expect(otlp.timeUnixNano).toBe("1700000000000000000");
+  });
+
+  test("a spread lone error keeps its own STRING message when the messageKey is not 'message'", () => {
+    // With messageKey = "msg", the error's `message` field is NOT the messageKey, so the split leaves it in
+    // place: spreadError.message is a string -> the FIRST ternary arm of messageText is taken.
+    const settings = { ...defaultSettings() } as ISettings<unknown>;
+    (settings.json as unknown as Record<string, unknown>).messageKey = "msg";
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date(1_700_000_000_000) } as unknown as IMeta;
+    const spread = {
+      nativeError: new Error("real"),
+      name: "Weird",
+      message: "kept-string-message",
+      stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
+      [settings.meta.property]: meta,
+    } as unknown as Record<string, unknown> & ILogObjMeta;
+    const otlp = toOtlpLogRecord(spread, settings);
+    expect(attr(otlp.attributes, "exception.type")).toEqual({ stringValue: "Weird" });
+    expect(attr(otlp.attributes, "exception.message")).toEqual({ stringValue: "kept-string-message" });
   });
 });

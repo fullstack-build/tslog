@@ -55,6 +55,7 @@ export function resolveLogLevelId(level: TLogLevel | undefined, customLevels?: R
     return fromTable;
   }
   const fromEnum = (LogLevel as unknown as Record<string, number>)[level.toUpperCase()];
+  /* v8 ignore next -- the LogLevel enum's string keys are identical to NAME_TO_ID's, so if the table miss above fell through, the enum misses too; `fromEnum` is always undefined here and the `? fromEnum` branch is unreachable */
   return typeof fromEnum === "number" ? fromEnum : undefined;
 }
 

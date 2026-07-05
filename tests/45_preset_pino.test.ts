@@ -1,6 +1,7 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Logger } from "../src";
-import { pinoFormat, pinoTransport, toPinoLevel } from "../src/subpaths/presets/pino";
+import type { IErrorObject, IMeta } from "../src/interfaces";
+import { pinoFormat, pinoTransport, toPinoError, toPinoLevel } from "../src/subpaths/presets/pino";
 
 /**
  * Pino preset (`tslog/presets/pino`): a LogFormatter producing pino-shaped NDJSON plus a transport helper.
@@ -189,5 +190,218 @@ describe("presets/pino hand-built error-likes (review fixes)", () => {
     expect(cause.message).toBe("im");
     // the native handle's real stack string is still preferred, so a stack IS present here
     expect(typeof cause.stack).toBe("string");
+  });
+});
+
+/** Build a serialized-tslog {@link IErrorObject} with the given native handle + parsed frames. */
+function makeErrorObject(overrides: Partial<IErrorObject> & { nativeError?: unknown } = {}): IErrorObject {
+  return {
+    nativeError: new Error("real"),
+    name: "E",
+    message: "m",
+    stack: [{ method: "fn", filePath: "/a.js", fileLine: "1", fileColumn: "2" }],
+    ...overrides,
+  } as IErrorObject;
+}
+
+describe("presets/pino toPinoError (error re-shaping edge cases)", () => {
+  test("keeps the serialized name when the native constructor getter throws", () => {
+    const native = new Error("real");
+    Object.defineProperty(native, "constructor", {
+      get() {
+        throw new Error("no ctor");
+      },
+    });
+    const out = toPinoError(makeErrorObject({ nativeError: native, name: "SerName", message: "boom" }));
+    // ctor lookup threw -> `type` falls back to the serialized name.
+    expect(out.type).toBe("SerName");
+    expect(out.message).toBe("boom");
+  });
+
+  test("rebuilds the stack STRING from parsed frames when the native handle has no string stack", () => {
+    const native = new Error("x");
+    native.stack = undefined;
+    const out = toPinoError(
+      makeErrorObject({
+        nativeError: native,
+        name: "Framed",
+        message: "fm",
+        stack: [{ method: "doIt", fullFilePath: "/x.js", fileLine: "3", fileColumn: "4" } as never, {} as never],
+      }),
+    );
+    // header from name+message, then one frame per parsed frame, empty frame -> the <anonymous>/unknown/0 fallbacks.
+    expect(out.stack).toBe("Framed: fm\n    at doIt (/x.js:3:4)\n    at <anonymous> (unknown:0:0)");
+  });
+
+  test("falls through to the frame rebuild when the native stack getter throws", () => {
+    const native = new Error("x");
+    Object.defineProperty(native, "stack", {
+      get() {
+        throw new Error("hostile stack");
+      },
+    });
+    const out = toPinoError(makeErrorObject({ nativeError: native, name: "Hostile", message: "hm", stack: [{ method: "g" } as never] }));
+    expect(out.stack).toBe("Hostile: hm\n    at g (unknown:0:0)");
+  });
+
+  test("skips the extra own-property copy when the native ownKeys trap throws", () => {
+    const native = new Proxy(new Error("k"), {
+      ownKeys() {
+        throw new Error("no keys");
+      },
+    });
+    const out = toPinoError(makeErrorObject({ nativeError: native, name: "E", message: "km" }));
+    // type/message/stack survive; no extras copied. `type` follows the native constructor name (Error),
+    // not the serialized `name`, because a nativeError is present.
+    expect(out.type).toBe("Error");
+    expect(out.message).toBe("km");
+  });
+
+  test("skips an extra property whose getter throws, keeping the rest", () => {
+    const native = new Error("p");
+    Object.defineProperty(native, "code", {
+      enumerable: true,
+      get() {
+        throw new Error("no code");
+      },
+    });
+    Object.defineProperty(native, "safe", { enumerable: true, value: "ok" });
+    const out = toPinoError(makeErrorObject({ nativeError: native, name: "E", message: "pm" }));
+    expect(out.code).toBeUndefined();
+    expect(out.safe).toBe("ok");
+  });
+
+  test("recurses a genuine serialized cause and passes a non-error cause through verbatim", () => {
+    // A genuine serialized cause (nativeError instanceof Error, name string, stack array) is recursed;
+    // its `type` follows the native constructor name, so a Root subclass yields type "Root".
+    class Root extends Error {}
+    const rootNative = new Root("root");
+    const withErrorCause = toPinoError(
+      makeErrorObject({ message: "outer", cause: makeErrorObject({ nativeError: rootNative, name: "Root", message: "root" }) }),
+    );
+    expect((withErrorCause.cause as { type?: string }).type).toBe("Root");
+
+    const withPlainCause = toPinoError(makeErrorObject({ message: "outer", cause: { just: "an object" } }));
+    expect(withPlainCause.cause).toEqual({ just: "an object" });
+  });
+
+  test("no native handle and an empty parsed stack yields no stack; empty name falls back to type 'Error'", () => {
+    // native absent -> the native-stack read is skipped; stack is [] -> pinoStackString returns undefined,
+    // so `out.stack` stays unset. name === "" -> `type` uses the "Error" fallback (no ctor to override it).
+    const out = toPinoError(makeErrorObject({ nativeError: undefined, name: "", message: "m", stack: [] }));
+    expect(out.type).toBe("Error");
+    expect(out.message).toBe("m");
+    expect(Object.hasOwn(out, "stack")).toBe(false);
+  });
+
+  test("rebuilds a header with no colon when the message is empty", () => {
+    // native absent, but parsed frames exist -> the stack STRING is rebuilt; an empty message drops the
+    // ": message" suffix so the header is just the name.
+    const out = toPinoError(makeErrorObject({ nativeError: undefined, name: "Bare", message: "", stack: [{ method: "g" } as never] }));
+    expect(out.stack).toBe("Bare\n    at g (unknown:0:0)");
+  });
+
+  test("skips native own keys that collide with reserved fields or are the cause key", () => {
+    const native = new Error("k");
+    // An own enumerable key equal to a field already on the pino output (`type`) is skipped (Object.hasOwn),
+    // as is an own enumerable `cause` key (the cause chain is handled separately, not copied as an extra).
+    Object.defineProperty(native, "type", { enumerable: true, value: "impostor-type" });
+    Object.defineProperty(native, "cause", { enumerable: true, value: "impostor-cause" });
+    Object.defineProperty(native, "keep", { enumerable: true, value: "kept" });
+    const out = toPinoError(makeErrorObject({ nativeError: native, name: "E", message: "km" }));
+    // `type` follows the native constructor name (Error), NOT the colliding own key.
+    expect(out.type).toBe("Error");
+    // the own `cause` key did not leak in as an extra (no serialized cause here -> cause stays unset).
+    expect(out.cause).toBeUndefined();
+    expect(out.keep).toBe("kept");
+  });
+});
+
+describe("presets/pino pinoFormat direct edge cases", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  function settingsOf(): ISettingsShape {
+    const logger = new Logger({ type: "hidden" });
+    return logger.settings as unknown as ISettingsShape;
+  }
+  type ISettingsShape = { meta: { property: string }; json: { messageKey: string; errorKey: string; timeKey: string; levelKey: string; levelIdKey: string } };
+
+  test("no _meta block: level snaps to trace(10) and no time is emitted", () => {
+    const settings = settingsOf();
+    const line = pinoFormat()({ 0: "hi" } as never, settings as never);
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    // toPinoLevel(-1) snaps to the trace floor.
+    expect(obj.level).toBe(10);
+    expect(obj.msg).toBe("hi");
+    expect(Object.hasOwn(obj, "time")).toBe(false);
+  });
+
+  test("a non-Date _meta.date is emitted verbatim (not epoch/ISO-converted)", () => {
+    const settings = settingsOf();
+    const meta = { logLevelId: 3, logLevelName: "INFO", date: 1_700_000_000_000 } as unknown as IMeta;
+    const line = pinoFormat()({ 0: "num", [settings.meta.property]: meta } as never, settings as never);
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    expect(obj.time).toBe(1_700_000_000_000);
+  });
+
+  test("safeStringify renders bigint fields as strings and undefined as [undefined]", () => {
+    const lines: string[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport(pinoTransport((line) => lines.push(line)));
+    logger.info({ big: 10n, gone: undefined, keep: 1 });
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    expect(obj.big).toBe("10");
+    expect(obj.gone).toBe("[undefined]");
+    expect(obj.keep).toBe(1);
+  });
+
+  test("multiple logged errors are reshaped element-wise into a pino error array", () => {
+    const lines: string[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport(pinoTransport((line) => lines.push(line)));
+    logger.error("multi", new Error("a"), new TypeError("b"));
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    const errs = obj.err as { type: string }[];
+    expect(Array.isArray(errs)).toBe(true);
+    expect(errs.map((e) => e.type)).toEqual(["Error", "TypeError"]);
+  });
+
+  test("errorShape: 'tslog' passes a multi-error array through as structured frame objects", () => {
+    const lines: string[] = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport(pinoTransport((line) => lines.push(line), { errorShape: "tslog" }));
+    logger.error("multi", new Error("a"), new Error("b"));
+    const obj = JSON.parse(lines[0]) as Record<string, unknown>;
+    const errs = obj.err as { name: string; stack: unknown }[];
+    expect(errs).toHaveLength(2);
+    expect(Array.isArray(errs[0].stack)).toBe(true);
+    expect((errs[0] as { type?: string }).type).toBeUndefined();
+  });
+
+  test("a non-error value under the error key passes through unchanged", () => {
+    const settings = settingsOf();
+    const meta = { logLevelId: 5, logLevelName: "ERROR", date: new Date() } as unknown as IMeta;
+    const record = { [settings.json.errorKey]: "not an error object", [settings.meta.property]: meta };
+    const line = pinoFormat()(record as never, settings as never);
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    expect(obj.err).toBe("not an error object");
+  });
+
+  test("pid is omitted when process.pid is not a number", () => {
+    const settings = settingsOf();
+    // Build the record BEFORE stubbing process so logger environment detection is unaffected.
+    const logger = new Logger({ type: "hidden" });
+    let record: unknown;
+    logger.attachTransport((r) => {
+      record = r;
+    });
+    logger.info("hi");
+
+    vi.stubGlobal("process", { pid: "not-a-number" });
+    const line = pinoFormat()(record as never, settings as never);
+    const obj = JSON.parse(line) as Record<string, unknown>;
+    expect(obj.pid).toBeUndefined();
   });
 });

@@ -59,6 +59,91 @@ describe("stdSerializers.err", () => {
 
     expect(stack).toEqual([{ method: "fnA (/a.js:1:1)" }, { method: "fnB (/b.js:2:2)" }]);
   });
+
+  test("serializes a duck-typed error-like (not an Error instance) via its native handle", () => {
+    // A cross-realm / prototype-lost error still duck-types as an error (string message + string
+    // stack or name), so err() normalizes it into an IErrorObject instead of passing it through.
+    const errorLike = { message: "duck", name: "DuckError", stack: "DuckError: duck\n    at f (/a.js:1:1)" };
+    const out = err(errorLike) as Record<string, unknown>;
+
+    expect(out.name).toBe("DuckError");
+    expect(out.message).toBe("duck");
+    // toError wraps the error-like into a real Error and copies its fields, so nativeError is an Error.
+    expect(out.nativeError).toBeInstanceOf(Error);
+    expect(out.stack).toEqual([{ method: "f (/a.js:1:1)" }]);
+  });
+
+  test("duck-types an error-like carrying only a string stack (no name)", () => {
+    // isError accepts `message` + a string `stack` even without a string `name`.
+    const errorLike = { message: "m", stack: "Error: m\n    at g (/b.js:2:2)" };
+    const out = err(errorLike) as Record<string, unknown>;
+    expect(out.message).toBe("m");
+    expect(out.nativeError).toBeInstanceOf(Error);
+  });
+
+  test("duck-types an error-like carrying only a string name (no stack)", () => {
+    // The other half of isError's OR: a string message + a string name, with no stack property.
+    // toError wraps it into a fresh Error (which captures its own stack), copying the name field over.
+    const errorLike = { message: "m2", name: "NoStackError" };
+    const out = err(errorLike) as Record<string, unknown>;
+    expect(out.name).toBe("NoStackError");
+    expect(out.message).toBe("m2");
+    expect(out.nativeError).toBeInstanceOf(Error);
+  });
+
+  test("a non-string stack yields no frames", () => {
+    const numeric = new Error("num");
+    (numeric as { stack?: unknown }).stack = 123;
+    expect((err(numeric) as Record<string, unknown>).stack).toEqual([]);
+
+    const empty = new Error("empty");
+    empty.stack = "";
+    expect((err(empty) as Record<string, unknown>).stack).toEqual([]);
+  });
+
+  test("defaults name to 'Error' and message to '' when the Error carries them as undefined", () => {
+    const mangled = Object.create(Error.prototype) as Error;
+    Object.defineProperty(mangled, "name", { value: undefined, configurable: true });
+    Object.defineProperty(mangled, "message", { value: undefined, configurable: true });
+    Object.defineProperty(mangled, "stack", { value: "boom stack", configurable: true });
+
+    const out = err(mangled) as Record<string, unknown>;
+    expect(out.name).toBe("Error");
+    expect(out.message).toBe("");
+  });
+
+  test("normalizes a bigint cause (JSON.stringify would throw) via the String fallback", () => {
+    const wrapped = new Error("outer", { cause: 10n });
+    const cause = (err(wrapped) as Record<string, unknown>).cause as Record<string, unknown>;
+    // JSON.stringify(10n) throws, so toError falls back to String(value) => "10".
+    expect(cause.message).toBe("10");
+    expect(cause.nativeError).toBeInstanceOf(Error);
+  });
+
+  test("copies a plain-object cause's own fields onto the normalized cause Error", () => {
+    const wrapped = new Error("outer", { cause: { code: "E_X", detail: "extra" } });
+    const cause = (err(wrapped) as Record<string, unknown>).cause as Record<string, unknown>;
+    // toError(objectCause) JSON-stringifies for the message and Object.assigns the fields onto the Error.
+    expect(cause.message).toBe(JSON.stringify({ code: "E_X", detail: "extra" }));
+    const native = cause.nativeError as Record<string, unknown>;
+    expect(native.code).toBe("E_X");
+    expect(native.detail).toBe("extra");
+  });
+
+  test("stops following the cause chain at MAX_ERROR_CAUSE_DEPTH (5 levels)", () => {
+    let deepest = new Error("d6");
+    for (let i = 5; i >= 1; i--) {
+      deepest = new Error(`d${i}`, { cause: deepest });
+    }
+    let node = err(deepest) as Record<string, unknown>;
+    let depth = 0;
+    while (node.cause != null) {
+      node = node.cause as Record<string, unknown>;
+      depth++;
+    }
+    // The chain is followed 5 deep, then the 6th level's cause is dropped by the depth guard.
+    expect(depth).toBe(5);
+  });
 });
 
 describe("stdSerializers.req", () => {
@@ -94,6 +179,30 @@ describe("stdSerializers.req", () => {
     const out = req({ method: "GET", originalUrl: "/orig", ip: "1.2.3.4" }) as Record<string, unknown>;
     expect(out.url).toBe("/orig");
     expect(out.remoteAddress).toBe("1.2.3.4");
+  });
+
+  test("falls all the way back to path for the url (Koa ctx shape)", () => {
+    const out = req({ method: "GET", path: "/koa" }) as Record<string, unknown>;
+    expect(out.url).toBe("/koa");
+  });
+
+  test("redacts headers supplied as an array of [name, value] pairs", () => {
+    const out = req({
+      method: "GET",
+      url: "/",
+      headers: [["authorization", "Bearer secret"], ["x-ok", "1"], ["only-one-element"]],
+    }) as Record<string, unknown>;
+    const headers = out.headers as Record<string, unknown>;
+    expect(headers.authorization).toBe("[redacted]");
+    expect(headers["x-ok"]).toBe("1");
+    // A malformed pair (< 2 elements) is skipped, not emitted.
+    expect(headers["only-one-element"]).toBeUndefined();
+  });
+
+  test("drops the headers key when the header bag is neither object, array, nor iterable", () => {
+    const out = req({ method: "GET", url: "/", headers: 42 }) as Record<string, unknown>;
+    expect(Object.hasOwn(out, "headers")).toBe(false);
+    expect(out.method).toBe("GET");
   });
 
   test("passes through a non-object value unchanged", () => {

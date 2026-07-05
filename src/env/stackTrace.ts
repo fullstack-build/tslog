@@ -18,17 +18,21 @@ const OWN_DIR_MARKER: string | undefined = (() => {
     // import.meta.url points at this file inside the installed/built tslog. Strip the trailing
     // `env/stackTrace.<ext>` (or the equivalent in a bundle) to get tslog's own root directory.
     const url = import.meta.url;
+    /* v8 ignore next 3 -- defensive: every ESM runtime (Node/Bun/Deno/browser) supplies a non-empty import.meta.url string */
     if (typeof url !== "string" || url.length === 0) {
       return undefined;
     }
     const path = url.replace(/^file:\/\//, "").replace(/[\\/]env[\\/]stackTrace\.[a-z]+(?:\?.*)?$/i, "");
+    /* v8 ignore next -- the source module's URL always ends with env/stackTrace.<ext>, so the strip always changes it (path !== url) */
     return path === url ? undefined : path;
+    /* v8 ignore next 3 -- defensive: reading import.meta.url and the string replaces cannot throw in a real runtime */
   } catch {
     return undefined;
   }
 })();
 
 /** A frame whose path begins with tslog's actual own directory is internal (location-based, name-independent). */
+/* v8 ignore next 2 -- OWN_DIR_MARKER is always a string here (see above), so the `: undefined` fallback is unreachable at runtime */
 const OWN_DIR_PATTERN: RegExp | undefined =
   OWN_DIR_MARKER != null ? new RegExp(`^(?:file://)?${OWN_DIR_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\\\/]`, "i") : undefined;
 
@@ -38,6 +42,7 @@ const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   // The published bundle layout, so a frame in dist/esm or dist/cjs of *the tslog package* is internal.
   // Anchored to `tslog/dist/...` rather than any bare `tslog/` substring.
   /(?:^|[\\/])tslog[\\/]dist[\\/](?:esm|cjs)[\\/]/i,
+  /* v8 ignore next -- OWN_DIR_PATTERN is always non-null in a real runtime, so the `: []` fallback is unreachable */
   ...(OWN_DIR_PATTERN != null ? [OWN_DIR_PATTERN] : []),
 ];
 
