@@ -228,6 +228,8 @@ How `tslog` compares to the most popular JavaScript loggers. **This table looks 
 >
 >`tslog` is built for the case where one logger has to be good in the browser *and* the server, readable in dev *and* machine-parseable in prod.
 
+**Ready to switch?** Step-by-step guides: [Migrating from pino, winston, or consola](#migrating-from-pino-winston-or-consola).
+
 
 ## Core concepts
 
@@ -584,6 +586,78 @@ log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "compl
 ```
 
 
+## Integrations: Sentry & Better Stack
+
+Error trackers and log platforms plug in as transports — no vendor-specific logger needed. Two worked examples follow; the same two patterns (a `write` function for SDK-based services, `httpTransport` for HTTP ingestion APIs) cover Datadog, Loki, Axiom and friends.
+
+### Sentry
+
+Forward `ERROR`/`FATAL` records to [Sentry](https://sentry.io) while keeping your normal console/JSON output. The record a transport receives still carries the **native `Error` instance** (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain, proper issue grouping — not a stringified copy:
+
+```typescript
+import * as Sentry from "@sentry/node";
+import { Logger } from "tslog";
+
+Sentry.init({ dsn: process.env.SENTRY_DSN });
+
+const log = new Logger();
+
+log.attachTransport({
+  name: "sentry",
+  minLevel: "ERROR", // only errors and fatals leave the process
+  format: "json", // `line` becomes the flat JSON record, independent of the console output
+  write(record, line) {
+    const { _meta, ...fields } = JSON.parse(line);
+    const level = _meta.logLevelName === "FATAL" ? "fatal" : "error";
+    const nativeError = [record, ...Object.values(record)]
+      .map((value) => (value as { nativeError?: unknown } | null)?.nativeError)
+      .find((candidate): candidate is Error => candidate instanceof Error);
+    if (nativeError) {
+      Sentry.captureException(nativeError, { level, extra: fields });
+    } else {
+      Sentry.captureMessage(String(fields.message ?? line), { level, extra: fields });
+    }
+  },
+});
+
+log.error(new Error("payment failed")); // → console output + a Sentry issue, logged fields as `extra`
+```
+
+Because transports are inherited, every sub-logger reports to Sentry too — and transport isolation means a Sentry outage can never break your logging.
+
+### Better Stack (Logtail)
+
+[Better Stack](https://betterstack.com/logs) ingests JSON over HTTP, so the built-in `httpTransport` is all you need. It reads the timestamp from a `dt` field and the message from `message` — the first is one `json` setting away, the second is tslog's default:
+
+```typescript
+import { Logger } from "tslog";
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({
+  type: "json",
+  json: { timeKey: "dt" }, // Better Stack reads the timestamp from "dt"
+});
+
+log.attachTransport(
+  httpTransport({
+    url: "https://in.logs.betterstack.com", // use the ingesting host shown on your source's settings page
+    headers: { authorization: `Bearer ${process.env.BETTER_STACK_SOURCE_TOKEN}` },
+    format: "json",
+    bodyFormat: "array", // Better Stack accepts a JSON array of events per request
+    batchSize: 50,
+    flushIntervalMs: 2000,
+  }),
+);
+
+log.info({ userId: 42 }, "user logged in");
+// → stdout JSON + batched POSTs; "userId" lands as a queryable column
+
+await log.flush(); // drain the buffer before shutdown (await using does this automatically)
+```
+
+The transport batches, retries with exponential backoff, bounds every request with a timeout, caps its buffer, and flushes on `beforeExit`/`pagehide` — see [Transports](#transports). Field names are yours to shape if your dashboards expect different columns, e.g. `json: { levelKey: "severity" }`.
+
+
 ## Pretty output & templates
 
 Pretty output is configured entirely under the `pretty` group. Templates use `{{placeholder}}` tokens and per-placeholder styles.
@@ -697,6 +771,142 @@ logger.info({ ok: true }, "tested");
 - **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with `sideEffects: false`, so unused features never reach your bundle.
 
 See **[benchmarks/RESULTS.md](./benchmarks/RESULTS.md)** for measured numbers and the methodology.
+
+
+## Migrating from pino, winston, or consola
+
+Switching loggers is mostly a mapping exercise, and tslog's call signature is deliberately forgiving: a two-argument call pairing a message string with a plain fields object spreads the fields at the top level **in either order**, so pino-style `log.info({ userId: 42 }, "hi")` and winston-style `log.info("hi", { userId: 42 })` produce the same flat JSON. Most call sites survive a migration untouched — the work is in the constructor. (Coming from tslog v4? See [Upgrading from v4](#upgrading-from-v4) instead.)
+
+### From pino
+
+pino and tslog v5 share the fields-first call shape and the flat-JSON philosophy, so call sites carry over as-is:
+
+```typescript
+// ── pino ──
+import pino from "pino";
+const logger = pino({
+  level: "info",
+  redact: { paths: ["user.password", "*.token"], censor: "[Redacted]" },
+});
+logger.info({ userId: 42 }, "user logged in");
+const db = logger.child({ module: "db" });
+
+// ── tslog v5 ──
+import { Logger } from "tslog";
+const logger = new Logger({
+  minLevel: "INFO",
+  mask: { paths: ["user.password", "*.token"], placeholder: "[Redacted]" },
+});
+logger.info({ userId: 42 }, "user logged in"); // unchanged
+const db = logger.child({ name: "db", bindings: { module: "db" } });
+```
+
+| pino | tslog v5 |
+| --- | --- |
+| `level: "info"` | `minLevel: "INFO"` — names resolve case-insensitively |
+| numeric levels `trace(10)`…`fatal(60)` | `SILLY(0)`…`FATAL(6)`; the pino preset maps them back to 10–60 on the wire |
+| `redact: { paths, censor }` | `mask: { paths, placeholder }` — same `*` wildcard, plus `keys` and `regex` matching pino doesn't have |
+| `redact` with `remove: true` | `mask: { censor: "remove" }` |
+| `child({ module: "db" })` | `child({ bindings: { module: "db" } })` — children inherit *settings* too, not just bound fields |
+| `messageKey` / `timestamp` options | `json: { messageKey, time }` (`"epoch"`, `"iso"`, or a function) |
+| `pino-pretty` for dev | built in — omit `type` and a TTY gets pretty output, CI/pipes get JSON |
+| `transport: { target: "pino/file" }` | `fileTransport(...)` from `tslog/transports/file`; off-thread sink I/O via `tslog/transports/worker` |
+| `pino.stdSerializers.err/req/res` | `stdSerializers` from `tslog/serializers` |
+| `logger.flush(cb)` | `await logger.flush()` |
+
+**Keep your pipeline running while you switch.** If dashboards, shippers or `pino-pretty` expect pino's exact wire shape (`level: 30`, epoch-ms `time`, `msg`, `err`), attach the preset instead of reshaping by hand — the output stays pino-compatible while tslog becomes the producer:
+
+```typescript
+import { pinoTransport } from "tslog/presets/pino";
+
+const logger = new Logger({ type: "hidden" });
+logger.attachTransport(pinoTransport((line) => process.stdout.write(line + "\n")));
+```
+
+**Performance expectations.** tslog does not claim to out-throughput pino (see [Performance](#performance)). On hot paths set `stack: { capture: "off" }` — call-site capture is the one cost pino never pays.
+
+### From winston
+
+winston call sites keep working — `logger.info("payment accepted", { orderId: 7 })` spreads the fields object in tslog too. What disappears is the `format.combine()` pipeline: output shape, timestamps and colors are settings, not composed formats.
+
+```typescript
+// ── winston ──
+import winston from "winston";
+const logger = winston.createLogger({
+  level: "info",
+  format: winston.format.combine(winston.format.timestamp(), winston.format.json()),
+  defaultMeta: { service: "checkout" },
+  transports: [
+    new winston.transports.Console(),
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+  ],
+});
+logger.info("payment accepted", { orderId: 7 });
+
+// ── tslog v5 ──
+import { Logger } from "tslog";
+import { fileTransport } from "tslog/transports/file";
+
+const logger = new Logger({
+  type: "json", // or omit: pretty on a TTY, JSON in CI
+  minLevel: "INFO",
+  bindings: { service: "checkout" },
+});
+logger.attachTransport(fileTransport({ path: "error.log", format: "json", minLevel: "ERROR" }));
+logger.info("payment accepted", { orderId: 7 }); // unchanged
+```
+
+| winston | tslog v5 |
+| --- | --- |
+| npm levels `error(0)`…`silly(6)` — priority, descending | `SILLY(0)`…`FATAL(6)` — severity, ascending; stick to names and the direction never bites |
+| `http` / `verbose` levels | closest built-in for `verbose` is `trace`; add your own via `customLevels: { HTTP: 2.5 }` |
+| `defaultMeta` | `bindings` (also per child: `child({ bindings })`) |
+| `format.json()` + `format.timestamp()` | `type: "json"` + the `json` group (`messageKey`, `timeKey`, `time`, …) |
+| `format.colorize()` + `format.simple()` | `type: "pretty"` — or omit `type` for the env-aware default |
+| `format.printf(...)` / custom formats | `use()` middleware to mutate or drop records; per-transport `format` for custom rendering |
+| `transports: [...]` with per-transport `level` / `format` | `attachTransport({ minLevel, format, write })` — same idea, and it returns a detach function |
+| custom `Transport` subclass (stream machinery) | a plain object or a bare function: `attachTransport((record) => …)` |
+| `logger.child({ requestId })` | `child({ bindings: { requestId } })` — or skip per-request children: `runInContext({ requestId }, fn)` |
+| flushing on shutdown (long-standing footgun) | `await logger.flush()`, `await using`, and built-in exit-hook drains |
+
+**Gotchas.** `%s`-style splat interpolation is not supported — log fields instead of format strings. `handleExceptions` / `handleRejections` have no equivalent — register `process.on("uncaughtException", (err) => logger.fatal(err))` yourself. And winston's default logger silently drops everything until a transport is added; tslog always has working output, so if you relied on that silence, use `type: "hidden"`.
+
+### From consola
+
+consola and tslog agree that dev logs should be beautiful; tslog adds the production half — structured JSON, masking, transports, correlation. The mechanical mapping:
+
+```typescript
+// ── consola ──
+import { consola } from "consola";
+const logger = consola.create({ level: 4 }).withTag("build");
+logger.start("building…");
+logger.success("done");
+logger.error(new Error("boom"));
+
+// ── tslog v5 ──
+import { createLogger } from "tslog";
+const logger = createLogger({
+  name: "build",
+  minLevel: "DEBUG",
+  customLevels: { SUCCESS: 3.5 }, // installs a typed logger.success()
+});
+logger.info("building…");
+logger.success("done");
+logger.error(new Error("boom")); // pretty error, parsed stack, cause chain
+```
+
+| consola | tslog v5 |
+| --- | --- |
+| `level: 0…5` (higher = more verbose) | `minLevel` by name: consola `3` (default) ≈ `"INFO"`, `4` ≈ `"DEBUG"`, `5` ≈ `"TRACE"`; `-999` (silent) ≈ `type: "hidden"` |
+| `withTag("build")` | `child({ name: "build" })` — names accumulate in `_meta.parentNames` |
+| `success` / `ready` / `start` / `fail` types | map onto `info` / `error`, or install real levels via `customLevels` |
+| `consola.box("…")` | `box()` / `tree()` from `tslog/pretty/box`: `logger.info("\n" + box("Deployed!", { title: "release" }))` |
+| reporters | transports: `attachTransport({ format, write })`, with per-transport `format` |
+| `consola.wrapConsole()` | `wrapConsole(logger)` from `tslog/console` (undo with `restoreConsole()`) |
+| fancy ↔ basic auto-detect | env-aware `type` — pretty on a TTY, structured JSON (not just plain text) in CI/pipes |
+| `consola.prompt()` | out of scope for a logger — keep consola or a prompt library for interactive prompts |
+
+Whichever logger you come from, `createTestLogger` from `tslog/testing` captures records and rendered lines, so you can assert the migrated output still matches what your pipeline expects before flipping the switch.
 
 
 ## <a name="upgrading-from-v4"></a>Upgrading from v4?

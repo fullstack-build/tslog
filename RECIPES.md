@@ -133,6 +133,54 @@ const detach = log.attachTransport({
 });
 ```
 
+## 7b. Send errors to Sentry
+
+The record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy.
+
+```ts
+import * as Sentry from "@sentry/node";
+
+const log = new Logger();
+
+log.attachTransport({
+  name: "sentry",
+  minLevel: "ERROR", // only errors and fatals leave the process
+  format: "json", // `line` is the flat JSON record regardless of the logger's type
+  write(record, line) {
+    const { _meta, ...fields } = JSON.parse(line);
+    const level = _meta.logLevelName === "FATAL" ? "fatal" : "error";
+    const nativeError = [record, ...Object.values(record)]
+      .map((value) => (value as { nativeError?: unknown } | null)?.nativeError)
+      .find((candidate): candidate is Error => candidate instanceof Error);
+    if (nativeError) Sentry.captureException(nativeError, { level, extra: fields });
+    else Sentry.captureMessage(String(fields.message ?? line), { level, extra: fields });
+  },
+});
+```
+
+## 7c. Ship to Better Stack (Logtail)
+
+Better Stack ingests JSON over HTTP: point `httpTransport` at your source's ingesting host, authorize with the source token, and rename the time key to `dt`.
+
+```ts
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({ type: "json", json: { timeKey: "dt" } }); // Better Stack reads the timestamp from "dt"
+
+log.attachTransport(
+  httpTransport({
+    url: "https://in.logs.betterstack.com", // your source's ingesting host (see the source's settings page)
+    headers: { authorization: `Bearer ${process.env.BETTER_STACK_SOURCE_TOKEN}` },
+    format: "json",
+    bodyFormat: "array", // Better Stack accepts a JSON array of events per request
+    batchSize: 50,
+    flushIntervalMs: 2000,
+  }),
+);
+
+await log.flush(); // drain before shutdown (await using does this automatically)
+```
+
 ## 8. Emit pino-shaped NDJSON (drop-in for pino consumers)
 
 ```ts
