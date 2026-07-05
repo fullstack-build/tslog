@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { formatWithOptions } from "node:util";
 import { type AsyncContextStore, createAsyncContextStore } from "../core/asyncContext.js";
+import { buildMeta, type MetaDeps } from "../core/meta.js";
 import { formatTemplate } from "../formatTemplate.js";
 import type { ILogObjMeta, IMeta, ISettings, IStackFrame } from "../interfaces.js";
 import { consoleSupportsCssStyling, safeGetCwd } from "../internal/environment.js";
@@ -38,10 +39,10 @@ import { getStdoutJsonSink } from "./stdoutSink.node.js";
  *
  * Lazy stack capture (M1.2): when stack capture is on, `getMeta` does NOT eagerly parse frames. It
  * captures the `Error` cheaply and installs an enumerable, self-caching getter on `_meta.path` that
- * parses the frames on first read. NOTE FOR THE INTEGRATOR: `core/meta.ts` did not exist when this
- * provider was written, so the lazy getter is inlined below (see `defineLazyPath`). If/when
- * `core/meta.ts` lands with a shared `defineLazyPath`/`buildMeta`, replace the inline helper here with
- * an import from `../core/meta.js` so the lazy semantics live in one place.
+ * parses the frames on first read. The lazy semantics (and the `hideLogPosition` / name / parentNames
+ * assembly) live in the shared `../core/meta.js` `buildMeta`/`defineLazyPath`; this provider just
+ * supplies the runtime-specific `resolveCallerStackFrame` via {@link MetaDeps} so the getter and the
+ * key ordering are identical across every runtime that opts into lazy paths.
  */
 export function createNodeEnvironment(): EnvironmentProvider {
   const runtimeInfo: RuntimeInfo = detectRuntimeInfo();
@@ -51,6 +52,11 @@ export function createNodeEnvironment(): EnvironmentProvider {
   const callerIgnorePatterns: RegExp[] = [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
 
   let cachedCwd: string | null | undefined;
+
+  // The runtime-specific dependency `core/meta.ts` needs: turn a captured `Error` into a caller frame
+  // using this provider's server-style parser and ignore patterns. `buildMeta`'s lazy `path` getter
+  // invokes this on first read.
+  const metaDeps: MetaDeps = { resolveCallerStackFrame };
 
   const environment: EnvironmentProvider = {
     getMeta(
@@ -62,30 +68,7 @@ export function createNodeEnvironment(): EnvironmentProvider {
       parentNames?: string[],
       internalFramePatterns?: RegExp[],
     ): IMeta {
-      const meta = Object.assign({}, staticMeta, {
-        date: new Date(),
-        logLevelId,
-        logLevelName,
-      }) as IMeta;
-      // Only attach `name`/`parentNames` when actually set, so an unnamed root logger omits them entirely
-      // instead of emitting the ugly `"name":"[undefined]"` / `"parentNames":"[undefined]"` (and paying the
-      // extra serialize cost). Named sub-loggers still carry both.
-      if (name !== undefined) {
-        meta.name = name;
-      }
-      if (parentNames !== undefined) {
-        meta.parentNames = parentNames;
-      }
-
-      if (hideLogPosition) {
-        // Capture is off: leave `path` undefined (no getter), exactly like the monolith.
-        return meta;
-      }
-
-      // Capture is on. Grab the Error cheaply now (the stack string is captured here), but defer the
-      // (relatively expensive) frame parsing to the first read of `_meta.path`.
-      defineLazyPath(meta, new Error(), callerFrame, internalFramePatterns);
-      return meta;
+      return buildMeta(staticMeta, logLevelId, logLevelName, callerFrame, hideLogPosition, name, parentNames, internalFramePatterns, metaDeps);
     },
     getCallerStackFrame(callerFrame: number, error: Error = new Error(), internalFramePatterns?: RegExp[]): IStackFrame {
       return resolveCallerStackFrame(error, callerFrame, internalFramePatterns);
@@ -213,29 +196,6 @@ export function createNodeEnvironment(): EnvironmentProvider {
     const resolvedIndex = useManualIndex ? clampIndex(callerFrame, frames.length) : clampIndex(autoIndex, frames.length);
     /* v8 ignore next -- defensive: clampIndex always yields a valid index for a non-empty frames array */
     return frames[resolvedIndex] ?? {};
-  }
-
-  /**
-   * Install a lazy, self-caching `path` getter on `meta` (M1.2). The getter parses `error`'s frames on
-   * first read and then replaces itself with the resolved value so subsequent reads are free. The
-   * property stays enumerable so `JSON.stringify` and object spreads still observe `path`.
-   */
-  function defineLazyPath(meta: IMeta, error: Error, callerFrame: number, internalFramePatterns?: RegExp[]): void {
-    Object.defineProperty(meta, "path", {
-      configurable: true,
-      enumerable: true,
-      get(): IStackFrame {
-        const resolved = resolveCallerStackFrame(error, callerFrame, internalFramePatterns);
-        // Cache: swap the getter for the plain value so we only parse once.
-        Object.defineProperty(meta, "path", {
-          configurable: true,
-          enumerable: true,
-          writable: true,
-          value: resolved,
-        });
-        return resolved;
-      },
-    });
   }
 
   /** Provider-owned cwd cache: resolved once via `safeGetCwd()` and reused for every stack line. */
