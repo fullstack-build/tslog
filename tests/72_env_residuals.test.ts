@@ -3,11 +3,11 @@ import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import { createNodeEnvironment } from "../src/env/environment.node.js";
 import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { parseReactNativeStackLine, stripAnsi } from "../src/env/shared.js";
+import { findFirstExternalFrameIndex } from "../src/env/stackTrace.js";
 import { Logger } from "../src/index.node.js";
 import type { IMeta, ISettings, IStackFrame } from "../src/interfaces.js";
-import { findFirstExternalFrameIndex } from "../src/internal/stackTrace.js";
 
-// Residual-branch coverage for the environment providers, the two stackTrace copies, and a handful of
+// Residual-branch coverage for the environment providers, the stackTrace helpers, and a handful of
 // tiny unowned branches (levels/settings/testing/box/worker). Every test drives a real, observable path.
 
 // Bun lacks some node: fd/worker tricks; gate the worker mock suite. The provider/parse tests below are
@@ -298,12 +298,12 @@ describe("shared React Native JSC parser residual branch", () => {
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* internal/stackTrace.ts — findFirstExternalFrameIndex with a frame missing filePath (line 49 ?? "") */
+/* env/stackTrace.ts — findFirstExternalFrameIndex with a frame missing filePath (?? "" fallback)    */
 /* -------------------------------------------------------------------------------------------------- */
 
-describe("internal/stackTrace findFirstExternalFrameIndex residual branch", () => {
+describe("env/stackTrace findFirstExternalFrameIndex residual branch", () => {
   test("a frame with no filePath falls back to '' and is matched on fullFilePath only", () => {
-    // frame.filePath is undefined → `frame.filePath ?? ""` takes the "" fallback (line 49). The pattern
+    // frame.filePath is undefined → `frame.filePath ?? ""` takes the "" fallback. The pattern
     // matches the fullFilePath, so this internal frame is skipped and the next (external) frame wins.
     const frames: IStackFrame[] = [{ fullFilePath: "/node_modules/tslog/dist/x.js" }, { filePath: "/app/user.ts", fullFilePath: "/app/user.ts" }];
     const index = findFirstExternalFrameIndex(frames, [/node_modules[\\/].*tslog/i]);

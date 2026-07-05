@@ -466,10 +466,11 @@ describe.runIf(isNode)("fileTransport", () => {
       },
       writableEnded: false,
     };
-    const transport = fileTransport({ stream: fakeStream });
+    const transport = fileTransport({ stream: fakeStream, exitHooks: false });
     transport.write(META, "queued");
-    // ownsStream is false → flushSync returns without touching any fd (file.ts 317).
+    // ownsStream is false → flushSync returns without touching any fd and without re-writing the chunk.
     expect(() => transport.flushSync()).not.toThrow();
+    expect(chunks).toEqual(["queued\n"]);
   });
 
   test("flushSync with nothing queued is a no-op", async () => {
@@ -486,11 +487,17 @@ describe.runIf(isNode)("fileTransport", () => {
       const path = join(dir, "nested", "sync.log");
       const transport = fileTransport({ path });
       // Queue writes but DO NOT await flush() — the stream has not opened yet, so the entries are still
-      // unconfirmed and unsubmitted. flushSync must mkdir + openSync + writeSync them all (file.ts 320-339).
+      // unconfirmed and unsubmitted. flushSync must mkdir + openSync + writeSync them all.
       transport.write(META, "sync one");
       transport.write(META, "sync two");
       transport.flushSync();
       expect(readFileSync(path, "utf8")).toBe("sync one\nsync two\n");
+      // The lazy open kicked off by the writes above is still pending. When it resolves it must skip
+      // the rescued entries: a later line flows through the opened stream while "sync one"/"sync two"
+      // stay written exactly once.
+      transport.write(META, "after rescue");
+      await transport.flush();
+      expect(readFileSync(path, "utf8")).toBe("sync one\nsync two\nafter rescue\n");
       await transport[Symbol.asyncDispose]();
     });
   });

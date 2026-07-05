@@ -457,18 +457,25 @@ describe("Universal EnvironmentProvider", () => {
       expect(env.getCallerStackFrame(0, error)).toEqual(frames[0]);
     });
 
-    test("formatWithOptionsSafe falls back to stringify when inspect throws", () => {
-      const env = createUniversalEnvironment();
+    test("formatWithOptionsSafe falls back to stringify when inspect throws", async () => {
+      // resolveInspect() memoizes native-vs-polyfill on first use, and earlier tests in this file
+      // construct providers under stubbed browser globals, which poisons the memo toward the polyfill
+      // (whose guarded property walk swallows hostile getters instead of throwing). Import a FRESH
+      // module so the probe re-runs under the plain Node runner → native util.formatWithOptions,
+      // which DOES throw on a throwing custom-inspect hook → the catch → stringifyFallback runs.
+      vi.resetModules();
+      const { createUniversalEnvironment: freshCreate } = await import("../src/env/environment.universal.js");
+      const env = freshCreate();
       const settings = prettySettings();
-      const hostile: Record<string, unknown> = {};
-      Object.defineProperty(hostile, "boom", {
-        enumerable: true,
-        get() {
+      const hostile = {
+        [Symbol.for("nodejs.util.inspect.custom")]() {
           throw new Error("inspect trap");
         },
-      });
-      const line = env.prettyFormatLine(["carrier", hostile], undefined, settings);
+      };
+      const line = env.prettyFormatLine(["carrier", { plain: 1 }, hostile], undefined, settings);
+      // The string passes through the fallback map; the JSON-able object serializes.
       expect(line).toContain("carrier");
+      expect(line).toContain('"plain":1');
     });
 
     test("isBuffer/isError predicates behave like the native ones", () => {

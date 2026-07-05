@@ -4,7 +4,6 @@ import type { IMeta, IStackFrame } from "../src/interfaces.js";
 import { consoleSupportsCssStyling, isBrowserEnvironment, safeGetCwd } from "../src/internal/environment.js";
 import { collectErrorCauses, toError, toErrorObject } from "../src/internal/errorUtils.js";
 import { buildPrettyMeta } from "../src/internal/metaFormatting.js";
-import { clampIndex, findFirstExternalFrameIndex, getFrameAt, isIgnorableFrame, pickCallerStackFrame } from "../src/internal/stackTrace.js";
 
 const globalAny = globalThis as Record<string, unknown>;
 
@@ -495,47 +494,5 @@ describe("metaFormatting.buildPrettyMeta", () => {
     const meta = makeMeta({ name: "C" });
     const result = buildPrettyMeta(settings, meta);
     expect(result.text).toContain("A:B:C");
-  });
-});
-
-describe("stackTrace helpers", () => {
-  test("findFirstExternalFrameIndex skips frames matched via fullFilePath", () => {
-    const frames: IStackFrame[] = [
-      { filePath: "", fullFilePath: "/abs/tslog/src/BaseLogger.ts" },
-      { filePath: "", fullFilePath: "/abs/app/main.ts" },
-    ];
-    expect(findFirstExternalFrameIndex(frames)).toBe(1);
-  });
-
-  test("isIgnorableFrame matches on filePath only and on fullFilePath only", () => {
-    const patterns = [/ignore-me/i];
-    expect(isIgnorableFrame({ filePath: "ignore-me/file.ts" }, patterns)).toBe(true);
-    expect(isIgnorableFrame({ fullFilePath: "/abs/ignore-me/file.ts" }, patterns)).toBe(true);
-    expect(isIgnorableFrame({ filePath: "other/file.ts" }, patterns)).toBe(false);
-  });
-
-  test("pickCallerStackFrame honors an explicit stackDepthLevel", () => {
-    const parseLine = (line: string): IStackFrame | undefined => {
-      const trimmed = line.trim();
-      if (trimmed.length === 0) return undefined;
-      return { filePath: trimmed };
-    };
-    const error = new Error("synthetic");
-    error.stack = ["Error: synthetic", "frame-a", "frame-b", "frame-c"].join("\n");
-    const frame = pickCallerStackFrame(error, parseLine, { stackDepthLevel: 1 });
-    expect(frame?.filePath).toBe("frame-b");
-  });
-
-  test("clampIndex clamps below zero and above the max", () => {
-    expect(clampIndex(-5, 3)).toBe(0);
-    expect(clampIndex(10, 3)).toBe(2);
-    expect(clampIndex(1, 3)).toBe(1);
-  });
-
-  test("getFrameAt returns undefined for out-of-range indices", () => {
-    const frames: IStackFrame[] = [{ filePath: "a" }, { filePath: "b" }];
-    expect(getFrameAt(frames, -1)).toBeUndefined();
-    expect(getFrameAt(frames, 2)).toBeUndefined();
-    expect(getFrameAt(frames, 1)?.filePath).toBe("b");
   });
 });

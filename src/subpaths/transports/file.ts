@@ -120,8 +120,9 @@ export interface FileTransport<LogObj> extends Transport<LogObj> {
   /**
    * Synchronously write the lines the stream has not confirmed yet, using a dedicated file
    * descriptor; the single possibly-mid-syscall line is skipped (see the module docs on exit
-   * semantics). Exit-path machinery (`process.on("exit")`, uncaught-exception handlers). No-op for a
-   * caller-supplied {@link FileTransportOptions.stream}.
+   * semantics). Lines still waiting on the lazy open are marked as rescued, so a later-resolving
+   * open does not write them a second time. Exit-path machinery (`process.on("exit")`,
+   * uncaught-exception handlers). No-op for a caller-supplied {@link FileTransportOptions.stream}.
    */
   flushSync(): void;
   /** Flush, then close the stream and release the file descriptor. */
@@ -193,8 +194,10 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
 
   // Chunks whose write has not been confirmed yet, in write order. `submitted` flips once the chunk
   // was handed to the stream (the stream writes serially, so among submitted entries only the FIRST
-  // can be mid-syscall). This is what flush() awaits and what flushSync() rescues on the exit path.
-  const unconfirmed = new Map<Promise<void>, { chunk: string; submitted: boolean }>();
+  // can be mid-syscall). `rescued` flips once flushSync wrote the chunk with its own fd, so a still-
+  // pending lazy open must not write it a second time. This is what flush() awaits and what
+  // flushSync() rescues on the exit path.
+  const unconfirmed = new Map<Promise<void>, { chunk: string; submitted: boolean; rescued: boolean }>();
 
   async function ensureStream(): Promise<WritableLike | null> {
     // Defensive: ensureStream is only ever called from write's slow path, which its own `stream != null`
@@ -256,8 +259,8 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
   }
 
   /** Track a chunk until its write settles so flush()/flushSync() can cover it. Never rejects. */
-  function track(chunk: string, submitted: boolean, write: (entry: { chunk: string; submitted: boolean }) => Promise<void>): void {
-    const entry = { chunk, submitted };
+  function track(chunk: string, submitted: boolean, write: (entry: { chunk: string; submitted: boolean; rescued: boolean }) => Promise<void>): void {
+    const entry = { chunk, submitted, rescued: false };
     let settled: Promise<void>;
     const done = (): void => {
       unconfirmed.delete(settled);
@@ -296,10 +299,11 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
       // First write (or while still opening): open the stream, then enqueue. The open+write is tracked as
       // one entry so an early flush()/flushSync() still covers this line. A failed open resolves to null
       // and leaves the chunk to flushSync (or the next successful open's retry of NEW lines). The entry
-      // is marked `submitted` only when the chunk is actually handed to the opened stream.
+      // is marked `submitted` only when the chunk is actually handed to the opened stream, and skipped
+      // entirely when flushSync already rescued it while the open was still pending.
       track(chunk, false, (entry) =>
         ensureStream().then((target) => {
-          if (target == null) {
+          if (target == null || entry.rescued) {
             return;
           }
           entry.submitted = true;
@@ -339,6 +343,7 @@ export function fileTransport<LogObj = unknown>(options: FileTransportOptions<Lo
             }
             first = false;
             writeSync(fd, entry.chunk, null, encoding);
+            entry.rescued = true;
             unconfirmed.delete(key);
           }
         } finally {

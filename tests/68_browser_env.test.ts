@@ -29,17 +29,6 @@ import {
 } from "../src/env/stackTrace.js";
 import { Logger } from "../src/index.js";
 import type { IMeta, ISettings, IStackFrame } from "../src/interfaces.js";
-import {
-  buildStackTrace as internalBuildStackTrace,
-  clampIndex as internalClampIndex,
-  findFirstExternalFrameIndex as internalFindFirstExternalFrameIndex,
-  getCleanStackLines as internalGetCleanStackLines,
-  getDefaultIgnorePatterns as internalGetDefaultIgnorePatterns,
-  getFrameAt as internalGetFrameAt,
-  isIgnorableFrame as internalIsIgnorableFrame,
-  pickCallerStackFrame as internalPickCallerStackFrame,
-  splitStackLines as internalSplitStackLines,
-} from "../src/internal/stackTrace.js";
 
 // ------------------------------------------------------------------------------------------------
 // Global-stubbing harness (identical to tests/31-35): navigator is a getter-only property in Node,
@@ -695,97 +684,6 @@ describe("env/stackTrace.ts helpers", () => {
     expect(a.length).toBe(b.length);
     a.push(/extra/);
     expect(b.length).toBe(a.length - 1);
-  });
-});
-
-// ================================================================================================
-// src/internal/stackTrace.ts — internal parser variant
-// ================================================================================================
-describe("internal/stackTrace.ts helpers", () => {
-  test("splitStackLines yields [] for a missing/empty stack", () => {
-    expect(internalSplitStackLines({})).toEqual([]);
-    expect(internalSplitStackLines({ stack: "" })).toEqual([]);
-  });
-
-  test("splitStackLines splits and right-trims real stack lines", () => {
-    expect(internalSplitStackLines({ stack: "Error\n  at fn (/a.js:1:1)  " })).toEqual(["Error", "  at fn (/a.js:1:1)"]);
-  });
-
-  test("buildStackTrace parses via the supplied parser", () => {
-    const error = { stack: "Error\n    at go (/srv/x.ts:2:3)" } as Error;
-    const frames = internalBuildStackTrace(error, (line) => parseServerStackLine(line, () => undefined));
-    expect(frames).toHaveLength(1);
-    expect(frames[0]?.method).toBe("go");
-    expect(frames[0]?.fileLine).toBe("2");
-  });
-
-  test("getFrameAt returns the frame in range and undefined out of range", () => {
-    const frames: IStackFrame[] = [{ fileName: "a" }, { fileName: "b" }];
-    expect(internalGetFrameAt(frames, 1)).toEqual({ fileName: "b" });
-    expect(internalGetFrameAt(frames, -1)).toBeUndefined();
-    expect(internalGetFrameAt(frames, 5)).toBeUndefined();
-  });
-
-  test("findFirstExternalFrameIndex skips tslog's own src frames", () => {
-    const frames: IStackFrame[] = [
-      { filePath: "/x/tslog/src/internal/thing.ts" },
-      { filePath: "/x/tslog/src/BaseLogger.ts" },
-      { filePath: "/x/tslog/src/index.ts" },
-      { filePath: "/x/app/user.ts" },
-    ];
-    expect(internalFindFirstExternalFrameIndex(frames)).toBe(3);
-  });
-
-  test("clampIndex mirrors the shared clamp semantics", () => {
-    expect(internalClampIndex(-1, 4)).toBe(0);
-    expect(internalClampIndex(9, 4)).toBe(3);
-    expect(internalClampIndex(2, 4)).toBe(2);
-  });
-
-  test("getDefaultIgnorePatterns returns a fresh copy each call", () => {
-    const a = internalGetDefaultIgnorePatterns();
-    const b = internalGetDefaultIgnorePatterns();
-    expect(a).not.toBe(b);
-    expect(a.length).toBe(b.length);
-  });
-
-  test("isIgnorableFrame matches ignore patterns against filePath and fullFilePath", () => {
-    const patterns = [/node_modules[\\/].*tslog/i];
-    expect(internalIsIgnorableFrame({ filePath: "/x/node_modules/tslog/a.js" }, patterns)).toBe(true);
-    expect(internalIsIgnorableFrame({ fullFilePath: "/x/node_modules/tslog/a.js" }, patterns)).toBe(true);
-    expect(internalIsIgnorableFrame({ filePath: "/app/user.ts" }, patterns)).toBe(false);
-    // No path fields -> empty candidates -> not ignorable.
-    expect(internalIsIgnorableFrame({}, patterns)).toBe(false);
-  });
-
-  test("getCleanStackLines splits and drops header/blank lines in one call", () => {
-    const error = { stack: "Error: boom\n\n    at fn (/a.js:1:1)" } as Error;
-    expect(internalGetCleanStackLines(error)).toEqual(["    at fn (/a.js:1:1)"]);
-  });
-
-  test("pickCallerStackFrame returns undefined for an empty stack", () => {
-    const empty = { stack: "" } as Error;
-    expect(internalPickCallerStackFrame(empty, (line) => parseServerStackLine(line, () => undefined))).toBeUndefined();
-  });
-
-  test("pickCallerStackFrame auto-detects the first external frame by default", () => {
-    const error = {
-      stack: ["Error", "    at internal (/x/tslog/src/BaseLogger.ts:1:1)", "    at user (/app/main.ts:9:2)"].join("\n"),
-    } as Error;
-    const frame = internalPickCallerStackFrame(error, (line) => parseServerStackLine(line, () => undefined));
-    expect(frame?.fileName).toBe("main.ts");
-    expect(frame?.method).toBe("user");
-  });
-
-  test("pickCallerStackFrame honours an explicit stackDepthLevel and custom ignorePatterns", () => {
-    const error = {
-      stack: ["Error", "    at a (/app/a.ts:1:1)", "    at b (/app/b.ts:2:2)"].join("\n"),
-    } as Error;
-    const frame = internalPickCallerStackFrame(error, (line) => parseServerStackLine(line, () => undefined), {
-      stackDepthLevel: 1,
-      ignorePatterns: [/never-matches/],
-    });
-    expect(frame?.fileName).toBe("b.ts");
   });
 });
 

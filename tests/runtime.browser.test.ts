@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 // v5 (BC11): the env provider's stack-frame helpers live in `src/env/stackTrace.js` — the module the
-// browser provider itself imports from. The legacy `src/internal/stackTrace.js` copy is no longer the
-// one the runtime uses, so assert against the env-level helpers to stay in lockstep with the runtime.
+// browser provider itself imports from — so assert against them to stay in lockstep with the runtime.
 import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../src/env/stackTrace.js";
 import type { IMeta, IStackFrame } from "../src/interfaces.js";
 

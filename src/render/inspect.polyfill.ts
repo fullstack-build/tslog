@@ -497,7 +497,7 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
               } else if (typeof tempInteger === "symbol") {
                 tempStr = "NaN";
               } else {
-                tempStr = formatPrimitive(ctx, parseInt(tempStr as string, 10));
+                tempStr = formatPrimitive(ctx, parseInt(String(tempInteger), 10));
               }
               break;
             }
@@ -507,7 +507,7 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
               if (typeof tempFloat === "symbol") {
                 tempStr = "NaN";
               } else {
-                tempStr = formatPrimitive(ctx, parseInt(tempFloat as string, 10));
+                tempStr = formatPrimitive(ctx, parseFloat(String(tempFloat)));
               }
               break;
             }

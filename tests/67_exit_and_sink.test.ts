@@ -1,5 +1,6 @@
-import { execSync } from "node:child_process";
 import fs from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { StdoutJsonSink } from "../src/env/stdoutSink.node.js";
 import type { ExitHook } from "../src/internal/exitHooks.js";
 
@@ -324,12 +325,8 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
   });
 
   test("drainSync writes the whole buffer to the stdout fd in one shot when the fd accepts it all", async () => {
-    const tmp = new URL("./sink-drain-full.txt", import.meta.url).pathname;
-    try {
-      fs.rmSync(tmp, { force: true });
-    } catch {
-      // fresh file
-    }
+    const dir = fs.mkdtempSync(join(tmpdir(), "tslog-sink-"));
+    const tmp = join(dir, "sink-drain-full.txt");
     const fd = fs.openSync(tmp, "w");
     const stdout = fakeStdout(fd);
     const getter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);
@@ -340,91 +337,55 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
       // The exit drain must go through fs.writeSync (the fd), NOT the stream write fallback.
       runExitDrain();
       expect(stdout.captured).toHaveLength(0);
+      const written = fs.readFileSync(tmp, "utf8");
+      expect(written).toContain('"exit-full-1"');
+      expect(written).toContain('"exit-full-2"');
+      expect(written.endsWith("\n")).toBe(true);
     } finally {
       getter.mockRestore();
       fs.closeSync(fd);
+      fs.rmSync(dir, { recursive: true, force: true });
     }
-    const written = fs.readFileSync(tmp, "utf8");
-    expect(written).toContain('"exit-full-1"');
-    expect(written).toContain('"exit-full-2"');
-    expect(written.endsWith("\n")).toBe(true);
-    fs.rmSync(tmp, { force: true });
   });
 
-  test("drainSync loops on a partial write and hands the EAGAIN remainder to the stream", async () => {
-    const fifo = new URL("./sink-drain-fifo", import.meta.url).pathname;
-    try {
-      fs.unlinkSync(fifo);
-    } catch {
-      // fresh fifo
-    }
-    execSync(`mkfifo ${fifo}`);
-    // Non-blocking ends: the reader keeps the fifo open so opening the writer doesn't block; writing
-    // past the OS pipe buffer returns a PARTIAL byte count and then throws EAGAIN — precisely the
-    // partial-write-loop + catch + remainder path in drainSync.
-    const rd = fs.openSync(fifo, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
-    const wr = fs.openSync(fifo, fs.constants.O_WRONLY | fs.constants.O_NONBLOCK);
-    const stdout = fakeStdout(wr);
+  test("drainSync loops on a partial write and hands the un-written remainder to the stream", async () => {
+    // Deterministic partial write: the sink resolves fs.writeSync lazily on the FIRST drain, so a spy
+    // installed beforehand is what it caches. First call accepts 5 bytes, the retry throws EAGAIN —
+    // the loop must advance the offset and hand the exact un-written byte suffix to the stream
+    // fallback. The line stays far below FLUSH_THRESHOLD_CHARS: a big line would flush inline through
+    // the stream at write() time and leave the exit drain nothing to do (an earlier version of this
+    // test used a 400KB line over a mkfifo and never actually reached the drain loop).
+    const stdout = fakeStdout(99);
     const getter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);
+    let calls = 0;
+    const writeSyncSpy = vi.spyOn(fs, "writeSync").mockImplementation(((_fd: number, _data: Uint8Array) => {
+      calls += 1;
+      if (calls === 1) {
+        return 5; // the kernel accepted only the first 5 bytes
+      }
+      const eagain = new Error("EAGAIN: resource temporarily unavailable") as NodeJS.ErrnoException;
+      eagain.code = "EAGAIN";
+      throw eagain;
+    }) as never);
     try {
       const { sink, runExitDrain } = await freshSinkWithExitDrain();
-      // One buffered line far larger than the pipe buffer (default 64KB) so the first writeSync writes
-      // only part of it and the next iteration hits EAGAIN.
-      const huge = `{"m":"${"y".repeat(400_000)}"}`;
-      sink.write(huge);
+      sink.write('{"m":"partial"}');
       runExitDrain();
-      // The un-written remainder was handed to the stream fallback (stdout.write).
-      expect(stdout.captured.length).toBeGreaterThan(0);
-      expect(stdout.captured.join("")).toContain("y");
+      // Two writeSync attempts (partial, then EAGAIN), then exactly the bytes past offset 5 reach the
+      // stream — no re-sent prefix, no dropped tail.
+      expect(calls).toBe(2);
+      expect(stdout.captured.join("")).toBe('{"m":"partial"}\n'.slice(5));
     } finally {
+      writeSyncSpy.mockRestore();
       getter.mockRestore();
-      fs.closeSync(rd);
-      fs.closeSync(wr);
-      fs.unlinkSync(fifo);
-    }
-  });
-
-  test("a partial-write remainder that does not end in a newline still reaches the console fallback", async () => {
-    // FIFO fd => the first writeSync writes only part, then EAGAIN => the un-written remainder (a
-    // mid-content byte slice, so NOT newline-terminated) is handed to writeChunk. With a stdout that
-    // has NO `write`, writeChunk degrades to console.log — exercising the `endsWith("\n")` false arm.
-    const fifo = new URL("./sink-drain-fifo-2", import.meta.url).pathname;
-    try {
-      fs.unlinkSync(fifo);
-    } catch {
-      // fresh fifo
-    }
-    execSync(`mkfifo ${fifo}`);
-    const rd = fs.openSync(fifo, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
-    const wr = fs.openSync(fifo, fs.constants.O_WRONLY | fs.constants.O_NONBLOCK);
-    const printed: string[] = [];
-    const consoleSpy = vi.spyOn(console, "log").mockImplementation((line: unknown) => {
-      printed.push(String(line));
-    });
-    // stdout carries the fifo `fd` for the writeSync loop but has NO `write`, so the remainder falls to console.
-    const getter = vi.spyOn(process, "stdout", "get").mockReturnValue({ fd: wr, on: () => undefined } as unknown as NodeJS.WriteStream);
-    try {
-      const { sink, runExitDrain } = await freshSinkWithExitDrain();
-      sink.write(`{"m":"${"z".repeat(400_000)}"}`);
-      runExitDrain();
-      expect(printed.length).toBeGreaterThan(0);
-      const joined = printed.join("");
-      expect(joined).toContain("z");
-      // The remainder was mid-content, so the console fallback did NOT slice a trailing newline.
-      expect(joined.endsWith("\n")).toBe(false);
-    } finally {
-      getter.mockRestore();
-      consoleSpy.mockRestore();
-      fs.closeSync(rd);
-      fs.closeSync(wr);
-      fs.unlinkSync(fifo);
     }
   });
 
   test("drainSync sends the whole buffer to the stream when the fd is unusable (write throws)", async () => {
     // A closed fd makes fs.writeSync throw synchronously (EBADF) on the FIRST write — offset never
     // advances, so the entire chunk becomes the remainder handed to the stream fallback.
-    const tmp = new URL("./sink-drain-badfd.txt", import.meta.url).pathname;
+    const dir = fs.mkdtempSync(join(tmpdir(), "tslog-sink-"));
+    const tmp = join(dir, "sink-drain-badfd.txt");
     const fd = fs.openSync(tmp, "w");
     fs.closeSync(fd); // now `fd` is a closed, invalid descriptor
     const stdout = fakeStdout(fd);
@@ -436,7 +397,7 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
       expect(stdout.captured.join("")).toContain('"badfd"');
     } finally {
       getter.mockRestore();
-      fs.rmSync(tmp, { force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 
@@ -452,12 +413,15 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
     }
   });
 
-  test("drainSync falls back to fd 1 when the stdout stream exposes no fd (write goes to /dev/null)", async () => {
-    // The `?? 1` fallback: a stdout stream WITHOUT an `.fd` makes drainSync write to fd 1. To avoid
-    // polluting the runner's stdout, we redirect the process's OWN fd 1 at /dev/null for the drain by
-    // dup'ing it aside and reopening it onto the fd-1 slot, then restoring it afterwards.
-    const savedFd1 = fs.openSync("/dev/stdout", "w"); // a fresh handle onto the terminal (for restore)
-    const devNull = fs.openSync("/dev/null", "w");
+  test("drainSync falls back to fd 1 when the stdout stream exposes no fd", async () => {
+    // The `?? 1` fallback: a stdout stream WITHOUT an `.fd` makes drainSync target fd 1. Intercept
+    // fs.writeSync (the sink caches it lazily on this first drain) so the runner's real stdout is
+    // never touched, and assert both the fd and the payload.
+    const seen: Array<{ fd: number; text: string }> = [];
+    const writeSyncSpy = vi.spyOn(fs, "writeSync").mockImplementation(((fd: number, data: Uint8Array) => {
+      seen.push({ fd, text: Buffer.from(data).toString("utf8") });
+      return data.length;
+    }) as never);
     const stdout = {
       write(_chunk: string, cb?: () => void): boolean {
         cb?.();
@@ -471,13 +435,11 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
     try {
       const { sink, runExitDrain } = await freshSinkWithExitDrain();
       sink.write('{"m":"nofd"}');
-      // The fake stdout has no `.fd`, so `currentStdout()?.fd ?? 1` resolves to 1. writeSync(1, ...) is
-      // exercised; the content lands on whatever fd 1 currently is (the runner's captured stdout).
-      expect(() => runExitDrain()).not.toThrow();
+      runExitDrain();
+      expect(seen).toEqual([{ fd: 1, text: '{"m":"nofd"}\n' }]);
     } finally {
       getter.mockRestore();
-      fs.closeSync(savedFd1);
-      fs.closeSync(devNull);
+      writeSyncSpy.mockRestore();
     }
   });
 });
@@ -571,10 +533,11 @@ describe.runIf(isNode)("stdoutSink: writeChunk error-guard and console fallback"
       const { getStdoutJsonSink } = await import("../src/env/stdoutSink.node.js");
       const sink = getStdoutJsonSink();
       sink.write('{"m":"async-flush"}');
-      // Invoke the beforeExit hook the sink registered: it calls sink.flush() (the flushAsync arrow).
+      // Invoke the beforeExit hook the sink registered: it calls sink.flush() (the flushAsync arrow),
+      // which hands the buffer to the stream SYNCHRONOUSLY. Assert before yielding to microtasks —
+      // otherwise sink.write's own scheduled microtask flush would mask a never-registered hook.
       expect(beforeExitListener).toBeTypeOf("function");
       beforeExitListener?.(0);
-      await Promise.resolve();
       expect(captured.join("")).toContain('"async-flush"');
     } finally {
       getter.mockRestore();
