@@ -102,9 +102,10 @@ export interface IHttpTransportOptions<LogObj> {
   /**
    * Invoked (never throwing) when a batch fails to deliver — a thrown/rejected request or a non-2xx
    * response — after all {@link retries} were exhausted, and when buffered lines are dropped because
-   * {@link maxBufferedLines} was hit. Receives the error (a synthesized `Error` for a bad status or for
-   * a drop report) and the lines involved (for throttled drop reports: the most recently dropped
-   * line as a sample), so a caller can re-queue failed batches or count drops.
+   * {@link maxBufferedLines} was hit. Receives the error (a synthesized `Error` for a bad status; an
+   * {@link IHttpTransportDropError} carrying `droppedCount` for a drop report) and the lines involved
+   * (for throttled drop reports: the most recently dropped line as a sample), so a caller can re-queue
+   * failed batches or count drops.
    */
   onError?: (error: unknown, lines: readonly string[]) => void;
   /**
@@ -134,6 +135,15 @@ export interface IHttpTransportOptions<LogObj> {
 
 /** A {@link Transport} extended with the HTTP-transport-specific surface (here just the standard shape). */
 export type HttpTransport<LogObj> = Transport<LogObj>;
+
+/**
+ * The error passed to {@link IHttpTransportOptions.onError} when buffered lines are dropped because
+ * {@link IHttpTransportOptions.maxBufferedLines} was hit. `droppedCount` is the running total of lines
+ * dropped so far, carried structurally so callers can count drops without parsing the message.
+ */
+export interface IHttpTransportDropError extends Error {
+  droppedCount: number;
+}
 
 /**
  * Resolve the global `fetch` if present, else `undefined`. Read lazily (inside {@link httpTransport}) so
@@ -327,8 +337,12 @@ export function httpTransport<LogObj>(options: IHttpTransportOptions<LogObj>): H
         const dropped = buffer.shift();
         droppedTotal++;
         if (droppedTotal === 1 || droppedTotal % 1000 === 0) {
+          const dropError = new Error(
+            `tslog httpTransport: buffer full (${maxBufferedLines}), dropped ${droppedTotal} lines so far`,
+          ) as IHttpTransportDropError;
+          dropError.droppedCount = droppedTotal;
           reportError(
-            new Error(`tslog httpTransport: buffer full (${maxBufferedLines}), dropped ${droppedTotal} lines so far`),
+            dropError,
             // `dropped` is `buffer.shift()` guarded by `buffer.length > maxBufferedLines` (>= 1), so it is
             // always a string here; the `[]` fallback is defensive only.
             /* v8 ignore next -- `dropped` is never null under the length guard above */

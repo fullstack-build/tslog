@@ -32,7 +32,7 @@ On Node, json lines go through a buffered stdout sink (batched `process.stdout.w
 
 ## Transports (subpaths, opt-in)
 - `tslog/transports/file` — `fileTransport({ path, format, append, onError, exitHooks })` (Node; buffered; never crashes on fs errors; exit hooks drain on `process.exit`/crash via `flushSync()`).
-- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs, timeoutMs, retries, maxBufferedLines, keepalive, onError })` (batched fetch; per-attempt timeout, retry with backoff, bounded buffer with oldest-first drop, flush on `beforeExit`/`pagehide`).
+- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs, timeoutMs, retries, maxBufferedLines, keepalive, onError })` (batched fetch; per-attempt timeout, retry with backoff, bounded buffer with oldest-first drop, flush on `beforeExit`/`pagehide`; drop reports reach `onError` as an `IHttpTransportDropError` carrying `droppedCount`).
 - `tslog/transports/ringbuffer` — `ringBufferTransport({ size })` (in-memory; `.dump()`/`.clear()`).
 - `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format, maxRespawns })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself; the worker is unref'd so it never blocks process exit, drains on `beforeExit`, and a dead worker respawns then falls back to inline writes).
 

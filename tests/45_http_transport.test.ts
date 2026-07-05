@@ -1,4 +1,4 @@
-import type { FetchLike, HttpRequestInit, HttpResponseLike } from "../src/subpaths/transports/http.js";
+import type { FetchLike, HttpRequestInit, HttpResponseLike, IHttpTransportDropError } from "../src/subpaths/transports/http.js";
 import { httpTransport } from "../src/subpaths/transports/http.js";
 
 /** A controllable fake `fetch` that records every request and lets a test choose each response. */
@@ -374,6 +374,8 @@ describe("httpTransport delivery hardening", () => {
     // Only the newest 3 lines survived the cap, delivered in order across subsequent batches.
     expect(bodies.slice(1).join("\n").split("\n")).toEqual(['{"n":5}', '{"n":6}', '{"n":7}']);
     expect(String(seen[0]?.error)).toContain("dropped");
+    // Drop reports carry the running total structurally, not just in the message text.
+    expect((seen[0]?.error as IHttpTransportDropError).droppedCount).toBe(1);
     expect(seen[0]?.lines).toEqual(['{"n":3}']); // the dropped sample
   });
 
@@ -398,9 +400,10 @@ describe("httpTransport delivery hardening", () => {
       retries: 0,
       fetchImpl,
       onError: (error) => {
-        const match = /dropped (\d+) lines/.exec(String(error));
-        if (match != null) {
-          reports.push(Number(match[1]));
+        // Only drop reports carry droppedCount; delivery failures are filtered out by its absence.
+        const droppedCount = (error as Partial<IHttpTransportDropError>).droppedCount;
+        if (droppedCount != null) {
+          reports.push(droppedCount);
         }
       },
     });
