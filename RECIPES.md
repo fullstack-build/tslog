@@ -1,6 +1,6 @@
 # tslog Recipes
 
-Copy-paste patterns for common logging tasks, with a focus on production services and AI/agentic apps. All patterns use the public v5 API. Settings are **grouped** (`mask`, `json`, `pretty`, `stack`, `meta`) — there are no flat keys.
+Copy-paste patterns for common logging tasks, with a focus on production services and AI/agentic apps. All patterns use the public v5 API. Settings are **grouped** (`mask`, `json`, `pretty`, `stack`, `meta`) — there are no flat keys. Snippets that construct a logger assume `import { Logger } from "tslog";` — recipe-specific imports are shown inline.
 
 ## 1. Structured JSON for observability / LLM ingestion
 
@@ -13,7 +13,7 @@ const log = new Logger({ type: "json", minLevel: "INFO" });
 log.info({ event: "request", method: "GET", path: "/users", status: 200, durationMs: 12 });
 log.info("request complete", { status: 200 });
 // → one flat, fields-first JSON object per line:
-//   { "message": "...", "level": "INFO", "time": "…", "status": 200, "_meta": { "v": 5, … } }
+//   { "message": "...", "level": "INFO", "levelId": 3, "time": "…", "status": 200, "_meta": { "v": 5, … } }
 ```
 
 The default `type` is environment-aware: `new Logger()` is pretty + colorized in an interactive
@@ -72,9 +72,11 @@ const log = new Logger({
     keys: ["password", "apiKey", "authorization", "token", "prompt", "completion"],
     caseInsensitive: true,
     paths: ["user.password", "*.token", "headers.authorization"],
-    regex: [/\b[A-Za-z0-9]{32,}\b/g], // long token-like substrings in strings
-    // censor: "remove",             // delete the key instead of replacing the value
+    // censor shapes PATH-matched values ("hash" also applies to key matches);
+    // values matched by `keys` are otherwise always replaced with the placeholder:
+    // censor: "remove",             // delete a path-matched key instead of replacing its value
     // censor: (v) => `****${String(v).slice(-4)}`,
+    regex: [/\b[A-Za-z0-9]{32,}\b/g], // long token-like substrings in strings
   },
 });
 
@@ -282,7 +284,7 @@ the root logger's sinks.
 
 ## 11. Keep slow sink I/O off the event loop (Node worker thread)
 
-The `tslog/transports/worker` transport runs its destination write on a `node:worker_threads` worker, so a slow file/stream sink under high log volume doesn't stall the application's event loop (like pino's `thread-stream`). Note: this does **not** speed up `log.info()` — the record is still built and serialized on the main thread; only the write moves off-thread. Off Node it falls back to a synchronous inline write.
+The `tslog/transports/worker` transport runs its destination write on a `node:worker_threads` worker, so a slow file/stream sink under high log volume doesn't stall the application's event loop (like pino's `thread-stream`). Note: this does **not** speed up `log.info()` — the record is still built and serialized on the main thread; only the write moves off-thread. Off Node it falls back to a synchronous inline write via `node:fs` where available (Deno/Bun); on runtimes without `fs` (browsers/edge) the line is dropped.
 
 ```ts
 import { Logger } from "tslog";
@@ -315,7 +317,7 @@ if (log.isLevelEnabled("DEBUG")) {
 The full entry ships masking, pretty rendering, and stack parsing whether or not your config uses them (output `type` is a runtime value, so bundlers cannot drop them). When bundle size matters more, `tslog/slim` is the same structured-JSON pipeline at less than half the size — and it fails HONESTLY: `mask` settings and `type: "pretty"` throw instead of being silently ignored.
 
 ```ts
-import { Logger } from "tslog/slim"; // ~9.6KB gzip vs ~19.9KB for the full browser entry
+import { Logger } from "tslog/slim"; // ~9.8KB gzip vs ~20.6KB for the full browser entry
 
 const log = new Logger({ name: "edge", bindings: { service: "checkout" } });
 log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-first JSON

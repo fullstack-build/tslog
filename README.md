@@ -5,7 +5,7 @@
 
 > Powerful, fast and expressive logging for TypeScript and JavaScript
 
-![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/assets/tslog.png "tslog pretty output in browser and Node.js")
+![tslog pretty output](https://raw.githubusercontent.com/fullstack-build/tslog/master/docs/public/assets/tslog.png "tslog pretty output in browser and Node.js")
 
 > [!NOTE]
 > **This is `tslog` v5.** It is a deliberate, breaking redesign — ESM-only, grouped settings, a new fields-first JSON shape, and middleware instead of `overwrite.*`. **If you are on the 4.x line, `4.11.0` is a safe place to stay** — most of the v5 performance wins were back-ported there with zero breaking changes. Upgrade when you want the new capabilities. See **[Upgrading from v4?](#upgrading-from-v4)**.
@@ -159,7 +159,7 @@ bun run main.ts
 
 A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
 
-**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.6KB gzip vs ~19.9KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
+**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.8KB gzip vs ~20.6KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
 
 **Enable TypeScript source-map support** so `tslog` can point at the correct line in your source:
 
@@ -190,7 +190,7 @@ One package, purpose-built distributions. For most apps the answer is simply `ts
 |-----------|--------|-----|
 | **Development** (server, browser, RN) | `tslog` | Zero config: colorized pretty output on an interactive TTY / in the devtools console, code positions via stack capture, config validation with did-you-mean hints. |
 | **Production** (services, containers, CI) | `tslog` | The very same import: non-TTY resolves to flat fields-first JSON automatically. Add `mask` for secrets/PII, `bindings` + `runInContext` for correlation, and transports to ship logs. |
-| **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.6KB vs ~19.9KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
+| **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.8KB vs ~20.6KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
 | **Testing** | `tslog/testing` | `createTestLogger()` captures every record and rendered line for assertions — no console noise, no spies. (Any build also accepts `type: "hidden"` to mute the console while still returning records.) |
 | **Browser debugging with native line numbers** | `tslog/lite` | Thin `console` wrappers with zero processing, so devtools still shows the *caller's* file:line instead of the logger's. |
 | **Reading production logs as a human** | `tslog` CLI | Pipe NDJSON into the bundled bin and get the local pretty rendering: `kubectl logs api \| npx tslog -l warn`. |
@@ -742,10 +742,10 @@ On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.i
   ```
 
 - **`defineConfig(...)`** gives a typed, validated settings object you can share across loggers.
-- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). When `meta.attachContext` is on, the context fields attach to `_meta`, so every log inside the callback carries the same correlation id:
+- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). Context fields attach to `_meta` by default (`meta.attachContext`; set it to `false` to keep them out of the output), so every log inside the callback carries the same correlation id:
 
   ```typescript
-  const log = new Logger({ meta: { attachContext: true } });
+  const log = new Logger();
 
   await log.runInContext({ requestId: "abc123" }, async () => {
     log.info("handling request"); // _meta carries requestId
