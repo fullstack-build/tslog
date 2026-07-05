@@ -309,6 +309,7 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
     if (worker != null) {
       return Promise.resolve(worker);
     }
+    /* v8 ignore next 3 -- defensive: give-up (workerGaveUp) always coincides with worker/spawning === null, and both public callers of ensureWorker are blocked in that state (write() short-circuits to inlineWrite at the workerGaveUp guard; flush()'s "worker == null && spawning == null" guard returns before reaching here), so this is never reached */
     if (workerGaveUp) {
       return Promise.resolve(null);
     }
@@ -461,11 +462,14 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
         unregisterExitHook = null;
         return;
       }
-      const w = await (spawning ?? Promise.resolve(worker));
+      // A spawn that rejected (e.g. `new Worker()` threw) already fell back to inline writes; dispose must
+      // not re-throw that rejection — treat it like "no thread to tear down".
+      /* v8 ignore next -- `spawning` and `worker` are only ever nulled together (handleWorkerDeath), so once the guard above passed, `spawning` is non-null and the `Promise.resolve(worker)` fallback is unreachable */
+      const w = await (spawning ?? Promise.resolve(worker)).catch(() => null);
       if (w == null) {
         unregisterExitHook?.();
         unregisterExitHook = null;
-        return; // off-Node fallback: no thread to tear down.
+        return; // off-Node fallback (or a failed spawn): no thread to tear down.
       }
       // Drain the queue (round-trip), then close the destination and terminate the thread.
       await transport.flush();
