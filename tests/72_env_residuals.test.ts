@@ -1,8 +1,8 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import { createNodeEnvironment } from "../src/env/environment.node.js";
 import { createUniversalEnvironment } from "../src/env/environment.universal.js";
-import { parseReactNativeStackLine, stripAnsi } from "../src/env/shared.js";
+import { parseReactNativeStackLine } from "../src/env/shared.js";
 import { findFirstExternalFrameIndex } from "../src/env/stackTrace.js";
 import { Logger } from "../src/index.node.js";
 import type { IMeta, ISettings, IStackFrame } from "../src/interfaces.js";
@@ -63,36 +63,10 @@ function captureConsoleLog(run: () => void): unknown[][] {
 }
 
 /* -------------------------------------------------------------------------------------------------- */
-/* Universal provider — collectStyleTokens null/other branches, and prettyFormatLogObj error split    */
+/* providerBase residual branches driven through the universal provider                                 */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe("universal provider residual branches", () => {
-  test("collectStyleTokens: a nested object that resolves to null yields no CSS (styles.ts null branch)", () => {
-    withStubbedGlobals(() => {
-      // Browser + Firefox UA → CSS `%c` path runs, so buildCssMetaOutput → collectStyleTokens is reached.
-      globalAny.window = {};
-      globalAny.document = {};
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-      const env = createUniversalEnvironment();
-      // A style object where neither the value-keyed entry NOR the "*" wildcard exists → nextStyle == null → [].
-      const settings = prettySettings({
-        pretty: { styles: { logLevelName: { NOPE: "red" } as never } },
-      });
-      const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-
-      const calls = captureConsoleLog(() => {
-        env.transportFormatted(settings.pretty.template, ["no-style"], [], meta, settings);
-      });
-      expect(calls).toHaveLength(1);
-      // No style resolved for INFO → "no CSS" is observable: a single console arg, no %c directives,
-      // and no trailing style arguments.
-      expect(calls[0]).toHaveLength(1);
-      expect(String(calls[0][0])).toContain("no-style");
-      expect(String(calls[0][0])).not.toContain("%c");
-    });
-  });
-
   test("collectStyleTokens: a non-string/array/object style token (number) yields no CSS (final return [])", () => {
     withStubbedGlobals(() => {
       globalAny.window = {};
@@ -117,133 +91,28 @@ describe("universal provider residual branches", () => {
     });
   });
 
-  test("prettyFormatLogObj splits an Error out of the plain args and renders it (universal error push)", () => {
-    // No global stubbing needed: prettyFormatLogObj is runtime-agnostic. Under the Node runner the
-    // universal provider still routes an Error arg through prettyFormatErrorObj (line 241).
-    const env = createUniversalEnvironment();
-    const settings = prettySettings();
-    const { args, errors } = env.prettyFormatLogObj(["keep", new Error("split-me")], settings);
-    expect(args).toEqual(["keep"]);
-    expect(errors).toHaveLength(1);
-    expect(stripAnsi(errors[0])).toContain("split-me");
-  });
-
-  test("isBuffer returns false when Buffer.isBuffer is not a function (line 235 ternary else)", () => {
+  test("isBuffer returns false when Buffer.isBuffer is not a function", () => {
     withStubbedGlobals(() => {
-      // Stub a Buffer global that lacks a callable isBuffer → the `typeof ... === "function"` guard is
-      // false → the provider returns `false` without calling it (line 235 `: false`).
+      // Stub a Buffer global that lacks a callable isBuffer → the `typeof ... === "function"` guard in
+      // the shared providerBase isBuffer is false → it returns `false` without calling it.
       vi.stubGlobal("Buffer", {} as never);
       const env = createUniversalEnvironment();
       expect(env.isBuffer(new Uint8Array([1, 2, 3]))).toBe(false);
       expect(env.isBuffer("not a buffer")).toBe(false);
     });
   });
-
-  test("prettyFormatLine joins an Error and a plain arg with a newline, and style:false strips ANSI (lines 274-275)", () => {
-    const env = createUniversalEnvironment();
-    // Errors present AND args present → the `logErrors.length > 0 && logArgs.length > 0` guard is true →
-    // the separator is "\n" (line 274). style:false → metaMarkupForText is the ANSI-stripped markup (line 275).
-    const settings = prettySettings({ pretty: { style: false } });
-    const meta = env.getMeta(5, "ERROR", Number.NaN, false) as IMeta;
-    const line = env.prettyFormatLine(["plain-arg", new Error("boom-err")], meta, settings);
-    expect(stripAnsi(line)).toContain("plain-arg");
-    expect(stripAnsi(line)).toContain("boom-err");
-    // No ANSI escapes when style is false.
-    // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting absence of ANSI escapes
-    expect(/\[/.test(line)).toBe(false);
-  });
-
-  test("transportFormatted joins an Error and a plain arg with a newline on a server runtime (line 283)", () => {
-    // Under the Node runner the universal provider detects a server runtime → the plain-text path in
-    // transportFormatted runs; errors + args exercise the `"\n"` separator branch (line 283).
-    const env = createUniversalEnvironment();
-    const settings = prettySettings();
-    const meta = env.getMeta(5, "ERROR", Number.NaN, false) as IMeta;
-    const errorMarkup = env.prettyFormatErrorObj(new Error("dispatched-err"), settings);
-    const calls = captureConsoleLog(() => {
-      env.transportFormatted(settings.pretty.template, ["keep-arg"], [errorMarkup], meta, settings);
-    });
-    expect(calls).toHaveLength(1);
-    const out = stripAnsi(String(calls[0][0]));
-    expect(out).toContain("keep-arg");
-    expect(out).toContain("dispatched-err");
-  });
-
-  test("buildCssMetaOutput renders an unknown template placeholder as empty text (placeholder-miss else)", () => {
-    withStubbedGlobals(() => {
-      globalAny.window = {};
-      globalAny.document = {};
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-      const env = createUniversalEnvironment();
-      // A custom template with a placeholder that buildPrettyMeta never fills → placeholders[key] is
-      // undefined → the CSS meta builder substitutes "" for it, so the raw token never leaks through.
-      const settings = prettySettings({ pretty: { template: "[{{logLevelName}}]{{unknownPlaceholder}} " } });
-      const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-
-      const calls = captureConsoleLog(() => {
-        env.transportFormatted(settings.pretty.template, ["css-unknown"], [], meta, settings);
-      });
-      expect(calls).toHaveLength(1);
-      expect(String(calls[0][0])).toContain("css-unknown");
-      expect(String(calls[0][0])).not.toContain("unknownPlaceholder");
-    });
-  });
 });
 
 /* -------------------------------------------------------------------------------------------------- */
-/* Browser provider — formatWithOptionsSafe catch → stringifyFallback                                  */
+/* providerBase worker arm of the CSS gate, driven through the browser provider                         */
 /* -------------------------------------------------------------------------------------------------- */
 
 describe.runIf(isNode)("browser provider residual branches", () => {
-  afterEach(() => {
-    vi.resetModules();
-  });
-
-  test("formatWithOptionsSafe falls back to stringify when inspect throws (catch path, lines 302-304)", async () => {
-    // resolveInspect() memoizes native-vs-polyfill the first time it runs. Earlier tests here stub
-    // `window`, which would poison that memo toward the polyfill (which swallows a throwing
-    // custom-inspect). Reset modules and import a FRESH browser env so resolveInspect re-probes under
-    // the Node runner (no window) → native util.formatWithOptions, which DOES throw on a throwing
-    // custom-inspect hook → the browser provider's catch → stringifyFallback runs.
-    vi.resetModules();
-    const { createBrowserEnvironment: freshCreate } = await import("../src/env/environment.browser.js");
-    const env = freshCreate();
-    const settings = prettySettings();
-    const hostile = {
-      [Symbol.for("nodejs.util.inspect.custom")]() {
-        throw new Error("inspect trap");
-      },
-    };
-    const line = env.prettyFormatLine(["carrier", { plain: 1 }, hostile], undefined, settings);
-    // string passes through the fallback map; the JSON-able object serializes.
-    expect(line).toContain("carrier");
-    expect(line).toContain('"plain":1');
-  });
-
-  test("prettyFormatErrorObj renders a cause with NO message without a ': ' suffix (line 135 else)", () => {
+  test("transportFormatted uses the CSS `%c` path on a WORKER runtime (usesBrowserStack worker arm)", () => {
     withStubbedGlobals(() => {
-      // Browser globals so createBrowserEnvironment detects a browser runtime.
-      globalAny.window = {};
-      globalAny.document = {};
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-      const env = createBrowserEnvironment();
-      const settings = prettySettings();
-      // A cause whose message is "" → `causeMessage` is falsy → the header omits the ": <msg>" suffix (line 135).
-      const cause = new Error("");
-      cause.name = "NamedCause";
-      const rendered = env.prettyFormatErrorObj(new Error("outer", { cause }), settings);
-      expect(stripAnsi(rendered)).toContain("Caused by (1): NamedCause");
-      // No trailing ": " with a message after the cause name.
-      expect(stripAnsi(rendered)).not.toContain("NamedCause: ");
-    });
-  });
-
-  test("transportFormatted uses the CSS `%c` path on a WORKER runtime (shouldUseCss worker branch)", () => {
-    withStubbedGlobals(() => {
-      // A worker runtime: importScripts is a function and Firefox-like UA → shouldUseCss's
-      // `runtimeInfo.name === "worker"` sibling is true and consoleSupportsCssStyling() returns true.
+      // A worker runtime: importScripts is a function and Firefox-like UA → the `runtimeInfo.name ===
+      // "worker"` sibling of providerBase's usesBrowserStack gate is true and
+      // consoleSupportsCssStyling() returns true.
       vi.stubGlobal("importScripts", () => {});
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
 

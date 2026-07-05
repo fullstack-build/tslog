@@ -104,20 +104,17 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
     globalAny.process = { env: {}, versions: { node: "20.0.0" } };
   });
 
-  test("falls back to stringifyFallback for each arg when inspection throws", () => {
-    // v5 inspect strategy (M0.5/2.2): the Node provider deliberately uses the robust native
-    // node:util.formatWithOptions, which does NOT throw on the pathological inputs below — so its
-    // formatWithOptionsSafe catch branch is unreachable from there. The formatWithOptionsSafe ->
-    // stringifyFallback fallback now lives in the universal provider, whose inspect is resolved via
-    // resolveInspect(): it uses the bundled polyfill whenever native node:util is not reachable
-    // through a global require (as in this vitest ESM run). The polyfill DOES throw on the proxy
-    // below, exercising the exact same per-arg fallback this test was written to verify.
+  test("a hostile ownKeys proxy degrades to empty braces while sibling args keep their rich rendering", () => {
+    // v5 inspect strategy (M0.5/2.2): the universal provider resolves inspect via resolveInspect() —
+    // the bundled polyfill whenever native node:util is not reachable through a global require (as in
+    // this vitest ESM run). The polyfill is TOTAL: a Proxy whose ownKeys trap throws is contained
+    // inside formatValue (the proxy renders as an empty object) instead of aborting the whole line,
+    // so the sibling args keep their inspected rendering rather than degrading to JSON strings.
+    // The formatWithOptionsSafe -> stringifyFallback cascade still exists for a THROWING native
+    // inspect and is pinned in tests/69, tests/72 and tests/73.
     const env = createUniversalEnvironment();
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-    // A Proxy whose ownKeys trap throws makes Object.keys() throw deep inside
-    // formatWithOptions -> inspect -> formatValue, which is NOT guarded, so the
-    // exception escapes formatWithOptions and triggers the catch in formatWithOptionsSafe.
     const throwingInspectArg = new Proxy(
       {},
       {
@@ -139,14 +136,14 @@ describe("formatWithOptionsSafe / stringifyFallback via transportFormatted", () 
     const output = spy.mock.calls[0][0] as string;
     spy.mockRestore();
 
-    // string passed through unchanged
+    // string passed through unchanged; object and bigint keep the polyfill's rich rendering
     expect(output).toContain("plain");
-    // plain object serialized via JSON.stringify
-    expect(output).toContain('{"a":1}');
-    // BigInt is not JSON-serializable -> stringifyFallback catch -> String(10n) === "10"
-    expect(output).toContain(" 10 ");
-    // circular object is not JSON-serializable -> String() === "[object Object]"
-    expect(output).toContain("[object Object]");
+    expect(output).toContain("a: 1");
+    expect(output).toContain("10n");
+    // the circular reference is contained by the [Circular] marker, not a crash
+    expect(output).toContain("[Circular]");
+    // the hostile proxy itself is the only casualty: it degrades to an empty object
+    expect(output).toContain("{\n\n}");
   });
 });
 

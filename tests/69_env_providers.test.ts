@@ -8,8 +8,11 @@ import { captureDefaultJsonLines } from "./support/stdoutCapture.js";
 // Coverage-focused suite for the Node and universal EnvironmentProviders. Every test drives a real,
 // user-observable path: pretty formatting (line + live-console transport), error/cause rendering,
 // stack-frame resolution edge cases, the buffered JSON sink, and the inspect fallback for hostile
-// values. The universal provider's browser-only CSS `%c` path is reached by stubbing the runtime
-// globals so createUniversalEnvironment() detects a browser/worker console that supports CSS.
+// values. The provider METHODS are the shared src/env/providerBase.ts implementations, so each
+// behavior is pinned once (mostly through the node provider here); the per-provider tests that remain
+// pin genuine wiring differences — the node entry's server-only flavor and lazy core/meta getMeta,
+// and the universal entry's adaptive flavor (CSS `%c` under stubbed browser globals), eager getMeta
+// delegation, and construction-time inspect resolution.
 
 const isNode = typeof process !== "undefined" && process.versions?.node != null && (process.versions as Record<string, string | undefined>).bun == null;
 
@@ -77,27 +80,19 @@ describe.runIf(isNode)("Node EnvironmentProvider", () => {
       expect(env.getCallerStackFrame(Number.NaN, empty)).toEqual({});
     });
 
-    test("getCallerStackFrame honors a manual (finite, >=0) caller index", () => {
+    // The manual-index and caller-supplied internalFramePatterns contracts of the shared
+    // resolveCallerStackFrame are pinned deterministically in tests/68 (browser frames, same
+    // providerBase implementation).
+    test("getCallerStackFrame captures its own Error when none is supplied", () => {
+      // No error argument -> the shared method's default `new Error()` capture runs; auto-detection
+      // skips tslog's own providerBase frame and lands on this test file.
       const env = createNodeEnvironment();
-      const error = new Error("with a stack");
-      const framesAll = env.getErrorTrace(error);
-      expect(framesAll.length).toBeGreaterThan(1);
-      const manual = env.getCallerStackFrame(0, error);
-      expect(manual).toEqual(framesAll[0]);
+      const frame = env.getCallerStackFrame(Number.NaN);
+      expect(frame.filePath).toBeTruthy();
+      expect(frame.fileName).toBe("69_env_providers.test.ts");
     });
 
-    test("extra internalFramePatterns push auto-detection past the matched frame", () => {
-      const env = createNodeEnvironment();
-      const error = new Error("skip me");
-      const baseline = env.getCallerStackFrame(Number.NaN, error);
-      // Ignore whatever file the baseline landed on so auto-detection must skip forward.
-      const ignore = baseline.fileName ? [new RegExp(baseline.fileName.replace(/[.]/g, "\\."))] : [];
-      const shifted = env.getCallerStackFrame(Number.NaN, error, ignore);
-      // Either it lands on a different frame, or (all frames ignored) clamps to the last — never throws.
-      expect(shifted).toBeDefined();
-    });
-
-    test("a throwing process.cwd does not crash frame parsing (provider-owned cwd cache)", () => {
+    test("a throwing process.cwd does not crash frame parsing (providerBase-owned cwd cache)", () => {
       withStubbedGlobals(() => {
         const realProcess = globalAny.process as Record<string, unknown>;
         globalAny.process = {
@@ -237,7 +232,8 @@ describe.runIf(isNode)("Node EnvironmentProvider", () => {
 
     test("stringifyFallback stringifies strings, JSON-able objects and BigInt once inspect has failed", () => {
       // A throwing custom-inspect target in the SAME args array forces the fallback map to run over every
-      // arg: a plain string (pass-through), a JSON-serializable object, and a BigInt.
+      // arg: a plain string (pass-through), a JSON-serializable object, and a BigInt (JSON.stringify
+      // throws on it, so it degrades to String(10n) === "10").
       const env = createNodeEnvironment();
       const settings = prettySettings();
       const hostile = {
@@ -245,10 +241,11 @@ describe.runIf(isNode)("Node EnvironmentProvider", () => {
           throw new Error("no inspect");
         },
       };
-      const line = env.prettyFormatLine(["str", { plain: 1 }, hostile], undefined, settings);
-      // string passes through; the JSON-able object serializes; the whole line is a space-joined fallback.
+      const line = env.prettyFormatLine(["str", { plain: 1 }, 10n, hostile], undefined, settings);
+      // string passes through; the JSON-able object serializes; the BigInt takes the String() tier.
       expect(line).toContain("str");
       expect(line).toContain('"plain":1');
+      expect(line).toContain(" 10 ");
     });
   });
 
@@ -306,10 +303,16 @@ describe.runIf(isNode)("Node EnvironmentProvider", () => {
 });
 
 describe("Universal EnvironmentProvider", () => {
-  describe("browser CSS %c meta styling", () => {
+  // The shared providerBase behaviors (stack resolution, predicates, error/cause rendering, the
+  // formatWithOptionsSafe catch, plain-text transportFormatted, transportJSON) are pinned once above
+  // through the node provider; the CSS `%c` mechanics are pinned in tests/32 through the browser
+  // provider. The tests here pin what is genuinely the universal entry's own wiring.
+  describe("adaptive flavor (browser CSS %c under stubbed globals)", () => {
     test("transportFormatted emits %c-styled meta and CSS style args on a Firefox-like console", () => {
       withStubbedGlobals(() => {
-        // Browser runtime + Firefox UA → consoleSupportsCssStyling() true → the CSS branch runs.
+        // Browser runtime + Firefox UA -> consoleSupportsCssStyling() true -> the CSS branch runs.
+        // This pins the universal entry's "adaptive" flavor: unlike the node entry, a browser
+        // runtime detected at construction routes transportFormatted onto the CSS path.
         globalAny.window = {};
         globalAny.document = {};
         vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
@@ -331,77 +334,13 @@ describe("Universal EnvironmentProvider", () => {
         expect(styleArgs.some((css) => /:/.test(String(css)))).toBe(true);
       });
     });
-
-    test("CSS styling handles nested/array/wildcard style descriptors and dedupes CSS", () => {
-      withStubbedGlobals(() => {
-        globalAny.window = {};
-        globalAny.document = {};
-        vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-        const env = createUniversalEnvironment();
-        // Exotic styles: an array of tokens, a duplicate token (dedupe), a nested object with a "*"
-        // wildcard, and a null token (collectStyleTokens returns []).
-        const settings = prettySettings({
-          pretty: {
-            styles: {
-              logLevelName: ["bold", "bold", { "*": "red" }],
-              filePathWithLine: null as never,
-            },
-          },
-        });
-        const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-
-        const calls = captureConsoleLog(() => {
-          env.transportFormatted(settings.pretty.template, ["nested css"], [], meta, settings);
-        });
-        expect(calls).toHaveLength(1);
-        expect(String(calls[0][0])).toContain("nested css");
-      });
-    });
-
-    test("when no meta placeholder produces CSS, transportFormatted logs a plain single string", () => {
-      withStubbedGlobals(() => {
-        globalAny.window = {};
-        globalAny.document = {};
-        vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-        const env = createUniversalEnvironment();
-        // No styles at all → buildCssMetaOutput yields no %c/styles → the `log(output)` (no style args) branch.
-        const settings = prettySettings({ pretty: { styles: {} } });
-        const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-
-        const calls = captureConsoleLog(() => {
-          env.transportFormatted("plain-meta ", ["no css"], [], meta, settings);
-        });
-        expect(calls).toHaveLength(1);
-        // Only the single output string was logged (no trailing CSS args).
-        expect(calls[0]).toHaveLength(1);
-        expect(String(calls[0][0])).toContain("no css");
-      });
-    });
-
-    test("CSS branch with a null logMeta falls back to the sanitized meta markup", () => {
-      withStubbedGlobals(() => {
-        globalAny.window = {};
-        globalAny.document = {};
-        vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox/120.0" });
-
-        const env = createUniversalEnvironment();
-        const settings = prettySettings();
-        const calls = captureConsoleLog(() => {
-          env.transportFormatted("[31mmarkup[39m", ["meta-less"], [], undefined, settings);
-        });
-        expect(calls).toHaveLength(1);
-        // ANSI stripped, no %c since there is no meta to style.
-        expect(String(calls[0][0])).toContain("markup");
-        expect(String(calls[0][0])).toContain("meta-less");
-      });
-    });
   });
 
-  describe("non-browser (server) formatting via the universal provider", () => {
-    test("prettyFormatLine renders through the polyfill/native inspect on a server runtime", () => {
-      // Under the Node test runner the universal provider detects `node`, so no CSS: text path.
+  describe("construction-time inspect resolution", () => {
+    test("prettyFormatLine formats through the inspect impl resolved once at construction", () => {
+      // Under the Node test runner the universal provider detects `node` (no CSS, text path) and
+      // resolves its formatWithOptions via resolveInspect() at CONSTRUCTION - unlike the browser
+      // entry, which memoizes lazily on the first format call (pinned in tests/68).
       const env = createUniversalEnvironment();
       const settings = prettySettings();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
@@ -409,86 +348,37 @@ describe("Universal EnvironmentProvider", () => {
       expect(line).toContain("universal hello");
       expect(line).toContain("INFO");
     });
+  });
 
-    test("prettyFormatErrorObj renders name/message/stack and a cause chain", () => {
+  describe("getMeta delegation to the shared eager assembly", () => {
+    // The full eager-meta contract (runtime/date stamps, path omission, name/parentNames omission)
+    // is pinned in tests/68 through the browser provider - the same buildEagerMeta. This thin test
+    // proves the universal entry's getMeta delegates there with the position Error captured in the
+    // provider method (path present) and honors hideLogPosition.
+    test("path/name/parentNames flow through buildEagerMeta and hideLogPosition omits the path", () => {
       const env = createUniversalEnvironment();
-      const settings = prettySettings();
-      const rendered = env.prettyFormatErrorObj(new Error("u-outer", { cause: new Error("u-inner") }), settings);
-      expect(rendered).toContain("u-outer");
-      expect(rendered).toContain("Caused by (1):");
-      expect(rendered).toContain("u-inner");
-    });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false, "svc", ["root"]) as IMeta & { name?: string; parentNames?: string[] };
+      expect(meta.logLevelId).toBe(3);
+      expect(meta.logLevelName).toBe("INFO");
+      expect(meta.name).toBe("svc");
+      expect(meta.parentNames).toEqual(["root"]);
+      expect(meta.path?.filePath).toBeTruthy();
 
-    test("transportFormatted on a server runtime uses the plain text path (no CSS)", () => {
-      const env = createUniversalEnvironment();
-      const settings = prettySettings();
-      const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-      const calls = captureConsoleLog(() => {
-        env.transportFormatted(settings.pretty.template, ["server text"], [], meta, settings);
-      });
-      expect(calls).toHaveLength(1);
-      expect(String(calls[0][0])).toContain("server text");
-    });
-
-    test("transportFormatted with style:false strips ANSI from the meta markup", () => {
-      const env = createUniversalEnvironment();
-      const settings = prettySettings({ pretty: { style: false } });
-      const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
-      const calls = captureConsoleLog(() => {
-        env.transportFormatted("[31mstyled[39m ", ["no ansi"], [], meta, settings);
-      });
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting absence of ANSI escapes
-      expect(/\[/.test(String(calls[0][0]))).toBe(false);
-      expect(String(calls[0][0])).toContain("no ansi");
+      const hidden = env.getMeta(4, "WARN", Number.NaN, true) as IMeta & { name?: string };
+      expect(hidden.path).toBeUndefined();
+      expect("name" in hidden).toBe(false);
     });
   });
 
-  describe("stack + value edge cases", () => {
-    test("getCallerStackFrame returns {} when the error has no parseable frames", () => {
-      const env = createUniversalEnvironment();
-      expect(env.getCallerStackFrame(Number.NaN, { stack: "Error: bare" } as Error)).toEqual({});
-    });
-
-    test("getCallerStackFrame honors a manual index and getErrorTrace parses real frames", () => {
-      const env = createUniversalEnvironment();
-      const error = new Error("u-stack");
-      const frames = env.getErrorTrace(error);
-      expect(frames.length).toBeGreaterThan(0);
-      expect(env.getCallerStackFrame(0, error)).toEqual(frames[0]);
-    });
-
-    test("formatWithOptionsSafe falls back to stringify when inspect throws", async () => {
-      // resolveInspect() memoizes native-vs-polyfill on first use, and earlier tests in this file
-      // construct providers under stubbed browser globals, which poisons the memo toward the polyfill
-      // (whose guarded property walk swallows hostile getters instead of throwing). Import a FRESH
-      // module so the probe re-runs under the plain Node runner → native util.formatWithOptions,
-      // which DOES throw on a throwing custom-inspect hook → the catch → stringifyFallback runs.
-      vi.resetModules();
-      const { createUniversalEnvironment: freshCreate } = await import("../src/env/environment.universal.js");
-      const env = freshCreate();
-      const settings = prettySettings();
-      const hostile = {
-        [Symbol.for("nodejs.util.inspect.custom")]() {
-          throw new Error("inspect trap");
-        },
-      };
-      const line = env.prettyFormatLine(["carrier", { plain: 1 }, hostile], undefined, settings);
-      // The string passes through the fallback map; the JSON-able object serializes.
-      expect(line).toContain("carrier");
-      expect(line).toContain('"plain":1');
-    });
-
-    test("isBuffer/isError predicates behave like the native ones", () => {
-      const env = createUniversalEnvironment();
-      expect(env.isError(new Error("e"))).toBe(true);
-      expect(env.isError({})).toBe(false);
-      expect(env.isBuffer(new Uint8Array())).toBe(false);
-    });
-
+  describe("async context store", () => {
     test("createAsyncContextStore returns a usable store (run + getStore)", () => {
+      // The universal entry wires the runtime-agnostic probe store; under the Node runner the probe
+      // finds AsyncLocalStorage, so run() must actually propagate a scope.
       const env = createUniversalEnvironment();
       const store = env.createAsyncContextStore?.();
       expect(store).toBeDefined();
+      const seen = store?.run({ id: "u-1" }, () => store.getStore());
+      expect(seen).toEqual({ id: "u-1" });
     });
   });
 });

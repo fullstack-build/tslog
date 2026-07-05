@@ -198,7 +198,14 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   }
 
   // Look up the keys of the object.
-  let keys = Object.keys(value);
+  let keys: string[];
+  try {
+    keys = Object.keys(value);
+  } catch {
+    // An always-throwing `ownKeys` Proxy trap: degrade to no enumerable keys so inspect() stays total
+    // instead of letting the trap's error escape the render path.
+    keys = [];
+  }
   const visibleKeys = arrayToHash(keys);
   try {
     if (ctx.showHidden && Object.getOwnPropertyNames) {

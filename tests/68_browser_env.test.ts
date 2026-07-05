@@ -69,17 +69,6 @@ function makeBrowser(userAgent = "Mozilla/5.0 (Macintosh) Chrome/120.0"): void {
   vi.stubGlobal("navigator", { userAgent });
 }
 
-/** Make the current global scope look like a CSS-capable browser (Chrome with CSS.supports). */
-function makeCssBrowser(): void {
-  globalAny.window = {};
-  globalAny.document = {};
-  delete globalAny.Deno;
-  delete globalAny.Bun;
-  delete globalAny.importScripts;
-  globalAny.CSS = { supports: () => true };
-  vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh) Chrome/120.0" });
-}
-
 /** Make the current global scope look like a React Native runtime (navigator.product === "ReactNative"). */
 function makeReactNative(): void {
   delete globalAny.window;
@@ -88,21 +77,6 @@ function makeReactNative(): void {
   delete globalAny.Bun;
   delete globalAny.importScripts;
   vi.stubGlobal("navigator", { product: "ReactNative", userAgent: "Hermes" });
-}
-
-/**
- * Make the browser entry select the SERVER stack parser: neither browser/worker nor React Native,
- * but a process global is present. This is the branch a bundler hits when it forces the browser
- * condition on a Node-ish target.
- */
-function makeServerFlavoredBrowserEntry(): void {
-  delete globalAny.window;
-  delete globalAny.document;
-  delete globalAny.Deno;
-  delete globalAny.Bun;
-  delete globalAny.importScripts;
-  vi.stubGlobal("navigator", undefined);
-  globalAny.process = { env: {}, versions: { node: "20.0.0" }, cwd: () => "/repo/root" };
 }
 
 /** Real pretty-logger settings, with per-test overrides merged into the `pretty` group. */
@@ -567,13 +541,8 @@ describe("createBrowserEnvironment provider", () => {
   });
 
   describe("getCallerStackFrame", () => {
-    test("returns {} for an error with no stack frames", () => {
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      const empty = { stack: "" } as Error;
-      expect(env.getCallerStackFrame(Number.NaN, empty)).toEqual({});
-    });
-
+    // The empty-stack -> {} return of the shared resolveCallerStackFrame is pinned in tests/69
+    // through the node provider (same providerBase implementation).
     test("honours a manual callerFrame index", () => {
       makeBrowser();
       const env = createBrowserEnvironment();
@@ -596,14 +565,13 @@ describe("createBrowserEnvironment provider", () => {
     });
   });
 
-  describe("isError / isBuffer", () => {
-    test("isError recognises errors; isBuffer is false without a real Buffer", () => {
+  describe("isBuffer without a Buffer global", () => {
+    // isError contracts (native instances, duck-typed names, rejections) are pinned in tests/33 and
+    // tests/69 through the shared providerBase isError; the real-Buffer delegation arm is pinned in
+    // tests/69 through the node provider. Only the missing-global arm is exercised here.
+    test("isBuffer is false when no Buffer global exists", () => {
       makeBrowser();
       const env = createBrowserEnvironment();
-      expect(env.isError(new TypeError("x"))).toBe(true);
-      expect(env.isError({ name: "MyError" })).toBe(true);
-      expect(env.isError(123)).toBe(false);
-      // No Buffer global under the browser stub -> false.
       const savedBuffer = (globalThis as Record<string, unknown>).Buffer;
       vi.stubGlobal("Buffer", undefined);
       expect(env.isBuffer(new Uint8Array())).toBe(false);
@@ -611,47 +579,23 @@ describe("createBrowserEnvironment provider", () => {
     });
   });
 
-  describe("prettyFormatLine (non-transport pretty rendering)", () => {
-    test("prepends stripped meta markup and appends formatted args plus a separated error block", () => {
+  describe("lazy inspect resolution (browser-provider difference)", () => {
+    // The browser entry memoizes resolveInspect() PER PROVIDER INSTANCE on the first pretty format
+    // call (node uses the static node:util import; universal resolves once at construction). Two
+    // calls on the SAME instance pin both memo arms: first call resolves, second call reuses.
+    test("the first format call resolves the inspect impl and a second call reuses the memo", () => {
       makeBrowser();
       const env = createBrowserEnvironment();
       const settings = prettySettings({ template: "{{logLevelName}} ", styles: {} });
       const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-      const err = new Error("kaboom");
-      const line = env.prettyFormatLine(["payload", err], meta, settings);
-      expect(line).toContain("INFO");
-      expect(line).toContain("payload");
-      // The error is pretty-formatted into the trailing error block.
-      expect(line).toContain("kaboom");
-    });
 
-    test("style:false takes the unstyled meta-markup arm", () => {
-      // Sole cover of the BROWSER provider's prettyFormatLine style:false ternary arm — the node and
-      // universal providers' equivalents are pinned in tests/69 and tests/72. Note: with style:false
-      // the meta markup is ANSI-free by construction, so the stripAnsi call in that arm is a no-op
-      // here; this test pins the unstyled output contract, not stripAnsi itself.
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      const settings = prettySettings({ style: false, template: "{{logLevelName}} " });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-      const line = env.prettyFormatLine(["hello"], meta, settings);
-      expect(line).toContain("INFO");
-      expect(line).toContain("hello");
-      expect(stripAnsi(line)).toBe(line);
-    });
-  });
+      const first = env.prettyFormatLine(["first-call", { a: 1 }], meta, settings);
+      expect(first).toContain("INFO");
+      expect(first).toContain("first-call");
 
-  describe("prettyFormatErrorObj cause chains", () => {
-    test("renders a Caused by section for each nested cause", () => {
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      const settings = prettySettings();
-      const root = new Error("root-cause");
-      const top = new Error("top-level", { cause: root });
-      const rendered = env.prettyFormatErrorObj(top, settings);
-      expect(rendered).toContain("top-level");
-      expect(rendered).toContain("Caused by (1)");
-      expect(rendered).toContain("root-cause");
+      const second = env.prettyFormatLine(["second-call", { b: 2 }], meta, settings);
+      expect(second).toContain("second-call");
+      expect(second).toContain("b");
     });
   });
 
@@ -675,26 +619,8 @@ describe("createBrowserEnvironment provider", () => {
       expect(String(call[0])).toContain("body");
     });
 
-    test("with style:false the plain-text branch strips ANSI and joins errors after args", () => {
-      makeBrowser("Mozilla/5.0 (X11) Chrome/120.0.0.0");
-      delete globalAny.CSS;
-      const env = createBrowserEnvironment();
-      const settings = prettySettings({ style: false });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      // Both args and errors present -> a leading newline separates them.
-      env.transportFormatted("[31mMETA[39m ", ["arg"], ["ERR-BLOCK"], meta, settings);
-      const call = spy.mock.calls[0] as unknown[];
-      spy.mockRestore();
-
-      const out = String(call[0]);
-      // biome-ignore lint/suspicious/noControlCharactersInRegex: asserting ANSI was stripped
-      expect(/\[/.test(out)).toBe(false);
-      expect(out).toContain("arg");
-      expect(out).toContain("\nERR-BLOCK");
-    });
-
+    // The style:false ANSI strip + the args/errors newline join of the shared plain-text path are
+    // pinned in tests/69 through a real node-provider Logger (identical providerBase implementation).
     test("uses a per-level console method override when supplied", () => {
       makeBrowser("Mozilla/5.0 (X11) Chrome/120.0.0.0");
       delete globalAny.CSS;
@@ -706,73 +632,6 @@ describe("createBrowserEnvironment provider", () => {
       env.transportFormatted("META ", ["x"], [], meta, settings);
       expect(levelSpy).toHaveBeenCalledTimes(1);
       expect(String(levelSpy.mock.calls[0][0])).toContain("x");
-    });
-  });
-
-  describe("transportJSON", () => {
-    test("writes a single JSON line via the native console", () => {
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportJSON({ msg: "hi", _meta: { logLevelId: 3, logLevelName: "INFO" } } as never);
-      const out = String(spy.mock.calls[0]?.[0]);
-      spy.mockRestore();
-      expect(() => JSON.parse(out)).not.toThrow();
-      expect(JSON.parse(out)).toMatchObject({ msg: "hi" });
-    });
-  });
-
-  describe("transportFormatted — CSS %c styling branch", () => {
-    // %c emission, the no-css fallback, literal template text, undefined meta, and the
-    // string/array/nested-array/level-map token resolution (including exact-level-beats-'*')
-    // are all pinned in tests/32; only the tokensToCss dedupe below is not covered there.
-    test("tokensToCss collapses duplicate style tokens into a single css declaration", () => {
-      makeCssBrowser();
-      const env = createBrowserEnvironment();
-      const settings = prettySettings({
-        template: "{{logLevelName}}",
-        styles: { logLevelName: ["red", "red"] } as ISettings<unknown>["pretty"]["styles"],
-      });
-      const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
-
-      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-      env.transportFormatted("FALLBACK", [], [], meta, settings);
-      const call = spy.mock.calls[0] as unknown[];
-      spy.mockRestore();
-
-      // The repeated "red" token yields ONE css declaration (tokensToCss tracks seen tokens).
-      const styleArgs = call.slice(1).filter((arg) => typeof arg === "string" && arg.length > 0);
-      expect(styleArgs).toEqual(["color: #ef5350"]);
-    });
-  });
-
-  describe("isBuffer with a real Buffer", () => {
-    // Bundler-polyfill scenario: real browsers have no Buffer, but bundlers commonly inject one —
-    // the browser provider must then delegate to that injected Buffer.isBuffer.
-    test("returns true for a Node Buffer and false for a plain Uint8Array", () => {
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      expect(env.isBuffer(Buffer.from("hi"))).toBe(true);
-      expect(env.isBuffer(new Uint8Array([1]))).toBe(false);
-    });
-  });
-
-  describe("getWorkingDirectory when no cwd is resolvable", () => {
-    test("server frames keep their absolute path when process.cwd is unavailable", () => {
-      delete globalAny.window;
-      delete globalAny.document;
-      delete globalAny.Deno;
-      delete globalAny.Bun;
-      delete globalAny.importScripts;
-      vi.stubGlobal("navigator", undefined);
-      // process exists (so the server parser is selected) but exposes no cwd -> safeGetCwd() === undefined.
-      globalAny.process = { env: {}, versions: { node: "20.0.0" } };
-      const env = createBrowserEnvironment();
-
-      const error = { stack: "Error\n    at fn (/abs/no/cwd/mod.ts:3:4)" } as Error;
-      const frames = env.getErrorTrace(error);
-      // No cwd resolved -> the absolute path is not stripped.
-      expect(frames[0]?.filePath).toBe("/abs/no/cwd/mod.ts");
     });
   });
 
@@ -789,32 +648,6 @@ describe("createBrowserEnvironment provider", () => {
       expect(frames).toHaveLength(1);
       expect(frames[0]?.filePath).toBe("main.jsbundle");
       expect(frames[0]?.fileLine).toBe("5");
-    });
-  });
-
-  describe("Server stack selection + cwd handling in the browser entry", () => {
-    test("uses the server parser and strips the cached cwd when not browser/worker/RN", () => {
-      makeServerFlavoredBrowserEntry();
-      const env = createBrowserEnvironment();
-      // process.cwd() === "/repo/root" -> the cwd prefix is stripped from server-style frames.
-      const error = { stack: "Error\n    at fn (/repo/root/src/deep/mod.ts:12:3)" } as Error;
-      const frames = env.getErrorTrace(error);
-      expect(frames).toHaveLength(1);
-      expect(frames[0]?.filePath).toBe("src/deep/mod.ts");
-      expect(frames[0]?.method).toBe("fn");
-
-      // Second call reuses the cached cwd (getWorkingDirectory memoizes) and still strips it.
-      const error2 = { stack: "Error\n    at other (/repo/root/lib/x.ts:1:1)" } as Error;
-      const frames2 = env.getErrorTrace(error2);
-      expect(frames2[0]?.filePath).toBe("lib/x.ts");
-    });
-  });
-
-  describe("getErrorTrace", () => {
-    test("returns [] for an error with an empty stack", () => {
-      makeBrowser();
-      const env = createBrowserEnvironment();
-      expect(env.getErrorTrace({ stack: "" } as Error)).toEqual([]);
     });
   });
 });

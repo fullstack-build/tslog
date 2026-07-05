@@ -1,8 +1,6 @@
 import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import { Logger } from "../src/index.js";
-import type { IMeta, ISettings } from "../src/interfaces.js";
-
-type LoggerEnv = ReturnType<typeof createBrowserEnvironment>;
+import type { ISettings } from "../src/interfaces.js";
 
 describe("Browser CSS styling", () => {
   const globalAny = globalThis as Record<string, unknown>;
@@ -45,90 +43,9 @@ describe("Browser CSS styling", () => {
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh) Chrome/120.0" });
   }
 
-  describe("Browser stack parsing via createLoggerEnvironment", () => {
-    test("parses a browser frame and prefixes location.origin into fullFilePath", () => {
-      globalAny.window = {};
-      globalAny.document = {};
-      globalAny.location = { origin: "http://localhost" };
-      delete globalAny.Deno;
-      delete globalAny.Bun;
-      delete globalAny.importScripts;
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
-
-      const env = createBrowserEnvironment();
-      const error = { stack: "Error\nfn@http://localhost/app.js:10:5" } as Error;
-      const frames = env.getErrorTrace(error);
-
-      expect(frames.length).toBe(1);
-      expect(frames[0]?.filePath).toBe("/localhost/app.js");
-      expect(frames[0]?.fileName).toBe("app.js");
-      expect(frames[0]?.fileLine).toBe("10");
-      expect(frames[0]?.fileColumn).toBe("5");
-      expect(frames[0]?.fileNameWithLine).toBe("app.js:10");
-      expect(frames[0]?.filePathWithLine).toBe("/localhost/app.js:10");
-      // origin is prepended to the captured filePath
-      expect(frames[0]?.fullFilePath).toBe("http://localhost/localhost/app.js");
-      expect(frames[0]?.method).toBeUndefined();
-    });
-
-    test("fullFilePath equals filePath when there is no location.origin", () => {
-      globalAny.window = {};
-      globalAny.document = {};
-      delete globalAny.location;
-      delete globalAny.Deno;
-      delete globalAny.Bun;
-      delete globalAny.importScripts;
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
-
-      const env = createBrowserEnvironment();
-      const error = { stack: "Error\nfn@http://localhost/some/deep/app.js:42:7" } as Error;
-      const frames = env.getErrorTrace(error);
-
-      expect(frames.length).toBe(1);
-      expect(frames[0]?.filePath).toBe("/localhost/some/deep/app.js");
-      expect(frames[0]?.fullFilePath).toBe("/localhost/some/deep/app.js");
-      expect(frames[0]?.fileLine).toBe("42");
-    });
-
-    test("skips stack lines that do not match the browser path regex", () => {
-      globalAny.window = {};
-      globalAny.document = {};
-      delete globalAny.location;
-      delete globalAny.Deno;
-      delete globalAny.Bun;
-      delete globalAny.importScripts;
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
-
-      const env = createBrowserEnvironment();
-      // First line is the "Error" header, second line is garbage with no path,
-      // only the third line is a valid browser frame.
-      const error = {
-        stack: "Error\nthis is garbage with no path\nreal@http://localhost/valid.js:3:1",
-      } as Error;
-      const frames = env.getErrorTrace(error);
-
-      expect(frames.length).toBe(1);
-      expect(frames[0]?.filePath).toBe("/localhost/valid.js");
-      expect(frames[0]?.fileLine).toBe("3");
-    });
-
-    test("handles empty lines in the stack without producing empty frames", () => {
-      globalAny.window = {};
-      globalAny.document = {};
-      delete globalAny.location;
-      delete globalAny.Deno;
-      delete globalAny.Bun;
-      delete globalAny.importScripts;
-      vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Chrome" });
-
-      const env = createBrowserEnvironment();
-      const error = { stack: "Error\n\n\nfn@http://localhost/only.js:1:1\n\n" } as Error;
-      const frames = env.getErrorTrace(error);
-
-      expect(frames.length).toBe(1);
-      expect(frames[0]?.filePath).toBe("/localhost/only.js");
-    });
-  });
+  // Browser stack parsing contracts (frame fields, origin prefixing, malformed/empty lines) live in
+  // tests/68 — both the parser directly (parseBrowserStackLine) and through the provider methods,
+  // which are the shared providerBase implementations.
 
   // Build settings from a real pretty Logger and tweak pretty template/styles per test.
   // M3a: the formerly-flat prettyLogTemplate/prettyLogStyles keys now live under the
@@ -333,6 +250,20 @@ describe("Browser CSS styling", () => {
     test("array and nested-array tokens are all collected into one joined css string", () => {
       const { text, styleArgs } = renderStyle(["bold", ["red"]]);
       expect(styleArgs).toEqual(["font-weight: bold; color: #ef5350"]);
+      expect(text).toBe("%cINFO%c");
+    });
+
+    test("duplicate style tokens are deduped into a single css declaration", () => {
+      // tokensToCss tracks seen declarations: the repeated "red" token yields ONE css entry.
+      const { text, styleArgs } = renderStyle(["red", "red"]);
+      expect(styleArgs).toEqual(["color: #ef5350"]);
+      expect(text).toBe("%cINFO%c");
+    });
+
+    test("a token without a CSS equivalent (reset) contributes nothing to the css string", () => {
+      // styleTokenToCss has no mapping for "reset" -> the token is skipped; only the color survives.
+      const { text, styleArgs } = renderStyle(["reset", "red"]);
+      expect(styleArgs).toEqual(["color: #ef5350"]);
       expect(text).toBe("%cINFO%c");
     });
   });

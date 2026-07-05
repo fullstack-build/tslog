@@ -361,6 +361,20 @@ describe("hostile Proxy robustness (the defensive catches are reachable, not leg
     expect(plain(p, { showHidden: true })).toBe("{\n  a: 1 \n}");
   });
 
+  test("an ALWAYS-throwing ownKeys trap degrades to empty braces instead of escaping inspect()", () => {
+    const p = new Proxy(
+      { a: 1 },
+      {
+        ownKeys() {
+          throw new Error("no keys for you");
+        },
+      },
+    );
+    // The very first Object.keys throws → the guard degrades to no enumerable keys, so the proxy
+    // renders as an empty object rather than the trap's error escaping the render path.
+    expect(plain(p)).toBe("{\n\n}");
+  });
+
   test("a ghost key (ownKeys reports it, getOwnPropertyDescriptor returns undefined) falls back to the direct read", () => {
     const p = new Proxy(
       {},
