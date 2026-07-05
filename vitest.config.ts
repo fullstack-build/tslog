@@ -11,7 +11,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["src/**"],
-      exclude: ["src/internal/util.inspect.polyfill.ts", "src/interfaces.ts", "src/internal/InspectOptions.interface.ts", "src/index.browser.ts"],
+      exclude: [
+        // Type-only at runtime (interfaces/type aliases only) — nothing to execute, always reports 0%.
+        "src/interfaces.ts",
+        "src/internal/InspectOptions.interface.ts",
+        "src/core/features.ts",
+        "src/env/environment.ts",
+        // Exercised only by Playwright (browser IIFE bundle), which does not feed the v8 coverage run.
+        "src/index.browser.ts",
+      ],
       reporter: ["text", "lcov", "clover", "json"],
     },
   },

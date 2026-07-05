@@ -1,4 +1,4 @@
-import { formatWithOptions, inspect } from "../src/internal/util.inspect.polyfill.js";
+import { formatWithOptions, inspect } from "../src/render/inspect.polyfill.js";
 
 // Regression tests for the _extend fix (PR #331): inspect options passed to inspect()
 // and formatWithOptions() must actually take effect. Previously _extend mutated a throwaway
