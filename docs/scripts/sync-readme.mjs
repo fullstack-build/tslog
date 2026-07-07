@@ -1,6 +1,6 @@
 /**
- * Transforms the root README.md into a Starlight-compatible docs page.
- * Keeps root README.md as the single source of truth.
+ * Transforms the root README.md and MIGRATION_v4_to_v5.md into Starlight-compatible
+ * docs pages. Keeps the root markdown files as the single source of truth.
  */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -37,7 +37,9 @@ let content = readme
   .replace(
     /<a href="#life_cycle">"Lifecycle of a log message"<\/a>/g,
     '[Lifecycle of a log message](#lifecycle-of-a-log-message)'
-  );
+  )
+  // Point the migration-guide link at the generated docs page instead of the repo file
+  .replace(/\]\(\.\/MIGRATION_v4_to_v5\.md\)/g, "](/migration-v4-to-v5)");
 
 const outDir = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -45,3 +47,16 @@ const outDir = resolve(
 );
 mkdirSync(outDir, { recursive: true });
 writeFileSync(resolve(outDir, "index.md"), frontmatter + content);
+
+// Generate the migration guide as its own Starlight page from the root source.
+const migration = readFileSync(resolve(root, "MIGRATION_v4_to_v5.md"), "utf-8");
+const migrationFrontmatter = `---
+title: "Migrating from tslog v4 to v5"
+description: "Step-by-step guide mapping every removed v4 setting to its v5 replacement."
+---
+
+`;
+const migrationContent = migration
+  // Remove the H1 title (Starlight generates it from frontmatter)
+  .replace(/^# .+\n/, "");
+writeFileSync(resolve(outDir, "migration-v4-to-v5.md"), migrationFrontmatter + migrationContent);
