@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [4.11.0] - Unreleased
+## [4.11.0] - 2026-07-07
 
 A backward-compatible release that adds several requested features, fixes a batch of reported bugs, unifies code-position detection across every runtime, and modernises the test/build tooling. No breaking changes — see the upcoming **v5** for those.
 
