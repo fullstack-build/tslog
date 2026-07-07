@@ -80,7 +80,7 @@
     "@biomejs/biome": "2.3.14",
     "@playwright/test": "^1.50.0",
     "@types/node": "^24.5.2",
-    "@vitest/coverage-v8": "^3.0.0",
+    "@vitest/coverage-v8": "^4.1.10",
     "bson": "^6.10.4",
     "esbuild": "^0.25.10",
     "graphql": "^16.14.2",
@@ -90,7 +90,7 @@
     "playwright": "^1.50.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.2",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "tmp": "^0.2.5"
