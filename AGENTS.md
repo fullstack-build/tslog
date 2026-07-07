@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-tslog is a TypeScript logger for Node.js, browsers, Deno, and Bun. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. Current version: 4.10.2.
+tslog is a TypeScript logger for Node.js, browsers, Deno, and Bun. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. Current version: 4.11.0.
 
 ## Quick Reference
 
