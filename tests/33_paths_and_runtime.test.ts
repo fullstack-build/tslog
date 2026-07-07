@@ -1,5 +1,6 @@
 import { createNodeEnvironment } from "../src/env/environment.node.js";
 import { createUniversalEnvironment } from "../src/env/environment.universal.js";
+import { parseBrowserStackLine } from "../src/env/shared.js";
 import type { IMeta, ISettings, IStackFrame } from "../src/interfaces.js";
 
 // Shared global stubbing harness. navigator is a getter-only property in Node,
@@ -40,6 +41,17 @@ function frameForServerStack(stackBody: string): IStackFrame {
   error.stack = `Error: x\n${stackBody}`;
   const frames = env.getErrorTrace(error);
   return frames[0];
+}
+
+// Browser frames (Chrome/Firefox/Safari/Vite) flow through parseBrowserStackLine, which is what the
+// browser/worker providers select. Drive it directly — mirrors the frameForServerStack helper above
+// but for the browser regex rather than the V8 server parser.
+function frameForBrowserStack(frame: string): IStackFrame {
+  const parsed = parseBrowserStackLine(frame);
+  if (parsed === undefined) {
+    throw new Error(`expected a parseable browser frame, got undefined for: ${frame}`);
+  }
+  return parsed;
 }
 
 describe("normalizeFilePath via getErrorTrace (node env, server frames)", () => {
@@ -90,6 +102,74 @@ describe("normalizeFilePath via getErrorTrace (node env, server frames)", () => 
     expect(frame.filePath?.length).toBeGreaterThan(0);
     expect(frame.fileLine).toBe("7");
     expect(frame.fileColumn).toBe("2");
+  });
+});
+
+describe("parseBrowserStackLine — Windows drive-letter paths (Vite /@fs/, issue #323)", () => {
+  test("Vite /@fs/C:/… frame keeps the drive path and pops :line:col", () => {
+    const frame = frameForBrowserStack("http://localhost:5173/@fs/C:/Git/MyApp/src/main.js:12:3");
+    // The drive-letter colon is absorbed into the path; only the trailing :line:col are split off.
+    expect(frame.filePath).toContain("C:/Git/MyApp/src/main.js");
+    expect(frame.fileName).toBe("main.js");
+    expect(frame.fileLine).toBe("12");
+    expect(frame.fileColumn).toBe("3");
+    expect(frame.filePathWithLine?.endsWith("C:/Git/MyApp/src/main.js:12")).toBe(true);
+    expect(frame.fileNameWithLine).toBe("main.js:12");
+    // fullFilePath is re-derived from the frame's own URL, with :line:col and query stripped.
+    expect(frame.fullFilePath).toBe("http://localhost:5173/@fs/C:/Git/MyApp/src/main.js");
+    expect(frame.method).toBeUndefined();
+  });
+
+  test("Vite query suffix (?t=…) is stripped, line/col still parsed", () => {
+    const frame = frameForBrowserStack("http://localhost:5173/@fs/C:/Git/MyApp/src/main.js?t=1712345678:12:3");
+    expect(frame.filePath).toContain("C:/Git/MyApp/src/main.js");
+    expect(frame.filePath).not.toContain("?");
+    expect(frame.filePath).not.toContain("1712345678");
+    expect(frame.fileName).toBe("main.js");
+    expect(frame.fileLine).toBe("12");
+    expect(frame.fileColumn).toBe("3");
+    expect(frame.fullFilePath).not.toContain("?");
+  });
+
+  test("line-only drive-letter frame yields fileLine but no fileColumn", () => {
+    const frame = frameForBrowserStack("http://localhost:5173/@fs/C:/Proj/a.js:7");
+    expect(frame.filePath).toContain("C:/Proj/a.js");
+    expect(frame.fileName).toBe("a.js");
+    expect(frame.fileLine).toBe("7");
+    expect(frame.fileColumn).toBeUndefined();
+  });
+});
+
+describe("parseBrowserStackLine — non-Windows frames unchanged (regression guards for #323)", () => {
+  test("plain http frame keeps host in path with line/col split off", () => {
+    // Baseline before the drive-letter change: the port colon terminates the host run, so the host
+    // is NOT part of the captured path here (differs from the no-port case below by design).
+    const frame = frameForBrowserStack("http://localhost:3000/src/app.js:42:13");
+    expect(frame.filePath).toBe("/src/app.js");
+    expect(frame.fileLine).toBe("42");
+    expect(frame.fileColumn).toBe("13");
+    expect(frame.fileName).toBe("app.js");
+  });
+
+  test("Firefox fn@ frame parses path, line and column", () => {
+    const frame = frameForBrowserStack("fn@http://localhost:3000/src/app.js:42:13");
+    expect(frame.filePath).toBe("/src/app.js");
+    expect(frame.fileLine).toBe("42");
+    expect(frame.fileColumn).toBe("13");
+    expect(frame.method).toBeUndefined();
+  });
+
+  test("no-port host is retained as the first path segment", () => {
+    const frame = frameForBrowserStack("asyncFn@https://example.com/script.js:42:15");
+    expect(frame.filePath).toBe("/example.com/script.js");
+    expect(frame.fileLine).toBe("42");
+    expect(frame.fileColumn).toBe("15");
+  });
+
+  test("bare React-Native bundle name is NOT captured by the browser regex", () => {
+    // Single-segment bundle names must fall through to the JSC parser, so parseBrowserStackLine
+    // returns undefined here — the {2,} path-segment guard still holds after the drive-letter change.
+    expect(parseBrowserStackLine("main.jsbundle:1:2")).toBeUndefined();
   });
 });
 

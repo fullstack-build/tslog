@@ -303,8 +303,13 @@ export function isNativeError(value: unknown): value is Error {
  * Matches a browser/Hermes/Safari stack frame, capturing the file path (group 1), line (group 2) and
  * column (group 3). The path capture starts at the first slash after an optional scheme, so the host
  * is retained as the leading path segment (see test 35).
+ *
+ * Each path segment is `[^:/]+`, but a single Windows drive-letter colon is allowed inside the run via
+ * `(?::(?=\/))?` — a `:` is absorbed into the path only when it is immediately followed by `/`, i.e. the
+ * `C:/` drive separator in a Vite `/@fs/C:/…` URL (issue #323). The trailing `:line[:col]` colons are
+ * always followed by digits, never a slash, so they never match this branch and still bind to groups 2/3.
  */
-export const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+){2,})(?::(\d+))?(?::(\d+))?/;
+export const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+(?::(?=\/))?){2,})(?::(\d+))?(?::(\d+))?/;
 
 /**
  * Parse a V8/server-style stack line (`at method (path:line:col)` or `at path:line:col`).

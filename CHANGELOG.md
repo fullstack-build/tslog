@@ -28,7 +28,6 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 - **Time seam** — an injectable top-level `clock: () => Date` (deterministic tests, offset/monotonic stamping; inherited by sub-loggers, hostile clocks ignored) and `json.time: "iso" | "epoch" | false | fn` controlling the top-level timestamp representation (`_meta.date` stays UTC ISO).
 - **Deterministic test output** — `createTestLogger(settings, { now, normalize })`: `now` freezes only that logger's clock (no fake-timer sledgehammer), `normalize: true` yields snapshot-stable records/lines; plus a standalone `normalizeMeta(recordOrLine)` scrubber (all in `tslog/testing`).
 - **Real OTLP/JSON in `tslog/otel`** — `otlpFormat`/`toOtlpJson`/`toOtlpLogRecord`/`toOtlpAnyValue`/`stringifyOtlpRequest` emit the collector wire format (camelCase proto3 fields, typed attributes, `resourceLogs[].scopeLogs[].logRecords[]` envelope, `exception.*` semconv mapping for logged errors), and `otlpBatchBody` pairs with the http transport's new `encodeBody` option to POST merged batches straight to `/v1/logs`.
-- **pino-shaped errors in `tslog/presets/pino`** — logged errors now serialize as pino's `err: { type, message, stack: "<raw string>", cause? }` (what pino-pretty and error trackers parse); `errorShape: "tslog"` keeps the structured frame arrays.
 - **`httpTransport({ encodeBody })`** — custom body encoder for endpoints whose payload is neither NDJSON nor a JSON array (used by the OTLP pairing above).
 
 ### Changed
@@ -48,6 +47,7 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 
 ### Fixed
 - During the rewrite: `URL` values now render correctly instead of as empty objects; caller-frame detection no longer over-matches internal frames; the pino fields-first overload no longer collides with the string-first signature; and bare `Error` arguments preserve their `cause` chain instead of dropping it.
+- The browser stack parser now handles Windows drive-letter paths served by Vite (`/@fs/C:/…`), so log positions resolve correctly on Windows instead of being truncated to `/@fs/C`. (#323, #302)
 
 ## [4.11.0] - Unreleased
 
