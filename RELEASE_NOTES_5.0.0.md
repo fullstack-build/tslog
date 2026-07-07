@@ -63,12 +63,21 @@ detach();
 ### JSONPath masking + hash censor
 The `mask` group adds `paths` — dotted paths with `*` wildcards (`"user.password"`, `"*.token"`) — alongside `keys` and `regex`. A per-match `censor` can be a replacement string, `"remove"`, a function, or **`"hash"`**: a fast, synchronous, non-cryptographic correlation token so you can track a redacted secret across logs without exposing it. Note: masking is now **off by default** (no more silent `password`-only masking).
 
-### pino, OTel, and GenAI presets
+### First-class support for agents and LLMs
+v5 treats agent and LLM apps as a primary use case, not an afterthought. Fields-first calls make structured, queryable tool-call and trace logs the natural default; `runInContext` threads an agent/session/request id onto every log across `await` boundaries; `isLevelEnabled()` guards expensive prompt/token payloads before you build them; and `tslog/presets/genai` — `genai()` / `genaiAttributes()` / `genaiSummary()` — emits OTel-GenAI `gen_ai.*` semantic-convention attributes (model, input/output tokens, tool calls) straight into your observability backend.
+
+```ts
+import { genai } from "tslog/presets/genai";
+log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "completion");
+```
+
+[OpenClaw](https://openclaw.ai), an AI agent platform, uses tslog for its agent logging — its JSONL log pipeline carries agent, session, and trace context on every line.
+
+### pino and OTel presets
 Tree-shakeable, opt-in subpaths that emit other ecosystems' shapes:
 
 - `tslog/presets/pino` — `pinoFormat()` / `pinoTransport()` emit pino-compatible NDJSON, so `pino-pretty` and pino transports keep working.
 - `tslog/otel` — `otelFormat()` / `otelTraceContext()` produce OpenTelemetry log records with the right `SeverityNumber` and trace/span correlation.
-- `tslog/presets/genai` — `genai()` / `genaiAttributes()` / `genaiSummary()` build OTel-GenAI `gen_ai.*` attributes (model, tokens, tool calls) for LLM/agentic apps.
 
 ### ALS correlation
 `logger.runInContext(ctx, fn)` threads request/trace fields onto every log's `_meta` across `await`, timers, and nested calls when `meta.attachContext` is on (Node/Bun/Deno; graceful no-op on browsers/edge).

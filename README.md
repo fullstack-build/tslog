@@ -16,7 +16,7 @@
 - 🏗 **Universal** — one logger for Node.js, browser, Deno, Bun, workers and React Native
 - 🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
 - 🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY, with no config
-- 🤖 **AI / agent friendly** — fields-first calls, an `llms.txt`, presets for OTel-GenAI, and request correlation
+- 🤖 **First-class support for agents & LLMs** — fields-first calls, agent/session correlation, an `llms.txt`, and OTel-GenAI presets; used by [OpenClaw](https://openclaw.ai) for agent logging
 - 🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
 - 🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
 - 👮 **Fully typed** — written in TypeScript 7, native ESM, accurate source-mapped line numbers
@@ -727,9 +727,9 @@ new Logger({
 On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.inspectOptions`.
 
 
-## AI / agent DX
+## First-class support for agents & LLMs
 
-`tslog` is built to be friendly to LLM apps and coding agents:
+`tslog` treats LLM apps and coding agents as a primary use case — it's used by [OpenClaw](https://openclaw.ai), an AI agent platform, for its agent logging:
 
 - **`llms.txt`** ships in the package, giving agents an accurate, condensed API surface to work from.
 - **Fields-first calls** make structured, queryable logs the natural default for tool calls and traces.

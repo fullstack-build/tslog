@@ -4,7 +4,7 @@ All notable changes to this project are documented here. This project adheres to
 
 ## [5.0.0] - 2026-06-30
 
-A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and built with TypeScript 7 / ES2022. Settings are grouped, JSON output is fields-first, and the logger gains a middleware pipeline, async transports, JSONPath masking, OpenTelemetry/pino/GenAI presets, ready-made file/http/ringbuffer transports, and tree-shakeable subpath modules. This is a breaking release — see [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md) for the upgrade path.
+A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and built with TypeScript 7 / ES2022. Settings are grouped, JSON output is fields-first, and the logger gains a middleware pipeline, async transports, JSONPath masking, OpenTelemetry/pino/GenAI presets, ready-made file/http/ringbuffer transports, and tree-shakeable subpath modules. v5 also adds first-class support for agents and LLMs — fields-first calls, agent/session correlation, and OTel-GenAI attributes; [OpenClaw](https://openclaw.ai) uses tslog for its agent logging. This is a breaking release — see [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md) for the upgrade path.
 
 ### Added
 - **Grouped settings** — related options now live under `pretty`, `json`, `mask`, `stack`, and `meta` groups instead of a flat list of `prettyLog*`/`maskValues*` keys. Sub-loggers merge groups rather than overwrite them.
