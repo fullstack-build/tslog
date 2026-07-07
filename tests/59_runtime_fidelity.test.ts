@@ -258,21 +258,26 @@ describe("NO_COLOR yields uncolored pretty, not JSON (https://no-color.org)", ()
     });
   });
 
-  test("NO_COLOR without a TTY still defaults to json", () => {
+  test("a non-TTY (piped) server default is uncolored pretty, not json", () => {
     withStubbedGlobals(() => {
       delete globalAny.window;
       delete globalAny.document;
-      globalAny.process = { versions: { node: "22.0.0" }, env: { NO_COLOR: "1" }, stdout: {} };
-      expect(resolveDefaultType()).toBe("json");
+      globalAny.process = { versions: { node: "22.0.0" }, env: {}, stdout: {} };
+      expect(resolveDefaultType()).toBe("pretty");
+      const logger = new Logger({ minLevel: "FATAL" });
+      expect(logger.settings.type).toBe("pretty");
+      expect(logger.settings.pretty.style).toBe(false);
     });
   });
 
-  test("CI on a TTY still defaults to json", () => {
+  test("CI does not switch the format — the default stays pretty", () => {
     withStubbedGlobals(() => {
       delete globalAny.window;
       delete globalAny.document;
       globalAny.process = { versions: { node: "22.0.0" }, env: { CI: "true" }, stdout: { isTTY: true } };
-      expect(resolveDefaultType()).toBe("json");
+      expect(resolveDefaultType()).toBe("pretty");
+      const logger = new Logger({ minLevel: "FATAL" });
+      expect(logger.settings.type).toBe("pretty");
     });
   });
 });

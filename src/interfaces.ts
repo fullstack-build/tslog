@@ -376,10 +376,11 @@ export interface IMetaSettings {
  */
 export interface IPrettySettings {
   /**
-   * Explicitly enable/disable pretty output regardless of the environment-aware default `type` resolution.
-   * When `false`, the logger falls back to `"json"` (unless an explicit `type` is set). When omitted, the
-   * default `type` is resolved from the environment (interactive non-CI TTY, browser, React Native → pretty;
-   * CI/non-TTY → json; NO_COLOR only strips styling, never switches the format).
+   * Explicitly enable/disable pretty output regardless of the default `type` resolution. When `false`,
+   * the logger falls back to `"json"` (unless an explicit `type` is set). When omitted, `type` defaults to
+   * `"pretty"` on every runtime; only the coloring is environment-aware (colored on an interactive TTY and
+   * in the browser, uncolored when piped/redirected). `NO_COLOR` strips styling but never switches the
+   * format to json — JSON is opt-in via `type: "json"`, `TSLOG_TYPE=json`, or a JSON transport.
    * @example { pretty: { enabled: false } }
    */
   enabled?: boolean;

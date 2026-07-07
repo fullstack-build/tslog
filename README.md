@@ -15,7 +15,7 @@
 
 - 🏗 **Universal** — one logger for Node.js, browser, Deno, Bun, workers and React Native
 - 🧱 **Structured, fields-first JSON** — flat, observability-ready output that drops straight into log pipelines
-- 🧭 **Env-aware output** — pretty in your terminal, JSON in CI / non-TTY, with no config
+- 🧭 **Pretty by default, JSON optional** — colored in your terminal, uncolored when piped/CI; structured JSON is one opt-in away
 - 🤖 **First-class support for agents & LLMs** — fields-first calls, agent/session correlation, an `llms.txt`, and OTel-GenAI presets; used by [OpenClaw](https://openclaw.ai) for agent logging
 - 🌳 **Tree-shakeable subpaths** — transports, presets and helpers ship as opt-in modules, `sideEffects: false`
 - 🪶 **Zero runtime dependencies** — nothing pulled into your bundle but `tslog` itself
@@ -31,9 +31,9 @@
 ```typescript
 import { Logger } from "tslog";
 
-// `new Logger()` is environment-aware: pretty + colorized in an interactive terminal,
-// flat JSON in CI / non-TTY. Omit `type` to get the right thing
-// per environment, or set `type: "pretty" | "json" | "hidden"` to pin it.
+// `new Logger()` is pretty everywhere: colorized in an interactive terminal,
+// uncolored when piped/redirected/CI. Omit `type` for readable pretty output,
+// or set `type: "pretty" | "json" | "hidden"` (JSON is opt-in).
 const log = new Logger({ minLevel: "INFO" });
 
 // Fields-first (pino-style) OR string-first — both overloads work:
@@ -157,7 +157,7 @@ bun run main.ts
 </script>
 ```
 
-A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, env-aware output renders pretty logs with CSS styling.
+A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, the default output renders pretty logs with CSS styling.
 
 **Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.8KB gzip vs ~20.6KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
 
@@ -184,12 +184,12 @@ Works out of the box on Hermes and JSC — Metro resolves the `react-native` ent
 
 ## Which build should I use?
 
-One package, purpose-built distributions. For most apps the answer is simply `tslog`: the main entry adapts to where it runs (colorized pretty output in your terminal or devtools during development, flat JSON in production/CI — see [Env-aware type resolution](#env-aware-type-resolution)), so the same import covers development *and* production without config. The other builds exist for the situations where the default trade-offs don't fit:
+One package, purpose-built distributions. For most apps the answer is simply `tslog`: the main entry adapts to where it runs (colorized pretty output in your terminal or devtools, uncolored pretty when piped, and opt-in flat JSON for production — see [Default type and colorization](#default-type-and-colorization)), so the same import covers development *and* production without config. The other builds exist for the situations where the default trade-offs don't fit:
 
 | Situation | Import | Why |
 |-----------|--------|-----|
 | **Development** (server, browser, RN) | `tslog` | Zero config: colorized pretty output on an interactive TTY / in the devtools console, code positions via stack capture, config validation with did-you-mean hints. |
-| **Production** (services, containers, CI) | `tslog` | The very same import: non-TTY resolves to flat fields-first JSON automatically. Add `mask` for secrets/PII, `bindings` + `runInContext` for correlation, and transports to ship logs. |
+| **Production** (services, containers, CI) | `tslog` | The very same import: pretty stays uncolored when piped/non-TTY; opt into flat fields-first JSON with `type: "json"`. Add `mask` for secrets/PII, `bindings` + `runInContext` for correlation, and transports to ship logs. |
 | **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.8KB vs ~20.6KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
 | **Testing** | `tslog/testing` | `createTestLogger()` captures every record and rendered line for assertions — no console noise, no spies. (Any build also accepts `type: "hidden"` to mute the console while still returning records.) |
 | **Browser debugging with native line numbers** | `tslog/lite` | Thin `console` wrappers with zero processing, so devtools still shows the *caller's* file:line instead of the logger's. |
@@ -210,7 +210,7 @@ How `tslog` compares to the most popular JavaScript loggers. **This table looks 
 | Universal (Node + browser + Deno/Bun)  | ✅                      | 🟡 polyfill      | ❌ Node-only      | ❌ Node-only     | ✅             |
 | Pretty output **in-process**           | ✅                      | ➕ `pino-pretty` | ✅                | ➕ CLI pipe      | ✅             |
 | Structured, fields-first JSON          | ✅                      | ✅               | 🟡 via formats    | ✅               | ❌             |
-| Env-aware output (pretty ↔ JSON)       | ✅                      | ❌               | ❌                | ❌               | 🟡 fancy↔basic |
+| Env-aware colorization (color ↔ plain) | ✅                      | ❌               | ❌                | ❌               | 🟡 fancy↔basic |
 | Secret masking / redaction             | ✅ keys · paths · regex | ✅ paths         | 🟡 manual format  | ❌               | ❌             |
 | Pretty errors + stack traces           | ✅                      | 🟡               | 🟡                | 🟡               | 🟡             |
 | Source-mapped call-site line numbers   | ✅                      | ❌               | ❌                | 🟡 `src` (slow)  | 🟡             |
@@ -309,7 +309,7 @@ You can override the default `logObj` per child by passing a second argument: `m
 
 v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`, `maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing; the groups cover everything else.
 
-**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for env-aware), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
+**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for pretty everywhere, colored on a TTY), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
@@ -330,15 +330,15 @@ const log = new Logger({
 });
 ```
 
-### Env-aware type resolution
+### Default type and colorization
 
-When `type` is omitted, `tslog` picks the output for the environment:
+When `type` is omitted, `tslog` defaults to `pretty` **everywhere** — a pipe, a redirect, CI, or `docker logs` are still read by a human most of the time, so that is what you get by default. Only the *coloring* is environment-aware:
 
-- **Interactive TTY** (not CI) → `pretty`, colorized
-- **CI / non-TTY** → `json`
+- **Interactive TTY** → `pretty`, colorized
+- **Piped / redirected / CI** (non-TTY) → `pretty`, *uncolored* (no ANSI escapes leak into your file or log collector)
 - **Browser / React Native** → `pretty` (CSS styling in the browser)
 
-`NO_COLOR` follows [no-color.org](https://no-color.org) semantics: it switches colors off, not formats — a TTY with `NO_COLOR` gets *uncolored pretty*, while piped/CI output stays `json`. `FORCE_COLOR` forces colorized pretty. Both apply to `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
+Structured `json` is a deliberate production choice, so it is **opt-in** — set `type: "json"`, run with `TSLOG_TYPE=json` (via `Logger.fromEnv()`), or attach a JSON transport/sink. `NO_COLOR` follows [no-color.org](https://no-color.org) semantics: it switches colors off, never the format. `FORCE_COLOR` forces colorized pretty. Both apply to `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
 
 
 ## Structured JSON output
@@ -874,7 +874,7 @@ import { Logger } from "tslog";
 import { fileTransport } from "tslog/transports/file";
 
 const logger = new Logger({
-  type: "json", // or omit: pretty on a TTY, JSON in CI
+  type: "json", // or omit for pretty everywhere (JSON is opt-in)
   minLevel: "INFO",
   bindings: { service: "checkout" },
 });
@@ -888,7 +888,7 @@ logger.info("payment accepted", { orderId: 7 }); // unchanged
 | `http` / `verbose` levels | closest built-in for `verbose` is `trace`; add your own via `customLevels: { HTTP: 2.5 }` |
 | `defaultMeta` | `bindings` (also per child: `child({ bindings })`) |
 | `format.json()` + `format.timestamp()` | `type: "json"` + the `json` group (`messageKey`, `timeKey`, `time`, …) |
-| `format.colorize()` + `format.simple()` | `type: "pretty"` — or omit `type` for the env-aware default |
+| `format.colorize()` + `format.simple()` | `type: "pretty"` — or omit `type`; pretty is the default (colored on a TTY, uncolored when piped) |
 | `format.printf(...)` / custom formats | `use()` middleware to mutate or drop records; per-transport `format` for custom rendering |
 | `transports: [...]` with per-transport `level` / `format` | `attachTransport({ minLevel, format, write })` — same idea, and it returns a detach function |
 | custom `Transport` subclass (stream machinery) | a plain object or a bare function: `attachTransport((record) => …)` |
@@ -929,7 +929,7 @@ logger.error(new Error("boom")); // pretty error, parsed stack, cause chain
 | `consola.box("…")` | `box()` / `tree()` from `tslog/pretty/box`: `logger.info("\n" + box("Deployed!", { title: "release" }))` |
 | reporters | transports: `attachTransport({ format, write })`, with per-transport `format` |
 | `consola.wrapConsole()` | `wrapConsole(logger)` from `tslog/console` (undo with `restoreConsole()`) |
-| fancy ↔ basic auto-detect | env-aware `type` — pretty on a TTY, structured JSON (not just plain text) in CI/pipes |
+| fancy ↔ basic auto-detect | pretty everywhere, env-aware color — colored on a TTY, uncolored when piped/CI; structured JSON is opt-in via `type: "json"` |
 | `consola.prompt()` | out of scope for a logger — keep consola or a prompt library for interactive prompts |
 
 Whichever logger you come from, `createTestLogger` from `tslog/testing` captures records and rendered lines, so you can assert the migrated output still matches what your pipeline expects before flipping the switch.
@@ -940,7 +940,7 @@ Whichever logger you come from, `createTestLogger` from `tslog/testing` captures
 > [!IMPORTANT]
 > **`tslog@4.11.0` is the safe staying point.** Most of the v5 performance wins (faster lazy stack capture, transport isolation, masking fixes) were back-ported to **4.11.0 with zero breaking changes**. If you are on the 4.x line and just want the wins, `npm install tslog@4.11.0` keeps your existing settings, CJS `require`, Node 16+, and the v4 JSON shape exactly as they are. There is no deprecation pressure.
 
-Move to **v5** when you actually want its new capabilities: env-aware default output, the flat fields-first JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent DX. v5 is ESM-only and requires Node ≥ 20.
+Move to **v5** when you actually want its new capabilities: opt-in structured JSON output, the flat fields-first JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent DX. v5 is ESM-only and requires Node ≥ 20.
 
 👉 **Full guide: [MIGRATION_v4_to_v5.md](./MIGRATION_v4_to_v5.md)** — it maps every removed v4 setting (`stylePrettyLogs`, `prettyLogTemplate`, `maskValuesOfKeys`, `metaProperty`, `hideLogPositionForProduction`, the whole `overwrite.*` family, …) to its v5 replacement.
 

@@ -16,8 +16,9 @@ log.info("request complete", { status: 200 });
 //   { "message": "...", "level": "INFO", "levelId": 3, "time": "…", "status": 200, "_meta": { "v": 5, … } }
 ```
 
-The default `type` is environment-aware: `new Logger()` is pretty + colorized in an interactive
-terminal, and JSON in CI / non-TTY (`NO_COLOR` just strips colors). Pass `type` to pin it.
+The default `type` is `pretty` everywhere: `new Logger()` is pretty + colorized in an interactive
+terminal, and uncolored pretty when piped/redirected/CI (`NO_COLOR` just strips colors). Structured
+JSON is opt-in — pass `type: "json"`.
 
 ## 2. Per-request (or per-agent) child logger
 

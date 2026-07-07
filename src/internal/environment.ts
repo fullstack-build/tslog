@@ -82,19 +82,6 @@ export function forceColorRequested(): boolean {
   return value != null && value !== "" && value !== "0";
 }
 
-/** Heuristically detect a CI environment from the common env flags so the default type falls back to JSON. */
-export function isContinuousIntegration(): boolean {
-  // The single `CI` flag covers the vast majority of providers (GitHub Actions, GitLab, CircleCI, Travis,
-  // Buildkite, …); the extras catch the few that historically omitted it.
-  for (const key of ["CI", "CONTINUOUS_INTEGRATION", "GITHUB_ACTIONS", "GITLAB_CI", "BUILDKITE", "TF_BUILD"]) {
-    const value = safeEnvGet(key);
-    if (value != null && value !== "" && value !== "false" && value !== "0") {
-      return true;
-    }
-  }
-  return false;
-}
-
 /** Whether the runtime's stdout is an interactive TTY (Node/Bun expose `process.stdout.isTTY`). */
 export function stdoutIsTTY(): boolean {
   try {
@@ -108,27 +95,18 @@ export function stdoutIsTTY(): boolean {
 /**
  * Resolve the default output `type` when the user did not set one (M3.2).
  *
- * Browsers, web workers, and React Native always default to `"pretty"` (a developer-facing console).
- * On server runtimes the choice is environment-aware: an interactive stdout TTY that is NOT a CI run
- * yields `"pretty"` (great for local development); everything else (piped output, CI, non-TTY) yields
- * `"json"` (great for production / observability / LLM ingestion). `FORCE_COLOR` forces `"pretty"`
- * regardless of the TTY check.
+ * The default is ALWAYS `"pretty"` — on every runtime, TTY or not, CI or not. Pretty output is what a
+ * human reads, and non-TTY output (a pipe, a redirect, `docker logs`, a CI build log) is still read by a
+ * human the overwhelming majority of the time. TTY-ness is too weak a signal for "this wants machine-
+ * readable JSON", so it never switches the format here — it only controls whether pretty output is
+ * COLORIZED (resolved separately in `pretty.style`: colored on a TTY, uncolored when piped).
  *
- * `NO_COLOR` deliberately does NOT influence the type: per https://no-color.org it means "no color",
- * not "machine-readable output" — a TTY with `NO_COLOR` gets UNCOLORED pretty (styling is switched off
- * separately, in the `pretty.style` resolution), not JSON.
+ * Structured JSON is a deliberate production decision, so it is opt-in: set `type: "json"`, use
+ * `Logger.fromEnv()` / `TSLOG_TYPE=json`, or attach a JSON transport/sink. That keeps the consequential
+ * choice explicit and where it belongs, instead of guessing it from an ambiguous environment probe.
  */
 export function resolveDefaultType(): "pretty" | "json" {
-  if (isBrowserEnvironment() || isWorkerEnvironment() || isReactNativeEnvironment()) {
-    return "pretty";
-  }
-  if (forceColorRequested()) {
-    return "pretty";
-  }
-  if (isContinuousIntegration()) {
-    return "json";
-  }
-  return stdoutIsTTY() ? "pretty" : "json";
+  return "pretty";
 }
 
 export function consoleSupportsCssStyling(): boolean {

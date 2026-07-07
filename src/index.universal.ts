@@ -56,9 +56,9 @@ function getUniversalEnvironment(): EnvironmentProvider {
  */
 export class Logger<LogObj> extends BaseLogger<LogObj> {
   constructor(settings?: ISettingsParam<LogObj>, logObj?: LogObj) {
-    // The default `type` (env-aware: browser → pretty, server TTY → pretty, else json) and `pretty.style`
-    // (on unless NO_COLOR) are resolved inside normalizeSettings (M3.2), so the entry no longer forces a
-    // styling flag.
+    // The default `type` (always "pretty") and `pretty.style` (colored on a TTY/in the browser, uncolored
+    // when piped or under NO_COLOR) are resolved inside normalizeSettings (M3.2), so the entry no longer
+    // forces a styling flag.
     //
     // Auto-detect the caller frame the same way as the Node entry point. The previous hardcoded
     // Safari/other frame counts (4/5) are brittle across engines (Safari, Bun, Deno collapse or omit
@@ -188,7 +188,7 @@ export class Logger<LogObj> extends BaseLogger<LogObj> {
 }
 
 /**
- * A ready-to-use default logger instance — pretty in an interactive TTY, JSON in CI/non-TTY; NO_COLOR only strips colors (M3.2).
+ * A ready-to-use default logger instance — pretty everywhere by default (colored on a TTY, uncolored when piped); JSON is opt-in (M3.2).
  * Import and log without any setup.
  * For structured logs, masking, or custom settings, create your own `new Logger({ ... })` instead.
  *

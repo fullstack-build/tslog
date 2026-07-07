@@ -257,18 +257,18 @@ describe("internal/environment guarded branches", () => {
     expect(safeGetCwd()).toBeUndefined();
   });
 
-  test("resolveDefaultType returns 'pretty' when FORCE_COLOR is set (non-TTY, non-CI)", () => {
-    // Not a browser/worker/RN; FORCE_COLOR forces pretty regardless of the TTY check.
-    globalAny.process = { env: { FORCE_COLOR: "1" }, stdout: { isTTY: false } };
+  test("resolveDefaultType is always 'pretty' on a server runtime regardless of TTY/CI", () => {
+    // Not a browser/worker/RN; the format never depends on the environment — only the color does.
+    globalAny.process = { env: { CI: "true" }, stdout: { isTTY: false } };
     delete globalAny.window;
     delete globalAny.document;
     delete globalAny.Deno;
     expect(resolveDefaultType()).toBe("pretty");
   });
 
-  test("resolveDefaultType returns 'json' when the env bag read throws (unreadable process.env)", () => {
+  test("style resolution tolerates an env bag read that throws (unreadable process.env → uncolored, non-TTY)", () => {
     // A process whose `env` getter throws exercises readEnvBag's catch (→ every env probe is a no-op),
-    // and stdout.isTTY undefined → the final ternary resolves to json.
+    // and stdout.isTTY undefined → the style default resolves to false (uncolored pretty).
     globalAny.process = {
       get env(): never {
         throw new Error("env unreadable");
@@ -278,10 +278,12 @@ describe("internal/environment guarded branches", () => {
     delete globalAny.window;
     delete globalAny.document;
     delete globalAny.Deno;
-    expect(resolveDefaultType()).toBe("json");
+    const logger = new NodeLogger({ minLevel: "FATAL" });
+    expect(logger.settings.type).toBe("pretty");
+    expect(logger.settings.pretty.style).toBe(false);
   });
 
-  test("resolveDefaultType tolerates a stdout whose isTTY access throws (guarded, → json)", () => {
+  test("style resolution tolerates a stdout whose isTTY access throws (guarded → uncolored)", () => {
     globalAny.process = {
       env: {},
       get stdout(): never {
@@ -291,8 +293,9 @@ describe("internal/environment guarded branches", () => {
     delete globalAny.window;
     delete globalAny.document;
     delete globalAny.Deno;
-    // No FORCE_COLOR, not CI, stdoutIsTTY() caught → false → json.
-    expect(resolveDefaultType()).toBe("json");
+    // No FORCE_COLOR / NO_COLOR, not a browser: stdoutIsTTY() caught → false → uncolored pretty.
+    const logger = new NodeLogger({ minLevel: "FATAL" });
+    expect(logger.settings.pretty.style).toBe(false);
   });
 
   test("consoleSupportsCssStyling returns false in a non-browser, non-worker runtime", () => {
@@ -302,9 +305,9 @@ describe("internal/environment guarded branches", () => {
     expect(consoleSupportsCssStyling()).toBe(false);
   });
 
-  test("resolveDefaultType tolerates a navigator.product getter that throws (isReactNativeEnvironment catch)", () => {
-    // Not a browser/worker; navigator.product access throws → isReactNativeEnvironment swallows it and
-    // returns false, so resolveDefaultType proceeds to the server-side TTY logic (non-TTY → json).
+  test("style resolution tolerates a navigator.product getter that throws (isReactNativeEnvironment catch)", () => {
+    // navigator.product access throws → isReactNativeEnvironment swallows it and returns false, so style
+    // resolution falls through to the server-side TTY check (non-TTY → uncolored pretty).
     globalAny.process = { env: {}, stdout: { isTTY: false } };
     delete globalAny.window;
     delete globalAny.document;
@@ -314,7 +317,8 @@ describe("internal/environment guarded branches", () => {
         throw new Error("no product");
       },
     });
-    expect(resolveDefaultType()).toBe("json");
+    const logger = new NodeLogger({ minLevel: "FATAL" });
+    expect(logger.settings.pretty.style).toBe(false);
   });
 });
 

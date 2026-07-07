@@ -19,9 +19,10 @@
 
 You should upgrade to v5 when you want one or more of these. None of them exist on the 4.x line.
 
-- **Environment-aware default output.** `new Logger()` and the ready-made `log` are now **pretty in an
-  interactive TTY and JSON in CI / non-TTY** — the right thing in both dev and prod with no
-  config. (v4 was always `pretty`.)
+- **Environment-aware colorization.** `new Logger()` and the ready-made `log` stay **pretty everywhere**
+  (as in v4), but the coloring now adapts to the environment: colored on an interactive TTY and uncolored
+  when piped/redirected/CI, so no ANSI escapes leak into files or log collectors. Structured JSON is
+  opt-in via `type: "json"`, `TSLOG_TYPE=json`, or a JSON transport.
 - **Flat, fields-first JSON.** The default `type: "json"` output is now a flat, observability-friendly
   object — `message` / `level` / `levelId` / `time` at the top level, your fields spread next to them,
   runtime metadata nested under `_meta` with a `v: 5` schema version. No more positional args under
@@ -353,30 +354,37 @@ security primitive), or a function `(value, path) => unknown`.
 
 ---
 
-## 6. Default `type` is now environment-aware
+## 6. Default `type` stays `"pretty"`; only piped output is now uncolored
 
-**Breaking behavior change:** v4's default `type` was always `"pretty"`. In v5, both `new Logger()` and the
-ready-made `log` instance resolve the default `type` from the environment:
+Like v4, v5's default `type` is `"pretty"` on **every** runtime — a pipe, a redirect, or a CI build log is
+still read by a human most of the time, so the format never changes on you. The only behavior change is
+cosmetic: when stdout is **not** an interactive TTY, the default pretty output is now **uncolored**, so ANSI
+escape codes no longer leak into a file or a log collector. (In v4 you typically disabled that yourself.)
 
-- interactive **TTY** → `"pretty"` (colorized)
-- **CI / non-TTY** → `"json"` (structured; `NO_COLOR` strips colors but never switches the format)
+- interactive **TTY** → `"pretty"`, colorized
+- **piped / redirected / CI** (non-TTY) → `"pretty"`, uncolored
+- **browser / React Native** → `"pretty"` (CSS styling in the browser)
+
+Structured JSON is a deliberate production choice, so it is **opt-in** — there is no environment that
+silently switches you to it:
 
 ```ts
-// BEFORE (v4) — always pretty, even when piped to a file or in CI
+// Default — pretty everywhere (colored on a TTY, uncolored when piped):
 const log = new Logger();
 
-// AFTER (v5) — pretty in a TTY, JSON otherwise
-const log = new Logger();
+// Opt into structured JSON when you want it:
+const json = new Logger({ type: "json" });          // explicit
+// or via the environment, with no code change:
+//   TSLOG_TYPE=json node app.js   →  Logger.fromEnv()
+// or attach a JSON transport/sink and keep the console pretty.
 
-// Force a specific format explicitly when you need determinism:
-const pretty = new Logger({ type: "pretty" });
-const json   = new Logger({ type: "json" });
-// or via the pretty group, leaving the env-default for everything else:
-const maybePretty = new Logger({ pretty: { enabled: false } }); // → falls back to json
+// Force uncolored pretty (or colored) regardless of the TTY:
+const plain = new Logger({ pretty: { style: false } });
 ```
 
-If your tests or downstream parsers assumed pretty output everywhere, set `type: "pretty"` explicitly. If
-they assumed your CI logs were already pretty, note they will now be JSON unless forced.
+If you previously relied on a v4 setting to strip colors when piping, you can drop it — that is now the
+default. If any downstream parser was reading JSON from tslog, set `type: "json"` explicitly (or use
+`TSLOG_TYPE=json`); it is no longer produced by accident.
 
 ---
 

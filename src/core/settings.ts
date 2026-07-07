@@ -1,5 +1,14 @@
 import type { ISettings, ISettingsParam } from "../interfaces.js";
-import { forceColorRequested, noColorRequested, resolveDefaultType, safeEnvGet } from "../internal/environment.js";
+import {
+  forceColorRequested,
+  isBrowserEnvironment,
+  isReactNativeEnvironment,
+  isWorkerEnvironment,
+  noColorRequested,
+  resolveDefaultType,
+  safeEnvGet,
+  stdoutIsTTY,
+} from "../internal/environment.js";
 import { nativeConsoleMethod } from "../internal/nativeConsole.js";
 import { TslogConfigError } from "./config.js";
 import { resolveLogLevelId, validateCustomLevel } from "./levels.js";
@@ -406,7 +415,11 @@ function resolveType<LogObj>(settings: ISettingsParam<LogObj> | undefined): "jso
  * Resolve pretty styling. Precedence: an EXPLICIT `pretty.style` wins (per no-color.org, a user's
  * deliberate configuration outranks the env hints — this is also what lets the CLI's --color/--no-color
  * flags work under a conflicting NO_COLOR/FORCE_COLOR), then `FORCE_COLOR` forces styling on, then
- * `NO_COLOR` forces it off, then the default `true`.
+ * `NO_COLOR` forces it off, then the environment default.
+ *
+ * The default follows the destination: browser/worker/React-Native consoles get styled (CSS `%c`)
+ * output; server runtimes color only when stdout is an interactive TTY, so pretty output piped to a
+ * file or a log collector stays plain text instead of leaking ANSI escape codes.
  */
 function resolveStyle<LogObj>(settings: ISettingsParam<LogObj> | undefined): boolean {
   if (settings?.pretty?.style != null) {
@@ -418,7 +431,10 @@ function resolveStyle<LogObj>(settings: ISettingsParam<LogObj> | undefined): boo
   if (noColorRequested()) {
     return false;
   }
-  return true;
+  if (isBrowserEnvironment() || isWorkerEnvironment() || isReactNativeEnvironment()) {
+    return true;
+  }
+  return stdoutIsTTY();
 }
 
 /**

@@ -1,18 +1,18 @@
 # tslog 5.0.0
 
-tslog v5 is a ground-up, ESM-only rewrite for modern runtimes: **pretty in dev, structured JSON in prod** — automatically, with no config. The core is small and tree-shakeable, presets and transports live behind opt-in subpaths, and the default JSON shape is flat, fields-first, and built to drop straight into observability backends and AI/agentic ingestion. It is a **major release with breaking changes**.
+tslog v5 is a ground-up, ESM-only rewrite for modern runtimes: **readable pretty output everywhere by default** (colored on a TTY, uncolored when piped), with **structured JSON one opt-in away** for prod. The core is small and tree-shakeable, presets and transports live behind opt-in subpaths, and the default JSON shape is flat, fields-first, and built to drop straight into observability backends and AI/agentic ingestion. It is a **major release with breaking changes**.
 
 > [!IMPORTANT]
 > **4.11.0 is a safe place to stay — do not pressure-upgrade.** Most of the v5 performance wins and the GitHub-issue fixes were back-ported into **tslog 4.11.0** (faster lazy stack capture, transport isolation, the masking `$`-escape and numeric-key fixes) with **zero breaking changes** and your CJS `require`, Node 16+, settings, and JSON shape untouched. Move to v5 when you actually want the new capabilities below — not because a number changed.
 
 ## Highlights
 
-### Environment-aware output by default
-`new Logger()` and the ready-made `log` now pick their format from the environment: **pretty** in an interactive TTY, **JSON** in CI / non-TTY, pretty (CSS) in the browser and on React Native. `NO_COLOR` strips colors without switching the format (uncolored pretty on a TTY); `FORCE_COLOR` forces styled pretty. The right thing in dev *and* prod with no config — set `type` explicitly only when you want to override it.
+### Readable pretty output by default, env-aware colorization
+`new Logger()` and the ready-made `log` render **pretty everywhere** — server, CI, browser, and React Native. Only the coloring adapts to the environment: colored on an interactive TTY (CSS in the browser), and uncolored when stdout is piped/redirected/CI, so no ANSI escapes leak into files or log collectors. `NO_COLOR` strips colors without switching the format; `FORCE_COLOR` forces styled pretty. Structured JSON is an explicit opt-in — set `type: "json"`, `TSLOG_TYPE=json`, or attach a JSON transport.
 
 ```ts
 import { log } from "tslog";
-log.info({ userId: 42 }, "request handled"); // pretty in your terminal, JSON in CI
+log.info({ userId: 42 }, "request handled"); // pretty everywhere — colored in your terminal, uncolored when piped
 ```
 
 ### Flat, fields-first JSON with `_meta.v: 5`
@@ -106,7 +106,7 @@ This is a major release. The headline breaks:
 - **Node >=20**, TypeScript 7, ES2022.
 - **Grouped settings** — flat keys like `prettyLogTemplate`, `stylePrettyLogs`, `maskValuesOfKeys`, `maskValuesRegEx`, `maskPlaceholder`, `metaProperty`, and `hideLogPositionForProduction` are gone; use the `pretty` / `json` / `mask` / `meta` groups.
 - **`overwrite.*` hooks removed** — replaced by `logger.use()` middleware and per-transport `format`.
-- **Default `type` is environment-aware** — pretty in a TTY, JSON in CI/non-TTY (was always pretty).
+- **Piped pretty is now uncolored** — the default `type` is still `pretty` everywhere (unchanged from v4), but pretty output no longer emits ANSI color when stdout is piped/redirected/CI, so escapes no longer leak into files and log collectors. A cosmetic change only — the format never switches; JSON stays opt-in via `type: "json"`.
 - **New default JSON shape** — flat, fields-first, `_meta.v: 5`; the old nested `{"0":msg}` shape is gone.
 - **Masking is off by default** — no implicit `password` masking.
 - **`stackDepthLevel` → `callerFrame`** (constructor param); the `loggerEnvironment` singleton is removed.
