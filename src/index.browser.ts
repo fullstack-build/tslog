@@ -16,12 +16,6 @@ export * from "./core/config.js";
 export { createBrowserEnvironment } from "./env/environment.browser.js";
 export * from "./interfaces.js";
 
-declare global {
-  interface Window {
-    chrome?: unknown;
-  }
-}
-
 // Lazily memoized browser provider — created on first logger construction, never at module top level,
 // so `sideEffects: false` keeps holding and the provider is not built when the module is merely imported.
 let browserEnvironment: EnvironmentProvider | undefined;

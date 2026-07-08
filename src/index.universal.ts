@@ -16,12 +16,6 @@ export * from "./core/config.js";
 export { createUniversalEnvironment, selectEnvironment } from "./env/environment.universal.js";
 export * from "./interfaces.js";
 
-declare global {
-  interface Window {
-    chrome?: unknown;
-  }
-}
-
 // Lazily memoized universal provider — selected on first logger construction (runtime probed once),
 // never at module top level, so `sideEffects: false` keeps holding and neither `node:util` nor the
 // inspect polyfill is pulled in merely by importing this module.
