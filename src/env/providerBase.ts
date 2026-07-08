@@ -20,6 +20,7 @@ import {
   parseServerStackLine,
   type RuntimeInfo,
   type RuntimeMetaStatic,
+  type SourceMapResolver,
   stringifyFallback,
   stripAnsi,
 } from "./shared.js";
@@ -61,6 +62,12 @@ export interface ProviderBaseConfig {
    * resolved once at construction, and browser a lazily-memoized `resolveInspect()`.
    */
   getFormatWithOptions(): FormatWithOptions;
+  /**
+   * Resolve a transpiled/bundled server-style frame back to its original source position via a
+   * source map (issue #307). Only ever supplied by the node/universal providers — undefined here
+   * means "never attempt source-map resolution" (browser/React Native/slim always pass undefined).
+   */
+  resolveSourceMap?: SourceMapResolver;
 }
 
 /** Everything {@link createProviderBase} hands back to a provider entry. */
@@ -136,7 +143,7 @@ export function createProviderBase(config: ProviderBaseConfig): ProviderBase {
     if (isReactNative) {
       return parseReactNativeStackLine(line, getWorkingDirectory);
     }
-    return usesBrowserStack ? parseBrowserStackLine(line) : parseServerStackLine(line, getWorkingDirectory);
+    return usesBrowserStack ? parseBrowserStackLine(line) : parseServerStackLine(line, getWorkingDirectory, config.resolveSourceMap);
   }
 
   /** Run the configured formatWithOptions, falling back to a best-effort stringify if it throws. */

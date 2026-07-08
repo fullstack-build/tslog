@@ -22,6 +22,7 @@ import { Logger, createLogger, log } from "tslog"; // class + typed-custom-level
 - `type`, `name`, `minLevel: "INFO"` (name or 0..6), `strictConfig: true` (throw `TslogConfigError` on unknown/typo'd/v4-flat keys; without it they warn in dev with a did-you-mean).
 - `mask: { keys: ["password","apiKey","token","prompt"], paths: ["user.password","*.token"], caseInsensitive, regex, censor }` — redact secrets/PII/prompts by key, dotted path, or regex. Regexes always apply globally (no `g` flag needed); keys/regex also mask inside `Map`/`Set` contents; shared/circular references resolve to the same masked clone.
 - `json: { messageKey, levelKey, timeKey, errorKey, time: "iso"|"epoch"|false|fn }` (`time` shapes the top-level timestamp; `_logMeta.date` stays UTC ISO), `pretty: { timeZone, style }`, `stack: { capture: "off"|"lazy"|"auto"|"full" }`, `meta: { property, attachContext }`.
+- Source-mapped error positions (Node/Bun/Deno, not browser): `_logMeta.path` and pretty error stacks resolve through a source map back to the original `.ts` file/line/column when one is discoverable, automatically outside production (`NODE_ENV !== "production"`); force with `TSLOG_SOURCE_MAPS=on`/`off`.
 - `clock: () => Date` — injectable clock (deterministic tests, offset stamping); inherited by sub-loggers; a throwing/invalid clock is ignored.
 
 ## Output shape (type:"json")

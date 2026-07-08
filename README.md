@@ -346,6 +346,11 @@ When `type` is omitted, `tslog` defaults to `pretty` **everywhere** — a pipe, 
 
 Structured `json` is a deliberate production choice, so it is **opt-in** — set `type: "json"`, run with `TSLOG_TYPE=json` (via `Logger.fromEnv()`), or attach a JSON transport/sink. `NO_COLOR` follows [no-color.org](https://no-color.org) semantics: it switches colors off, never the format. `FORCE_COLOR` forces colorized pretty. Both apply to `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
 
+### Source-mapped error positions (Node, Bun & Deno)
+
+When you log an `Error` thrown from transpiled or bundled TypeScript (`tsc`, esbuild, webpack, Next.js, etc.), tslog resolves the reported `file`/`line`/`column` back through that file's source map, so `_logMeta.path` and the pretty error stack point at your original `.ts` source instead of the compiled output — the same thing your browser devtools already do for `console.log`, that Node's own V8 stack rewriting only does when the process is started with `--enable-source-maps`, and that Bun does not do at all for its own stack traces.
+
+Resolution runs automatically outside production (`NODE_ENV !== "production"`) on Node, Bun, and Deno — never in the browser, where devtools already own it. Each resolved file's source map is parsed once and cached; a file with no `//# sourceMappingURL=` comment costs one failed read, then nothing. Override the default with `TSLOG_SOURCE_MAPS=on` or `TSLOG_SOURCE_MAPS=off` when you need it forced independent of `NODE_ENV` (e.g. to keep it on in a staging deploy, or off during a benchmark).
 
 ## First-class support for agents & LLMs
 

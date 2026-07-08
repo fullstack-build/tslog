@@ -6,6 +6,7 @@ import type { IMeta } from "../interfaces.js";
 import type { EnvironmentProvider } from "./environment.js";
 import { createProviderBase } from "./providerBase.js";
 import { detectRuntimeInfo, type RuntimeInfo } from "./shared.js";
+import { createSourceMapResolver } from "./sourceMap.node.js";
 import { getStdoutJsonSink } from "./stdoutSink.node.js";
 
 /**
@@ -22,6 +23,11 @@ import { getStdoutJsonSink } from "./stdoutSink.node.js";
  * `node:util` (native, higher fidelity than the bundled polyfill). The universal/browser providers use
  * the polyfill/`resolveInspect()` instead; core never statically imports `node:util`.
  *
+ * Source-map resolution (issue #307): `resolveSourceMap` (from `./sourceMap.node.js`) is wired in so
+ * server-style frames remap through a source map when one is discoverable, outside production (see
+ * {@link createSourceMapResolver}). `undefined` in production — `parseServerStackLine` then skips
+ * resolution entirely.
+ *
  * Lazy stack capture (M1.2): when stack capture is on, `getMeta` does NOT eagerly parse frames. It
  * captures the `Error` cheaply and installs an enumerable, self-caching getter on `_logMeta.path` that
  * parses the frames on first read. The lazy semantics (and the `hideLogPosition` / name / parentNames
@@ -35,6 +41,7 @@ export function createNodeEnvironment(): EnvironmentProvider {
     runtimeInfo,
     flavor: "server",
     getFormatWithOptions: () => formatWithOptions,
+    resolveSourceMap: createSourceMapResolver(),
   });
 
   // The runtime-specific dependency `core/meta.ts` needs: turn a captured `Error` into a caller frame

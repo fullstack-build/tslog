@@ -4,6 +4,7 @@ import { resolveInspect } from "../render/inspect.js";
 import type { EnvironmentProvider } from "./environment.js";
 import { createProviderBase } from "./providerBase.js";
 import { detectRuntimeInfo, type RuntimeInfo } from "./shared.js";
+import { createSourceMapResolver } from "./sourceMap.node.js";
 
 /**
  * The universal {@link EnvironmentProvider} — the provider injected by the universal entry
@@ -16,11 +17,16 @@ import { detectRuntimeInfo, type RuntimeInfo } from "./shared.js";
  *  - inspect output uses the runtime's native `util.formatWithOptions` when available (Deno/Bun expose
  *    `node:util` through their compatibility layer) and falls back to the bundled polyfill otherwise
  *    (resolved via {@link resolveInspect}), so this module never statically imports `node:util`;
- *  - CSS `%c` console styling is applied only on browser/worker runtimes whose console supports it.
+ *  - CSS `%c` console styling is applied only on browser/worker runtimes whose console supports it;
+ *  - source-map resolution (issue #307) is wired in for Deno/Bun/edge/unknown — the runtimes that get
+ *    server-style parsing and have real filesystem access — never for browser/worker/React Native.
  *
  * The provider is created lazily by {@link createUniversalEnvironment}; nothing here runs at module
  * top level so `sideEffects: false` continues to hold.
  */
+/** Runtimes where source-map resolution can run: server-style stack parsing plus real filesystem access (Deno/Bun/edge/unknown — never browser/worker/React Native). */
+const SOURCE_MAP_CAPABLE_RUNTIMES = new Set<RuntimeInfo["name"]>(["node", "deno", "bun", "unknown"]);
+
 export function createUniversalEnvironment(): EnvironmentProvider {
   const runtimeInfo: RuntimeInfo = detectRuntimeInfo();
   // Resolved ONCE at construction (never at module load); per-log calls do not re-probe.
@@ -30,6 +36,11 @@ export function createUniversalEnvironment(): EnvironmentProvider {
     runtimeInfo,
     flavor: "adaptive",
     getFormatWithOptions: () => formatWithOptions,
+    // Only wired in for runtimes that actually get server-style parsing AND have filesystem access
+    // (issue #307) — browser/worker/React Native never reach this branch (adaptive parsing routes them
+    // to parseBrowserStackLine/parseReactNativeStackLine, which never call resolveSourceMap anyway, but
+    // skipping construction here also avoids a doomed node:fs probe on edge runtimes without one).
+    resolveSourceMap: SOURCE_MAP_CAPABLE_RUNTIMES.has(runtimeInfo.name) ? createSourceMapResolver() : undefined,
   });
 
   return {

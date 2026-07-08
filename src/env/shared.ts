@@ -312,13 +312,27 @@ export function isNativeError(value: unknown): value is Error {
 export const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+(?::(?=\/))?){2,})(?::(\d+))?(?::(\d+))?/;
 
 /**
+ * Resolve a transpiled/bundled `(absoluteFilePath, line, column)` back to its original source
+ * position via that file's source map. Injected by the Node/universal providers (issue #307);
+ * `undefined` on browser/React Native, where it is never called. Must never throw.
+ */
+export type SourceMapResolver = (filePath: string, line: number, column: number) => { source: string; line: number; column: number } | undefined;
+
+/**
  * Parse a V8/server-style stack line (`at method (path:line:col)` or `at path:line:col`).
  *
  * `getCwd` is supplied by the provider so callers control cwd caching (the v4 monolith memoized cwd
  * inside the singleton; v5 lifts that responsibility to the provider to keep this function pure).
+ * `resolveSourceMap`, when supplied, remaps the parsed position through a source map before the cwd
+ * relativization below — so a bundled `dist/app.js:42:9` frame reports `src/app.ts:12:3` when a map
+ * resolves it, falling back silently to the transpiled position otherwise.
  * Returns `undefined` for lines that are not stack frames.
  */
-export function parseServerStackLine(rawLine: string | undefined, getCwd: () => string | undefined): IStackFrame | undefined {
+export function parseServerStackLine(
+  rawLine: string | undefined,
+  getCwd: () => string | undefined,
+  resolveSourceMap?: SourceMapResolver,
+): IStackFrame | undefined {
   if (typeof rawLine !== "string" || rawLine.length === 0) {
     return undefined;
   }
@@ -363,6 +377,16 @@ export function parseServerStackLine(rawLine: string | undefined, getCwd: () => 
   filePathCandidate = filePathCandidate.replace(/\?.*$/, "");
 
   let normalizedPath = filePathCandidate.replace(/^file:\/\//, "");
+
+  if (resolveSourceMap != null && fileLine != null) {
+    const original = resolveSourceMap(normalizedPath, Number(fileLine), fileColumn != null ? Number(fileColumn) : 1);
+    if (original != null) {
+      normalizedPath = original.source;
+      fileLine = String(original.line);
+      fileColumn = String(original.column);
+    }
+  }
+
   const cwd = getCwd();
   if (cwd != null && normalizedPath.startsWith(cwd)) {
     normalizedPath = normalizedPath.slice(cwd.length);

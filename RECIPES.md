@@ -313,6 +313,22 @@ if (log.isLevelEnabled("DEBUG")) {
 }
 ```
 
+## 12a. Original `.ts` positions in error stacks (Node, Bun & Deno)
+
+Logging an `Error` thrown from transpiled or bundled TypeScript normally reports the compiled `dist/*.js` position. Outside production, tslog resolves that position through the file's source map back to your original `.ts` file/line/column automatically — no config needed:
+
+```ts
+const log = new Logger();
+
+try {
+  riskyCall(); // throws from compiled dist/app.js, which has a sourceMappingURL
+} catch (err) {
+  log.error(err); // stack frames report src/app.ts, not dist/app.js
+}
+```
+
+Off by default in production (`NODE_ENV === "production"`) since it costs a source-map read/parse the first time each file's frame is logged (cached after that). Force it either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`. Node/Bun/Deno only — browsers already get this from devtools, so tslog never attempts it there.
+
 ## 12b. Smallest browser / edge bundle (`tslog/slim`)
 
 The full entry ships masking, pretty rendering, and stack parsing whether or not your config uses them (output `type` is a runtime value, so bundlers cannot drop them). When bundle size matters more, `tslog/slim` is the same structured-JSON pipeline at less than half the size — and it fails HONESTLY: `mask` settings and `type: "pretty"` throw instead of being silently ignored.
