@@ -11,14 +11,14 @@ import { renderJsonUnplanned } from "../render/json.js";
  *
  * The SAME `Logger` pipeline as the main entries — levels, sub-loggers with merged settings, bindings,
  * custom levels, middleware, async-context correlation, transports with per-transport `minLevel`, flat
- * fields-first JSON with `_meta` — minus the subsystems a size-critical browser/edge bundle rarely
+ * fields-first JSON with `_logMeta` — minus the subsystems a size-critical browser/edge bundle rarely
  * wants. What the main entries include and slim deliberately does NOT:
  *
  *  - **masking** — `mask` settings THROW a {@link TslogConfigError} here instead of being silently
  *    ignored (a logger that drops your redaction config is a security incident, not a size win);
  *  - **pretty output** — `type: "pretty"` (and `pretty.enabled: true`) throw; the default `type` is
  *    `"json"` (not env-aware);
- *  - **stack capture / trace parsing** — `_meta.path` is never attached; logged Errors keep
+ *  - **stack capture / trace parsing** — `_logMeta.path` is never attached; logged Errors keep
  *    name/message/cause with an empty `stack` array;
  *  - **settings validation** — no unknown-key / did-you-mean diagnostics (develop against the full
  *    entry, ship slim);

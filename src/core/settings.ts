@@ -531,7 +531,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
       internalFramePatterns: [...(settings?.stack?.internalFramePatterns ?? [])],
     },
     meta: {
-      property: settings?.meta?.property ?? "_meta",
+      property: settings?.meta?.property ?? "_logMeta",
       attachContext: settings?.meta?.attachContext ?? true,
     },
     prefix: [...(settings?.prefix ?? [])],

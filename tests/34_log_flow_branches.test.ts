@@ -123,10 +123,10 @@ describe("_toErrorObject cause handling", () => {
 // replacement capability is a custom `Transport.write(record, line)` plus a per-transport `format`:
 // the transport receives the finished record AND the already-formatted line, and chooses its own format
 // independently of the logger-wide `type`. The bits the old 4-/5-arg overloads exposed (the resolved
-// meta and active settings) are reachable directly off `record[_meta]` and `logger.settings`.
+// meta and active settings) are reachable directly off `record[_logMeta]` and `logger.settings`.
 describe("custom transport receives (record, line)", () => {
   test("a custom transport's write receives the finished record and the formatted pretty line", () => {
-    let record: (Record<string, unknown> & { _meta?: { logLevelName?: string } }) | undefined;
+    let record: (Record<string, unknown> & { _logMeta?: { logLevelName?: string } }) | undefined;
     let line: string | undefined;
     const logger = new Logger({ type: "pretty", name: "PrettyT" });
     logger.attachTransport({
@@ -138,7 +138,7 @@ describe("custom transport receives (record, line)", () => {
     });
     logger.info("x");
     expect(record).toBeDefined();
-    expect(record?._meta?.logLevelName).toBe("INFO");
+    expect(record?._logMeta?.logLevelName).toBe("INFO");
     // the line is the rendered pretty string for this record (carries the level name and the message)
     expect(typeof line).toBe("string");
     expect(line).toContain("INFO");
@@ -157,12 +157,12 @@ describe("custom transport receives (record, line)", () => {
     });
     logger.info("hello");
     expect(line).toBeDefined();
-    const parsed = JSON.parse(line as string) as { message?: string; level?: string; levelId?: number; _meta?: { v?: number; name?: string } };
+    const parsed = JSON.parse(line as string) as { message?: string; level?: string; levelId?: number; _logMeta?: { v?: number; name?: string } };
     expect(parsed.message).toBe("hello");
     expect(parsed.level).toBe("INFO");
     expect(parsed.levelId).toBe(3);
-    expect(parsed._meta?.v).toBe(5);
-    expect(parsed._meta?.name).toBe("JsonT");
+    expect(parsed._logMeta?.v).toBe(5);
+    expect(parsed._logMeta?.name).toBe("JsonT");
   });
 
   test("per-transport format: a custom LogFormatter is used to build the line", () => {
@@ -181,14 +181,14 @@ describe("custom transport receives (record, line)", () => {
 });
 
 describe("middleware replaces overwrite.addMeta", () => {
-  test("a middleware can stash fields that surface on record._meta", () => {
+  test("a middleware can stash fields that surface on record._logMeta", () => {
     const { logger, transports } = hiddenLogger();
     logger.use((ctx) => {
       ctx.meta.traceId = "trace-abc";
       return ctx;
     });
     logger.info("x");
-    const meta = transports[0]._meta as { traceId?: string; logLevelName?: string } | undefined;
+    const meta = transports[0]._logMeta as { traceId?: string; logLevelName?: string } | undefined;
     expect(meta?.traceId).toBe("trace-abc");
     expect(meta?.logLevelName).toBe("INFO");
   });

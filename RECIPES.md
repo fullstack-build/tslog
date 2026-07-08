@@ -13,7 +13,7 @@ const log = new Logger({ type: "json", minLevel: "INFO" });
 log.info({ event: "request", method: "GET", path: "/users", status: 200, durationMs: 12 });
 log.info("request complete", { status: 200 });
 // → one flat, fields-first JSON object per line:
-//   { "message": "...", "level": "INFO", "levelId": 3, "time": "…", "status": 200, "_meta": { "v": 5, … } }
+//   { "message": "...", "level": "INFO", "levelId": 3, "time": "…", "status": 200, "_logMeta": { "v": 5, … } }
 ```
 
 The default `type` is `pretty` everywhere: `new Logger()` is pretty + colorized in an interactive
@@ -44,7 +44,7 @@ function withRequest(req, next) {
   return log.runInContext({ requestId: req.id, traceId: req.traceId }, next);
 }
 
-// Anywhere inside the request — including deep sub-loggers — every log carries the ids under _meta:
+// Anywhere inside the request — including deep sub-loggers — every log carries the ids under _logMeta:
 log.info("processing");
 ```
 
@@ -150,8 +150,8 @@ log.attachTransport({
   minLevel: "ERROR", // only errors and fatals leave the process
   format: "json", // `line` is the flat JSON record regardless of the logger's type
   write(record, line) {
-    const { _meta, ...fields } = JSON.parse(line);
-    const level = _meta.logLevelName === "FATAL" ? "fatal" : "error";
+    const { _logMeta, ...fields } = JSON.parse(line);
+    const level = _logMeta.logLevelName === "FATAL" ? "fatal" : "error";
     const nativeError = [record, ...Object.values(record)]
       .map((value) => (value as { nativeError?: unknown } | null)?.nativeError)
       .find((candidate): candidate is Error => candidate instanceof Error);
@@ -170,8 +170,8 @@ log.attachTransport({
   name: "sentry-logs",
   format: "json", // fields of the flat JSON record become Sentry log attributes
   write(_record, line) {
-    const { _meta, message, ...attributes } = JSON.parse(line);
-    const method = toSentry[_meta.logLevelName as keyof typeof toSentry] ?? "info";
+    const { _logMeta, message, ...attributes } = JSON.parse(line);
+    const method = toSentry[_logMeta.logLevelName as keyof typeof toSentry] ?? "info";
     Sentry.logger[method](String(message ?? ""), attributes);
   },
 });
@@ -324,7 +324,7 @@ const log = new Logger({ name: "edge", bindings: { service: "checkout" } });
 log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-first JSON
 ```
 
-Kept: levels, sub-loggers, bindings, custom levels, middleware, `runInContext` correlation, transports. Dropped: masking, pretty output, stack capture (`_meta.path`; error `stack` arrays are empty), `fromEnv`, settings validation. Develop against the full entry, ship slim.
+Kept: levels, sub-loggers, bindings, custom levels, middleware, `runInContext` correlation, transports. Dropped: masking, pretty output, stack capture (`_logMeta.path`; error `stack` arrays are empty), `fromEnv`, settings validation. Develop against the full entry, ship slim.
 
 ## 13. Configure from environment / typed config
 
@@ -350,7 +350,7 @@ import { createTestLogger, normalizeMeta } from "tslog/testing";
 // Frozen per-logger clock:
 const { logger, logs, lines } = createTestLogger({ type: "json" }, { now: () => new Date("2026-01-01T00:00:00Z") });
 
-// Snapshot-stable output (epoch clock, hostname/runtimeVersion pinned, no _meta.path):
+// Snapshot-stable output (epoch clock, hostname/runtimeVersion pinned, no _logMeta.path):
 const snap = createTestLogger({ type: "json" }, { normalize: true });
 snap.logger.info("ready", { port: 3000 });
 expect(snap.lines[0]).toMatchSnapshot();
@@ -369,4 +369,4 @@ new Logger({ type: "json", json: { time: false } });   // no top-level time key 
 new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } }); // ns (Loki)
 ```
 
-`_meta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.
+`_logMeta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.

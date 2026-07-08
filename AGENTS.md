@@ -1,6 +1,6 @@
 ## Project Overview
 
-tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an environment-aware default `type`, flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_meta.v` in JSON output is `5`).
+tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an environment-aware default `type`, flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_logMeta.v` in JSON output is `5`).
 
 ### Settings are grouped (v5)
 
@@ -92,7 +92,7 @@ src/
 │   ├── pipeline.ts           # log() → mask → logObj → meta → format → transport
 │   ├── masking.ts            # keys / paths / regex / censor masking
 │   ├── logObj.ts             # Build the structured log object
-│   ├── meta.ts               # _meta assembly
+│   ├── meta.ts               # _logMeta assembly
 │   ├── levels.ts             # DefaultLogLevels + custom levels
 │   ├── transports.ts         # Transport registry + isolation
 │   ├── asyncContext.ts       # runInContext / getContext (AsyncLocalStorage)
@@ -117,7 +117,7 @@ src/
     ├── wrapConsole.ts        └── cli.ts   # tslog bin (NDJSON pretty-printer)
 ```
 
-**Log lifecycle:** `log()` → mask → build logObj → attach `_meta` → middleware (`use`) → format → transports (`render/` formats; per-transport `format` can override).
+**Log lifecycle:** `log()` → mask → build logObj → attach `_logMeta` → middleware (`use`) → format → transports (`render/` formats; per-transport `format` can override).
 
 **7 default log levels:** silly(0), trace(1), debug(2), info(3), warn(4), error(5), fatal(6). Add more via the `customLevels` setting or `addLevel()`.
 

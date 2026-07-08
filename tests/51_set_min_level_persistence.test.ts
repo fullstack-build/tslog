@@ -10,7 +10,7 @@ import { Logger } from "../src/index.js";
 // exercise the guarded paths without a real browser.
 
 interface LevelLog {
-  _meta: { logLevelId: number };
+  _logMeta: { logLevelId: number };
 }
 
 describe("setMinLevel (M4.6)", () => {

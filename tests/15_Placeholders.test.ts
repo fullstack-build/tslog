@@ -8,7 +8,7 @@ describe("Placeholders", () => {
 
   // Deleted: "It supports adding custom placeholders".
   // That test relied on settings.overwrite.addPlaceholders, which is removed in v5 (M2.6). The pretty
-  // placeholder set is now fixed (built in metaFormatting.buildPrettyMeta from _meta) and there is no
+  // placeholder set is now fixed (built in metaFormatting.buildPrettyMeta from _logMeta) and there is no
   // replacement hook to inject arbitrary {{custom}} placeholders — neither middleware nor per-transport
   // format feeds into the pretty template's placeholder map. So this is a genuinely-removed feature.
 

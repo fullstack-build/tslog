@@ -43,43 +43,43 @@ describe("tslog/cli (M3.11)", () => {
       expect(parseLine("42")).toEqual({ kind: "raw", line: "42" });
     });
 
-    test("reads a string logLevelId from _meta (serialized form) and reconstructs the level", () => {
+    test("reads a string logLevelId from _logMeta (serialized form) and reconstructs the level", () => {
       // Everything in serialized JSON can be a string; readLevelId coerces "5" -> 5 (cli.ts 69-72).
-      const parsed = parseLine('{"message":"m","_meta":{"logLevelId":"5","logLevelName":"ERROR","date":"2026-07-05T00:00:00.000Z"}}');
+      const parsed = parseLine('{"message":"m","_logMeta":{"logLevelId":"5","logLevelName":"ERROR","date":"2026-07-05T00:00:00.000Z"}}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta?.logLevelId).toBe(5);
       expect(parsed.meta?.date).toBeInstanceOf(Date);
     });
 
-    test("falls back to the top-level `levelId` envelope field when _meta lacks logLevelId", () => {
-      // No logLevelId in _meta -> readLevelId reads record.levelId (cli.ts 74-75).
-      const parsed = parseLine('{"message":"m","levelId":4,"_meta":{"logLevelName":"WARN"}}');
+    test("falls back to the top-level `levelId` envelope field when _logMeta lacks logLevelId", () => {
+      // No logLevelId in _logMeta -> readLevelId reads record.levelId (cli.ts 74-75).
+      const parsed = parseLine('{"message":"m","levelId":4,"_logMeta":{"logLevelName":"WARN"}}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta?.logLevelId).toBe(4);
     });
 
-    test("a JSON object without a _meta property parses with meta undefined", () => {
-      // raw _meta is null/absent -> reconstructMeta early-returns undefined (cli.ts 85-87).
+    test("a JSON object without a _logMeta property parses with meta undefined", () => {
+      // raw _logMeta is null/absent -> reconstructMeta early-returns undefined (cli.ts 85-87).
       const parsed = parseLine('{"message":"no meta here","user":"bob"}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta).toBeUndefined();
     });
 
-    test("a non-object _meta value is ignored (meta undefined)", () => {
-      const parsed = parseLine('{"message":"m","_meta":"not an object"}');
+    test("a non-object _logMeta value is ignored (meta undefined)", () => {
+      const parsed = parseLine('{"message":"m","_logMeta":"not an object"}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta).toBeUndefined();
     });
 
-    test("reconstructs meta defaults from a bare _meta: missing level/date/name/runtime", () => {
-      // _meta present but with none of the level/date/name/parentNames/runtime fields, and no top-level
+    test("reconstructs meta defaults from a bare _logMeta: missing level/date/name/runtime", () => {
+      // _logMeta present but with none of the level/date/name/parentNames/runtime fields, and no top-level
       // levelId -> levelId defaults to 0, name stays undefined, date defaults to now, runtime -> "node"
       // (cli.ts 89-95, 104), levelName falls back to record.level string.
-      const parsed = parseLine('{"level":"info","_meta":{"name":"[undefined]","parentNames":"not-an-array","runtime":123}}');
+      const parsed = parseLine('{"level":"info","_logMeta":{"name":"[undefined]","parentNames":"not-an-array","runtime":123}}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta?.logLevelId).toBe(0);
@@ -90,16 +90,16 @@ describe("tslog/cli (M3.11)", () => {
       expect(parsed.meta?.date).toBeInstanceOf(Date);
     });
 
-    test("levelName is empty when neither _meta.logLevelName nor record.level is a string", () => {
-      const parsed = parseLine('{"_meta":{"date":"2026-07-05T00:00:00.000Z"}}');
+    test("levelName is empty when neither _logMeta.logLevelName nor record.level is a string", () => {
+      const parsed = parseLine('{"_logMeta":{"date":"2026-07-05T00:00:00.000Z"}}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta?.logLevelName).toBe("");
     });
 
-    test("keeps a real _meta.name and parentNames array", () => {
+    test("keeps a real _logMeta.name and parentNames array", () => {
       // A genuine (non-"[undefined]") string name survives, and an array parentNames is kept (cli.ts 94-95).
-      const parsed = parseLine('{"message":"m","_meta":{"logLevelId":3,"name":"worker-7","parentNames":["root","api"]}}');
+      const parsed = parseLine('{"message":"m","_logMeta":{"logLevelId":3,"name":"worker-7","parentNames":["root","api"]}}');
       expect(parsed.kind).toBe("json");
       if (parsed.kind !== "json") throw new Error("unreachable");
       expect(parsed.meta?.name).toBe("worker-7");
@@ -190,7 +190,7 @@ describe("tslog/cli (M3.11)", () => {
         prettyFormatLine: logger.runtime.prettyFormatLine.bind(logger.runtime) as never,
         settings: logger.settings as never,
         minLevelId: 4,
-        metaProperty: "_meta",
+        metaProperty: "_logMeta",
       };
       const [warn] = captureJsonLines((log) => log.warn("kept"));
       const [info] = captureJsonLines((log) => log.info("dropped"));
@@ -207,7 +207,7 @@ describe("tslog/cli (M3.11)", () => {
         prettyFormatLine: logger.runtime.prettyFormatLine.bind(logger.runtime) as never,
         settings: logger.settings as never,
         minLevelId: Number.NEGATIVE_INFINITY,
-        metaProperty: "_meta",
+        metaProperty: "_logMeta",
       };
       const rendered = parseAndFormatLine('{"message":"unlevelled"}', noFilterCtx);
       expect(rendered).not.toBeNull();
@@ -224,11 +224,11 @@ describe("tslog/cli (M3.11)", () => {
         prettyFormatLine: logger.runtime.prettyFormatLine.bind(logger.runtime) as never,
         settings: logger.settings as never,
         minLevelId: Number.NEGATIVE_INFINITY,
-        metaProperty: "_meta",
+        metaProperty: "_logMeta",
       };
-      // Only envelope keys (level/levelId/time) + _meta, no message/fields/positional args -> recordToArgs
+      // Only envelope keys (level/levelId/time) + _logMeta, no message/fields/positional args -> recordToArgs
       // produces an empty args list and falls back to pushing the whole record (cli.ts 140-142).
-      const rendered = parseAndFormatLine('{"level":"info","levelId":3,"time":"2026-07-05T00:00:00.000Z","_meta":{"logLevelId":3}}', ctx);
+      const rendered = parseAndFormatLine('{"level":"info","levelId":3,"time":"2026-07-05T00:00:00.000Z","_logMeta":{"logLevelId":3}}', ctx);
       expect(rendered).not.toBeNull();
       // The record itself is rendered, so its envelope keys appear in the pretty output.
       expect(rendered).toContain("levelId");

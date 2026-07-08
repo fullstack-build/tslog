@@ -1,6 +1,6 @@
 /**
  * Async context store (M2.13) — the runtime-agnostic seam behind `logger.runInContext(ctx, fn)` and the
- * automatic attach of the active context onto every log's `_meta`.
+ * automatic attach of the active context onto every log's `_logMeta`.
  *
  * On Node, Deno, and Bun this is backed by `node:async_hooks`' `AsyncLocalStorage`, so a context set with
  * `runInContext` propagates across `await`, `setTimeout`, promise chains, and nested calls. On runtimes

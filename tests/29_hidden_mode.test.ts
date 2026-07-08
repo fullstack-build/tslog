@@ -12,7 +12,7 @@ describe("Hidden mode", () => {
       mockConsoleLog(true, false);
       const logObj = logger[level](`${level} message`);
       expect(logObj).toBeDefined();
-      expect(logObj?._meta?.logLevelName).toBe(level.toUpperCase());
+      expect(logObj?._logMeta?.logLevelName).toBe(level.toUpperCase());
       expect(getConsoleLog()).toBe("");
     }
   });
@@ -100,7 +100,7 @@ describe("Hidden mode", () => {
   test("hidden mode returns correct meta structure", () => {
     const logger = new Logger({ type: "hidden", name: "test-logger" });
     const logObj = logger.info("check meta");
-    const meta = logObj?._meta;
+    const meta = logObj?._logMeta;
 
     expect(meta?.date).toBeInstanceOf(Date);
     expect(meta?.logLevelId).toBe(3);

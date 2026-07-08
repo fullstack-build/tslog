@@ -10,11 +10,11 @@ describe("JSON: Settings", () => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test");
     // v5 flat shape: a bare string lands under the configurable messageKey ("message"), the level
-    // name/id are promoted to the top level, and runtime meta stays nested under _meta (now with v: 5).
+    // name/id are promoted to the top level, and runtime meta stays nested under _logMeta (now with v: 5).
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"testLevel"');
     expect(getConsoleLog()).toContain('"levelId":1234');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelId":1234');
     expect(getConsoleLog()).toContain('"logLevelName":"testLevel"');
   });
@@ -25,7 +25,7 @@ describe("JSON: Settings", () => {
     // First positional string -> messageKey; the remaining positional arg stays bucketed under "1".
     expect(getConsoleLog()).toContain('"message":"Test1"');
     expect(getConsoleLog()).toContain('"1":"Test2"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
   });
 
   test("name", (): void => {
@@ -35,7 +35,7 @@ describe("JSON: Settings", () => {
     });
     const log = logger.log(1, "testLevel", "foo bar");
     expect(log).toBeDefined();
-    expect(log?._meta?.name).toBe("logger");
+    expect(log?._logMeta?.name).toBe("logger");
     expect(getConsoleLog()).toContain(`logger`);
   });
 
@@ -54,17 +54,17 @@ describe("JSON: Settings", () => {
     expect(log2).toBeDefined();
     expect(log3).toBeDefined();
 
-    expect(log1?._meta?.name).toBe("logger1");
-    expect(log2?._meta?.name).toBe("logger2");
-    expect(log3?._meta?.name).toBe("logger3");
+    expect(log1?._logMeta?.name).toBe("logger1");
+    expect(log2?._logMeta?.name).toBe("logger2");
+    expect(log3?._logMeta?.name).toBe("logger3");
 
     expect(getConsoleLog()).toContain(`logger1`);
     expect(getConsoleLog()).toContain(`logger2`);
     expect(getConsoleLog()).toContain(`logger3`);
 
-    expect(log2?._meta?.parentNames).toContain("logger1");
-    expect(log3?._meta?.parentNames).toContain("logger1");
-    expect(log3?._meta?.parentNames).toContain("logger2");
+    expect(log2?._logMeta?.parentNames).toContain("logger1");
+    expect(log3?._logMeta?.parentNames).toContain("logger1");
+    expect(log3?._logMeta?.parentNames).toContain("logger2");
   });
 
   test("minLevel", (): void => {
@@ -87,7 +87,7 @@ describe("JSON: Settings", () => {
     });
     logger.log(1234, "testLevel", "Test1", "Test2");
     expect(getConsoleLog()).toContain(`"argumentsArray":["Test1","Test2"]`);
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
   });
 
   // Removed in v5 M3a: hideLogPositionForProduction (was the deprecated alias for stackCapture) has no

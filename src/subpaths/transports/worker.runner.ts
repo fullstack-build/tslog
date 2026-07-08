@@ -11,8 +11,7 @@ import { parentPort, workerData } from "node:worker_threads";
  *
  * Performance note: this code only performs the destination I/O (the slow part). The log record was
  * already built and serialized into a `line` string on the **main thread** before being posted here —
- * moving that work off-thread is explicitly *not* a goal (it mirrors pino's thread-stream). All this
- * worker does is drain `line`s to a file/stream so the app's event loop is not blocked by sink I/O.
+ * moving that work off-thread is explicitly *not* a goal. All this worker does is drain `line`s to a file/stream so the app's event loop is not blocked by sink I/O.
  *
  * Protocol (messages received on {@link parentPort}):
  *  - `{ type: "write", line }` — append one already-formatted line (+ EOL) to the destination.

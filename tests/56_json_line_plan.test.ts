@@ -113,7 +113,7 @@ describe("JSON line plan is byte-identical to the object path", () => {
       logger.info({ userId: 1 }, "pino style"),
       logger.info("message first", { spread: true }),
       logger.info("msg", { tenant: "evil", fresh: 1 }),
-      logger.info("msg", { message: "smuggled", level: "fake", time: "fake", _meta: { v: 0 }, ok: true }),
+      logger.info("msg", { message: "smuggled", level: "fake", time: "fake", _logMeta: { v: 0 }, ok: true }),
       logger.info({ message: "smuggled", level: "fake", ok: true }, "real message"),
       logger.info("msg", { 0: "zero", 5: "five" }),
       logger.info("msg", { fn: () => 1, missing: undefined, big: 5n }),
@@ -162,7 +162,7 @@ describe("JSON line plan is byte-identical to the object path", () => {
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
   });
 
-  test("async-context fields fall back to the full path and appear in _meta", async () => {
+  test("async-context fields fall back to the full path and appear in _logMeta", async () => {
     const logger = new Logger({ type: "hidden", stack: { capture: "off" } });
     expectPlannedLineMatchesObjectPath(logger.info("warmup"), logger.settings);
     expect(__linePlanActive(logger.settings)).toBe(true);

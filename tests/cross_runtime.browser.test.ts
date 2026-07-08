@@ -23,8 +23,8 @@ test.describe("Cross-runtime browser tests", () => {
     expect(combined).toContain('"level":"INFO"');
     expect(combined).toContain('"levelId":3');
     expect(combined).toContain('"time":"');
-    // Runtime meta stays nested under _meta, now carrying the schema version and runtime tag.
-    expect(combined).toContain('"_meta":{');
+    // Runtime meta stays nested under _logMeta, now carrying the schema version and runtime tag.
+    expect(combined).toContain('"_logMeta":{');
     expect(combined).toContain('"v":5');
     expect(combined).toContain('"runtime":"browser"');
     expect(combined).toContain('"logLevelId":3');
@@ -119,7 +119,7 @@ test.describe("Cross-runtime browser tests", () => {
       console.log = (...args: unknown[]) => output.push(String(args[0]));
       const logObj = logger.info("hidden test");
       console.log = origLog;
-      return { consoleCount: output.length, hasLogObj: logObj != null, logLevelName: logObj?._meta?.logLevelName };
+      return { consoleCount: output.length, hasLogObj: logObj != null, logLevelName: logObj?._logMeta?.logLevelName };
     });
 
     expect(result.consoleCount).toBe(0);

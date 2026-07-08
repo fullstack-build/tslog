@@ -52,7 +52,7 @@ describe("Robustness fixes", () => {
 
       // The log object is still returned despite a transport throwing.
       expect(returnValue).toBeDefined();
-      expect((returnValue as Record<string, unknown>)?._meta).toBeDefined();
+      expect((returnValue as Record<string, unknown>)?._logMeta).toBeDefined();
 
       consoleErrorSpy.mockRestore();
     });
@@ -77,7 +77,7 @@ describe("Robustness fixes", () => {
       expect(consoleErrorSpy).toHaveBeenCalled();
       // The log object is still returned (defined) even when a transport throws.
       expect(returnValue).toBeDefined();
-      expect((returnValue as Record<string, unknown>)?._meta).toBeDefined();
+      expect((returnValue as Record<string, unknown>)?._logMeta).toBeDefined();
 
       consoleLogSpy.mockRestore();
       consoleErrorSpy.mockRestore();

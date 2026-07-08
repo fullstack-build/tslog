@@ -75,6 +75,6 @@ describe("ringBufferTransport", () => {
     expect(dumped[0]["0"]).toBe("second");
     expect(dumped[1]["0"]).toBe("third");
     // Records carry runtime meta.
-    expect(dumped[1]._meta.logLevelName).toBe("INFO");
+    expect(dumped[1]._logMeta.logLevelName).toBe("INFO");
   });
 });

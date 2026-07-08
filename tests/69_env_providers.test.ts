@@ -253,7 +253,7 @@ describe.runIf(isNode)("Node EnvironmentProvider", () => {
     test("transportJSON prints a single JSON line to the console", () => {
       const env = createNodeEnvironment();
       const calls = captureConsoleLog(() => {
-        env.transportJSON({ message: "json-direct", _meta: {} } as never);
+        env.transportJSON({ message: "json-direct", _logMeta: {} } as never);
       });
       expect(calls).toHaveLength(1);
       const parsed = JSON.parse(String(calls[0][0])) as Record<string, unknown>;

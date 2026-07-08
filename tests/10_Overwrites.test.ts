@@ -57,8 +57,8 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
   });
 
   // Replaces overwrite.addMeta: the old hook let user code attach extra meta. Middleware writes
-  // free-form fields to ctx.meta, which the core merges onto the record's _meta block.
-  test("middleware enriches _meta (was overwrite.addMeta)", (): void => {
+  // free-form fields to ctx.meta, which the core merges onto the record's _logMeta block.
+  test("middleware enriches _logMeta (was overwrite.addMeta)", (): void => {
     let record: (Record<string, unknown> & ILogObjMeta) | undefined;
     const logger = new Logger<Record<string, unknown>>({
       type: "hidden",
@@ -73,7 +73,7 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
 
     logger.info("string", 0, { test: 123 });
 
-    const meta = record?._meta as IMeta & { traceId?: string };
+    const meta = record?._logMeta as IMeta & { traceId?: string };
     expect(meta?.traceId).toBe("trace-123");
     expect(meta?.logLevelId).toBe(3);
     expect(meta?.logLevelName).toBe("INFO");
@@ -125,20 +125,20 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
 
     expect(captured.line).toBe("_META_INFO_LOG_string_");
     expect(captured.record?.["0"]).toBe("string");
-    expect((captured.record?._meta as IMeta)?.logLevelName).toBe("INFO");
+    expect((captured.record?._logMeta as IMeta)?.logLevelName).toBe("INFO");
     // The formatter receives the live, resolved settings.
     expect(captured.settingsType).toBe("hidden");
   });
 
   // Replaces the meta argument of overwrite.transportFormatted: the record handed to write()
   // carries the full runtime meta block, including the level name.
-  test("custom transport receives the record's _meta (was transportFormatted meta param)", (): void => {
+  test("custom transport receives the record's _logMeta (was transportFormatted meta param)", (): void => {
     let receivedMeta: IMeta | undefined;
     const logger = new Logger<Record<string, unknown>>({
       type: "pretty",
     });
     logger.attachTransport((record) => {
-      receivedMeta = record._meta;
+      receivedMeta = record._logMeta;
     });
 
     logger.warn("meta test");
@@ -183,7 +183,7 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
     logger.info("compat test");
 
     expect(record?.["0"]).toBe("compat test");
-    expect((record?._meta as IMeta)?.logLevelName).toBe("INFO");
+    expect((record?._logMeta as IMeta)?.logLevelName).toBe("INFO");
   });
 
   // Replaces overwrite.transportJSON: a per-transport `format: "json"` yields the flat,
@@ -204,15 +204,15 @@ describe("Middleware & custom transports (replaces v4 overwrite.*)", () => {
 
     const parsed = JSON.parse(line ?? "{}");
     // Flat shape: bare string under `message`, level name + numeric id at the top level,
-    // remaining positional args bucketed under numeric keys, runtime meta nested under `_meta`.
+    // remaining positional args bucketed under numeric keys, runtime meta nested under `_logMeta`.
     expect(parsed.message).toBe("string");
     expect(parsed.level).toBe("INFO");
     expect(parsed.levelId).toBe(3);
     expect(parsed["1"]).toBe(0);
     expect(parsed["2"]).toEqual({ test: 123 });
-    expect(parsed._meta?.v).toBe(5);
-    expect(parsed._meta?.logLevelId).toBe(3);
-    expect(parsed._meta?.logLevelName).toBe("INFO");
+    expect(parsed._logMeta?.v).toBe(5);
+    expect(parsed._logMeta?.logLevelId).toBe(3);
+    expect(parsed._logMeta?.logLevelName).toBe("INFO");
   });
 
   // New mechanism: attachTransport returns a detach function and accepts a full Transport object

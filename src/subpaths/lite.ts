@@ -5,7 +5,7 @@ import type { TLogLevel, TLogLevelName } from "../interfaces.js";
  * `tslog/lite` — the smallest possible leveled logger (M3.12).
  *
  * A {@link LiteLogger} is seven thin wrappers (`silly` … `fatal`) over the native `console.*`
- * methods with NO masking, NO stack-trace capture, NO object cloning and NO `_meta` enrichment.
+ * methods with NO masking, NO stack-trace capture, NO object cloning and NO `_logMeta` enrichment.
  * It is meant for hot paths and tiny edge/browser bundles where the full {@link Logger} pipeline is
  * more than you need.
  *

@@ -85,10 +85,10 @@ describe("JSON: Log Types", () => {
   test("Object", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
-    // v5: a single object arg has its keys spread at the top level (next to level/time); _meta now carries v:5.
+    // v5: a single object arg has its keys spread at the top level (next to level/time); _logMeta now carries v:5.
     expect(getConsoleLog()).toContain(`"test":true`);
     expect(getConsoleLog()).toContain(`"nested":{"1":false}`);
-    expect(getConsoleLog()).toContain(`"_meta":{"v":5,`);
+    expect(getConsoleLog()).toContain(`"_logMeta":{"v":5,`);
   });
 
   test("Date", (): void => {

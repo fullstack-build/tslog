@@ -17,7 +17,7 @@ test("Server and Page initiated", async ({ page }) => {
 
 test("silly", async ({ page }) => {
   await page.evaluate(() => {
-    // v5/M3a: with type "json" the env-aware default resolves stack.capture to "off", so _meta.path is
+    // v5/M3a: with type "json" the env-aware default resolves stack.capture to "off", so _logMeta.path is
     // no longer populated by default. This test asserts the captured path object, so opt into full stack
     // capture explicitly to preserve that intent.
     // @ts-ignore
@@ -32,8 +32,8 @@ test("silly", async ({ page }) => {
   expect(combined).toContain('"level":"SILLY"');
   expect(combined).toContain('"levelId":0');
   expect(combined).toContain(`"time":"${new Date().toISOString().split("T")[0]}`); // ignore time
-  // runtime meta still nested under _meta, which now also carries the schema version v: 5.
-  expect(combined).toContain('"_meta":{');
+  // runtime meta still nested under _logMeta, which now also carries the schema version v: 5.
+  expect(combined).toContain('"_logMeta":{');
   expect(combined).toContain('"v":5');
   expect(combined).toContain('"runtime":"browser"');
   expect(combined).toContain(`"date":"${new Date().toISOString().split(".")[0]}`); // ignore ms

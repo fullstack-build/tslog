@@ -4,9 +4,9 @@ import { createTestLogger, mockLogger } from "../src/subpaths/testing.js";
 
 // M4.5 — `tslog/testing`: createTestLogger (capture transport) + mockLogger (recording level methods).
 
-/** Read the _meta block off a captured record (default meta property is "_meta"). */
+/** Read the _logMeta block off a captured record (default meta property is "_logMeta"). */
 function metaOf(record: ILogObjMeta): IMeta {
-  return record._meta as IMeta;
+  return record._logMeta as IMeta;
 }
 
 describe("createTestLogger", () => {
@@ -19,7 +19,7 @@ describe("createTestLogger", () => {
     expect(logs).toHaveLength(2);
     expect(metaOf(logs[0]).logLevelName).toBe("INFO");
     expect(metaOf(logs[1]).logLevelName).toBe("WARN");
-    // The structured record carries the logged fields (string message + object) alongside _meta.
+    // The structured record carries the logged fields (string message + object) alongside _logMeta.
     expect(logs[0]["0"]).toBe("hello");
     expect(logs[0]["1"]).toEqual({ user: 42 });
   });
@@ -115,7 +115,7 @@ describe("mockLogger", () => {
     const log = mockLogger();
     const seen: unknown[] = [];
     log.attachTransport((record) => {
-      seen.push((record._meta as IMeta).logLevelName);
+      seen.push((record._logMeta as IMeta).logLevelName);
     });
 
     log.info("through");
@@ -128,7 +128,7 @@ describe("mockLogger", () => {
   test("honors minLevel: below-level recorder calls are recorded but the pipeline filters them", () => {
     const log = mockLogger({ minLevel: "WARN" });
     const emitted: unknown[] = [];
-    log.attachTransport((record) => emitted.push((record._meta as IMeta).logLevelName));
+    log.attachTransport((record) => emitted.push((record._logMeta as IMeta).logLevelName));
 
     log.info("low");
     log.error("high");

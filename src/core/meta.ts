@@ -3,11 +3,11 @@ import type { IMeta, IStackFrame } from "../interfaces.js";
 
 /**
  * `core/meta.ts` — the single source of truth for assembling the per-log {@link IMeta} block and for
- * the lazy `_meta.path` getter (M1.2).
+ * the lazy `_logMeta.path` getter (M1.2).
  *
  * The v4 monolith built meta inside `createLoggerEnvironment().getMeta` and eagerly parsed the caller
  * stack frame on every log (`getCallerStackFrame(..., new Error(), ...)`). That cost the frame parse
- * even when nothing ever read `_meta.path`. v5 centralizes meta assembly here and makes `path` a lazy,
+ * even when nothing ever read `_logMeta.path`. v5 centralizes meta assembly here and makes `path` a lazy,
  * self-caching getter so the (relatively expensive) frame parsing only happens on first read.
  *
  * Every per-runtime provider (`environment.node.ts`, `environment.browser.ts`, `environment.universal.ts`)
@@ -108,7 +108,7 @@ export function buildMeta(
   }
 
   // Capture is on. Grab the Error cheaply now (the stack string is captured here), but defer the
-  // (relatively expensive) frame parsing to the first read of `_meta.path`.
+  // (relatively expensive) frame parsing to the first read of `_logMeta.path`.
   defineLazyPath(meta, new Error(), callerFrame, internalFramePatterns, deps);
   return meta;
 }

@@ -8,7 +8,7 @@ import { createTestLogger, normalizeMeta } from "../src/subpaths/testing.js";
 // ("iso" | "epoch" | false | fn), the toIsoString edge-year guard, and the deterministic
 // createTestLogger options built on top.
 
-type AnyRecord = Record<string, unknown> & { _meta: IMeta & Record<string, unknown> };
+type AnyRecord = Record<string, unknown> & { _logMeta: IMeta & Record<string, unknown> };
 
 const FIXED = new Date("2026-01-02T03:04:05.678Z");
 
@@ -27,18 +27,18 @@ function captureLine(settings: ISettingsParam<AnyRecord>, run: (logger: Logger<A
 }
 
 describe("the clock setting", () => {
-  test("pins _meta.date and the top-level time on JSON output", () => {
+  test("pins _logMeta.date and the top-level time on JSON output", () => {
     const line = captureLine({ clock: () => FIXED, stack: { capture: "off" } }, (logger) => logger.info("stamped"));
     const parsed = JSON.parse(line) as AnyRecord;
     expect(parsed.time).toBe("2026-01-02T03:04:05.678Z");
-    expect(parsed._meta.date).toBe("2026-01-02T03:04:05.678Z");
+    expect(parsed._logMeta.date).toBe("2026-01-02T03:04:05.678Z");
   });
 
   test("the record carries the clock's Date object", () => {
     const logger = new Logger<AnyRecord>({ type: "hidden", clock: () => FIXED });
     const record = logger.info("stamped");
-    expect(record?._meta.date).toBeInstanceOf(Date);
-    expect(record?._meta.date.getTime()).toBe(FIXED.getTime());
+    expect(record?._logMeta.date).toBeInstanceOf(Date);
+    expect(record?._logMeta.date.getTime()).toBe(FIXED.getTime());
   });
 
   test("a throwing clock and an invalid-Date clock are ignored (runtime date kept, no throw)", () => {
@@ -52,15 +52,15 @@ describe("the clock setting", () => {
       const logger = new Logger<AnyRecord>({ type: "hidden", clock: clock as () => Date });
       const before = Date.now();
       const record = logger.info("still logs");
-      expect(record?._meta.date).toBeInstanceOf(Date);
-      expect(Math.abs(record!._meta.date.getTime() - before)).toBeLessThan(5_000);
+      expect(record?._logMeta.date).toBeInstanceOf(Date);
+      expect(Math.abs(record!._logMeta.date.getTime() - before)).toBeLessThan(5_000);
     }
   });
 
   test("sub-loggers inherit the parent's clock", () => {
     const root = new Logger<AnyRecord>({ type: "hidden", clock: () => FIXED });
     const child = root.child({ name: "child" });
-    expect(child.info("inherited")?._meta.date.getTime()).toBe(FIXED.getTime());
+    expect(child.info("inherited")?._logMeta.date.getTime()).toBe(FIXED.getTime());
   });
 
   test("pretty output renders the pinned clock", () => {
@@ -75,8 +75,8 @@ describe("json.time representations", () => {
     const line = captureLine({ clock: () => FIXED, json: { time: "epoch" }, stack: { capture: "off" } }, (logger) => logger.info("ms"));
     const parsed = JSON.parse(line) as AnyRecord;
     expect(parsed.time).toBe(FIXED.getTime());
-    // _meta.date stays the ISO string regardless of the top-level representation
-    expect(parsed._meta.date).toBe("2026-01-02T03:04:05.678Z");
+    // _logMeta.date stays the ISO string regardless of the top-level representation
+    expect(parsed._logMeta.date).toBe("2026-01-02T03:04:05.678Z");
   });
 
   test("false omits the time key, and a user field of that name passes through", () => {
@@ -85,7 +85,7 @@ describe("json.time representations", () => {
     );
     const parsed = JSON.parse(line) as AnyRecord;
     expect(parsed.time).toBe("user-owned");
-    expect(parsed._meta.date).toBe("2026-01-02T03:04:05.678Z");
+    expect(parsed._logMeta.date).toBe("2026-01-02T03:04:05.678Z");
   });
 
   test("a custom function renders the timestamp (e.g. nanoseconds for Loki)", () => {
@@ -177,7 +177,7 @@ describe("createTestLogger determinism", () => {
   test("the now option freezes this logger's timestamps without fake timers", () => {
     const { logger, logs, lines } = createTestLogger<AnyRecord>({ type: "json" }, { now: () => 1_000 });
     logger.info("frozen");
-    expect(logs[0]._meta.date.getTime()).toBe(1_000);
+    expect(logs[0]._logMeta.date.getTime()).toBe(1_000);
     expect((JSON.parse(lines[0]) as AnyRecord).time).toBe("1970-01-01T00:00:01.000Z");
     // no global mutation: the ambient clock still moves
     expect(Date.now()).toBeGreaterThan(1_000_000);
@@ -186,7 +186,7 @@ describe("createTestLogger determinism", () => {
   test("an explicit settings.clock wins over the now option", () => {
     const { logger, logs } = createTestLogger<AnyRecord>({ type: "json", clock: () => FIXED }, { now: () => 1_000 });
     logger.info("explicit");
-    expect(logs[0]._meta.date.getTime()).toBe(FIXED.getTime());
+    expect(logs[0]._logMeta.date.getTime()).toBe(FIXED.getTime());
   });
 
   test("normalize: true yields snapshot-stable lines across separate loggers", () => {
@@ -200,14 +200,14 @@ describe("createTestLogger determinism", () => {
     expect(first).toBe(second);
     const parsed = JSON.parse(first) as AnyRecord;
     expect(parsed.time).toBe("1970-01-01T00:00:00.000Z");
-    expect(parsed._meta.date).toBe("1970-01-01T00:00:00.000Z");
-    if ("hostname" in parsed._meta) {
-      expect(parsed._meta.hostname).toBe("<hostname>");
+    expect(parsed._logMeta.date).toBe("1970-01-01T00:00:00.000Z");
+    if ("hostname" in parsed._logMeta) {
+      expect(parsed._logMeta.hostname).toBe("<hostname>");
     }
-    if ("runtimeVersion" in parsed._meta) {
-      expect(parsed._meta.runtimeVersion).toBe("<runtimeVersion>");
+    if ("runtimeVersion" in parsed._logMeta) {
+      expect(parsed._logMeta.runtimeVersion).toBe("<runtimeVersion>");
     }
-    expect("path" in parsed._meta).toBe(false);
+    expect("path" in parsed._logMeta).toBe(false);
   });
 
   test("normalize stores COPIES: other transports still receive the raw record", () => {
@@ -217,12 +217,12 @@ describe("createTestLogger determinism", () => {
       rawRecord = record as AnyRecord;
     });
     logger.info("copies");
-    expect(logs[0]._meta.hostname == null || logs[0]._meta.hostname === "<hostname>").toBe(true);
-    if (rawRecord?._meta.hostname != null) {
-      expect(rawRecord._meta.hostname).not.toBe("<hostname>");
+    expect(logs[0]._logMeta.hostname == null || logs[0]._logMeta.hostname === "<hostname>").toBe(true);
+    if (rawRecord?._logMeta.hostname != null) {
+      expect(rawRecord._logMeta.hostname).not.toBe("<hostname>");
     }
     // frozen clock applies at the SOURCE, so the raw record is epoch-stamped too
-    expect((rawRecord?._meta.date as Date).getTime()).toBe(0);
+    expect((rawRecord?._logMeta.date as Date).getTime()).toBe(0);
   });
 });
 
@@ -245,10 +245,10 @@ describe("normalizeMeta standalone", () => {
     expect(parsed.keep).toBe(true);
     expect(Object.keys(parsed)[0]).toBe(Object.keys(JSON.parse(captured.line as string) as AnyRecord)[0]);
 
-    const originalDate = captured.record?._meta.date;
+    const originalDate = captured.record?._logMeta.date;
     const normalizedRecord = normalizeMeta(captured.record as AnyRecord);
-    expect((normalizedRecord._meta.date as Date).getTime()).toBe(0);
-    expect(captured.record?._meta.date).toBe(originalDate); // input untouched
+    expect((normalizedRecord._logMeta.date as Date).getTime()).toBe(0);
+    expect(captured.record?._logMeta.date).toBe(originalDate); // input untouched
   });
 
   test("scrubs pretty-line timestamps best-effort", () => {
@@ -289,8 +289,8 @@ describe("review fixes: hostile dates and head-key collisions", () => {
     const collisions: ISettingsParam<AnyRecord>["json"][] = [
       { levelKey: "ts", timeKey: "ts" },
       { levelKey: "lvl", levelIdKey: "lvl" },
-      { levelKey: "_meta" },
-      { timeKey: "_meta" },
+      { levelKey: "_logMeta" },
+      { timeKey: "_logMeta" },
     ];
     for (const json of collisions) {
       const logger = new Logger<AnyRecord>({ type: "hidden", clock: () => FIXED, stack: { capture: "off" }, json });

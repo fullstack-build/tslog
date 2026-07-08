@@ -234,7 +234,7 @@ export function toLogObj<LogObj>(
   }
   if (spreadShape !== undefined) {
     // A plain symbol-keyed assignment: invisible to Object.keys/JSON/for..in, yet carried forward by
-    // the `{ ...logObj }` spread that attaches `_meta` (spreads copy enumerable symbol keys) — no
+    // the `{ ...logObj }` spread that attaches `_logMeta` (spreads copy enumerable symbol keys) — no
     // per-call defineProperty cost, no explicit re-attach step.
     (clonedLogObj as Record<symbol, unknown>)[SPREAD_SHAPE_HINT] = spreadShape;
   }

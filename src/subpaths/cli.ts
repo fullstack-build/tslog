@@ -44,7 +44,7 @@ export interface CliOptions {
    * Names are matched case-insensitively against the default + custom levels. Default: print all.
    */
   readonly minLevel?: TLogLevel | string;
-  /** Property name runtime metadata lives under in the input. Default: `"_meta"` (tslog's default). */
+  /** Property name runtime metadata lives under in the input. Default: `"_logMeta"` (tslog's default). */
   readonly metaProperty?: string;
   /** Force-enable/disable ANSI color in the rendered output. Default: FORCE_COLOR/NO_COLOR, else color only on an interactive TTY. */
   readonly color?: boolean;
@@ -147,7 +147,7 @@ function recordToArgs(record: Record<string, unknown>, metaProperty: string): un
  * Classify a single input line: parse it as a tslog JSON record (object only — JSON arrays/scalars are
  * treated as raw passthrough), otherwise mark it raw. Never throws.
  */
-export function parseLine(line: string, metaProperty = "_meta"): ParsedLine {
+export function parseLine(line: string, metaProperty = "_logMeta"): ParsedLine {
   const trimmed = line.trim();
   if (trimmed === "" || (trimmed[0] !== "{" && trimmed[0] !== "[")) {
     return { kind: "raw", line };
@@ -203,7 +203,7 @@ export function parseAndFormatLine(
  * pretty-print many lines (or unit-test the transform) without spawning a process.
  */
 export function createCliFormatter(options: CliOptions = {}): CliFormatter {
-  const metaProperty = options.metaProperty ?? "_meta";
+  const metaProperty = options.metaProperty ?? "_logMeta";
   // Style precedence: an explicit --color/--no-color flag wins outright (resolveStyle honors an explicit
   // `pretty.style` over the env), then FORCE_COLOR / NO_COLOR, then the destination: ANSI only when
   // stdout is an interactive TTY, so a bare pipe to a file or another process stays plain.

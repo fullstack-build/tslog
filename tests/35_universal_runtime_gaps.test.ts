@@ -130,7 +130,7 @@ describe("Universal runtime robustness", () => {
           runtime = meta.runtime;
 
           expect(() => {
-            env.transportJSON({ msg: "hi", _meta: {} } as never);
+            env.transportJSON({ msg: "hi", _logMeta: {} } as never);
           }).not.toThrow();
 
           output = String(calls[0]?.[0]);
@@ -374,13 +374,13 @@ describe("Universal runtime robustness", () => {
       for (let index = 0; index < 50; index += 1) {
         const captured = subCaptured[index];
         expect(captured).toHaveLength(1);
-        const logObj = captured[0] as Record<string, unknown> & { _meta: { name?: string; parentNames?: string[] } };
+        const logObj = captured[0] as Record<string, unknown> & { _logMeta: { name?: string; parentNames?: string[] } };
         // Prefix order must be parent-prefix first, then this sub's prefix, then the message.
         expect(logObj["0"]).toBe("ROOT");
         expect(logObj["1"]).toBe(`P${index}`);
         expect(logObj["2"]).toBe(`m${index}`);
-        expect(logObj._meta.name).toBe(`sub${index}`);
-        expect(logObj._meta.parentNames).toEqual(["root"]);
+        expect(logObj._logMeta.name).toBe(`sub${index}`);
+        expect(logObj._logMeta.parentNames).toEqual(["root"]);
       }
 
       // The parent received none of the sub-logger output.
@@ -389,11 +389,11 @@ describe("Universal runtime robustness", () => {
       // The parent still logs correctly with only its own prefix/name.
       parent.info("done");
       expect(parentCaptured).toHaveLength(1);
-      const parentLog = parentCaptured[0] as Record<string, unknown> & { _meta: { name?: string } };
+      const parentLog = parentCaptured[0] as Record<string, unknown> & { _logMeta: { name?: string } };
       expect(parentLog["0"]).toBe("ROOT");
       expect(parentLog["1"]).toBe("done");
       expect(parentLog["2"]).toBeUndefined();
-      expect(parentLog._meta.name).toBe("root");
+      expect(parentLog._logMeta.name).toBe("root");
     });
   });
 });

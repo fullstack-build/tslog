@@ -3,7 +3,7 @@ import { Logger } from "../src/index.js";
 import { getConsoleLog, mockConsoleLog } from "./helper.js";
 
 // v5/M3a: with type "json" the env-aware default resolves stack.capture to "off",
-// so _meta.path is no longer populated by default. The "silly" test asserts the
+// so _logMeta.path is no longer populated by default. The "silly" test asserts the
 // captured file path/line, so opt into stack capture explicitly to preserve that intent.
 const logger = new Logger({ type: "json", stack: { capture: "full" } });
 
@@ -15,8 +15,8 @@ describe("JSON: Log level", () => {
   test("log object", (): void => {
     const logObj: any = logger.log(123, "test", "Test");
     expect(logObj?.["0"]).toContain("Test");
-    expect(logObj?._meta?.logLevelId === 123).toBeTruthy();
-    expect(logObj?._meta?.logLevelName).toContain("test");
+    expect(logObj?._logMeta?.logLevelId === 123).toBeTruthy();
+    expect(logObj?._logMeta?.logLevelName).toContain("test");
   });
 
   test("silly (console)", (): void => {
@@ -28,15 +28,15 @@ describe("JSON: Log level", () => {
     expect(getConsoleLog()).toContain('"levelId":0');
     // ISO timestamp is now a top-level "time" field.
     expect(getConsoleLog()).toContain(`"time":"${new Date().toISOString().split("T")[0]}`); // ignore time
-    // runtime meta still nested under _meta, which now also carries the schema version v: 5.
-    expect(getConsoleLog()).toContain('"_meta":{');
+    // runtime meta still nested under _logMeta, which now also carries the schema version v: 5.
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"v":5');
     expect(getConsoleLog()).toContain('"runtime":"');
     expect(getConsoleLog()).toContain('"hostname":"');
     expect(getConsoleLog()).toContain('"logLevelId":0');
     expect(getConsoleLog()).toContain('"logLevelName":"SILLY"');
     const relativePath = relative(process.cwd(), import.meta.filename).replace(/\\/g, "/");
-    const filePathWithLine = result?._meta?.path?.filePathWithLine?.replace(/^[\\/]+/, "");
+    const filePathWithLine = result?._logMeta?.path?.filePathWithLine?.replace(/^[\\/]+/, "");
     expect(filePathWithLine?.startsWith(relativePath)).toBe(true);
     const line = Number(filePathWithLine?.split(":").pop());
     expect(Number.isNaN(line)).toBe(false);
@@ -46,7 +46,7 @@ describe("JSON: Log level", () => {
     logger.trace("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"TRACE"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"TRACE"');
   });
 
@@ -54,7 +54,7 @@ describe("JSON: Log level", () => {
     logger.debug("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"DEBUG"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"DEBUG"');
   });
 
@@ -62,7 +62,7 @@ describe("JSON: Log level", () => {
     logger.info("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"INFO"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"INFO"');
   });
 
@@ -70,7 +70,7 @@ describe("JSON: Log level", () => {
     logger.warn("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"WARN"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"WARN"');
   });
 
@@ -78,7 +78,7 @@ describe("JSON: Log level", () => {
     logger.error("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"ERROR"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"ERROR"');
   });
 
@@ -86,7 +86,7 @@ describe("JSON: Log level", () => {
     logger.fatal("Test");
     expect(getConsoleLog()).toContain('"message":"Test"');
     expect(getConsoleLog()).toContain('"level":"FATAL"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelName":"FATAL"');
   });
 });

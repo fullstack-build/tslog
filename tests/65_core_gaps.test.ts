@@ -27,7 +27,7 @@ function fakeProvider(overrides: Partial<EnvironmentProvider> = {}): Environment
   return { ...base, ...overrides } as unknown as EnvironmentProvider;
 }
 
-/** Build a real, fully-defaulted settings object and stamp a record with a `_meta` block. */
+/** Build a real, fully-defaulted settings object and stamp a record with a `_logMeta` block. */
 function settingsFor(overrides: Parameters<typeof normalizeSettings>[0] = { type: "json" }): ISettings<Record<string, unknown>> {
   return normalizeSettings(overrides) as ISettings<Record<string, unknown>>;
 }
@@ -40,7 +40,7 @@ function recordWithMeta(fields: Record<string, unknown>, meta: Partial<IMeta> = 
     logLevelName: "INFO",
     ...meta,
   };
-  return { ...fields, _meta: fullMeta } as unknown as Record<string, unknown> & ILogObjMeta;
+  return { ...fields, _logMeta: fullMeta } as unknown as Record<string, unknown> & ILogObjMeta;
 }
 
 /* ------------------------------------------------------------------------------------------------ */
@@ -51,19 +51,19 @@ describe("pipeline: getMaskedArgs", () => {
   test("returns the attached array verbatim when args were attached", () => {
     const record = recordWithMeta({ "0": "hi" });
     attachMaskedArgs(record, ["hi", { n: 1 }]);
-    expect(getMaskedArgs(record, "_meta")).toEqual(["hi", { n: 1 }]);
+    expect(getMaskedArgs(record, "_logMeta")).toEqual(["hi", { n: 1 }]);
   });
 
   test("reconstructs args from the record's own non-meta fields when nothing was attached", () => {
     // A transport that formats a record it built itself (no attached args) — the pretty/errors stages
     // must still recover a usable args array from the enumerable, non-meta fields.
     const record = recordWithMeta({ "0": "alpha", "1": "beta", extra: 42 });
-    expect(getMaskedArgs(record, "_meta")).toEqual(["alpha", "beta", 42]);
+    expect(getMaskedArgs(record, "_logMeta")).toEqual(["alpha", "beta", 42]);
   });
 
   test("the meta property is excluded from the reconstructed args", () => {
     const record = recordWithMeta({ msg: "only" });
-    const args = getMaskedArgs(record, "_meta");
+    const args = getMaskedArgs(record, "_logMeta");
     expect(args).toEqual(["only"]);
     expect(args).not.toContainEqual(expect.objectContaining({ runtime: "node" }));
   });
@@ -81,7 +81,7 @@ describe("pipeline: timestamp stage", () => {
     const settings = settingsFor();
     const stage = timestamp<Record<string, unknown>>(() => "BODY");
     // meta.date is not a Date -> iso is "" -> body only.
-    const record = { _meta: { date: "not-a-date" } } as unknown as Record<string, unknown> & ILogObjMeta;
+    const record = { _logMeta: { date: "not-a-date" } } as unknown as Record<string, unknown> & ILogObjMeta;
     expect(stage(record, settings)).toBe("BODY");
   });
 

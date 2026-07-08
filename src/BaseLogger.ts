@@ -330,10 +330,10 @@ export class BaseLogger<LogObj> {
     const thisLogObj: LogObj | undefined = this.logObj != null ? recursiveCloneAndExecuteFunctions(this.logObj) : undefined;
     const logObj: LogObj = toLogObj(maskedArgs, this.settings.argumentsArrayName, this.logObjDeps, thisLogObj, this.settings.bindings);
 
-    // Attach the runtime _meta block (incl. v: 5 via the JSON renderer) to produce the finished record.
+    // Attach the runtime _logMeta block (incl. v: 5 via the JSON renderer) to produce the finished record.
     const record: LogObj & ILogObjMeta = this._addMetaToLogObj(logObj, effectiveLevelId, effectiveLevelName);
 
-    // Any middleware-stashed meta fields are merged onto the record's _meta block so a later format stage
+    // Any middleware-stashed meta fields are merged onto the record's _logMeta block so a later format stage
     // (or a transport) can read trace/correlation data the middleware attached.
     const recordMeta = record[this.settings.meta.property] as IMeta | undefined;
     if (recordMeta != null) {
@@ -451,7 +451,7 @@ export class BaseLogger<LogObj> {
 
   /**
    * Run `fn` with `ctx` as the active async context (M2.13). For the (possibly async) duration of `fn`, the
-   * fields in `ctx` are attached onto every log's `_meta` (unless `meta.attachContext` is `false`) and are
+   * fields in `ctx` are attached onto every log's `_logMeta` (unless `meta.attachContext` is `false`) and are
    * readable via {@link getContext} — across `await`, timers, promise chains, and nested `runInContext`
    * calls (nested contexts inherit and shallow-merge over the parent). Returns whatever `fn` returns.
    *
@@ -460,7 +460,7 @@ export class BaseLogger<LogObj> {
    *
    * @example
    * await logger.runInContext({ requestId: req.id }, async () => {
-   *   logger.info("handling");           // _meta.requestId === req.id
+   *   logger.info("handling");           // _logMeta.requestId === req.id
    *   await doWork();                    // still in context after the await
    * });
    */

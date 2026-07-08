@@ -275,7 +275,7 @@ function splitBodyAndAttributes<LogObj>(record: LogObj & ILogObjMeta, settings: 
 /**
  * Build an {@link OtelLogRecord} — the data-model PROSE shape (`Timestamp`/`Body`/...), for custom
  * pipelines — from a finished tslog `record` (the output of the core pipeline: user fields + the
- * `_meta` block) and the resolved `settings`. Pure; never mutates `record`. NOT collector-ingestible:
+ * `_logMeta` block) and the resolved `settings`. Pure; never mutates `record`. NOT collector-ingestible:
  * for OTLP/JSON use {@link toOtlpLogRecord} / {@link toOtlpJson}.
  *
  * @example
@@ -645,7 +645,7 @@ function compactError(error: IErrorObject, depth = 0): Record<string, unknown> {
  *    additional errors in the same record stay under the error key as a generic value;
  *  - a named logger is carried as the `logger.name` attribute;
  *  - trace correlation comes from {@link OtelFormatOptions.getSpanContext}, falling back to
- *    `trace_id`/`span_id` fields stashed on `_meta` (e.g. by {@link otelTraceContext});
+ *    `trace_id`/`span_id` fields stashed on `_logMeta` (e.g. by {@link otelTraceContext});
  *  - `options.resource` is NOT merged here — it belongs to the envelope ({@link toOtlpJson}).
  */
 export function toOtlpLogRecord<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>, options: OtlpFormatOptions = {}): OtlpLogRecord {
@@ -736,7 +736,7 @@ export function toOtlpLogRecord<LogObj>(record: LogObj & ILogObjMeta, settings: 
     out.attributes = attributeList;
   }
 
-  // Trace correlation: the injected getter wins; _meta trace_id/span_id (middleware-stashed, e.g. by
+  // Trace correlation: the injected getter wins; _logMeta trace_id/span_id (middleware-stashed, e.g. by
   // otelTraceContext) are the fallback.
   let span: OtelSpanContext | undefined;
   if (typeof options.getSpanContext === "function") {

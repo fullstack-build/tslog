@@ -40,7 +40,7 @@ export type TLogFormat<LogObj> = "pretty" | "json" | LogFormatter<LogObj>;
 /**
  * Turns a finished, meta-decorated log record into the single line that a transport writes.
  *
- * A formatter receives the fully-built `record` (the user's `LogObj` plus the runtime `_meta` block)
+ * A formatter receives the fully-built `record` (the user's `LogObj` plus the runtime `_logMeta` block)
  * and the live {@link ISettings}, and returns the string to emit. The two built-in formats
  * (`"pretty"`, `"json"`) are themselves formatters; supplying a function lets a single logger feed
  * different transports different representations (e.g. JSON to a file, pretty to the console).
@@ -144,7 +144,7 @@ export interface Transport<LogObj> {
    */
   format?: TLogFormat<LogObj>;
   /**
-   * Consume one log. `record` is the finished log object (user fields + `_meta`); `line` is the
+   * Consume one log. `record` is the finished log object (user fields + `_logMeta`); `line` is the
    * already-formatted string for this transport's {@link format}. May be async; a rejected/thrown
    * result is isolated so it never breaks logging or sibling transports.
    */
@@ -185,7 +185,7 @@ export type TransportFn<LogObj> = (record: LogObj & ILogObjMeta) => void | Promi
  * Controls the shape of the structured (`type: "json"`) output: which top-level keys carry the
  * message, level, time, and error, and whether a numeric level id and stable key ordering are emitted.
  * The user's logged fields are spread alongside these keys; runtime metadata stays nested under
- * {@link IMetaSettings.property} (default `"_meta"`).
+ * {@link IMetaSettings.property} (default `"_logMeta"`).
  *
  * @example
  * // Emit Elastic Common Schema-ish keys:
@@ -216,7 +216,7 @@ export interface IJsonOutputSettings {
    */
   timeKey?: string;
   /**
-   * How the top-level {@link timeKey} value is rendered (`_meta.date` always stays a UTC ISO string):
+   * How the top-level {@link timeKey} value is rendered (`_logMeta.date` always stays a UTC ISO string):
    * - `"iso"` (default): UTC ISO-8601 string, e.g. `"2026-07-04T10:11:12.000Z"`.
    * - `"epoch"`: epoch **milliseconds** as a number (pino's default `time`; cheaper to produce).
    * - `false`: omit the top-level time key entirely (diff-friendly/CI output; a user field named
@@ -321,16 +321,16 @@ export interface IMaskOptions {
 }
 
 /**
- * The `stack` group: controls how (and whether) the calling code position is captured for `_meta.path`.
+ * The `stack` group: controls how (and whether) the calling code position is captured for `_logMeta.path`.
  *
  * @example { stack: { capture: "off" } }      // never capture a stack (cheapest)
  * @example { stack: { internalFramePatterns: [/myWrapper\.ts/] } } // skip a wrapper file in auto-detection
  */
 export interface IStackSettings {
   /**
-   * Controls how the calling code position is captured for `_meta.path`.
+   * Controls how the calling code position is captured for `_logMeta.path`.
    * - `"off"`: never capture a stack — cheapest, no code position in output.
-   * - `"lazy"`: capture the `Error` cheaply but only parse frames on first read of `_meta.path`.
+   * - `"lazy"`: capture the `Error` cheaply but only parse frames on first read of `_logMeta.path`.
    * - `"auto"` (default for `type: "pretty"`): capture only when the pretty template references a code-position placeholder.
    * - `"full"`: always capture and parse the stack eagerly.
    *
@@ -354,11 +354,11 @@ export interface IStackSettings {
  * @example { meta: { attachContext: false } } // disable async-context auto-attach
  */
 export interface IMetaSettings {
-  /** Property name under which runtime metadata (date, level, code position, runtime) is attached. Default: `"_meta"`. */
+  /** Property name under which runtime metadata (date, level, code position, runtime) is attached. Default: `"_logMeta"`. */
   property?: string;
   /**
    * Async context (M2.13) propagation. When `true` (the default), the fields of the active context set via
-   * `logger.runInContext(ctx, fn)` are attached onto every log's `_meta` block (under {@link property})
+   * `logger.runInContext(ctx, fn)` are attached onto every log's `_logMeta` block (under {@link property})
    * for the duration of `fn`, across `await`/timers/nested calls. Set `false` to disable the attach while
    * still allowing `runInContext`/`getContext` to be used (e.g. only by the otel preset's trace getter).
    * On runtimes without `AsyncLocalStorage` (browsers/edge) this is a graceful no-op regardless of the flag.
@@ -480,7 +480,7 @@ export interface ISettingsParam<LogObj> {
    */
   persistLevelKey?: string;
   /**
-   * Injectable clock (the time seam): called once per log to produce the record's `_meta.date`
+   * Injectable clock (the time seam): called once per log to produce the record's `_logMeta.date`
    * (and thus the JSON `time` and pretty timestamp). Defaults to the runtime's `new Date()`.
    * Use it for deterministic tests, monotonic stamping, or an offset clock. Must return a valid
    * `Date`; a throwing clock or an invalid result is ignored (the runtime date is kept), so a bad
@@ -511,7 +511,7 @@ export interface ISettingsParam<LogObj> {
    */
   mask?: IMaskOptions;
   /**
-   * The `stack` group: how (and whether) the calling code position is captured for `_meta.path`, plus
+   * The `stack` group: how (and whether) the calling code position is captured for `_logMeta.path`, plus
    * extra internal-frame patterns for wrapper loggers. See {@link IStackSettings}.
    * @example { stack: { capture: "off" } }
    */

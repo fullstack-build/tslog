@@ -26,7 +26,7 @@ describe("Pretty: Settings", () => {
     const logger = new Logger({ type: "pretty", name: "logger" });
     const log = logger.log(1, "testLevel", "foo bar");
     expect(log).toBeDefined();
-    expect(log?._meta?.name).toBe("logger");
+    expect(log?._logMeta?.name).toBe("logger");
     expect(getConsoleLogStripped()).toContain(`logger`);
   });
 
@@ -42,9 +42,9 @@ describe("Pretty: Settings", () => {
     expect(log2).toBeDefined();
     expect(log3).toBeDefined();
 
-    expect(log1?._meta?.name).toBe("logger1");
-    expect(log2?._meta?.name).toBe("logger2");
-    expect(log3?._meta?.name).toBe("logger3");
+    expect(log1?._logMeta?.name).toBe("logger1");
+    expect(log2?._logMeta?.name).toBe("logger2");
+    expect(log3?._logMeta?.name).toBe("logger3");
 
     expect(getConsoleLogStripped()).toContain(`logger1`);
     expect(getConsoleLogStripped()).toContain(`logger1:logger2`);

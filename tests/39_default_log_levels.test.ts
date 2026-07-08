@@ -13,13 +13,13 @@ describe("LogLevel enum", () => {
 
   test("the default logging methods emit their matching level id", () => {
     const logger = new Logger({ type: "hidden" });
-    expect(logger.silly("x")?._meta.logLevelId).toBe(LogLevel.SILLY);
-    expect(logger.trace("x")?._meta.logLevelId).toBe(LogLevel.TRACE);
-    expect(logger.debug("x")?._meta.logLevelId).toBe(LogLevel.DEBUG);
-    expect(logger.info("x")?._meta.logLevelId).toBe(LogLevel.INFO);
-    expect(logger.warn("x")?._meta.logLevelId).toBe(LogLevel.WARN);
-    expect(logger.error("x")?._meta.logLevelId).toBe(LogLevel.ERROR);
-    expect(logger.fatal("x")?._meta.logLevelId).toBe(LogLevel.FATAL);
+    expect(logger.silly("x")?._logMeta.logLevelId).toBe(LogLevel.SILLY);
+    expect(logger.trace("x")?._logMeta.logLevelId).toBe(LogLevel.TRACE);
+    expect(logger.debug("x")?._logMeta.logLevelId).toBe(LogLevel.DEBUG);
+    expect(logger.info("x")?._logMeta.logLevelId).toBe(LogLevel.INFO);
+    expect(logger.warn("x")?._logMeta.logLevelId).toBe(LogLevel.WARN);
+    expect(logger.error("x")?._logMeta.logLevelId).toBe(LogLevel.ERROR);
+    expect(logger.fatal("x")?._logMeta.logLevelId).toBe(LogLevel.FATAL);
   });
 
   test("can be used to drive minLevel", () => {

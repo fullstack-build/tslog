@@ -15,13 +15,13 @@ import { log } from "tslog";
 log.info({ userId: 42 }, "request handled"); // pretty everywhere — colored in your terminal, uncolored when piped
 ```
 
-### Flat, fields-first JSON with `_meta.v: 5`
-The default `type: "json"` output is a flat, observability-friendly record: `message` / `level` / `levelId` / `time` promoted to the top level, your fields spread next to them, and runtime metadata nested under a versioned `_meta`. No positional args under numeric keys, no level buried inside meta.
+### Flat, fields-first JSON with `_logMeta.v: 5`
+The default `type: "json"` output is a flat, observability-friendly record: `message` / `level` / `levelId` / `time` promoted to the top level, your fields spread next to them, and runtime metadata nested under a versioned `_logMeta`. No positional args under numeric keys, no level buried inside meta.
 
 ```ts
 log.info({ userId: 42 }, "hi");
 // {"message":"hi","level":"INFO","levelId":3,"time":"2026-06-29T22:40:05.935Z","userId":42,
-//  "_meta":{"v":5,"date":"...","hostname":"...","logLevelId":3,"logLevelName":"INFO","runtime":"node","runtimeVersion":"24.15.0"}}
+//  "_logMeta":{"v":5,"date":"...","hostname":"...","logLevelId":3,"logLevelName":"INFO","runtime":"node","runtimeVersion":"24.15.0"}}
 ```
 
 Every key is configurable via the `json` group (`messageKey`, `levelKey`, `levelIdKey`, `timeKey`, `errorKey`, `numericLevel`, `stableKeyOrder`).
@@ -80,7 +80,7 @@ Tree-shakeable, opt-in subpaths that emit other ecosystems' shapes:
 - `tslog/otel` — `otelFormat()` / `otelTraceContext()` produce OpenTelemetry log records with the right `SeverityNumber` and trace/span correlation.
 
 ### ALS correlation
-`logger.runInContext(ctx, fn)` threads request/trace fields onto every log's `_meta` across `await`, timers, and nested calls when `meta.attachContext` is on (Node/Bun/Deno; graceful no-op on browsers/edge).
+`logger.runInContext(ctx, fn)` threads request/trace fields onto every log's `_logMeta` across `await`, timers, and nested calls when `meta.attachContext` is on (Node/Bun/Deno; graceful no-op on browsers/edge).
 
 ### Tree-shakeable subpaths
 The core stays tiny; everything else is pulled in only when imported, with audited `sideEffects: false`:
@@ -88,7 +88,7 @@ The core stays tiny; everything else is pulled in only when imported, with audit
 `tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`, `tslog/transports/file`, `tslog/transports/http`, `tslog/transports/ringbuffer`, `tslog/serializers`, `tslog/pretty/box`, `tslog/lite`, `tslog/testing`, `tslog/throttle`, `tslog/console`, plus a `tslog` (also `tslog/cli`) NDJSON pretty-printer binary.
 
 ### A cleaner DX surface
-- `logger.child(settings?, logObj?)` — alias for `getSubLogger`, names accumulate into `_meta.parentNames`.
+- `logger.child(settings?, logObj?)` — alias for `getSubLogger`, names accumulate into `_logMeta.parentNames`.
 - `logger.isLevelEnabled(level)` — guard expensive payloads.
 - `Logger.fromEnv(overrides?)` — read `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME`.
 - `defineConfig(...)` — validated, typed config (throws `TslogConfigError` under `strictConfig`).
@@ -107,7 +107,7 @@ This is a major release. The headline breaks:
 - **Grouped settings** — flat keys like `prettyLogTemplate`, `stylePrettyLogs`, `maskValuesOfKeys`, `maskValuesRegEx`, `maskPlaceholder`, `metaProperty`, and `hideLogPositionForProduction` are gone; use the `pretty` / `json` / `mask` / `meta` groups.
 - **`overwrite.*` hooks removed** — replaced by `logger.use()` middleware and per-transport `format`.
 - **Piped pretty is now uncolored** — the default `type` is still `pretty` everywhere (unchanged from v4), but pretty output no longer emits ANSI color when stdout is piped/redirected/CI, so escapes no longer leak into files and log collectors. A cosmetic change only — the format never switches; JSON stays opt-in via `type: "json"`.
-- **New default JSON shape** — flat, fields-first, `_meta.v: 5`; the old nested `{"0":msg}` shape is gone.
+- **New default JSON shape** — flat, fields-first, `_logMeta.v: 5`; the old nested `{"0":msg}` shape is gone.
 - **Masking is off by default** — no implicit `password` masking.
 - **`stackDepthLevel` → `callerFrame`** (constructor param); the `loggerEnvironment` singleton is removed.
 
@@ -115,7 +115,7 @@ This is a summary — see **`MIGRATION_v4_to_v5.md`** for the full mapping table
 
 ## Performance
 
-Honest numbers, not marketing. v5's richer, key-stable, flat JSON shape costs more per log than 4.11.0's single `JSON.stringify` of the raw record — roughly **~3.9× on a string and ~1.7× on a nested object** — and that is the point: it is what makes the output drop straight into observability backends. v5 stays competitive with or faster than winston, on par with bunyan, and far faster than anything running with stack capture on (turning stack capture off is the dominant lever, ~20×, and JSON defaults to off with a lazy `_meta.path` getter).
+Honest numbers, not marketing. v5's richer, key-stable, flat JSON shape costs more per log than 4.11.0's single `JSON.stringify` of the raw record — roughly **~3.9× on a string and ~1.7× on a nested object** — and that is the point: it is what makes the output drop straight into observability backends. v5 stays competitive with or faster than winston, on par with bunyan, and far faster than anything running with stack capture on (turning stack capture off is the dominant lever, ~20×, and JSON defaults to off with a lazy `_logMeta.path` getter).
 
 Full methodology, per-logger tables (vs pino · winston · bunyan · consola · loglevel), and the per-log time breakdown are in **`benchmarks/RESULTS.md`**.
 

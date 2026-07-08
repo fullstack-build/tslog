@@ -11,11 +11,11 @@ Deno.test("JSON output contains meta with runtime", () => {
   const logObj = logger.info("deno test");
 
   assertExists(logObj);
-  assertExists(logObj._meta);
-  assertEquals(logObj._meta.logLevelName, "INFO");
-  assertEquals(logObj._meta.logLevelId, 3);
-  assertEquals(typeof logObj._meta.runtime, "string");
-  assertExists(logObj._meta.date);
+  assertExists(logObj._logMeta);
+  assertEquals(logObj._logMeta.logLevelName, "INFO");
+  assertEquals(logObj._logMeta.logLevelId, 3);
+  assertEquals(typeof logObj._logMeta.runtime, "string");
+  assertExists(logObj._logMeta.date);
 });
 
 Deno.test("all 7 log levels work", () => {
@@ -26,7 +26,7 @@ Deno.test("all 7 log levels work", () => {
   for (let i = 0; i < levels.length; i++) {
     const logObj = logger[levels[i]](`${levels[i]} message`);
     assertExists(logObj);
-    assertEquals(logObj._meta.logLevelId, expectedIds[i]);
+    assertEquals(logObj._logMeta.logLevelId, expectedIds[i]);
   }
 });
 
@@ -74,8 +74,8 @@ Deno.test("sub-logger preserves parent names", () => {
   const logObj = child.info("from child");
 
   assertExists(logObj);
-  assertEquals(logObj._meta.name, "child");
-  assertEquals(logObj._meta.parentNames, ["root"]);
+  assertEquals(logObj._logMeta.name, "child");
+  assertEquals(logObj._logMeta.parentNames, ["root"]);
 });
 
 Deno.test("sub-logger accumulates prefixes", () => {

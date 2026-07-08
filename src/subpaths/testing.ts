@@ -22,7 +22,7 @@ import { LogLevel } from "../interfaces.js";
  * const { logger, logs, lines, clear } = createTestLogger({ minLevel: "INFO" });
  * logger.warn("disk almost full", { pct: 92 });
  * expect(logs).toHaveLength(1);
- * expect(logs[0]._meta.logLevelName).toBe("WARN");
+ * expect(logs[0]._logMeta.logLevelName).toBe("WARN");
  * clear();
  * expect(logs).toHaveLength(0);
  *
@@ -63,7 +63,7 @@ export interface ITestLogger<LogObj> {
 /** Options for {@link createTestLogger} beyond plain logger settings. */
 export interface ITestLoggerOptions {
   /**
-   * Per-logger test clock: called once per log to stamp `_meta.date` (and thus the JSON `time` /
+   * Per-logger test clock: called once per log to stamp `_logMeta.date` (and thus the JSON `time` /
    * pretty timestamp). May return a `Date` or epoch milliseconds. Unlike `vi.useFakeTimers()` this
    * freezes ONLY this logger's timestamps — interval-driven transports and user timers keep running.
    * Sugar for the `clock` setting (an explicit `settings.clock` wins).
@@ -99,7 +99,7 @@ export interface ITestLoggerOptions {
  * @example
  * const { logger, logs, clear } = createTestLogger();
  * logger.info("ready");
- * expect(logs.at(-1)?._meta.logLevelName).toBe("INFO");
+ * expect(logs.at(-1)?._logMeta.logLevelName).toBe("INFO");
  *
  * @example
  * // Snapshot-stable lines: frozen clock, pinned hostname/runtimeVersion, no stack path.
@@ -124,7 +124,7 @@ export function createTestLogger<LogObj = ILogObj>(settings?: ISettingsParam<Log
   const normalize = options?.normalize === true;
   if (normalize) {
     // Deterministic at the SOURCE where possible: freeze the clock at the epoch and skip stack
-    // capture (no churning `_meta.path`) unless the caller configured either explicitly.
+    // capture (no churning `_logMeta.path`) unless the caller configured either explicitly.
     merged.clock = merged.clock ?? ((): Date => new Date(0));
     merged.stack = { capture: "off", ...settings?.stack };
   }
@@ -160,7 +160,7 @@ export function createTestLogger<LogObj = ILogObj>(settings?: ISettingsParam<Log
 
 /** Options for {@link normalizeMeta}: the record's meta/time key names when they were reconfigured. */
 export interface INormalizeMetaOptions {
-  /** The runtime-meta property name (`meta.property` setting). Default `"_meta"`. */
+  /** The runtime-meta property name (`meta.property` setting). Default `"_logMeta"`. */
   metaProperty?: string;
   /** The top-level time key of JSON lines (`json.timeKey` setting). Default `"time"`. */
   timeKey?: string;
@@ -169,7 +169,7 @@ export interface INormalizeMetaOptions {
 /** The pinned timestamp emitted by {@link normalizeMeta} (the Unix epoch, ISO form). */
 const NORMALIZED_TIME_ISO = "1970-01-01T00:00:00.000Z";
 
-/** Matches an ISO-8601 UTC timestamp (the JSON `time`/`_meta.date` shape) inside a formatted line. */
+/** Matches an ISO-8601 UTC timestamp (the JSON `time`/`_logMeta.date` shape) inside a formatted line. */
 const ISO_TIMESTAMP_REGEX = /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g;
 
 /** Matches the default pretty template's timestamp (`yyyy.mm.dd hh:MM:ss:ms`). */
@@ -180,8 +180,8 @@ const PRETTY_DASH_TIMESTAMP_REGEX = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/
 
 /**
  * Pin the run-/machine-varying meta fields of a captured log so it can be snapshot-asserted:
- * `_meta.date` (and a JSON line's top-level time) → the Unix epoch, `hostname` → `"<hostname>"`,
- * `runtimeVersion` → `"<runtimeVersion>"`, and `_meta.path` (the churning code position) is removed.
+ * `_logMeta.date` (and a JSON line's top-level time) → the Unix epoch, `hostname` → `"<hostname>"`,
+ * `runtimeVersion` → `"<runtimeVersion>"`, and `_logMeta.path` (the churning code position) is removed.
  *
  * Accepts either a structured record (returns a shallow-cloned record with a cloned meta — the input
  * is never mutated) or a formatted line: a JSON line is parsed, normalized, and re-stringified
@@ -190,12 +190,12 @@ const PRETTY_DASH_TIMESTAMP_REGEX = /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3}/
  *
  * @example
  * expect(normalizeMeta(lines[0])).toMatchSnapshot();
- * expect(normalizeMeta(record)._meta.hostname).toBe("<hostname>");
+ * expect(normalizeMeta(record)._logMeta.hostname).toBe("<hostname>");
  */
 export function normalizeMeta<T extends object>(input: T, options?: INormalizeMetaOptions): T;
 export function normalizeMeta(input: string, options?: INormalizeMetaOptions): string;
 export function normalizeMeta(input: object | string, options?: INormalizeMetaOptions): object | string {
-  const metaProperty = options?.metaProperty ?? "_meta";
+  const metaProperty = options?.metaProperty ?? "_logMeta";
   const timeKey = options?.timeKey ?? "time";
 
   if (typeof input === "string") {

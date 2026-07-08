@@ -14,7 +14,7 @@ function slimSettings(): ISettings<Record<string, unknown>> {
 // output, stack capture, and settings validation — with HONEST failures (throws) where a silently
 // ignored setting would be dangerous, and byte-compatible JSON for everything it keeps.
 
-type AnyRecord = Record<string, unknown> & { _meta: IMeta & Record<string, unknown> };
+type AnyRecord = Record<string, unknown> & { _logMeta: IMeta & Record<string, unknown> };
 
 // Captures both sink targets: slim prints via console.log, the full Node logger via the buffered
 // stdout sink (process.stdout.write).
@@ -29,7 +29,7 @@ function captureJsonLine(run: (spy: () => void) => void): string {
 /** Parse a JSON line and drop the per-call timestamps so slim/full outputs compare structurally. */
 function parsedWithoutDate(line: string): unknown {
   const obj = JSON.parse(line) as AnyRecord;
-  delete (obj._meta as Record<string, unknown>).date;
+  delete (obj._logMeta as Record<string, unknown>).date;
   delete obj.time;
   return obj;
 }
@@ -81,11 +81,11 @@ describe("tslog/slim honest rejections", () => {
     expect(() => new SlimLogger({ pretty: { enabled: true } })).toThrow(/pretty/);
   });
 
-  test("stack settings are accepted but _meta.path is never attached", () => {
+  test("stack settings are accepted but _logMeta.path is never attached", () => {
     const logger = new SlimLogger<AnyRecord>({ type: "hidden", stack: { capture: "full" } });
     const record = logger.info("no stack");
-    expect(record?._meta).toBeDefined();
-    expect("path" in (record?._meta as object)).toBe(false);
+    expect(record?._logMeta).toBeDefined();
+    expect("path" in (record?._logMeta as object)).toBe(false);
   });
 });
 
@@ -122,27 +122,27 @@ describe("tslog/slim keeps the rest of the pipeline", () => {
     expect(cause.message).toBe("root");
   });
 
-  test("bindings merge down the sub-logger chain and _meta carries name/parentNames", () => {
+  test("bindings merge down the sub-logger chain and _logMeta carries name/parentNames", () => {
     const root = new SlimLogger<AnyRecord>({ type: "hidden", name: "root", bindings: { tenant: "acme" } });
     const child = root.child({ name: "child", bindings: { requestId: "r-1" } });
     const record = child.info("nested");
     expect(record?.tenant).toBe("acme");
     expect(record?.requestId).toBe("r-1");
-    expect(record?._meta.name).toBe("child");
-    expect(record?._meta.parentNames).toEqual(["root"]);
+    expect(record?._logMeta.name).toBe("child");
+    expect(record?._logMeta.parentNames).toEqual(["root"]);
   });
 
   test("custom levels install typed methods via createLogger", () => {
     const logger = createLogger({ type: "hidden", customLevels: { AUDIT: 7 } });
     const record = logger.audit("granted") as AnyRecord | undefined;
-    expect(record?._meta.logLevelName).toBe("AUDIT");
-    expect(record?._meta.logLevelId).toBe(7);
+    expect(record?._logMeta.logLevelName).toBe("AUDIT");
+    expect(record?._logMeta.logLevelId).toBe(7);
   });
 
-  test("runInContext propagates onto _meta (auto-resolved AsyncLocalStorage)", () => {
+  test("runInContext propagates onto _logMeta (auto-resolved AsyncLocalStorage)", () => {
     const logger = new SlimLogger<AnyRecord>({ type: "hidden" });
     const record = logger.runInContext({ requestId: "ctx-1" }, () => logger.info("in ctx"));
-    expect(record?._meta.requestId).toBe("ctx-1");
+    expect(record?._logMeta.requestId).toBe("ctx-1");
   });
 
   test("middleware and minLevel filtering work", () => {
@@ -153,7 +153,7 @@ describe("tslog/slim keeps the rest of the pipeline", () => {
     });
     expect(logger.info("below")).toBeUndefined();
     const record = logger.warn("kept");
-    expect(record?._meta.traceId).toBe("t-1");
+    expect(record?._logMeta.traceId).toBe("t-1");
   });
 
   test("transports receive the record and a JSON line; a forced pretty format degrades without throwing", () => {
@@ -226,8 +226,8 @@ describe("tslog/slim every level method emits at the right id/name", () => {
       const logger = new SlimLogger<AnyRecord>({ type: "hidden", minLevel: "SILLY" });
       // Single-object fields-first form merges `k` at the top level of the record.
       const record = logger[method]({ k: 1 });
-      expect(record?._meta.logLevelId).toBe(id);
-      expect(record?._meta.logLevelName).toBe(name);
+      expect(record?._logMeta.logLevelId).toBe(id);
+      expect(record?._logMeta.logLevelName).toBe(name);
       expect(record?.k).toBe(1);
     });
   }
@@ -235,8 +235,8 @@ describe("tslog/slim every level method emits at the right id/name", () => {
   test("the numeric log() entry emits at an arbitrary id/name", () => {
     const logger = new SlimLogger<AnyRecord>({ type: "hidden" });
     const record = logger.log(3, "INFO", "direct") as AnyRecord | undefined;
-    expect(record?._meta.logLevelId).toBe(3);
-    expect(record?._meta.logLevelName).toBe("INFO");
+    expect(record?._logMeta.logLevelId).toBe(3);
+    expect(record?._logMeta.logLevelName).toBe("INFO");
   });
 });
 
@@ -248,8 +248,8 @@ describe("tslog/slim getSubLogger override returns a slim Logger and merges sett
     const record = sub.info("nested");
     expect(record?.tenant).toBe("acme");
     expect(record?.requestId).toBe("r-9");
-    expect(record?._meta.name).toBe("sub");
-    expect(record?._meta.parentNames).toEqual(["root"]);
+    expect(record?._logMeta.name).toBe("sub");
+    expect(record?._logMeta.parentNames).toEqual(["root"]);
   });
 
   test("a slim sub-logger's own mask group stays frozen (re-validated inert defaults)", () => {
@@ -289,7 +289,7 @@ describe("tslog/slim EnvironmentProvider methods in isolation", () => {
     const env = createSlimEnvironment();
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     try {
-      env.transportJSON({ message: "hi", _meta: { logLevelName: "INFO" } } as never);
+      env.transportJSON({ message: "hi", _logMeta: { logLevelName: "INFO" } } as never);
       expect(spy).toHaveBeenCalledTimes(1);
       expect(JSON.parse(String(spy.mock.calls[0][0]))).toMatchObject({ message: "hi" });
     } finally {

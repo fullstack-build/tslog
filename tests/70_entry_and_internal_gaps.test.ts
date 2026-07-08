@@ -20,7 +20,7 @@ describe("BaseLogger without an injected feature set", () => {
     // on the constructed logger (not just "did not throw").
     const logger = new BaseLogger<Record<string, unknown>>(undefined, undefined, env);
     expect(logger.settings.minLevel).toBe(0);
-    expect(logger.settings.meta.property).toBe("_meta");
+    expect(logger.settings.meta.property).toBe("_logMeta");
   });
 
   test("a censor-only mask group is still rejected (masksSomething via mask.censor)", () => {
@@ -65,7 +65,7 @@ describe("custom level colliding with a non-reserved instance member", () => {
       // The class constructor is untouched (still callable / not a level forwarder).
       expect(typeof (logger as unknown as { constructor: unknown }).constructor).toBe("function");
       const record = logger.log(9, "constructor", "still logs");
-      expect((record as Record<string, { logLevelId: number }>)?._meta.logLevelId).toBe(9);
+      expect((record as Record<string, { logLevelId: number }>)?._logMeta.logLevelId).toBe(9);
       const output = warnSpy.mock.calls.map((c) => String(c[0])).join("\n");
       expect(output).toContain('custom level "constructor" collides');
     } finally {
@@ -87,8 +87,8 @@ describe("BaseLogger.child and sub-logger context box sharing", () => {
     const child = parent.child({ name: "sub" });
     expect(child).toBeInstanceOf(BaseLogger);
     const record = child.log(3, "INFO", "hi");
-    expect((record as Record<string, { name?: string; parentNames?: string[] }>)?._meta.name).toBe("sub");
-    expect((record as Record<string, { parentNames?: string[] }>)?._meta.parentNames).toEqual(["root"]);
+    expect((record as Record<string, { name?: string; parentNames?: string[] }>)?._logMeta.name).toBe("sub");
+    expect((record as Record<string, { parentNames?: string[] }>)?._logMeta.parentNames).toEqual(["root"]);
   });
 
   test("a child injecting its OWN distinct contextStorage keeps a fresh context box", async () => {
@@ -185,9 +185,9 @@ describe("node entry re-declared surface", () => {
   // subclass), so each re-declaration needs one pin against the node-entry import.
   test("the node entry's trace() emits at id 1 and carries both args", () => {
     const logger = new NodeLogger<Record<string, unknown>>({ type: "hidden" });
-    const record = logger.trace({ step: "enter" }, "tracing") as Record<string, unknown> & { _meta?: { logLevelId?: number; logLevelName?: string } };
-    expect(record?._meta?.logLevelId).toBe(1);
-    expect(record?._meta?.logLevelName).toBe("TRACE");
+    const record = logger.trace({ step: "enter" }, "tracing") as Record<string, unknown> & { _logMeta?: { logLevelId?: number; logLevelName?: string } };
+    expect(record?._logMeta?.logLevelId).toBe(1);
+    expect(record?._logMeta?.logLevelName).toBe("TRACE");
     // Multi-arg records store args under numeric indices; fields-first flattening happens at render time.
     expect(record?.["0"]).toEqual({ step: "enter" });
     expect(record?.["1"]).toBe("tracing");

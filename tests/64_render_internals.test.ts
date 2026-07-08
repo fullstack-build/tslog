@@ -42,9 +42,9 @@ describe("render/styles: styleTokenToAnsi", () => {
 
 describe("render/json: writeHead / writeMeta with no meta", () => {
   // A record whose meta property is absent exercises the `meta == null` early returns in both
-  // writeHead and writeMeta: no level/time head keys and no _meta block are emitted, but the
+  // writeHead and writeMeta: no level/time head keys and no _logMeta block are emitted, but the
   // message and user fields still render.
-  test("a record without a _meta block still renders message + fields (no head, no _meta)", () => {
+  test("a record without a _logMeta block still renders message + fields (no head, no _logMeta)", () => {
     const settings = hidden().settings;
     const record = { message: "no meta here", userId: 7 } as unknown as AnyRecord;
     const flat = toFlatJsonObject(record, settings);
@@ -71,7 +71,7 @@ describe("render/json: writeHead non-Date meta.date passthrough", () => {
     const record = logger.info("stamped") as AnyRecord;
     const flat = toFlatJsonObject(record, logger.settings);
     expect(flat.time).toBe("custom-stamp");
-    // _meta.date is also the raw passthrough value (writeMeta only swaps in the ISO string for a Date).
+    // _logMeta.date is also the raw passthrough value (writeMeta only swaps in the ISO string for a Date).
     expect((flat[logger.settings.meta.property] as Record<string, unknown>).date).toBe("custom-stamp");
   });
 });
@@ -205,7 +205,7 @@ describe("render/json: line-plan bail-outs (renderPlannedLine / buildLinePlan)",
   // The precompiled plan only covers the common shape; every uncovered shape must fall through to the
   // object path and stay byte-identical. Each case here forces a specific bail return.
 
-  test("a record with no _meta block bails the planned line (meta == null)", () => {
+  test("a record with no _logMeta block bails the planned line (meta == null)", () => {
     const settings = hidden().settings;
     const record = { message: "planless", a: 1 } as unknown as AnyRecord;
     // No meta → renderPlannedLine returns undefined → object path; identical to the unplanned renderer.
@@ -255,7 +255,7 @@ describe("render/json: line-plan bail-outs (renderPlannedLine / buildLinePlan)",
       ],
     });
     const dirty = logger.info("has extra meta") as AnyRecord;
-    expect(((dirty as Record<string, unknown>)._meta as Record<string, unknown>).correlationId).toBe("abc");
+    expect(((dirty as Record<string, unknown>)._logMeta as Record<string, unknown>).correlationId).toBe("abc");
     expect(renderJson(dirty, logger.settings)).toBe(renderJsonUnplanned(dirty, logger.settings));
     expect(__linePlanActive(logger.settings)).toBe(false);
     // Stop polluting the meta: the next clean record builds and caches a real plan, proving the

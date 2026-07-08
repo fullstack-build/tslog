@@ -96,7 +96,7 @@ describe("custom level methods", () => {
     const logger = new Logger({ type: "hidden", ...capture }).addLevel("NOTICE", 3.5);
     const logObj = logger.notice("heads up", { detail: 1 });
 
-    const meta = (logObj as Record<string, { logLevelId: number; logLevelName: string }>)?._meta;
+    const meta = (logObj as Record<string, { logLevelId: number; logLevelName: string }>)?._logMeta;
     expect(meta?.logLevelId).toBe(3.5);
     expect(meta?.logLevelName).toBe("NOTICE");
     const line = jsonLine(logObj, logger);
@@ -106,7 +106,7 @@ describe("custom level methods", () => {
   test("constructor customLevels install methods, and createLogger types them", () => {
     const logger = createLogger({ type: "hidden", ...capture, customLevels: { AUDIT: 7 } });
     const logObj = logger.audit("permission granted");
-    const meta = (logObj as Record<string, { logLevelId: number; logLevelName: string }>)?._meta;
+    const meta = (logObj as Record<string, { logLevelId: number; logLevelName: string }>)?._logMeta;
     expect(meta?.logLevelId).toBe(7);
     expect(meta?.logLevelName).toBe("AUDIT");
   });
@@ -124,7 +124,7 @@ describe("custom level methods", () => {
     const child = root.getSubLogger({ name: "child" }) as Logger<unknown> & { audit?: (...args: unknown[]) => unknown };
     expect(typeof child.audit).toBe("function");
     const logObj = child.audit?.("inherited") as Record<string, { logLevelName: string }>;
-    expect(logObj?._meta?.logLevelName).toBe("AUDIT");
+    expect(logObj?._logMeta?.logLevelName).toBe("AUDIT");
   });
 
   test("a custom level colliding with a reserved logger member throws at construction", () => {
@@ -145,7 +145,7 @@ describe("custom level methods", () => {
       const logger = new Logger({
         type: "hidden",
         ...capture,
-        bindings: { message: "hijack", 2: "positional", _meta: "nope", kept: "yes" },
+        bindings: { message: "hijack", 2: "positional", _logMeta: "nope", kept: "yes" },
       });
       const line = jsonLine(logger.info("real message"), logger);
       expect(line).toContain('"message":"real message"');

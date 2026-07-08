@@ -12,11 +12,11 @@ describe("Concurrent logging", () => {
       Promise.resolve(loggerC.info("from C")),
     ]);
 
-    expect(results[0]?._meta?.name).toBe("A");
+    expect(results[0]?._logMeta?.name).toBe("A");
     expect(results[0]?.["0"]).toBe("from A");
-    expect(results[1]?._meta?.name).toBe("B");
+    expect(results[1]?._logMeta?.name).toBe("B");
     expect(results[1]?.["0"]).toBe("from B");
-    expect(results[2]?._meta?.name).toBe("C");
+    expect(results[2]?._logMeta?.name).toBe("C");
     expect(results[2]?.["0"]).toBe("from C");
   });
 
@@ -61,7 +61,7 @@ describe("Concurrent logging", () => {
 
     for (let i = 0; i < 10; i++) {
       const logObj = logger.info(`msg-${i}`);
-      results.push(logObj?._meta?.date as Date);
+      results.push(logObj?._logMeta?.date as Date);
     }
 
     for (const date of results) {

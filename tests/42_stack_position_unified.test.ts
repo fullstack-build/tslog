@@ -152,7 +152,7 @@ describe("internalFramePatterns lets wrappers report their caller (#282)", () =>
     const logger = new Logger({ type: "hidden", internalFramePatterns: [/never-matches-anything/] });
     // Logger still produces a valid position for its real caller (this test file).
     const out = logger.info("x");
-    const meta = out?._meta as IMeta | undefined;
+    const meta = out?._logMeta as IMeta | undefined;
     expect(meta?.path?.fileName).toContain("42_stack_position_unified.test.ts");
   });
 });

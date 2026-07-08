@@ -7,9 +7,9 @@ import { defaultThrottleKey, throttle } from "../src/subpaths/throttle.js";
 // suppressed (dropped before any transport runs); the suppressed count is surfaced as `repeated: N` on
 // the log that ends the run. A fake clock (`now`) makes window timing deterministic.
 
-/** Read the _meta block off a captured record (default meta property is "_meta"). */
+/** Read the _logMeta block off a captured record (default meta property is "_logMeta"). */
 function metaOf(record: ILogObjMeta): IMeta & { repeated?: number } {
-  return record._meta as IMeta & { repeated?: number };
+  return record._logMeta as IMeta & { repeated?: number };
 }
 
 /** A controllable virtual clock for driving `windowMs` without real time. */

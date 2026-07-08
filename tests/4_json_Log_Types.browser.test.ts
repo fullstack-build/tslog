@@ -116,10 +116,10 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
     `,
     );
-    // v5: a single object arg has its keys spread at the top level; _meta now carries v:5.
+    // v5: a single object arg has its keys spread at the top level; _logMeta now carries v:5.
     expect(combined).toContain('"test":true');
     expect(combined).toContain('"nested":{"1":false}');
-    expect(combined).toContain('"_meta":{"v":5,');
+    expect(combined).toContain('"_logMeta":{"v":5,');
   });
 
   test("Date", async ({ page }) => {

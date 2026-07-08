@@ -32,7 +32,7 @@ describe("render/json: spread-error bound-field collisions (buildFlat slow path)
   // A lone logged Error takes the spread-error path: the error's own fields become the errorKey payload
   // and any BOUND_FIELDS_HINT fields are re-emitted as top-level user fields. The collision guard
   // (`__proto__` / the meta property / a key already present) must SKIP such a bound field instead of
-  // assigning it (a `__proto__` assignment would hit the prototype setter; `_meta` would corrupt the
+  // assigning it (a `__proto__` assignment would hit the prototype setter; `_logMeta` would corrupt the
   // meta block). Bindings validation strips reserved keys before construction, so this pins the
   // renderer's own defense by attaching the hint directly to a genuine spread-error record.
   test("bound fields named __proto__ / the meta property are skipped; legit fields still emit", () => {
@@ -51,7 +51,7 @@ describe("render/json: spread-error bound-field collisions (buildFlat slow path)
     expect(parsed.region).toBe("eu");
     // …while __proto__ and the meta-property collision were skipped (no pollution, meta uncorrupted).
     expect(line).not.toContain("polluted");
-    expect((parsed._meta as Record<string, unknown>).v).toBe(5);
+    expect((parsed._logMeta as Record<string, unknown>).v).toBe(5);
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     // The object path agrees byte-for-byte.
     expect(line).toBe(renderJsonUnplanned(record, logger.settings));
@@ -110,7 +110,7 @@ describe("render/json: deepSortKeys awkward-flag leaves (stableKeyOrder)", () =>
     const parsed = JSON.parse(line) as Record<string, unknown>;
     expect("err" in parsed).toBe(false);
     expect(parsed.kept).toBe(true);
-    expect((parsed._meta as Record<string, unknown>).v).toBe(5);
+    expect((parsed._logMeta as Record<string, unknown>).v).toBe(5);
     expect(line).toBe(renderJsonUnplanned(record, logger.settings));
   });
 });
@@ -120,7 +120,7 @@ describe("render/json: line-plan residual bail-outs (renderPlannedLine / buildLi
   // These force plan-builder / plan-validator arms an earlier pass left short.
 
   test("an extra per-record meta key on the FIRST planned render bails via buildLinePlan null", () => {
-    // runInContext attaches a context field onto _meta. When the VERY FIRST render for these settings
+    // runInContext attaches a context field onto _logMeta. When the VERY FIRST render for these settings
     // carries that extra key, buildLinePlan hits an unknown non-`path` meta key and returns null → the
     // planned line bails for this record (line 679) without poisoning the cache.
     const logger = hidden();
@@ -134,7 +134,7 @@ describe("render/json: line-plan residual bail-outs (renderPlannedLine / buildLi
 
   test("a plan-eligible record whose static meta value later changes bails plan validation", () => {
     // First render builds a plan from a clean record. Middleware (the public `use` API) then overrides
-    // the static `hostname` on the NEXT record's _meta: same meta key count, mutated static value — the
+    // the static `hostname` on the NEXT record's _logMeta: same meta key count, mutated static value — the
     // per-record static-value check fails and the renderer falls back to the object path, because the
     // plan's cached hostname no longer matches.
     const logger = hidden();
@@ -152,13 +152,13 @@ describe("render/json: line-plan residual bail-outs (renderPlannedLine / buildLi
   });
 
   test("buildLinePlan bails when meta is missing a required dynamic key (logLevelName)", () => {
-    // A hand-built record whose _meta has date + logLevelId but NO logLevelName leaves sawLevelName at
+    // A hand-built record whose _logMeta has date + logLevelId but NO logLevelName leaves sawLevelName at
     // 0, so buildLinePlan's `sawDate/sawLevelId/sawLevelName !== 1` guard returns false (line 608). The
     // object path then renders it (level name becomes the undefined marker), identical on both paths.
     const settings = hidden().settings;
     const record = {
       message: "partial meta",
-      _meta: { runtime: "node", hostname: "h", date: FIXED, logLevelId: 3 },
+      _logMeta: { runtime: "node", hostname: "h", date: FIXED, logLevelId: 3 },
     } as unknown as AnyRecord;
     const line = renderJson(record, settings);
     expect(line).toBe(renderJsonUnplanned(record, settings));
@@ -184,7 +184,7 @@ describe("render/json: line-plan residual bail-outs (renderPlannedLine / buildLi
       message: "with named error",
       ok: 1,
       failure: errorObject,
-      _meta: template._meta,
+      _logMeta: template._logMeta,
     } as unknown as AnyRecord;
 
     const line = renderJson(record, logger.settings);

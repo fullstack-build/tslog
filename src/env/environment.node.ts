@@ -23,7 +23,7 @@ import { getStdoutJsonSink } from "./stdoutSink.node.js";
  * the polyfill/`resolveInspect()` instead; core never statically imports `node:util`.
  *
  * Lazy stack capture (M1.2): when stack capture is on, `getMeta` does NOT eagerly parse frames. It
- * captures the `Error` cheaply and installs an enumerable, self-caching getter on `_meta.path` that
+ * captures the `Error` cheaply and installs an enumerable, self-caching getter on `_logMeta.path` that
  * parses the frames on first read. The lazy semantics (and the `hideLogPosition` / name / parentNames
  * assembly) live in the shared `../core/meta.js` `buildMeta`/`defineLazyPath`; this provider just
  * supplies the runtime-specific `resolveCallerStackFrame` via {@link MetaDeps} so the getter and the

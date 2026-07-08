@@ -12,7 +12,7 @@ function makeLogger(): { logger: Logger<unknown>; captured: Captured[] } {
   const captured: Captured[] = [];
   const logger = new Logger({ type: "hidden" });
   logger.attachTransport((logObj) => {
-    const meta = (logObj as { _meta?: { logLevelName?: string } })._meta;
+    const meta = (logObj as { _logMeta?: { logLevelName?: string } })._logMeta;
     const message = (logObj as Record<string, unknown>)["0"];
     captured.push({ level: meta?.logLevelName ?? "?", message });
   });

@@ -19,8 +19,8 @@ import {
 } from "../src/subpaths/presets/otel.js";
 
 /**
- * Build a real, finished tslog record (user fields + `_meta`) by capturing it from a transport. This
- * exercises the same record shape the OTel preset sees in production rather than hand-rolling `_meta`.
+ * Build a real, finished tslog record (user fields + `_logMeta`) by capturing it from a transport. This
+ * exercises the same record shape the OTel preset sees in production rather than hand-rolling `_logMeta`.
  */
 function captureRecord(
   logArgs: unknown[],
@@ -80,8 +80,8 @@ describe("presets/otel", () => {
       expect(otel.Body).toBe("user logged in");
       expect(otel.Attributes).toMatchObject({ userId: 42, action: "login" });
 
-      // Timestamp is bigint nanoseconds derived from _meta.date (ms * 1e6).
-      const meta = record._meta as unknown as { date: Date };
+      // Timestamp is bigint nanoseconds derived from _logMeta.date (ms * 1e6).
+      const meta = record._logMeta as unknown as { date: Date };
       expect(typeof otel.Timestamp).toBe("bigint");
       expect(otel.Timestamp).toBe(BigInt(meta.date.getTime()) * 1_000_000n);
       expect(otel.ObservedTimestamp).toBe(otel.Timestamp);
@@ -138,7 +138,7 @@ describe("presets/otel", () => {
     });
 
     test("emits UNSPECIFIED severity when no meta block is present", () => {
-      const settings = { meta: { property: "_meta" }, json: { messageKey: "message" } } as unknown as ISettings<unknown>;
+      const settings = { meta: { property: "_logMeta" }, json: { messageKey: "message" } } as unknown as ISettings<unknown>;
       const otel = toOtelRecord({ "0": "no meta" } as unknown as Record<string, unknown> & ILogObjMeta, settings);
       expect(otel.SeverityNumber).toBe(OtelSeverityNumber.UNSPECIFIED);
       expect(otel.SeverityText).toBe("");
@@ -303,7 +303,7 @@ describe("presets/otel OTLP/JSON (the collector wire format)", () => {
       expect(attr(otlp.attributes, settings.json.errorKey)).toBeUndefined();
     });
 
-    test("injects traceId/spanId from the getter, falling back to middleware-stashed _meta trace_id/span_id", () => {
+    test("injects traceId/spanId from the getter, falling back to middleware-stashed _logMeta trace_id/span_id", () => {
       const { record, settings } = captureRecord(["with getter"]);
       const viaGetter = toOtlpLogRecord(record, settings, {
         getSpanContext: () => ({ traceId: "a".repeat(32), spanId: "b".repeat(16), traceFlags: 1 }),
@@ -553,7 +553,7 @@ describe("presets/otel record-splitting and timestamp edges", () => {
     expect((otel.Attributes as Record<string, unknown>)["0"]).toBeUndefined();
   });
 
-  test("no _meta block: OTLP severity is UNSPECIFIED and the timestamp falls back to Date.now()", () => {
+  test("no _logMeta block: OTLP severity is UNSPECIFIED and the timestamp falls back to Date.now()", () => {
     const settings = defaultSettings();
     const before = BigInt(Date.now()) * 1_000_000n;
     const otlp = toOtlpLogRecord({ 0: "no meta" } as unknown as Record<string, unknown> & ILogObjMeta, settings);
@@ -816,12 +816,12 @@ describe("presets/otel stringifyFallbackSafe deep fallbacks", () => {
   });
 });
 
-describe("presets/otel re-hydrated _meta.date and spread-error message arm", () => {
+describe("presets/otel re-hydrated _logMeta.date and spread-error message arm", () => {
   function attr(list: OtlpKeyValue[] | undefined, key: string): OtlpKeyValue["value"] | undefined {
     return list?.find((entry) => entry.key === key)?.value;
   }
 
-  test("a re-hydrated ISO-string _meta.date (JSON round-trip shape) falls back to Date.now()", () => {
+  test("a re-hydrated ISO-string _logMeta.date (JSON round-trip shape) falls back to Date.now()", () => {
     // In-process meta.date is always a Date; the realistic non-Date shape is the ISO STRING a JSON
     // round-trip re-hydrates. toEpochNanos only understands Date/number, so the string takes the
     // Date.now() fallback rather than being misread as an epoch value.
@@ -835,7 +835,7 @@ describe("presets/otel re-hydrated _meta.date and spread-error message arm", () 
     expect(ts >= before && ts <= after).toBe(true);
   });
 
-  test("a re-hydrated numeric _meta.date (epoch ms) converts exactly to nanoseconds", () => {
+  test("a re-hydrated numeric _logMeta.date (epoch ms) converts exactly to nanoseconds", () => {
     // toEpochNanos declares Date | number | undefined: the number arm is the tolerant-input contract
     // for records re-hydrated from storage where the date was serialized as epoch milliseconds.
     const settings = defaultSettings();

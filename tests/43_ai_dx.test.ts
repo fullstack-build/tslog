@@ -32,7 +32,7 @@ describe("the ready-to-use log export", () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     expect(log).toBeInstanceOf(Logger);
     const out = log.info("hello from default logger");
-    expect(out?._meta.logLevelName).toBe("INFO");
+    expect(out?._logMeta.logLevelName).toBe("INFO");
     consoleSpy.mockRestore();
   });
 });

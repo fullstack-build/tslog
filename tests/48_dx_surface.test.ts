@@ -301,7 +301,7 @@ describe("unknown-key and v4-flat-key validation", () => {
         json: { messageKey: "msg", stableKeyOrder: false },
         pretty: { timeZone: "UTC" },
         stack: { capture: "off" },
-        meta: { property: "_meta", attachContext: true },
+        meta: { property: "_logMeta", attachContext: true },
       });
       expect(warnSpy).not.toHaveBeenCalled();
     } finally {

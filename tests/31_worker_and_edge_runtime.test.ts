@@ -60,7 +60,7 @@ describe("Worker and edge runtime environments", () => {
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
       const env = createUniversalEnvironment();
-      env.transportJSON({ msg: "hello", _meta: { logLevelId: 3, logLevelName: "INFO" } });
+      env.transportJSON({ msg: "hello", _logMeta: { logLevelId: 3, logLevelName: "INFO" } });
 
       expect(consoleSpy).toHaveBeenCalled();
       const output = consoleSpy.mock.calls[0]?.[0] as string;

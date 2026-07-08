@@ -51,7 +51,7 @@ describe("#268: IMetaStatic exposes runtime meta fields", () => {
   test("hostname/runtimeVersion are accessible on the logged meta without a cast", () => {
     const logger = new Logger({ type: "hidden" });
     const out = logger.info("x");
-    const meta = out?._meta;
+    const meta = out?._logMeta;
     expect(meta).toBeDefined();
     // These are typed on IMetaStatic now; accessing them must compile and be defined on node.
     expect(typeof meta?.runtime).toBe("string");

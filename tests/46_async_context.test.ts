@@ -2,23 +2,23 @@ import { createAsyncContextStore, resolveAsyncLocalStorage } from "../src/core/a
 import { Logger } from "../src/index.js";
 
 // M2.13 — async context (AsyncLocalStorage) propagation: logger.runInContext(ctx, fn) attaches the active
-// context's fields onto every log's _meta, and getContext() exposes the active context (otel trace getter).
+// context's fields onto every log's _logMeta, and getContext() exposes the active context (otel trace getter).
 
 interface CtxLog {
-  _meta: { requestId?: string; traceId?: string; region?: string; logLevelName?: string };
+  _logMeta: { requestId?: string; traceId?: string; region?: string; logLevelName?: string };
 }
 
-describe("runInContext attaches context fields onto _meta", () => {
+describe("runInContext attaches context fields onto _logMeta", () => {
   test("synchronous log inside runInContext sees the context", () => {
     const logger = new Logger<CtxLog>({ type: "hidden" });
     const record = logger.runInContext({ requestId: "req-1" }, () => logger.info("hello"));
-    expect(record?._meta.requestId).toBe("req-1");
+    expect(record?._logMeta.requestId).toBe("req-1");
   });
 
   test("a log outside any context has no context fields", () => {
     const logger = new Logger<CtxLog>({ type: "hidden" });
     const record = logger.info("no context");
-    expect(record?._meta.requestId).toBeUndefined();
+    expect(record?._logMeta.requestId).toBeUndefined();
   });
 
   test("context propagates across awaits", async () => {
@@ -28,7 +28,7 @@ describe("runInContext attaches context fields onto _meta", () => {
       await new Promise((resolve) => setTimeout(resolve, 1));
       return logger.info("after awaits");
     });
-    expect(record?._meta.requestId).toBe("req-async");
+    expect(record?._logMeta.requestId).toBe("req-async");
   });
 
   test("nested contexts inherit and override parent fields", () => {
@@ -39,13 +39,13 @@ describe("runInContext attaches context fields onto _meta", () => {
       const afterInner = logger.info("after inner");
       return { outer, inner, afterInner };
     });
-    expect(result.outer?._meta.requestId).toBe("outer");
-    expect(result.outer?._meta.region).toBe("eu");
+    expect(result.outer?._logMeta.requestId).toBe("outer");
+    expect(result.outer?._logMeta.region).toBe("eu");
     // nested context overrides requestId but inherits region from the parent
-    expect(result.inner?._meta.requestId).toBe("inner");
-    expect(result.inner?._meta.region).toBe("eu");
+    expect(result.inner?._logMeta.requestId).toBe("inner");
+    expect(result.inner?._logMeta.region).toBe("eu");
     // leaving the nested scope restores the parent context
-    expect(result.afterInner?._meta.requestId).toBe("outer");
+    expect(result.afterInner?._logMeta.requestId).toBe("outer");
   });
 
   test("concurrent contexts do not bleed into each other", async () => {
@@ -60,8 +60,8 @@ describe("runInContext attaches context fields onto _meta", () => {
         return logger.info("b");
       }),
     ]);
-    expect(a?._meta.requestId).toBe("A");
-    expect(b?._meta.requestId).toBe("B");
+    expect(a?._logMeta.requestId).toBe("A");
+    expect(b?._logMeta.requestId).toBe("B");
   });
 
   test("sub-loggers inherit the parent's active context", () => {
@@ -70,7 +70,7 @@ describe("runInContext attaches context fields onto _meta", () => {
       const child = parent.getSubLogger({ name: "child" });
       return child.info("from child");
     });
-    expect(record?._meta.requestId).toBe("shared");
+    expect(record?._logMeta.requestId).toBe("shared");
   });
 
   test("middleware-stashed meta wins over an inherited context field", () => {
@@ -80,18 +80,18 @@ describe("runInContext attaches context fields onto _meta", () => {
       return ctx;
     });
     const record = logger.runInContext({ requestId: "from-context" }, () => logger.info("collision"));
-    expect(record?._meta.requestId).toBe("from-middleware");
+    expect(record?._logMeta.requestId).toBe("from-middleware");
   });
 });
 
 describe("attachContextToMeta toggles the auto-attach", () => {
-  test("disabled: context is NOT attached to _meta but getContext still works", () => {
+  test("disabled: context is NOT attached to _logMeta but getContext still works", () => {
     const logger = new Logger<CtxLog>({ type: "hidden", meta: { attachContext: false } });
     const record = logger.runInContext({ requestId: "req-x" }, () => {
       expect(logger.getContext()?.requestId).toBe("req-x");
       return logger.info("not attached");
     });
-    expect(record?._meta.requestId).toBeUndefined();
+    expect(record?._logMeta.requestId).toBeUndefined();
   });
 });
 

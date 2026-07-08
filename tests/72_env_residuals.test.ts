@@ -243,11 +243,11 @@ describe("subpaths/testing normalize residual branches", () => {
     // false branch (line 121 in testing.ts).
     const { createTestLogger } = await import("../src/subpaths/testing.js");
     const epoch = Date.UTC(2020, 0, 1);
-    // Default hidden type keeps the runner quiet; the record (and its clock-stamped _meta.date) is still captured.
+    // Default hidden type keeps the runner quiet; the record (and its clock-stamped _logMeta.date) is still captured.
     const { logger, logs } = createTestLogger<Record<string, unknown>>(undefined, { now: () => epoch });
     logger.info("timed");
-    // A captured log is `LogObj & ILogObjMeta`; its _meta.date came from the injected clock.
-    const meta = (logs[0] as Record<string, unknown>)._meta as { date?: Date };
+    // A captured log is `LogObj & ILogObjMeta`; its _logMeta.date came from the injected clock.
+    const meta = (logs[0] as Record<string, unknown>)._logMeta as { date?: Date };
     expect(meta.date instanceof Date).toBe(true);
     expect(meta.date?.getTime()).toBe(epoch);
   });
@@ -258,7 +258,7 @@ describe("subpaths/testing normalize residual branches", () => {
     const when = new Date("2021-03-04T05:06:07.000Z");
     const { logger, logs } = createTestLogger<Record<string, unknown>>(undefined, { now: () => when });
     logger.info("dated");
-    const meta = (logs[0] as Record<string, unknown>)._meta as { date?: Date };
+    const meta = (logs[0] as Record<string, unknown>)._logMeta as { date?: Date };
     expect(meta.date?.getTime()).toBe(when.getTime());
   });
 
@@ -267,7 +267,7 @@ describe("subpaths/testing normalize residual branches", () => {
     // normalizeRecord's `typeof value === "string" || typeof value === "number"` guard is false (line 225).
     const { normalizeMeta } = await import("../src/subpaths/testing.js");
     const line = JSON.stringify({ time: { nested: true }, message: "m" });
-    const out = JSON.parse(normalizeMeta(line, { metaProperty: "_meta", timeKey: "time" })) as Record<string, unknown>;
+    const out = JSON.parse(normalizeMeta(line, { metaProperty: "_logMeta", timeKey: "time" })) as Record<string, unknown>;
     expect(out.time).toEqual({ nested: true });
     expect(out.message).toBe("m");
   });
@@ -275,7 +275,7 @@ describe("subpaths/testing normalize residual branches", () => {
   test("normalizeMeta DOES pin a string top-level time value on a parsed line (the truthy sibling)", async () => {
     const { normalizeMeta } = await import("../src/subpaths/testing.js");
     const line = JSON.stringify({ time: "2024-05-06T07:08:09.000Z", message: "m" });
-    const out = JSON.parse(normalizeMeta(line, { metaProperty: "_meta", timeKey: "time" })) as Record<string, unknown>;
+    const out = JSON.parse(normalizeMeta(line, { metaProperty: "_logMeta", timeKey: "time" })) as Record<string, unknown>;
     expect(out.time).toBe("1970-01-01T00:00:00.000Z");
   });
 });

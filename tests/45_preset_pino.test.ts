@@ -43,8 +43,8 @@ describe("presets/pino", () => {
     expect(obj.time).toBeGreaterThan(0);
     expect(obj.msg).toBe("user logged in");
     expect(obj.userId).toBe(42);
-    // pino does not nest tslog's _meta block, level name, or levelId.
-    expect(obj._meta).toBeUndefined();
+    // pino does not nest tslog's _logMeta block, level name, or levelId.
+    expect(obj._logMeta).toBeUndefined();
     expect(obj.levelId).toBeUndefined();
   });
 
@@ -327,7 +327,7 @@ describe("presets/pino pinoFormat direct edge cases", () => {
   }
   type ISettingsShape = { meta: { property: string }; json: { messageKey: string; errorKey: string; timeKey: string; levelKey: string; levelIdKey: string } };
 
-  test("no _meta block: level snaps to trace(10) and no time is emitted", () => {
+  test("no _logMeta block: level snaps to trace(10) and no time is emitted", () => {
     const settings = settingsOf();
     const line = pinoFormat()({ 0: "hi" } as never, settings as never);
     const obj = JSON.parse(line) as Record<string, unknown>;
@@ -337,7 +337,7 @@ describe("presets/pino pinoFormat direct edge cases", () => {
     expect(Object.hasOwn(obj, "time")).toBe(false);
   });
 
-  test("a re-hydrated ISO-string _meta.date (JSON round-trip shape) is emitted verbatim", () => {
+  test("a re-hydrated ISO-string _logMeta.date (JSON round-trip shape) is emitted verbatim", () => {
     // In-process meta.date is always a Date; the realistic non-Date shape is the ISO STRING a JSON
     // round-trip re-hydrates. pinoFormat's non-Date arm passes it through verbatim (no epoch conversion).
     const settings = settingsOf();

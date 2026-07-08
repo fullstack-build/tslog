@@ -5,7 +5,7 @@ import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.
  * `render/json.ts` — the flat, fields-first JSON formatter (M2.1 / M2.2).
  *
  * The v4 JSON output was a near-1:1 `JSON.stringify(logObjWithMeta)`: positional args nested under
- * numeric keys, the message buried under `"0"`, the level only reachable inside `_meta`. v5 produces a
+ * numeric keys, the message buried under `"0"`, the level only reachable inside `_logMeta`. v5 produces a
  * flat, observability-friendly shape with **configurable** top-level keys:
  *
  * ```jsonc
@@ -13,10 +13,10 @@ import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.
  *   "message": "user logged in",   // configurable via json.messageKey
  *   "level": "INFO",               // the level NAME, json.levelKey
  *   "levelId": 3,                  // the numeric id, json.levelIdKey (only when json.numericLevel)
- *   "time": "2026-06-29T10:11:12.000Z", // ISO timestamp from _meta.date, json.timeKey
+ *   "time": "2026-06-29T10:11:12.000Z", // ISO timestamp from _logMeta.date, json.timeKey
  *   "userId": 42,                  // the user's own logged fields, spread at the top level
  *   "error": { ... },             // any logged Error(s), json.errorKey (cause chain followed)
- *   "_meta": {                     // runtime meta, key name from settings.meta.property
+ *   "_logMeta": {                     // runtime meta, key name from settings.meta.property
  *     "v": 5,                       // schema version (E8)
  *     "runtime": "Nodejs",
  *     "hostname": "host",
@@ -54,7 +54,7 @@ import type { IErrorObject, ILogObjMeta, IMeta, ISettings } from "../interfaces.
  * `json.stableKeyOrder`).
  */
 
-/** Schema version embedded as `_meta.v` so downstream consumers can branch on the log shape (E8). */
+/** Schema version embedded as `_logMeta.v` so downstream consumers can branch on the log shape (E8). */
 export const JSON_SCHEMA_VERSION = 5 as const;
 
 /** Internal marker key used by errors carried inside an {@link IErrorObject}; never emitted verbatim. */
@@ -70,7 +70,7 @@ function pad2(n: number): string {
  * for the four-digit-year dates every real log carries.
  *
  * `toISOString` goes through a comparatively slow V8 path; on the JSON hot path (one timestamp per log, used
- * for both the top-level `time` key and `_meta.date`) that single call was the largest remaining cost. This
+ * for both the top-level `time` key and `_logMeta.date`) that single call was the largest remaining cost. This
  * assembles the same `YYYY-MM-DDTHH:mm:ss.sssZ` string from the date's UTC components directly. Years
  * outside 1000-9999 are NOT byte-identical under this template (`toISOString` zero-pads below 1000 and
  * uses the expanded `±YYYYYY` form outside 0-9999), so those — plus an Invalid Date, which a user
@@ -94,13 +94,13 @@ function toIsoString(date: Date): string {
  * meta under `settings.meta.property`. This function never mutates `record`; it returns a fresh object with
  * the well-known keys promoted to the top level and the runtime meta re-nested with `v: {@link JSON_SCHEMA_VERSION}`.
  *
- * @param record - the finished log object (user fields + the `_meta` block).
+ * @param record - the finished log object (user fields + the `_logMeta` block).
  * @param settings - the live, resolved settings (drives `json.*` keys + `meta.property`).
  * @returns a new plain object ready for {@link jsonStringifyValue}.
  *
  * @example
  * const flat = toFlatJsonObject(record, logger.settings);
- * // { message: "hi", level: "INFO", levelId: 3, time: "…", _meta: { v: 5, … } }
+ * // { message: "hi", level: "INFO", levelId: 3, time: "…", _logMeta: { v: 5, … } }
  */
 export function toFlatJsonObject<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): Record<string, unknown> {
   return buildFlat(record, settings).flat;
@@ -139,7 +139,7 @@ function buildFlat<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<Log
   // Awkwardness is tracked only when `stable` (we already deep-walk every value to sort it). Reused across
   // the whole build so one shared flag covers message + fields + meta.
   const awk: AwkFlag = { hit: false };
-  // Compute the timestamp ISO string ONCE; reused for both the top-level `time` and `_meta.date` so we never
+  // Compute the timestamp ISO string ONCE; reused for both the top-level `time` and `_logMeta.date` so we never
   // pay the (surprisingly costly) date formatting twice for one log. `toIsoString` is a fast hand-rolled
   // equivalent of `Date#toISOString`, byte-identical but ~3-4x cheaper.
   const dateIso = meta?.date instanceof Date ? toIsoString(meta.date) : undefined;
@@ -364,9 +364,9 @@ function isReservedHeadKey<LogObj>(key: string, json: ISettings<LogObj>["json"])
 
 /**
  * Write the head-first level/levelId/time keys onto `flat` from `meta` (shared by both paths). `dateIso` is
- * the pre-computed `meta.date.toISOString()` (computed once per log and reused for `_meta.date`), so we never
+ * the pre-computed `meta.date.toISOString()` (computed once per log and reused for `_logMeta.date`), so we never
  * call the relatively expensive `toISOString` twice for the same timestamp. The top-level time honors
- * `json.time` ("iso" | "epoch" | false | fn); `_meta.date` always stays the ISO string.
+ * `json.time` ("iso" | "epoch" | false | fn); `_logMeta.date` always stays the ISO string.
  */
 function writeHead<LogObj>(flat: Record<string, unknown>, meta: IMeta | undefined, json: ISettings<LogObj>["json"], dateIso: string | undefined): void {
   if (meta == null) {
@@ -402,7 +402,7 @@ function writeHead<LogObj>(flat: Record<string, unknown>, meta: IMeta | undefine
 }
 
 /**
- * Re-nest the runtime meta under `metaProperty` with the schema version first, building the `_meta` body in
+ * Re-nest the runtime meta under `metaProperty` with the schema version first, building the `_logMeta` body in
  * a single pass (no intermediate plain-object copy). In stable mode the non-`v` keys are emitted in sorted
  * order; `v` stays first regardless. Resolving each value reads through the lazy `path` getter only if
  * `path` is an own key — capture-off records never have it, so it is never forced.
@@ -438,16 +438,16 @@ function writeMeta(
  * Render a finished log `record` to a single JSON line (M2.2): `toFlatJsonObject` followed by a
  * circular-/bigint-safe stringify that honors `json.stableKeyOrder`.
  *
- * @param record - the finished log object (user fields + the `_meta` block).
+ * @param record - the finished log object (user fields + the `_logMeta` block).
  * @param settings - the live, resolved settings.
  * @returns the JSON string a transport writes (no trailing newline).
  *
  * @example
  * const line = renderJson(record, logger.settings);
- * // '{"message":"hi","level":"INFO","levelId":3,"time":"…","_meta":{"v":5,…}}'
+ * // '{"message":"hi","level":"INFO","levelId":3,"time":"…","_logMeta":{"v":5,…}}'
  */
 export function renderJson<LogObj>(record: LogObj & ILogObjMeta, settings: ISettings<LogObj>): string {
-  // Hot path: assemble the line from per-logger precompiled fragments (static `_meta`, per-level head)
+  // Hot path: assemble the line from per-logger precompiled fragments (static `_logMeta`, per-level head)
   // so the content that never changes between calls is serialized once, not on every log. Falls back
   // to the object-building path for any shape the plan does not cover. The `json.time` gate lives
   // HERE (not only inside the plan builder) so a logger constructed with a non-"iso" mode never
@@ -485,7 +485,7 @@ export function renderJsonUnplanned<LogObj>(record: LogObj & ILogObjMeta, settin
 /* ------------------------------------------------------------------------------------------------ */
 
 /**
- * Per-logger precompiled JSON fragments. The static `_meta` block (v/runtime/hostname/name/…) and the
+ * Per-logger precompiled JSON fragments. The static `_logMeta` block (v/runtime/hostname/name/…) and the
  * per-level head (`"level":"INFO","levelId":3`) never change between calls, yet the object-building
  * path re-copied and re-serialized them on every log — a large share of the per-line cost. The plan
  * serializes them ONCE; per call only the message, the user's fields, and the two timestamps are
@@ -508,7 +508,7 @@ interface JsonLinePlan {
   /** Expected number of own enumerable meta keys; extra keys (context fields, `path`) → fallback. */
   metaKeyCount: number;
   /**
-   * The `_meta` fragment as segments faithful to the OBSERVED meta key order: literal pieces
+   * The `_logMeta` fragment as segments faithful to the OBSERVED meta key order: literal pieces
    * interleaved with the three dynamic value slots. Per-level chunks concatenate the segments once,
    * leaving only the `date` slot open (it splits `metaBefore`/`metaAfter`).
    */
@@ -835,7 +835,7 @@ function renderPlannedLine<LogObj>(record: LogObj & ILogObjMeta, settings: ISett
  * Circular-safe, `bigint`/`undefined`-aware JSON serializer (extends `internal/jsonStringifyRecursive`).
  *
  * Key ordering is *not* this function's concern — {@link toFlatJsonObject} already emits the well-known
- * keys head-first and (when `json.stableKeyOrder` is on) sorts the user's fields and the `_meta` body.
+ * keys head-first and (when `json.stableKeyOrder` is on) sorts the user's fields and the `_logMeta` body.
  * This function only guarantees JSON-safety of the values:
  *
  * - Circular references are replaced with `"[Circular]"`.

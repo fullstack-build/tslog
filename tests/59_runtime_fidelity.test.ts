@@ -284,7 +284,7 @@ describe("NO_COLOR yields uncolored pretty, not JSON (https://no-color.org)", ()
 
 describe("contextStorage injection seam", () => {
   interface CtxLog {
-    _meta: IMeta & { requestId?: string; region?: string };
+    _logMeta: IMeta & { requestId?: string; region?: string };
   }
 
   /** A synchronous stand-in for AsyncLocalStorage proving the INJECTED instance is what tslog uses. */
@@ -309,12 +309,12 @@ describe("contextStorage injection seam", () => {
     };
   }
 
-  test("an injected storage instance carries the context onto _meta", () => {
+  test("an injected storage instance carries the context onto _logMeta", () => {
     const storage = createFakeStorage();
     const logger = new Logger<CtxLog>({ type: "hidden", contextStorage: storage });
 
     const record = logger.runInContext({ requestId: "req-9" }, () => logger.info("hello"));
-    expect(record?._meta.requestId).toBe("req-9");
+    expect(record?._logMeta.requestId).toBe("req-9");
     expect(storage.runCalls).toBe(1);
   });
 
@@ -323,8 +323,8 @@ describe("contextStorage injection seam", () => {
     const logger = new Logger<CtxLog>({ type: "hidden", contextStorage: storage });
 
     const record = logger.runInContext({ requestId: "outer", region: "eu" }, () => logger.runInContext({ requestId: "inner" }, () => logger.info("nested")));
-    expect(record?._meta.requestId).toBe("inner");
-    expect(record?._meta.region).toBe("eu");
+    expect(record?._logMeta.requestId).toBe("inner");
+    expect(record?._logMeta.region).toBe("eu");
   });
 
   test("a real AsyncLocalStorage instance propagates across awaits", async () => {
@@ -333,7 +333,7 @@ describe("contextStorage injection seam", () => {
       await new Promise((resolve) => setTimeout(resolve, 1));
       return logger.info("after await");
     });
-    expect(record?._meta.requestId).toBe("als-1");
+    expect(record?._logMeta.requestId).toBe("als-1");
   });
 
   test("sub-loggers inherit the injected storage, even when created before any runInContext", () => {
@@ -342,7 +342,7 @@ describe("contextStorage injection seam", () => {
     const child = parent.getSubLogger({ name: "child" });
 
     const record = parent.runInContext({ requestId: "shared" }, () => child.info("from child"));
-    expect(record?._meta.requestId).toBe("shared");
+    expect(record?._logMeta.requestId).toBe("shared");
   });
 
   test("auto-resolved AsyncLocalStorage: a child created BEFORE the first runInContext still sees the context", () => {
@@ -352,7 +352,7 @@ describe("contextStorage injection seam", () => {
     const child = parent.getSubLogger({ name: "early-child" });
 
     const record = parent.runInContext({ requestId: "family" }, () => child.info("from child"));
-    expect(record?._meta.requestId).toBe("family");
+    expect(record?._logMeta.requestId).toBe("family");
   });
 
   test("a context entered via the injected instance's own run() is visible with NO prior runInContext", () => {
@@ -360,7 +360,7 @@ describe("contextStorage injection seam", () => {
     const logger = new Logger<CtxLog>({ type: "hidden", contextStorage: als });
     // App code (e.g. a Workers middleware) drives the storage directly; tslog must still attach it.
     const record = als.run({ requestId: "direct" }, () => logger.info("first call")) as CtxLog | undefined;
-    expect(record?._meta.requestId).toBe("direct");
+    expect(record?._logMeta.requestId).toBe("direct");
   });
 
   test("the caller's ctx object is copied: mutating it after runInContext starts does not rewrite logs", () => {
@@ -370,7 +370,7 @@ describe("contextStorage injection seam", () => {
       ctx.requestId = "mutated";
       return logger.info("x");
     });
-    expect(record?._meta.requestId).toBe("original");
+    expect(record?._logMeta.requestId).toBe("original");
   });
 
   test("a malformed contextStorage warns at construction and degrades to no-op", () => {
@@ -382,7 +382,7 @@ describe("contextStorage injection seam", () => {
 
       // Still runs the function; simply no propagation.
       const record = logger.runInContext({ requestId: "lost" }, () => logger.info("noop"));
-      expect(record?._meta.requestId).toBeUndefined();
+      expect(record?._logMeta.requestId).toBeUndefined();
     } finally {
       warnSpy.mockRestore();
     }
@@ -421,7 +421,7 @@ describe("contextStorage injection seam", () => {
         logger.runInContext({ requestId: "again" }, () => undefined);
 
         // The function ran, nothing propagated, and exactly one warning points at the fix.
-        expect(record?._meta.requestId).toBeUndefined();
+        expect(record?._logMeta.requestId).toBeUndefined();
         const warnings = warnSpy.mock.calls.map((call) => String(call[0])).filter((message) => message.includes("AsyncLocalStorage"));
         expect(warnings).toHaveLength(1);
         expect(warnings[0]).toContain("contextStorage");

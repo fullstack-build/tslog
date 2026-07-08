@@ -15,7 +15,7 @@ import { toFlatJsonObject } from "../../render/json.js";
  *   "level": 30,                       // pino NUMERIC level (see mapping below)
  *   "time": 1751191872000,             // epoch milliseconds by default (ISO string with `time: "iso"`)
  *   "pid": 4242,                       // optional, when discoverable + enabled
- *   "hostname": "host",                // optional, from _meta.hostname when enabled
+ *   "hostname": "host",                // optional, from _logMeta.hostname when enabled
  *   "msg": "user logged in",           // the message, from `messageKey`
  *   "userId": 42,                      // the user's own logged fields, spread at the top level
  *   "err": {                           // logged Error(s) in pino's serializer shape (errorShape: "pino")
@@ -27,7 +27,7 @@ import { toFlatJsonObject } from "../../render/json.js";
  * }
  * ```
  *
- * The runtime `_meta` block tslog normally nests is intentionally dropped: pino keeps `level`/`time`/
+ * The runtime `_logMeta` block tslog normally nests is intentionally dropped: pino keeps `level`/`time`/
  * `pid`/`hostname` at the top level and nothing else, so the output stays a clean drop-in.
  *
  * ## Level mapping (tslog 0-6 → pino 10-60)
@@ -76,7 +76,7 @@ export interface PinoFormatOptions {
    */
   pid?: boolean;
   /**
-   * Whether to include `hostname`. When `true` (default) the value is taken from `_meta.hostname`
+   * Whether to include `hostname`. When `true` (default) the value is taken from `_logMeta.hostname`
    * (populated by tslog's environment detection on server runtimes); omitted when unavailable.
    */
   hostname?: boolean;
@@ -286,13 +286,13 @@ function reshapeError(value: unknown): unknown {
 /**
  * Create a pino-shaped NDJSON {@link LogFormatter}.
  *
- * The returned formatter is pure: given a finished tslog record (user fields + `_meta`) and the live
+ * The returned formatter is pure: given a finished tslog record (user fields + `_logMeta`) and the live
  * settings, it returns a single JSON line (no trailing newline) in pino's shape. Attach it as a
  * transport's `format`, or use the convenience {@link pinoTransport}.
  *
  * It reuses tslog's own {@link toFlatJsonObject} to lift the message and spread the user's fields /
  * errors to the top level, then rewrites the head keys (`level`, `time`, `pid`, `hostname`, `msg`,
- * `err`) into pino's representation and drops the tslog `_meta` block.
+ * `err`) into pino's representation and drops the tslog `_logMeta` block.
  *
  * @param opts - see {@link PinoFormatOptions}.
  * @returns a {@link LogFormatter} producing pino-shaped NDJSON.
@@ -310,7 +310,7 @@ export function pinoFormat<LogObj>(opts?: PinoFormatOptions): LogFormatter<LogOb
     const metaProperty = settings.meta.property;
 
     // Pull tslog's well-known head keys out of the flat object so we can re-emit them pino-style and
-    // drop the rest of tslog's meta scaffolding (the nested _meta block, the level NAME, the levelId).
+    // drop the rest of tslog's meta scaffolding (the nested _logMeta block, the level NAME, the levelId).
     const tslogMessageKey = settings.json.messageKey;
     const tslogTimeKey = settings.json.timeKey;
     const tslogLevelKey = settings.json.levelKey;

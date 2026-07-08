@@ -6,15 +6,15 @@ import { getConsoleLog, mockConsoleLog } from "./helper.js";
 // minLevel resolves against them, and the default seven keep working.
 
 interface LevelLog {
-  _meta: { logLevelId: number; logLevelName: string };
+  _logMeta: { logLevelId: number; logLevelName: string };
 }
 
 describe("customLevels setting", () => {
   test("a custom level logs with the correct id and name", () => {
     const logger = new Logger<LevelLog>({ type: "hidden", customLevels: { NOTICE: 3.5 } });
     const record = logger.log(3.5, "NOTICE", "heads up");
-    expect(record?._meta.logLevelId).toBe(3.5);
-    expect(record?._meta.logLevelName).toBe("NOTICE");
+    expect(record?._logMeta.logLevelId).toBe(3.5);
+    expect(record?._logMeta.logLevelName).toBe("NOTICE");
   });
 
   test("the registered map is exposed on resolved settings", () => {
@@ -33,8 +33,8 @@ describe("customLevels setting", () => {
 
   test("the canonical seven still work alongside custom levels", () => {
     const logger = new Logger<LevelLog>({ type: "hidden", customLevels: { NOTICE: 3.5 } });
-    expect(logger.info("info")?._meta.logLevelName).toBe("INFO");
-    expect(logger.error("err")?._meta.logLevelId).toBe(5);
+    expect(logger.info("info")?._logMeta.logLevelName).toBe("INFO");
+    expect(logger.error("err")?._logMeta.logLevelId).toBe(5);
   });
 
   test("a custom level emits its name in JSON output", () => {
@@ -62,8 +62,8 @@ describe("logger.addLevel at runtime", () => {
     const logger = new Logger<LevelLog>({ type: "hidden" });
     const record = logger.addLevel("AUDIT", 7).log(7, "AUDIT", "trail");
     expect(logger.settings.customLevels.AUDIT).toBe(7);
-    expect(record?._meta.logLevelName).toBe("AUDIT");
-    expect(record?._meta.logLevelId).toBe(7);
+    expect(record?._logMeta.logLevelName).toBe("AUDIT");
+    expect(record?._logMeta.logLevelId).toBe(7);
   });
 
   test("addLevel rejects a name that collides with a default level", () => {
@@ -77,8 +77,8 @@ describe("sub-loggers inherit and extend custom levels", () => {
     const parent = new Logger<LevelLog>({ type: "hidden", customLevels: { NOTICE: 3.5 } });
     const child = parent.getSubLogger({ customLevels: { AUDIT: 7 } });
     expect(child.settings.customLevels).toEqual({ NOTICE: 3.5, AUDIT: 7 });
-    expect(child.log(3.5, "NOTICE", "x")?._meta.logLevelName).toBe("NOTICE");
-    expect(child.log(7, "AUDIT", "y")?._meta.logLevelName).toBe("AUDIT");
+    expect(child.log(3.5, "NOTICE", "x")?._logMeta.logLevelName).toBe("NOTICE");
+    expect(child.log(7, "AUDIT", "y")?._logMeta.logLevelName).toBe("AUDIT");
   });
 
   test("a sub-logger resolves a string minLevel against an inherited custom level", () => {
