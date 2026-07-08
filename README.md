@@ -31,24 +31,24 @@
 ```typescript
 import { Logger } from "tslog";
 
-// `new Logger()` is pretty everywhere: colorized in an interactive terminal,
-// uncolored when piped/redirected/CI. Omit `type` for readable pretty output,
-// or set `type: "pretty" | "json" | "hidden"` (JSON is opt-in).
+// `new Logger()` is pretty everywhere: colorized in an
+// interactive terminal, uncolored when piped/redirected/CI.
+// Omit `type` for pretty; set "pretty" | "json" | "hidden".
 const log = new Logger({ minLevel: "INFO" });
 
-// Fields-first (pino-style) OR string-first — both overloads work:
+// Fields-first OR string-first — both work:
 log.info({ port: 3000 }, "server started");
 log.info("server started");
 
-// A child logger per request or agent — name, settings and fields are inherited.
-// `child(...)` is an alias for `getSubLogger(...)`:
+// A child logger per request or agent — name, settings and
+// fields are inherited. `child(...)` aliases `getSubLogger(...)`:
 const requestLog = log.getSubLogger({ name: "agent:planner" });
-requestLog.info({ tool: "search", durationMs: 142, tokens: 318 }, "tool call complete");
-// JSON → {"message":"tool call complete","level":"INFO","levelId":3,"time":"…",
-//         "tool":"search","durationMs":142,"tokens":318,
-//         "_meta":{"v":5,"name":"agent:planner",…}}
+requestLog.info({ tool: "search", tokens: 318 }, "tool call done");
+// JSON → {"message":"tool call done","level":"INFO","levelId":3,
+//         "time":"…","tool":"search","tokens":318,
+//         "_logMeta":{"v":5,"name":"agent:planner",…}}
 
-// Keep secrets, PII and prompts out of your logs (settings are grouped under `mask`):
+// Keep secrets, PII and prompts out of your logs (grouped under `mask`):
 const safeLog = new Logger({
   type: "json",
   mask: {
@@ -167,7 +167,8 @@ A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, ex
 // tsconfig.json
 {
   compilerOptions: {
-    "inlineSourceMap": true, // <!-- here
+    // <!-- here
+    "inlineSourceMap": true,
     "target": "es2022",
   },
 }
@@ -179,7 +180,7 @@ A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, ex
 npm install tslog
 ```
 
-Works out of the box on Hermes and JSC — Metro resolves the `react-native` entry automatically. `tslog` detects React Native (`_meta.runtime: "react-native"`, with the Hermes engine version when available), parses Hermes/JSC stack frames correctly, and defaults to pretty output in the Metro console.
+Works out of the box on Hermes and JSC — Metro resolves the `react-native` entry automatically. `tslog` detects React Native (`_logMeta.runtime: "react-native"`, with the Hermes engine version when available), parses Hermes/JSC stack frames correctly, and defaults to pretty output in the Metro console.
 
 
 ## Which build should I use?
@@ -202,29 +203,29 @@ All of them speak the same settings language and emit the same JSON shape, so sw
 
 How `tslog` compares to the most popular JavaScript loggers. **This table looks only at what each library does in its core package, out of the box** — because most of these can be extended with plugins, and a fair comparison has to draw the line somewhere. The line is "what you get from a fresh `install` with no extra packages."
 
-**Legend:** ✅ built-in / on by default · ➕ available, but only by adding a separate plugin or package · 🟡 partial / manual / needs hand-rolling · ❌ not available
+**Legend:** ✅ built-in / on by default · ⚪ available, but only by adding a separate plugin or package · 🟡 partial / manual / needs hand-rolling · ❌ not available
 
-| Feature (core package only)            | **tslog**               | pino             | winston           | bunyan           | consola        |
-|----------------------------------------|-------------------------|------------------|-------------------|------------------|----------------|
-| Runtime dependencies                   | **0**                   | many             | many              | heavy (native)   | 0 (bundled)    |
-| Universal (Node + browser + Deno/Bun)  | ✅                      | 🟡 polyfill      | ❌ Node-only      | ❌ Node-only     | ✅             |
-| Pretty output **in-process**           | ✅                      | ➕ `pino-pretty` | ✅                | ➕ CLI pipe      | ✅             |
-| Structured, fields-first JSON          | ✅                      | ✅               | 🟡 via formats    | ✅               | ❌             |
-| Env-aware colorization (color ↔ plain) | ✅                      | ❌               | ❌                | ❌               | 🟡 fancy↔basic |
-| Secret masking / redaction             | ✅ keys · paths · regex | ✅ paths         | 🟡 manual format  | ❌               | ❌             |
-| Pretty errors + stack traces           | ✅                      | 🟡               | 🟡                | 🟡               | 🟡             |
-| Source-mapped call-site line numbers   | ✅                      | ❌               | ❌                | 🟡 `src` (slow)  | 🟡             |
-| Sub-loggers with inherited settings    | ✅                      | 🟡 bound fields  | 🟡 child fields   | 🟡 bound fields  | ❌             |
-| Per-transport level / format           | ✅                      | 🟡 per-target    | ✅                | 🟡 per-stream    | ❌             |
-| `flush()` / disposal                   | ✅                      | ✅               | ❌                | ❌               | ❌             |
-| Async-context correlation (ALS)        | ✅                      | ➕ `pino-http`   | ➕                | ❌               | ❌             |
-| OpenTelemetry / GenAI presets          | ✅                      | ➕               | ➕                | ❌               | ❌             |
-| File / HTTP / ring-buffer transports   | ➕ subpaths             | ➕ targets       | ➕ transports     | 🟡 streams       | ❌             |
-| Off-event-loop (worker-thread) sink    | ➕ subpath              | ✅ thread-stream | ❌                | ❌               | ❌             |
-| First-class TypeScript types           | ✅                      | ✅               | 🟡 loose          | 🟡               | ✅             |
+| Feature (core package only) | **tslog** | pino | winston | bunyan | consola |
+|:---|:---:|:---:|:---:|:---:|:---:|
+| Runtime dependencies | **0** | many | many | heavy (native) | 0 (bundled) |
+| Universal (Node + browser + Deno/Bun) | ✅ | 🟡<br>polyfill | ❌<br>Node-only | ❌<br>Node-only | ✅ |
+| Pretty output **in-process** | ✅ | ⚪<br>`pino-pretty` | ✅ | ⚪<br>CLI pipe | ✅ |
+| Structured, fields-first JSON | ✅ | ✅ | 🟡<br>via formats | ✅ | ❌ |
+| Env-aware colorization (color ↔ plain) | ✅ | ❌ | ❌ | ❌ | 🟡<br>fancy↔basic |
+| Secret masking / redaction | ✅<br>keys · paths · regex | ✅<br>paths | 🟡<br>manual format | ❌ | ❌ |
+| Pretty errors + stack traces | ✅ | 🟡 | 🟡 | 🟡 | 🟡 |
+| Source-mapped call-site line numbers | ✅ | ❌ | ❌ | 🟡<br>`src` (slow) | 🟡 |
+| Sub-loggers with inherited settings | ✅ | 🟡<br>bound fields | 🟡<br>child fields | 🟡<br>bound fields | ❌ |
+| Per-transport level / format | ✅ | 🟡<br>per-target | ✅ | 🟡<br>per-stream | ❌ |
+| `flush()` / disposal | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Async-context correlation (ALS) | ✅ | ⚪<br>`pino-http` | ⚪ | ❌ | ❌ |
+| OpenTelemetry / GenAI presets | ✅ | ⚪ | ⚪ | ❌ | ❌ |
+| File / HTTP / ring-buffer transports | ⚪<br>subpaths | ⚪<br>targets | ⚪<br>transports | 🟡<br>streams | ❌ |
+| Off-event-loop (worker-thread) sink | ⚪<br>subpath | ✅<br>thread-stream | ❌ | ❌ | ❌ |
+| First-class TypeScript types | ✅ | ✅ | 🟡<br>loose | 🟡 | ✅ |
 
 > [!NOTE]
-> A ➕ does **not** mean a competitor "can't" do something — pino, winston and the rest have rich plugin ecosystems, and a ➕ is often a one-line `install` away. The point of comparing core packages is that `tslog` aims to give you universal runtime support, pretty **and** structured output, masking, error formatting and correlation **from a single zero-dependency install**, with transports/presets opting in as tree-shakeable subpaths only when you need them.
+> A ⚪ does **not** mean a library "can't" do something — pino, winston and the rest have rich plugin ecosystems, and a ⚪ is often a one-line `install` away. The point of comparing core packages is that `tslog` aims to give you universal runtime support, pretty **and** structured output, masking, error formatting and correlation **from a single zero-dependency install**, with transports/presets opting in as tree-shakeable subpaths only when you need them.
 >
 >`tslog` is built for the case where one logger has to be good in the browser *and* the server, readable in dev *and* machine-parseable in prod.
 
@@ -265,11 +266,13 @@ Use `minLevel` to suppress everything below a threshold (number or name). The `L
 ```typescript
 import { Logger, LogLevel } from "tslog";
 
-const log = new Logger({ minLevel: LogLevel.WARN }); // or minLevel: "WARN"
+// or minLevel: "WARN"
+const log = new Logger({ minLevel: LogLevel.WARN });
 log.info("hidden");
 log.warn("visible");
 
-log.setMinLevel("DEBUG"); // change at runtime
+// change at runtime
+log.setMinLevel("DEBUG");
 ```
 
 **Custom levels** declared with `customLevels` (or added at runtime with `addLevel`) install real level methods named after the lower-cased level. Use `createLogger` to get them fully typed, and level names resolve case-insensitively everywhere (`minLevel`, `isLevelEnabled`):
@@ -278,17 +281,20 @@ log.setMinLevel("DEBUG"); // change at runtime
 import { createLogger } from "tslog";
 
 const log = createLogger({ customLevels: { AUDIT: 8, METRIC: 9 } });
-log.audit({ actor: "ada" }, "deleted account"); // typed method
-log.addLevel("NOTICE", 3.5).notice("heads up"); // runtime registration, chainable
+// typed method
+log.audit({ actor: "ada" }, "deleted account");
+// runtime registration, chainable
+log.addLevel("NOTICE", 3.5).notice("heads up");
 
-const quiet = new Logger({ customLevels: { AUDIT: 8 }, minLevel: "audit" }); // any casing works
+// any casing works
+const quiet = new Logger({ customLevels: { AUDIT: 8 }, minLevel: "audit" });
 ```
 
 The generic `log(levelId, levelName, ...args)` dispatch still works; a call whose id drifts from the registered one warns in development. Names that collide with a logger member (`log`, `flush`, …), a canonical level, or another registered level in a different casing are rejected at construction.
 
 ### Sub-loggers — `child()` / `getSubLogger()`
 
-A sub-logger inherits the parent's settings (group-merged) and default `logObj`. Names accumulate into `_meta.parentNames`, so you can trace which module or request produced a line. `child()` is an alias for `getSubLogger()`.
+A sub-logger inherits the parent's settings (group-merged) and default `logObj`. Names accumulate into `_logMeta.parentNames`, so you can trace which module or request produced a line. `child()` is an alias for `getSubLogger()`.
 
 Bind static fields with `bindings`: they land on every JSON record, merge down the child chain, always lose to per-call fields on a collision, and are masked once with the logger's `mask` settings.
 
@@ -300,7 +306,7 @@ query.info("slow query", { ms: 812 });
 // → {"message":"slow query","ms":812,"service":"checkout","pool":"primary",…}
 
 query.debug("select 1");
-// _meta.name = "query", _meta.parentNames = ["app", "db"]
+// _logMeta.name = "query", _logMeta.parentNames = ["app", "db"]
 ```
 
 You can override the default `logObj` per child by passing a second argument: `main.getSubLogger({ name: "worker" }, { tenant: "acme" })`.
@@ -317,7 +323,7 @@ v5 settings are organized into **groups** — there are no flat keys like `prett
 | `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `time` (`"iso" \| "epoch" \| false \| fn`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
 | `mask`    | `keys` (`[]`), `caseInsensitive`, `regex` (`RegExp[]`), `placeholder` (`"[***]"`), `paths` (JSONPath-lite), `censor` (`string \| "remove" \| "hash" \| fn`), `hashLabel` (`"hash"`) |
 | `stack`   | `capture` (`"off" \| "lazy" \| "auto" \| "full"`), `internalFramePatterns` (`RegExp[]`) |
-| `meta`    | `property` (`"_meta"`), `attachContext` |
+| `meta`    | `property` (`"_logMeta"`), `attachContext` |
 
 ```typescript
 const log = new Logger({
@@ -341,9 +347,47 @@ When `type` is omitted, `tslog` defaults to `pretty` **everywhere** — a pipe, 
 Structured `json` is a deliberate production choice, so it is **opt-in** — set `type: "json"`, run with `TSLOG_TYPE=json` (via `Logger.fromEnv()`), or attach a JSON transport/sink. `NO_COLOR` follows [no-color.org](https://no-color.org) semantics: it switches colors off, never the format. `FORCE_COLOR` forces colorized pretty. Both apply to `new Logger()` and the ready-made `log` export. `Logger.fromEnv(overrides?)` additionally reads `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME` (overrides win).
 
 
+## First-class support for agents & LLMs
+
+`tslog` treats LLM apps and coding agents as a primary use case — it's used by [OpenClaw](https://openclaw.ai), an AI agent platform, for its agent logging:
+
+- **`llms.txt`** ships in the package, giving agents an accurate, condensed API surface to work from.
+- **Fields-first calls** make structured, queryable logs the natural default for tool calls and traces.
+- **`isLevelEnabled(level)`** guards expensive payloads (token counts, large prompts) without building them:
+
+  ```typescript
+  if (log.isLevelEnabled("DEBUG")) {
+    log.debug({ prompt: buildExpensivePrompt() });
+  }
+  ```
+
+- **`defineConfig(...)`** gives a typed, validated settings object you can share across loggers.
+- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). Context fields attach to `_logMeta` by default (`meta.attachContext`; set it to `false` to keep them out of the output), so every log inside the callback carries the same correlation id:
+
+  ```typescript
+  const log = new Logger();
+
+  await log.runInContext({ requestId: "abc123" }, async () => {
+    // _logMeta carries requestId
+    log.info("handling request");
+    await doWork();
+  });
+  ```
+
+  `runInContext` propagates on Node, Deno, and Bun automatically. On runtimes where `AsyncLocalStorage` cannot be auto-resolved — most notably Cloudflare Workers — inject one via the `contextStorage` setting (requires the `nodejs_als` or `nodejs_compat` compatibility flag):
+
+  ```typescript
+  import { AsyncLocalStorage } from "node:async_hooks";
+
+  const log = new Logger({ contextStorage: new AsyncLocalStorage() });
+  ```
+
+  Where neither is available (browsers), `runInContext` still runs the function — it just propagates nothing, and warns once in development.
+
+
 ## Structured JSON output
 
-`tslog`'s JSON is **flat and fields-first** — message, level and time at the top, your fields spread next to them, and runtime metadata nested under `_meta` with a schema version (`v: 5`).
+`tslog`'s JSON is **flat and fields-first** — message, level and time at the top, your fields spread next to them, and runtime metadata nested under `_logMeta` with a schema version (`v: 5`).
 
 ```typescript
 const log = new Logger({ type: "json" });
@@ -357,7 +401,7 @@ log.info({ userId: 42 }, "hi");
   "levelId": 3,
   "time": "2026-06-29T22:37:07.599Z",
   "userId": 42,
-  "_meta": {
+  "_logMeta": {
     "v": 5,
     "runtime": "node",
     "runtimeVersion": "24.15.0",
@@ -390,14 +434,21 @@ new Logger({
 
 ### Timestamps & the clock seam
 
-The top-level timestamp representation is configurable via `json.time` (the `_meta.date` inside the
+The top-level timestamp representation is configurable via `json.time` (the `_logMeta.date` inside the
 runtime block always stays a UTC ISO string), and the clock itself is injectable:
 
 ```typescript
-new Logger({ type: "json", json: { time: "epoch" } });        // "time": 1751191872000 (pino-style ms)
-new Logger({ type: "json", json: { time: false } });          // no top-level time key (diff-friendly)
-new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } }); // ns for Loki
-new Logger({ clock: () => new Date(0) });                     // frozen clock — deterministic tests
+// "time": 1751191872000 (pino-style ms)
+new Logger({ type: "json", json: { time: "epoch" } });
+
+// no top-level time key (diff-friendly)
+new Logger({ type: "json", json: { time: false } });
+
+// ns for Loki
+new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } });
+
+// frozen clock — deterministic tests
+new Logger({ clock: () => new Date(0) });
 ```
 
 A throwing/invalid `clock` or `time` function never breaks logging (the runtime date / ISO string is
@@ -422,11 +473,16 @@ One of the most common ways secrets leak is through logs. Configure masking once
 const log = new Logger({
   type: "json",
   mask: {
-    keys: ["password", "apiKey", "token"], // mask by key name
-    caseInsensitive: true,                  // also match Password, TOKEN, …
-    regex: [/Bearer\s+[A-Za-z0-9._-]+/],    // mask by value pattern
-    paths: ["user.password", "*.token"],    // JSONPath-lite, "*" wildcard
-    placeholder: "[***]",                   // replacement (default)
+    // mask by key name
+    keys: ["password", "apiKey", "token"],
+    // also match Password, TOKEN, …
+    caseInsensitive: true,
+    // mask by value pattern
+    regex: [/Bearer\s+[A-Za-z0-9._-]+/],
+    // JSONPath-lite, "*" wildcard
+    paths: ["user.password", "*.token"],
+    // replacement (default)
+    placeholder: "[***]",
   },
 });
 ```
@@ -452,8 +508,10 @@ A transport receives every (level-permitted) log record and decides where it goe
 ```ts
 interface Transport<LogObj> {
   name?: string;
-  minLevel?: number | TLogLevelName;                  // per-transport level
-  format?: "pretty" | "json" | LogFormatter<LogObj>;  // per-transport format
+  // per-transport level
+  minLevel?: number | TLogLevelName;
+  // per-transport format
+  format?: "pretty" | "json" | LogFormatter<LogObj>;
   write(record, line): void | Promise<void>;
   flush?(): Promise<void>;
   [Symbol.asyncDispose]?(): Promise<void>;
@@ -487,10 +545,14 @@ Delivery guarantees: `log.flush()` awaits in-flight **async transport writes** a
 ### Built-in transport subpaths
 
 ```typescript
-import { fileTransport } from "tslog/transports/file";             // Node, non-blocking
-import { httpTransport } from "tslog/transports/http";             // batched fetch
-import { ringBufferTransport } from "tslog/transports/ringbuffer";  // in-memory
-import { workerTransport } from "tslog/transports/worker";          // Node, off-thread sink I/O
+// Node, non-blocking
+import { fileTransport } from "tslog/transports/file";
+// batched fetch
+import { httpTransport } from "tslog/transports/http";
+// in-memory
+import { ringBufferTransport } from "tslog/transports/ringbuffer";
+// Node, off-thread sink I/O
+import { workerTransport } from "tslog/transports/worker";
 
 const log = new Logger();
 log.attachTransport(fileTransport({ path: "app.log", append: true }));
@@ -500,8 +562,8 @@ const ring = ringBufferTransport({ size: 200 });
 log.attachTransport(ring);
 // ring.dump(); ring.clear();
 
-// Run the destination write on a worker thread so slow sink I/O doesn't block the event loop
-// under high volume (like pino's thread-stream). Note: this does NOT speed up `log.info()` —
+// Run the destination write on a worker thread so slow sink I/O doesn't block the event loop under high volume. 
+// Note: this does NOT speed up `log.info()` —
 // the record is still built and serialized on the main thread; only the file/stream write moves
 // off-thread. `flush()` drains the worker; `await using` (or attachTransport's detach) cleans it up.
 log.attachTransport(workerTransport({ destination: "file", path: "app.log", format: "json" }));
@@ -518,7 +580,7 @@ log.attachTransport(workerTransport({ destination: "file", path: "app.log", form
 ```typescript
 const log = new Logger();
 
-// enrich every log (meta is free-form scratch space attached under _meta)
+// enrich every log (meta is free-form scratch space attached under _logMeta)
 log.use((ctx) => {
   ctx.meta.env = process.env.NODE_ENV;
   return ctx;
@@ -543,7 +605,8 @@ Presets are tree-shakeable subpaths that emit logs in a foreign schema, so `tslo
 import { pinoFormat, pinoTransport } from "tslog/presets/pino";
 
 const log = new Logger();
-log.attachTransport(pinoTransport()); // or attach a transport with { format: pinoFormat() }
+// or attach a transport with { format: pinoFormat() }
+log.attachTransport(pinoTransport());
 ```
 
 Errors are emitted in pino's serializer shape — `err: { type, message, stack }` with `stack` as the
@@ -565,10 +628,12 @@ log.attachTransport(
   httpTransport({
     url: "http://collector:4318/v1/logs",
     format: otlpFormat({ resource: { "service.name": "checkout" } }),
-    encodeBody: otlpBatchBody, // merges each batch into ONE OTLP envelope per POST
+    // merges each batch into ONE OTLP envelope per POST
+    encodeBody: otlpBatchBody,
   }),
 );
-log.use(otelTraceContext({ getSpanContext: () => trace.getActiveSpan()?.spanContext() })); // trace correlation (`trace` from @opentelemetry/api)
+// trace correlation (`trace` from @opentelemetry/api)
+log.use(otelTraceContext({ getSpanContext: () => trace.getActiveSpan()?.spanContext() }));
 ```
 
 `otelFormat()` / `toOtelRecord()` additionally emit the *data-model prose shape* (`Timestamp`, `Body`,
@@ -606,11 +671,13 @@ const log = new Logger();
 
 log.attachTransport({
   name: "sentry",
-  minLevel: "ERROR", // only errors and fatals leave the process
-  format: "json", // `line` becomes the flat JSON record, independent of the console output
+  // only errors and fatals leave the process
+  minLevel: "ERROR",
+  // `line` becomes the flat JSON record, independent of the console output
+  format: "json",
   write(record, line) {
-    const { _meta, ...fields } = JSON.parse(line);
-    const level = _meta.logLevelName === "FATAL" ? "fatal" : "error";
+    const { _logMeta, ...fields } = JSON.parse(line);
+    const level = _logMeta.logLevelName === "FATAL" ? "fatal" : "error";
     const nativeError = [record, ...Object.values(record)]
       .map((value) => (value as { nativeError?: unknown } | null)?.nativeError)
       .find((candidate): candidate is Error => candidate instanceof Error);
@@ -622,7 +689,8 @@ log.attachTransport({
   },
 });
 
-log.error(new Error("payment failed")); // → console output + a Sentry issue, logged fields as `extra`
+// → console output + a Sentry issue, logged fields as `extra`
+log.error(new Error("payment failed"));
 ```
 
 **Everything → Sentry Logs.** Enable logs in `Sentry.init` (`enableLogs: true`, current `@sentry/node`) and forward every record through `Sentry.logger.*` — the seven tslog levels map one-to-one, with `SILLY` joining `trace`:
@@ -638,15 +706,17 @@ const toSentry = { SILLY: "trace", TRACE: "trace", DEBUG: "debug", INFO: "info",
 
 log.attachTransport({
   name: "sentry-logs",
-  format: "json", // `line` is the flat JSON record; its fields become Sentry log attributes
+  // `line` is the flat JSON record; its fields become Sentry log attributes
+  format: "json",
   write(_record, line) {
-    const { _meta, message, ...attributes } = JSON.parse(line);
-    const method = toSentry[_meta.logLevelName as keyof typeof toSentry] ?? "info";
+    const { _logMeta, message, ...attributes } = JSON.parse(line);
+    const method = toSentry[_logMeta.logLevelName as keyof typeof toSentry] ?? "info";
     Sentry.logger[method](String(message ?? ""), attributes);
   },
 });
 
-log.info({ userId: 42 }, "user logged in"); // → console output + a Sentry log with a `userId` attribute
+// → console output + a Sentry log with a `userId` attribute
+log.info({ userId: 42 }, "user logged in");
 ```
 
 Run both transports side by side: every record becomes a searchable Sentry log, and `ERROR`/`FATAL` additionally become issues. Because transports are inherited, every sub-logger reports to Sentry too — and transport isolation means a Sentry outage can never break your logging.
@@ -661,15 +731,18 @@ import { httpTransport } from "tslog/transports/http";
 
 const log = new Logger({
   type: "json",
-  json: { timeKey: "dt" }, // Better Stack reads the timestamp from "dt"
+  // Better Stack reads the timestamp from "dt"
+  json: { timeKey: "dt" },
 });
 
 log.attachTransport(
   httpTransport({
-    url: "https://in.logs.betterstack.com", // use the ingesting host shown on your source's settings page
+    // use the ingesting host shown on your source's settings page
+    url: "https://in.logs.betterstack.com",
     headers: { authorization: `Bearer ${process.env.BETTER_STACK_SOURCE_TOKEN}` },
     format: "json",
-    bodyFormat: "array", // Better Stack accepts a JSON array of events per request
+    // Better Stack accepts a JSON array of events per request
+    bodyFormat: "array",
     batchSize: 50,
     flushIntervalMs: 2000,
   }),
@@ -678,7 +751,8 @@ log.attachTransport(
 log.info({ userId: 42 }, "user logged in");
 // → stdout JSON + batched POSTs; "userId" lands as a queryable column
 
-await log.flush(); // drain the buffer before shutdown (await using does this automatically)
+// drain the buffer before shutdown (await using does this automatically)
+await log.flush();
 ```
 
 The transport batches, retries with exponential backoff, bounds every request with a timeout, caps its buffer, and flushes on `beforeExit`/`pagehide` — see [Transports](#transports). Field names are yours to shape if your dashboards expect different columns, e.g. `json: { levelKey: "severity" }`.
@@ -727,43 +801,6 @@ new Logger({
 On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.inspectOptions`.
 
 
-## First-class support for agents & LLMs
-
-`tslog` treats LLM apps and coding agents as a primary use case — it's used by [OpenClaw](https://openclaw.ai), an AI agent platform, for its agent logging:
-
-- **`llms.txt`** ships in the package, giving agents an accurate, condensed API surface to work from.
-- **Fields-first calls** make structured, queryable logs the natural default for tool calls and traces.
-- **`isLevelEnabled(level)`** guards expensive payloads (token counts, large prompts) without building them:
-
-  ```typescript
-  if (log.isLevelEnabled("DEBUG")) {
-    log.debug({ prompt: buildExpensivePrompt() });
-  }
-  ```
-
-- **`defineConfig(...)`** gives a typed, validated settings object you can share across loggers.
-- **Request / agent correlation** via `runInContext(ctx, fn)` (Node ALS). Context fields attach to `_meta` by default (`meta.attachContext`; set it to `false` to keep them out of the output), so every log inside the callback carries the same correlation id:
-
-  ```typescript
-  const log = new Logger();
-
-  await log.runInContext({ requestId: "abc123" }, async () => {
-    log.info("handling request"); // _meta carries requestId
-    await doWork();
-  });
-  ```
-
-  `runInContext` propagates on Node, Deno, and Bun automatically. On runtimes where `AsyncLocalStorage` cannot be auto-resolved — most notably Cloudflare Workers — inject one via the `contextStorage` setting (requires the `nodejs_als` or `nodejs_compat` compatibility flag):
-
-  ```typescript
-  import { AsyncLocalStorage } from "node:async_hooks";
-
-  const log = new Logger({ contextStorage: new AsyncLocalStorage() });
-  ```
-
-  Where neither is available (browsers), `runInContext` still runs the function — it just propagates nothing, and warns once in development.
-
-
 ## Other subpaths
 
 | Import | What it gives you |
@@ -782,21 +819,21 @@ import { createTestLogger } from "tslog/testing";
 
 const { logger, logs, lines, clear } = createTestLogger({ type: "json" });
 logger.info({ ok: true }, "tested");
-// logs[0] is the captured record: logs[0]._meta.logLevelName === "INFO"
+// logs[0] is the captured record: logs[0]._logMeta.logLevelName === "INFO"
 // lines[0] is the rendered line and contains the fields: lines[0].includes('"ok":true')
 ```
 
 
 ## Performance
 
-`tslog` is fast, but this README is honest rather than chasing a leaderboard claim — **it does not claim to be faster than pino.** The defaults are tuned for a great developer experience; for hot production paths, the biggest lever is stack capture.
+The defaults are tuned for a great developer experience; for hot production paths, the biggest lever is stack capture.
 
-- **Batched stdout by default (Node).** JSON lines are buffered and written to stdout once per event-loop turn instead of one `console.log` per line — the same trick as pino's `sonic-boom`, with flush/exit-hook safeguards (see *Batched stdout on Node* above).
+- **Batched stdout by default (Node).** JSON lines are buffered and written to stdout once per event-loop turn instead of one `console.log` per line, with flush/exit-hook safeguards (see *Batched stdout on Node* above).
 - **Lazy stack capture by default.** Stack frames (and therefore log-position lookup) are captured lazily, so you only pay for them when something actually reads them.
 - **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths, or `"full"` when you want complete frames for debugging.
 - **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with `sideEffects: false`, so unused features never reach your bundle.
 
-See **[benchmarks/RESULTS.md](./benchmarks/RESULTS.md)** for measured numbers and the methodology.
+Benchmarks are run internally against pino, winston, bunyan, and consola, but the raw numbers aren't published — they vary too much by machine and workload to be a fair, stable comparison to share.
 
 
 ## Migrating from pino, winston, or consola
@@ -823,7 +860,8 @@ const logger = new Logger({
   minLevel: "INFO",
   mask: { paths: ["user.password", "*.token"], placeholder: "[Redacted]" },
 });
-logger.info({ userId: 42 }, "user logged in"); // unchanged
+// unchanged
+logger.info({ userId: 42 }, "user logged in");
 const db = logger.child({ name: "db", bindings: { module: "db" } });
 ```
 
@@ -835,7 +873,7 @@ const db = logger.child({ name: "db", bindings: { module: "db" } });
 | `redact` with `remove: true` | `mask: { censor: "remove" }` |
 | `child({ module: "db" })` | `child({ bindings: { module: "db" } })` — children inherit *settings* too, not just bound fields |
 | `messageKey` / `timestamp` options | `json: { messageKey, time }` (`"epoch"`, `"iso"`, or a function) |
-| `pino-pretty` for dev | built in — omit `type` and a TTY gets pretty output, CI/pipes get JSON |
+| `pino-pretty` for dev | built in — omit `type` and you get pretty output everywhere, TTY or not; set `type: "json"` when you want structured output |
 | `transport: { target: "pino/file" }` | `fileTransport(...)` from `tslog/transports/file`; off-thread sink I/O via `tslog/transports/worker` |
 | `pino.stdSerializers.err/req/res` | `stdSerializers` from `tslog/serializers` |
 | `logger.flush(cb)` | `await logger.flush()` |
@@ -848,8 +886,6 @@ import { pinoTransport } from "tslog/presets/pino";
 const logger = new Logger({ type: "hidden" });
 logger.attachTransport(pinoTransport((line) => process.stdout.write(line + "\n")));
 ```
-
-**Performance expectations.** tslog does not claim to out-throughput pino (see [Performance](#performance)). On hot paths set `stack: { capture: "off" }` — call-site capture is the one cost pino never pays.
 
 ### From winston
 
@@ -874,12 +910,14 @@ import { Logger } from "tslog";
 import { fileTransport } from "tslog/transports/file";
 
 const logger = new Logger({
-  type: "json", // or omit for pretty everywhere (JSON is opt-in)
+  // or omit for pretty everywhere (JSON is opt-in)
+  type: "json",
   minLevel: "INFO",
   bindings: { service: "checkout" },
 });
 logger.attachTransport(fileTransport({ path: "error.log", format: "json", minLevel: "ERROR" }));
-logger.info("payment accepted", { orderId: 7 }); // unchanged
+// unchanged
+logger.info("payment accepted", { orderId: 7 });
 ```
 
 | winston | tslog v5 |
@@ -914,17 +952,19 @@ import { createLogger } from "tslog";
 const logger = createLogger({
   name: "build",
   minLevel: "DEBUG",
-  customLevels: { SUCCESS: 3.5 }, // installs a typed logger.success()
+  // installs a typed logger.success()
+  customLevels: { SUCCESS: 3.5 },
 });
 logger.info("building…");
 logger.success("done");
-logger.error(new Error("boom")); // pretty error, parsed stack, cause chain
+// pretty error, parsed stack, cause chain
+logger.error(new Error("boom"));
 ```
 
 | consola | tslog v5 |
 | --- | --- |
 | `level: 0…5` (higher = more verbose) | `minLevel` by name: consola `3` (default) ≈ `"INFO"`, `4` ≈ `"DEBUG"`, `5` ≈ `"TRACE"`; `-999` (silent) ≈ `type: "hidden"` |
-| `withTag("build")` | `child({ name: "build" })` — names accumulate in `_meta.parentNames` |
+| `withTag("build")` | `child({ name: "build" })` — names accumulate in `_logMeta.parentNames` |
 | `success` / `ready` / `start` / `fail` types | map onto `info` / `error`, or install real levels via `customLevels` |
 | `consola.box("…")` | `box()` / `tree()` from `tslog/pretty/box`: `logger.info("\n" + box("Deployed!", { title: "release" }))` |
 | reporters | transports: `attachTransport({ format, write })`, with per-transport `format` |

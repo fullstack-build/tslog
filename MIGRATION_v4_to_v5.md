@@ -25,8 +25,8 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
   opt-in via `type: "json"`, `TSLOG_TYPE=json`, or a JSON transport.
 - **Flat, fields-first JSON.** The default `type: "json"` output is now a flat, observability-friendly
   object — `message` / `level` / `levelId` / `time` at the top level, your fields spread next to them,
-  runtime metadata nested under `_meta` with a `v: 5` schema version. No more positional args under
-  numeric keys or the level buried inside `_meta`. Every key name is configurable via the `json` group
+  runtime metadata nested under `_logMeta` with a `v: 5` schema version. No more positional args under
+  numeric keys or the level buried inside `_logMeta`. Every key name is configurable via the `json` group
   (`messageKey`, `levelKey`, `timeKey`, `errorKey`, …).
 - **Drop-in presets** (tree-shakeable subpaths, off by default):
   - `tslog/presets/pino` — `pinoFormat()` / `pinoTransport()` emit pino-compatible NDJSON (numeric
@@ -41,7 +41,7 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
   correlation token (`"[hash:1a2b3c4d]"`) so you can correlate a redacted secret across logs without
   exposing it.
 - **Async-context propagation (ALS).** `logger.runInContext(ctx, fn)` / `logger.getContext()` thread
-  request/trace fields onto every log's `_meta` across `await`, timers, and nested calls (Node/Bun/Deno;
+  request/trace fields onto every log's `_logMeta` across `await`, timers, and nested calls (Node/Bun/Deno;
   graceful no-op on browsers/edge).
 - **Async transports + lifecycle.** `attachTransport` accepts a full `Transport` (per-transport
   `minLevel`, `format`, async `write`, `flush`, `[Symbol.asyncDispose]`) **and returns a detach
@@ -218,7 +218,7 @@ const log = new Logger({ type: "json", stack: { capture: "off" } });
 
 - `"off"` — never capture (equivalent to the old `hideLogPositionForProduction: true`); the default for
   `type: "json"`.
-- `"lazy"` — capture the `Error` cheaply, parse frames only on first read of `_meta.path`.
+- `"lazy"` — capture the `Error` cheaply, parse frames only on first read of `_logMeta.path`.
 - `"auto"` — capture only when the pretty template references a code-position placeholder; the default for
   `type: "pretty"`.
 - `"full"` — always capture and parse eagerly.
@@ -247,7 +247,7 @@ cleanly into two well-defined extension points:
 |---|---|
 | `overwrite.mask(args)` | A `middleware` that rewrites `ctx.args`, or the built-in `mask` group / `serialize()` middleware. |
 | `overwrite.toLogObj(args, logObj)` | A `middleware` that rewrites `ctx.args` into the shape you want. |
-| `overwrite.addMeta(logObj, id, name)` | A `middleware` that writes onto `ctx.meta` (attached under `_meta`). |
+| `overwrite.addMeta(logObj, id, name)` | A `middleware` that writes onto `ctx.meta` (attached under `_logMeta`). |
 | `overwrite.addPlaceholders(meta, values)` | A `middleware` that stashes values on `ctx.meta` for a formatter to read. |
 | `overwrite.formatMeta(meta)` | A custom `LogFormatter` (per-transport `format`) or `pretty.template`. |
 | `overwrite.formatLogObj(args, settings)` | A custom `LogFormatter` (per-transport `format`). |
@@ -263,7 +263,7 @@ Enrich every log and drop everything below INFO:
 const log = new Logger({
   overwrite: {
     addMeta: (logObj, id, name) => {
-      (logObj as any)._meta = { traceId: getTraceId() };
+      (logObj as any)._logMeta = { traceId: getTraceId() };
       return logObj as any;
     },
   },
@@ -272,8 +272,10 @@ const log = new Logger({
 // AFTER (v5)
 const log = new Logger();
 log.use((ctx) => {
-  ctx.meta.traceId = getTraceId();      // ends up under _meta
-  return ctx.logLevelId >= 3 ? ctx : null; // drop below INFO
+  // ends up under _logMeta
+  ctx.meta.traceId = getTraceId();
+  // drop below INFO
+  return ctx.logLevelId >= 3 ? ctx : null;
 });
 ```
 
@@ -293,7 +295,8 @@ import type { LogFormatter } from "tslog";
 const log = new Logger();
 log.attachTransport({
   name: "backend",
-  format: "json",                          // or a custom LogFormatter
+  // or a custom LogFormatter
+  format: "json",
   write: (_record, line) => myBackend.send(line),
 });
 ```
@@ -321,13 +324,15 @@ of the box. v5's `mask.keys` defaults to `[]`, so **nothing is masked unless you
 ```ts
 // BEFORE (v4) — "password" masked implicitly
 const log = new Logger();
-log.info({ password: "hunter2" }); // → password rendered as [***]
+// → password rendered as [***]
+log.info({ password: "hunter2" });
 
 // AFTER (v5) — masking OFF unless configured
 const log = new Logger({
   mask: { keys: ["password", "apiKey", "authorization", "token"] },
 });
-log.info({ password: "hunter2" }); // → password rendered as [***]
+// → password rendered as [***]
+log.info({ password: "hunter2" });
 ```
 
 **Audit every logger and set `mask.keys` (and/or `mask.paths`) explicitly.** If you relied on the implicit
@@ -338,12 +343,18 @@ New v5 masking capabilities you may want while you are in there:
 ```ts
 const log = new Logger({
   mask: {
-    keys: ["password", "apiKey", "prompt"],   // key masking
-    caseInsensitive: true,                      // also masks "Password"/"PASSWORD"
-    paths: ["user.password", "*.token"],        // JSONPath-lite (M*: dotted, * = one segment)
-    regex: [/\b[A-Za-z0-9]{32,}\b/g],           // long token-like strings
-    censor: "hash",                             // "[hash:1a2b3c4d]" correlation token
-    hashLabel: "id",                            // → "[id:1a2b3c4d]"
+    // key masking
+    keys: ["password", "apiKey", "prompt"],
+    // also masks "Password"/"PASSWORD"
+    caseInsensitive: true,
+    // JSONPath-lite (M*: dotted, * = one segment)
+    paths: ["user.password", "*.token"],
+    // long token-like strings
+    regex: [/\b[A-Za-z0-9]{32,}\b/g],
+    // "[hash:1a2b3c4d]" correlation token
+    censor: "hash",
+    // → "[id:1a2b3c4d]"
+    hashLabel: "id",
   },
 });
 ```
@@ -372,8 +383,8 @@ silently switches you to it:
 // Default — pretty everywhere (colored on a TTY, uncolored when piped):
 const log = new Logger();
 
-// Opt into structured JSON when you want it:
-const json = new Logger({ type: "json" });          // explicit
+// Opt into structured JSON when you want it (explicit):
+const json = new Logger({ type: "json" });
 // or via the environment, with no code change:
 //   TSLOG_TYPE=json node app.js   →  Logger.fromEnv()
 // or attach a JSON transport/sink and keep the console pretty.
@@ -388,20 +399,20 @@ default. If any downstream parser was reading JSON from tslog, set `type: "json"
 
 ---
 
-## 7. Default JSON shape changed (flat, fields-first, `_meta.v: 5`)
+## 7. Default JSON shape changed (flat, fields-first, `_logMeta.v: 5`)
 
 **Breaking behavior change:** the structured (`type: "json"`) output is a different shape. **Update your
 log parsers, queries, dashboards, and alerts.**
 
 v4 produced a near-1:1 `JSON.stringify` of the internal log object: positional args under numeric keys,
-the message buried under `"0"`, the level only reachable inside `_meta`.
+the message buried under `"0"`, the level only reachable inside `_logMeta`.
 
 ```jsonc
 // BEFORE (v4) — log.info("user logged in", { userId: 42 })
 {
   "0": "user logged in",
   "1": { "userId": 42 },
-  "_meta": {
+  "_logMeta": {
     "runtime": "Nodejs",
     "logLevelId": 3,
     "logLevelName": "INFO",
@@ -414,13 +425,20 @@ the message buried under `"0"`, the level only reachable inside `_meta`.
 ```jsonc
 // AFTER (v5) — log.info("user logged in", { userId: 42 })
 {
-  "message": "user logged in",   // configurable: json.messageKey
-  "level": "INFO",               // the level NAME: json.levelKey
-  "levelId": 3,                  // the numeric id: json.levelIdKey (only when json.numericLevel)
-  "time": "2026-06-29T10:11:12.000Z", // ISO timestamp from _meta.date: json.timeKey
-  "userId": 42,                  // your own fields spread at the top level
-  "_meta": {                     // runtime meta, key name from meta.property
-    "v": 5,                       // schema version
+  // configurable: json.messageKey
+  "message": "user logged in",
+  // the level NAME: json.levelKey
+  "level": "INFO",
+  // the numeric id: json.levelIdKey (only when json.numericLevel)
+  "levelId": 3,
+  // ISO timestamp from _logMeta.date: json.timeKey
+  "time": "2026-06-29T10:11:12.000Z",
+  // your own fields spread at the top level
+  "userId": 42,
+  // runtime meta, key name from meta.property
+  "_logMeta": {
+    // schema version
+    "v": 5,
     "runtime": "Nodejs",
     "logLevelId": 3,
     "logLevelName": "INFO",
@@ -434,7 +452,7 @@ Query migration (jq examples):
 ```diff
 - # v4: message and level
 - jq '."0"'            # message
-- jq '._meta.logLevelName'  # level
+- jq '._logMeta.logLevelName'  # level
 + # v5
 + jq '.message'
 + jq '.level'
@@ -476,8 +494,7 @@ log.attachTransport(pinoTransport((line) => process.stdout.write(`${line}\n`)));
 ## 7b. JSON output on Node bypasses `console.log`
 
 v4 printed every JSON line via `console.log`. v5's Node entry writes `type: "json"` lines through a
-buffered stdout sink (batched `process.stdout.write`, drained by `flush()`/`await using`/exit hooks)
-for pino-class throughput. If you intercepted logs by patching `console.log` — e.g. in tests — spy on
+buffered stdout sink (batched `process.stdout.write`, drained by `flush()`/`await using`/exit hooks). If you intercepted logs by patching `console.log` — e.g. in tests — spy on
 `process.stdout.write` instead, or use `type: "hidden"` and attach a transport (the supported way to
 own the output). Browser, Deno, Bun, and worker builds still print via `console.log`.
 
@@ -489,14 +506,16 @@ own the output). Browser, Deno, Bun, and worker builds still print via `console.
 // BEFORE (v4) — 4th constructor arg
 class MyLogger<T> extends Logger<T> {
   constructor(s?: ISettingsParam<T>, o?: T) {
-    super(s, o, undefined, 5); // stackDepthLevel = 5
+    // stackDepthLevel = 5
+    super(s, o, undefined, 5);
   }
 }
 
 // AFTER (v5) — same position, renamed concept (callerFrame); NaN = auto-detect
 class MyLogger<T> extends BaseLogger<T> {
   constructor(s?: ISettingsParam<T>, o?: T) {
-    super(s, o, getEnvironment(), 5); // callerFrame = 5
+    // callerFrame = 5
+    super(s, o, getEnvironment(), 5);
   }
 }
 ```
@@ -528,13 +547,16 @@ log.attachTransport((logObj) => myQueue.push(logObj));
 
 // AFTER (v5) — still works, now returns a detach fn
 const detach = log.attachTransport((record) => myQueue.push(record));
-detach(); // stop receiving logs
+// stop receiving logs
+detach();
 
 // AFTER (v5) — a full transport: own level, own format, flush, async dispose
 const detach2 = log.attachTransport({
   name: "file",
-  minLevel: "WARN",          // this sink only sees WARN and above
-  format: "json",            // receives a JSON line regardless of the logger's `type`
+  // this sink only sees WARN and above
+  minLevel: "WARN",
+  // receives a JSON line regardless of the logger's `type`
+  format: "json",
   write: (_record, line) => { buffer.push(line); },
   flush: async () => { await fs.appendFile("app.log", buffer.join("\n")); buffer.length = 0; },
 });
@@ -543,7 +565,8 @@ const detach2 = log.attachTransport({
 New lifecycle methods:
 
 ```ts
-await log.flush();                 // drain every transport's flush()
+// drain every transport's flush()
+await log.flush();
 
 // scoped disposal (drains + disposes transports on scope exit)
 await using log = new Logger();
@@ -571,7 +594,7 @@ import { ringBufferTransport } from "tslog/transports/ringbuffer";
 - [ ] Replace every `overwrite.*` hook with `logger.use(...)` middleware and/or a custom `Transport`/`format` (§4).
 - [ ] **Re-add masking explicitly** — set `mask.keys` (and/or `mask.paths`); v5 masks nothing by default (§5).
 - [ ] Decide whether you want the env-aware default `type` or an explicit `type` (§6).
-- [ ] **Update JSON log parsers/queries/dashboards** for the flat, fields-first shape with `_meta.v: 5` (§7).
+- [ ] **Update JSON log parsers/queries/dashboards** for the flat, fields-first shape with `_logMeta.v: 5` (§7).
 - [ ] Rename the `stackDepthLevel` constructor arg to `callerFrame`; drop `loggerEnvironment` imports (§8).
 - [ ] Capture `attachTransport`'s detach fn where you need teardown; adopt `flush()` / `await using` for
       buffered/async transports (§9).
