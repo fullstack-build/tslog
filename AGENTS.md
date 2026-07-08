@@ -28,7 +28,6 @@ npm run lint         # Biome lint check
 npm run format       # Biome format all files
 npm run check        # Biome lint + format (write)
 npm run coverage     # Run tests with coverage report
-npm run dev-ts       # Watch mode (nodemon + ts-node on examples)
 ```
 
 ## Build System
@@ -48,7 +47,6 @@ npm run dev-ts       # Watch mode (nodemon + ts-node on examples)
 | `tsconfig.json` | Base (ES2022, strict, NodeNext) |
 | `tsconfig.esm.json` | ESM output (`dist/esm/`) |
 | `tsconfig.types.json` | Declaration files only (`dist/types/`) |
-| `tsconfig.example.json` | Type-check the `examples/` tree |
 
 ## Testing
 

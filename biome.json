@@ -32,7 +32,7 @@
   },
   "overrides": [
     {
-      "includes": ["tests/**", "examples/**", "build.js"],
+      "includes": ["tests/**", "build.js"],
       "linter": {
         "enabled": false
       }

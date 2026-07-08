@@ -106,11 +106,8 @@
     "build-browser": "node build.js",
     "build-types": "tsgo -p tsconfig.types.json",
     "build-esm": "tsgo -p tsconfig.esm.json",
-    "build-example": "tsgo -p tsconfig.example.json",
     "audit-sideeffects": "node scripts/audit-sideeffects.mjs",
     "bench": "node benchmarks/bench.mjs",
-    "dev-ts": "nodemon examples/server/index2.ts",
-    "dev-ts-old-example": "nodemon examples/server/index.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "check": "biome check --write . && npm run check-doc-sync",
@@ -144,12 +141,6 @@
     "access": "public",
     "directory": "dist"
   },
-  "nodemonConfig": {
-    "watch": [
-      "./**/*.ts"
-    ],
-    "exec": "node --experimental-specifier-resolution=node --enable-source-maps --no-warnings --loader ts-node/esm"
-  },
   "devDependencies": {
     "@biomejs/biome": "2.3.14",
     "@playwright/test": "^1.50.0",
@@ -159,10 +150,8 @@
     "esbuild": "^0.25.10",
     "graphql": "^16.14.2",
     "husky": "^9.1.7",
-    "nodemon": "^3.1.10",
     "np": "^11.0.2",
     "playwright": "^1.50.0",
-    "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.9.2",
     "@typescript/native-preview": "^7.0.0-dev.20260629.1",
