@@ -1,4 +1,4 @@
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createNodeEnvironment } from "../src/env/environment.node.js";
@@ -39,7 +39,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["app.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved).toEqual({ source: "app.ts", line: 2, column: 9 });
+      expect(resolved).toEqual({ source: join(dir, "app.ts"), line: 2, column: 9 });
     });
   });
 
@@ -51,7 +51,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(jsPath, `line one\nline two\n//# sourceMappingURL=data:application/json;base64,${base64}\n`);
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved).toEqual({ source: "inline.ts", line: 2, column: 9 });
+      expect(resolved).toEqual({ source: join(dir, "inline.ts"), line: 2, column: 9 });
     });
   });
 
@@ -105,7 +105,88 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sourceRoot: "src", sources: ["rooted.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved?.source).toBe("src/rooted.ts");
+      expect(resolved?.source).toBe(join(dir, "src/rooted.ts"));
+    });
+  });
+
+  test("anchors a parent-relative source (../src) to the map's directory, not reported verbatim", async () => {
+    await withTempDir(async (dir) => {
+      // tsc-style layout: dist/app.js + dist/app.js.map whose sources point back out to ../src/app.ts.
+      await mkdir(join(dir, "dist"));
+      const jsPath = join(dir, "dist", "traverse.js");
+      const mapPath = join(dir, "dist", "traverse.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=traverse.js.map\n");
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["../src/traverse.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe(join(dir, "src/traverse.ts"));
+    });
+  });
+
+  test("reduces a webpack:// virtual source to its project-relative tail", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "bundle.js");
+      const mapPath = join(dir, "bundle.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=bundle.js.map\n");
+      // Next.js/webpack shape: scheme + namespace + ./-prefixed project path. No on-disk anchor exists,
+      // so the readable tail is the best available.
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["webpack://_N_E/./src/page.tsx"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe("src/page.tsx");
+    });
+  });
+
+  test("strips a file:// prefix from an absolute source entry", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "fileurl.js");
+      const mapPath = join(dir, "fileurl.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=fileurl.js.map\n");
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["file:///abs/original.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe("/abs/original.ts");
+    });
+  });
+
+  test("returns the raw file:// source verbatim when the path after stripping is empty", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "emptyfile.js");
+      const mapPath = join(dir, "emptyfile.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=emptyfile.js.map\n");
+      // "file://" with no path after the scheme — normalizeFilePath collapses to empty, so the
+      // resolveSourcePath fallback returns the original combined string verbatim.
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["file://"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe("file://");
+    });
+  });
+
+  test("reduces a webpack:// virtual source with no path after the namespace to the namespace itself", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "nopath.js");
+      const mapPath = join(dir, "nopath.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=nopath.js.map\n");
+      // "webpack://_N_E" has no slash after the namespace — the tail is the namespace itself.
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["webpack://_N_E"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe("_N_E");
+    });
+  });
+
+  test("returns a webpack:// virtual source verbatim when the tail after the namespace slash is empty", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "emptytail.js");
+      const mapPath = join(dir, "emptytail.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=emptytail.js.map\n");
+      // "webpack://_N_E/" — the tail after the slash is empty, normalizeFilePath returns empty,
+      // so the fallback returns the original combined string verbatim.
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["webpack://_N_E/"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe("webpack://_N_E/");
     });
   });
 
@@ -124,6 +205,33 @@ describe("source-map resolution (issue #307)", () => {
     });
   });
 
+  test("parsed-map cache evicts the oldest entry when the 256-entry cap is reached", async () => {
+    await withTempDir(async (dir) => {
+      // Create one real file with a source map.
+      const jsPath = join(dir, "real.js");
+      const mapPath = join(dir, "real.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=real.js.map\n");
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["real.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      // Resolve it — caches the parsed map (entry 1 in the cache).
+      const firstResolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(firstResolved).toEqual({ source: join(dir, "real.ts"), line: 2, column: 9 });
+
+      // Fill the cache with 256 non-existent file paths (each cached as null). The 256th addition
+      // triggers the FIFO eviction (size >= 256), evicting the oldest entry (real.js).
+      for (let i = 0; i < 256; i++) {
+        resolveOriginalPosition(join(dir, `nonexistent-${i}.js`), 1, 1);
+      }
+
+      // The real.js entry should have been evicted. Delete the underlying file and resolve again —
+      // if evicted, it re-reads from disk, fails, and returns undefined. If still cached, it would
+      // return the cached parsed map (not undefined).
+      await rm(jsPath);
+      const reResolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(reResolved).toBeUndefined();
+    });
+  });
+
   test("returns undefined for a non-finite or out-of-range line", () => {
     expect(resolveOriginalPosition("/tmp/whatever.js", Number.NaN, 1)).toBeUndefined();
     expect(resolveOriginalPosition("/tmp/whatever.js", 0, 1)).toBeUndefined();
@@ -139,7 +247,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["wide.ts"], names: [], mappings: ";oGAAA" }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 101);
-      expect(resolved).toEqual({ source: "wide.ts", line: 1, column: 1 });
+      expect(resolved).toEqual({ source: join(dir, "wide.ts"), line: 1, column: 1 });
     });
   });
 
@@ -153,7 +261,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["malformed.ts"], names: [], mappings: ";AA,,UACQ" }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved).toEqual({ source: "malformed.ts", line: 2, column: 9 });
+      expect(resolved).toEqual({ source: join(dir, "malformed.ts"), line: 2, column: 9 });
     });
   });
 
@@ -168,7 +276,36 @@ describe("source-map resolution (issue #307)", () => {
       // Requesting 0-based column 5 sits between the two segments: the scan takes segment 1 as the
       // candidate, then breaks on segment 2 (genColumn 20 > 5) instead of overwriting the candidate.
       const resolved = resolveOriginalPosition(jsPath, 2, 6);
-      expect(resolved).toEqual({ source: "multi.ts", line: 1, column: 1 });
+      expect(resolved).toEqual({ source: join(dir, "multi.ts"), line: 1, column: 1 });
+    });
+  });
+
+  test("findSegment binary-searches a line with many segments and finds the nearest preceding one", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "dense.js");
+      const mapPath = join(dir, "dense.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=dense.js.map\n");
+      // Five segments on generated line 2 at genColumns 0, 10, 20, 30, 40, each mapping to
+      // origLine 1 (0-based) with origColumns 0, 1, 2, 3, 4 respectively.
+      // VLQ deltas for each segment (genColumn is cumulative within a line; the other fields too):
+      //   seg1: genCol +0 ("A"), src +0 ("A"), origLine +0 ("A"), origCol +0 ("A")  -> "AAAA"
+      //   seg2: genCol +10 ("U"), src +0 ("A"), origLine +0 ("A"), origCol +1 ("C")  -> "UAAC"
+      //   seg3: genCol +10 ("U"), src +0 ("A"), origLine +0 ("A"), origCol +1 ("C")  -> "UAAC"
+      //   seg4: genCol +10 ("U"), src +0 ("A"), origLine +0 ("A"), origCol +1 ("C")  -> "UAAC"
+      //   seg5: genCol +10 ("U"), src +0 ("A"), origLine +0 ("A"), origCol +1 ("C")  -> "UAAC"
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["dense.ts"], names: [], mappings: ";AAAA,UAAC,UAAC,UAAC,UAAC" }));
+
+      // Column 25 (1-based, so 0-based 24) sits between segments at genColumn 20 and 30 — the
+      // binary search must land on the genColumn 20 segment (origColumn 2, 1-based 3), not the
+      // genColumn 30 one or any earlier one.
+      expect(resolveOriginalPosition(jsPath, 2, 25)).toEqual({ source: join(dir, "dense.ts"), line: 1, column: 3 });
+
+      // Column 5 (0-based 4) is before the genColumn 10 segment, so it falls back to segments[0]
+      // (genColumn 0 -> origColumn 0, 1-based 1).
+      expect(resolveOriginalPosition(jsPath, 2, 5)).toEqual({ source: join(dir, "dense.ts"), line: 1, column: 1 });
+
+      // Column 45 (0-based 44) is at/after the last segment (genColumn 40 -> origColumn 4, 1-based 5).
+      expect(resolveOriginalPosition(jsPath, 2, 45)).toEqual({ source: join(dir, "dense.ts"), line: 1, column: 5 });
     });
   });
 
@@ -194,7 +331,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["junk.ts"], names: [], mappings: ";U!ACQ" }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved).toEqual({ source: "junk.ts", line: 2, column: 9 });
+      expect(resolved).toEqual({ source: join(dir, "junk.ts"), line: 2, column: 9 });
     });
   });
 
@@ -223,7 +360,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["negative.ts"], names: [], mappings: ";UACF" }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 11);
-      expect(resolved).toEqual({ source: "negative.ts", line: 2, column: -1 });
+      expect(resolved).toEqual({ source: join(dir, "negative.ts"), line: 2, column: -1 });
     });
   });
 
@@ -263,8 +400,8 @@ describe("source-map resolution (issue #307)", () => {
       // A segment at genColumn 0 so the zero-based fallback (column 0) still finds it.
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["nocolumn.ts"], names: [], mappings: ";AAAA" }));
 
-      expect(resolveOriginalPosition(jsPath, 2, Number.NaN)).toEqual({ source: "nocolumn.ts", line: 1, column: 1 });
-      expect(resolveOriginalPosition(jsPath, 2, 0)).toEqual({ source: "nocolumn.ts", line: 1, column: 1 });
+      expect(resolveOriginalPosition(jsPath, 2, Number.NaN)).toEqual({ source: join(dir, "nocolumn.ts"), line: 1, column: 1 });
+      expect(resolveOriginalPosition(jsPath, 2, 0)).toEqual({ source: join(dir, "nocolumn.ts"), line: 1, column: 1 });
     });
   });
 
@@ -278,7 +415,7 @@ describe("source-map resolution (issue #307)", () => {
       await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["beforefirst.ts"], names: [], mappings: ";KAAA" }));
 
       const resolved = resolveOriginalPosition(jsPath, 2, 1);
-      expect(resolved).toEqual({ source: "beforefirst.ts", line: 1, column: 1 });
+      expect(resolved).toEqual({ source: join(dir, "beforefirst.ts"), line: 1, column: 1 });
     });
   });
 
@@ -290,11 +427,46 @@ describe("source-map resolution (issue #307)", () => {
     });
   });
 
-  test("createSourceMapResolver returns undefined when resolution is disabled", () => {
+  test("createSourceMapResolver returns a resolver that returns undefined per-call when disabled", () => {
     const original = process.env.TSLOG_SOURCE_MAPS;
     try {
       process.env.TSLOG_SOURCE_MAPS = "off";
-      expect(createSourceMapResolver()).toBeUndefined();
+      // Per-call check: the resolver function is always returned, but it returns undefined
+      // when sourceMapResolutionEnabled() is false at call time.
+      const resolver = createSourceMapResolver();
+      expect(resolver).toBeDefined();
+      expect(resolver?.("/some/file.js", 1, 1)).toBeUndefined();
+    } finally {
+      if (original === undefined) {
+        delete process.env.TSLOG_SOURCE_MAPS;
+      } else {
+        process.env.TSLOG_SOURCE_MAPS = original;
+      }
+    }
+  });
+
+  test("createSourceMapResolver per-call check: toggling TSLOG_SOURCE_MAPS takes effect without recreating the resolver", async () => {
+    const original = process.env.TSLOG_SOURCE_MAPS;
+    try {
+      await withTempDir(async (dir) => {
+        const jsPath = join(dir, "toggle.js");
+        const mapPath = join(dir, "toggle.js.map");
+        await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=toggle.js.map\n");
+        await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["toggle.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+        // Create the resolver once while enabled.
+        process.env.TSLOG_SOURCE_MAPS = "on";
+        const resolver = createSourceMapResolver();
+        expect(resolver?.(jsPath, 2, 11)).toEqual({ source: join(dir, "toggle.ts"), line: 2, column: 9 });
+
+        // Flip to off — the same resolver instance should now return undefined per-call.
+        process.env.TSLOG_SOURCE_MAPS = "off";
+        expect(resolver?.(jsPath, 2, 11)).toBeUndefined();
+
+        // Flip back on — resolution resumes without recreating the resolver.
+        process.env.TSLOG_SOURCE_MAPS = "on";
+        expect(resolver?.(jsPath, 2, 11)).toEqual({ source: join(dir, "toggle.ts"), line: 2, column: 9 });
+      });
     } finally {
       if (original === undefined) {
         delete process.env.TSLOG_SOURCE_MAPS;
@@ -315,7 +487,7 @@ describe("source-map resolution (issue #307)", () => {
         await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["factory.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
 
         const resolver = createSourceMapResolver();
-        expect(resolver?.(jsPath, 2, 11)).toEqual({ source: "factory.ts", line: 2, column: 9 });
+        expect(resolver?.(jsPath, 2, 11)).toEqual({ source: join(dir, "factory.ts"), line: 2, column: 9 });
       });
     } finally {
       if (original === undefined) {
@@ -341,9 +513,36 @@ describe("source-map resolution (issue #307)", () => {
 
       expect(frame?.fileLine).toBe("2");
       expect(frame?.fileColumn).toBe("9");
-      expect(frame?.filePath).toBe("remap.ts");
+      expect(frame?.filePath).toBe(join(dir, "remap.ts"));
       expect(frame?.fileName).toBe("remap.ts");
-      expect(frame?.filePathWithLine).toBe("remap.ts:2");
+      expect(frame?.filePathWithLine).toBe(`${join(dir, "remap.ts")}:2`);
+      // Fix 1: fullFilePath should be consistent with the remapped position, not the transpiled one.
+      expect(frame?.fullFilePath).toBe(`${join(dir, "remap.ts")}:2:9`);
+    });
+  });
+
+  test("parseServerStackLine preserves the transpiled fullFilePath when no remap occurs", () => {
+    const frame = parseServerStackLine(
+      "    at boom (/no/map/here.js:5:3)",
+      () => undefined,
+      () => undefined,
+    );
+    expect(frame?.fullFilePath).toBe("/no/map/here.js:5:3");
+  });
+
+  test("resolveSourcePath anchors a relative source to the map's directory for nested layouts", async () => {
+    await withTempDir(async (dir) => {
+      // Nested layout: dist/deep/app.js + dist/deep/app.js.map whose sources point to "src/app.ts"
+      // (relative to the map file, not to the project root). The resolved path should be
+      // dist/deep/src/app.ts — anchored to the map's directory, not reported verbatim.
+      await mkdir(join(dir, "dist", "deep"), { recursive: true });
+      const jsPath = join(dir, "dist", "deep", "nested.js");
+      const mapPath = join(dir, "dist", "deep", "nested.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=nested.js.map\n");
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["src/nested.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      const resolved = resolveOriginalPosition(jsPath, 2, 11);
+      expect(resolved?.source).toBe(join(dir, "dist", "deep", "src", "nested.ts"));
     });
   });
 
@@ -433,7 +632,7 @@ describe("source-map resolution (issue #307)", () => {
         error.stack = `Error: boom\n    at boom (${jsPath}:2:11)\n    at caller (${jsPath}:5:5)`;
 
         const frame = runtime.getCallerStackFrame(0, error);
-        expect(frame.filePath).toBe("boom.ts");
+        expect(frame.filePath).toBe(join(dir, "boom.ts"));
         expect(frame.fileLine).toBe("2");
       } finally {
         if (originalOverride === undefined) {

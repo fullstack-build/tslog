@@ -205,7 +205,7 @@ How `tslog` compares to the most popular JavaScript loggers. **This table looks 
 
 **Legend:** ✅ built-in / on by default · ⚪ available, but only by adding a separate plugin or package · 🟡 partial / manual / needs hand-rolling · ❌ not available
 
-| Feature (core package only) | **tslog** | pino | winston | bunyan | consola |
+| Feature<small><br>(core feat only)</small> | **tslog** | pino | winston | bunyan | consola |
 |:---|:---:|:---:|:---:|:---:|:---:|
 | Runtime dependencies | **0** | many | many | heavy (native) | 0 (bundled) |
 | Universal (Node + browser + Deno/Bun) | ✅ | 🟡<br>polyfill | ❌<br>Node-only | ❌<br>Node-only | ✅ |

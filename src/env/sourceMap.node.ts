@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 import { devWarningsEnabled } from "../core/settings.js";
 import { safeEnvGet } from "../internal/environment.js";
-import type { SourceMapResolver } from "./shared.js";
+import { normalizeFilePath, type SourceMapResolver } from "./shared.js";
 
 /**
  * Best-effort source-map resolution for Node/Bun/Deno server-style stack frames (issue #307): a
@@ -53,6 +53,8 @@ export interface OriginalPosition {
 interface ParsedSourceMap {
   sources: string[];
   sourceRoot: string;
+  /** Directory the map's relative `sources` entries resolve against: the `.map` file's own directory (the generated file's for inline `data:` maps). */
+  mapDir: string;
   segmentsByLine: Map<number, MappingSegment[]>;
 }
 
@@ -135,6 +137,7 @@ type FsLike = { readFileSync: (path: string, encoding: "utf8") => string; exists
 let cachedFs: FsLike | null | undefined;
 function getFs(): FsLike | undefined {
   if (cachedFs === undefined) {
+    /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node/Bun/Deno, the only runtimes this resolver is wired into */
     cachedFs = requireNodeModule<FsLike>("node:fs") ?? null;
   }
   return cachedFs ?? undefined;
@@ -163,7 +166,13 @@ function extractSourceMappingUrl(source: string): string | undefined {
   return urlMatch?.[1];
 }
 
-function loadRawSourceMap(filePath: string, fs: FsLike): RawSourceMap | undefined {
+/** A parsed raw map plus the directory its relative `sources` entries resolve against. */
+interface LoadedSourceMap {
+  raw: RawSourceMap;
+  mapDir: string;
+}
+
+function loadRawSourceMap(filePath: string, fs: FsLike): LoadedSourceMap | undefined {
   let fileContents: string;
   try {
     fileContents = fs.readFileSync(filePath, "utf8");
@@ -184,26 +193,36 @@ function loadRawSourceMap(filePath: string, fs: FsLike): RawSourceMap | undefine
         return undefined;
       }
       const decoded = Buffer.from(mappingUrl.slice(base64Index + base64Marker.length), "base64").toString("utf8");
-      return JSON.parse(decoded) as RawSourceMap;
+      return { raw: JSON.parse(decoded) as RawSourceMap, mapDir: dirnameOf(filePath) };
     }
 
     const mapPath = joinPath(dirnameOf(filePath), mappingUrl);
     if (!fs.existsSync(mapPath)) {
       return undefined;
     }
-    return JSON.parse(fs.readFileSync(mapPath, "utf8")) as RawSourceMap;
+    return { raw: JSON.parse(fs.readFileSync(mapPath, "utf8")) as RawSourceMap, mapDir: dirnameOf(mapPath) };
   } catch {
     return undefined;
   }
 }
 
 /** Parsed-map cache, keyed by the generated file's path — a process only ever has finitely many loaded modules. */
+const PARSED_MAP_CACHE_LIMIT = 256;
 const parsedMapCache = new Map<string, ParsedSourceMap | null>();
 
 function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
   const cached = parsedMapCache.get(filePath);
   if (cached !== undefined) {
     return cached ?? undefined;
+  }
+
+  // Defensive cap: a pathological process could load thousands of modules with source maps. Evict
+  // the oldest entry (FIFO — the cost of re-reading one file is negligible) to bound memory.
+  if (parsedMapCache.size >= PARSED_MAP_CACHE_LIMIT) {
+    const firstKey = parsedMapCache.keys().next().value;
+    if (firstKey !== undefined) {
+      parsedMapCache.delete(firstKey);
+    }
   }
 
   const fs = getFs();
@@ -213,29 +232,73 @@ function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
     return undefined;
   }
 
-  const raw = loadRawSourceMap(filePath, fs);
-  if (raw?.mappings == null || raw.sources == null || raw.sources.length === 0) {
+  const loaded = loadRawSourceMap(filePath, fs);
+  if (loaded?.raw.mappings == null || loaded.raw.sources == null || loaded.raw.sources.length === 0) {
     parsedMapCache.set(filePath, null);
     return undefined;
   }
 
   const parsed: ParsedSourceMap = {
-    sources: raw.sources,
-    sourceRoot: raw.sourceRoot ?? "",
-    segmentsByLine: parseMappings(raw.mappings),
+    sources: loaded.raw.sources,
+    sourceRoot: loaded.raw.sourceRoot ?? "",
+    mapDir: loaded.mapDir,
+    segmentsByLine: parseMappings(loaded.raw.mappings),
   };
   parsedMapCache.set(filePath, parsed);
   return parsed;
 }
 
+/** Matches a URL-scheme prefix (`webpack://`, `webpack-internal://`, `file://`, ...) on a `sources` entry. */
+const SOURCE_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * Turn a raw `sources` entry into a usable path. Per the source-map spec, `sources` are relative to
+ * `sourceRoot` and then to the map's own location — reporting them verbatim would show `../src/app.ts`
+ * for a map in `dist/`, which neither cwd-relativizes nor opens in an editor. So: apply `sourceRoot`,
+ * strip a `file://` prefix, reduce bundler-virtual schemes (`webpack://_N_E/./src/x.ts` and friends) to
+ * their project-relative tail (the virtual path has no on-disk anchor, so the readable tail is the best
+ * available), and anchor plain relative paths to `mapDir` so `dist/app.js.map` + `../src/app.ts` yields
+ * the real on-disk `src/app.ts`.
+ */
+function resolveSourcePath(source: string, sourceRoot: string, mapDir: string): string {
+  const combined = sourceRoot.length > 0 ? joinPath(sourceRoot, source) : source;
+  if (combined.startsWith("file://")) {
+    const stripped = normalizeFilePath(combined.replace(/^file:\/\//, ""));
+    return stripped.length > 0 ? stripped : combined;
+  }
+  const scheme = combined.match(SOURCE_SCHEME_REGEX);
+  if (scheme != null) {
+    // Bundler-virtual path: drop the scheme and the namespace segment (e.g. webpack://_N_E/./src/x.ts).
+    const rest = combined.slice(scheme[0].length);
+    const slash = rest.indexOf("/");
+    const tail = slash === -1 ? rest : rest.slice(slash + 1);
+    const cleaned = normalizeFilePath(tail);
+    return cleaned.length > 0 ? cleaned : combined;
+  }
+  if (/^([A-Za-z]:)?[/\\]/.test(combined)) {
+    return combined;
+  }
+  // normalizeFilePath already falls back to its input when normalization collapses to empty, and
+  // joinPath(mapDir, combined) always produces a non-empty string, so no empty-check is needed here.
+  return normalizeFilePath(joinPath(mapDir, combined));
+}
+
 /** Find the mapping segment on `genLine` at or immediately before `genColumn` (source maps snap to segment start). */
 function findSegment(segments: MappingSegment[], genColumn: number): MappingSegment | undefined {
+  // Binary search: segments are sorted by genColumn (parseMappings sorts on insertion). A linear scan
+  // would be O(n) per frame, and a single bundled output line can carry hundreds of segments.
+  let lo = 0;
+  let hi = segments.length - 1;
   let candidate: MappingSegment | undefined;
-  for (const segment of segments) {
-    if (segment.genColumn > genColumn) {
-      break;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const segment = segments[mid];
+    if (segment.genColumn <= genColumn) {
+      candidate = segment;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
     }
-    candidate = segment;
   }
   return candidate;
 }
@@ -267,7 +330,7 @@ export function resolveOriginalPosition(filePath: string, line: number, column: 
     return undefined;
   }
 
-  const resolvedSource = map.sourceRoot.length > 0 ? joinPath(map.sourceRoot, source) : source;
+  const resolvedSource = resolveSourcePath(source, map.sourceRoot, map.mapDir);
   return { source: resolvedSource, line: segment.origLine + 1, column: segment.origColumn + 1 };
 }
 
@@ -294,10 +357,17 @@ export function sourceMapResolutionEnabled(): boolean {
  * Build the {@link SourceMapResolver} the node/universal providers inject into `providerBase`, or
  * `undefined` when resolution is disabled (production default, or `TSLOG_SOURCE_MAPS=off`) — passing
  * `undefined` means `parseServerStackLine` skips resolution entirely, at zero per-call cost.
+ *
+ * The enablement check (`sourceMapResolutionEnabled`) is evaluated **per call**, not frozen at logger
+ * construction. This means flipping `TSLOG_SOURCE_MAPS` or `NODE_ENV` at runtime takes effect
+ * immediately — important for tests that toggle the flag between cases without recreating the logger.
+ * The cost is a single env-var read per stack frame, negligible behind the parsed-map cache.
  */
 export function createSourceMapResolver(): SourceMapResolver | undefined {
-  if (!sourceMapResolutionEnabled()) {
-    return undefined;
-  }
-  return (filePath, line, column) => resolveOriginalPosition(filePath, line, column);
+  return (filePath, line, column) => {
+    if (!sourceMapResolutionEnabled()) {
+      return undefined;
+    }
+    return resolveOriginalPosition(filePath, line, column);
+  };
 }
