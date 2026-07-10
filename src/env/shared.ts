@@ -378,14 +378,14 @@ export function parseServerStackLine(
 
   let normalizedPath = filePathCandidate.replace(/^file:\/\//, "");
 
-  let remapped = false;
+  let remappedSource: string | undefined;
   if (resolveSourceMap != null && fileLine != null) {
     const original = resolveSourceMap(normalizedPath, Number(fileLine), fileColumn != null ? Number(fileColumn) : 1);
     if (original != null) {
       normalizedPath = original.source;
+      remappedSource = original.source;
       fileLine = String(original.line);
       fileColumn = String(original.column);
-      remapped = true;
     }
   }
 
@@ -407,10 +407,12 @@ export function parseServerStackLine(
   const filePathWithLine = effectivePath && fileLine ? `${effectivePath}:${fileLine}` : undefined;
 
   // When source-map remapping succeeded, update fullFilePath to the remapped position so templates
-  // using {fullFilePath} stay consistent with {filePath}/{fileLine}/{fileColumn}. The original
-  // transpiled location is preserved when no remap occurred (the common case). After a successful
-  // remap, fileColumn is always a string (String(original.column)), so no null check is needed.
-  const fullFilePath = remapped ? `${effectivePath}:${fileLine}:${fileColumn}` : sanitizedLocation;
+  // using {fullFilePath} stay consistent with {filePath}/{fileLine}/{fileColumn} — but build it from
+  // the resolver's own source path (absolute for on-disk sources), NOT the cwd-relativized
+  // effectivePath, so the field keeps its "full path" meaning. The original transpiled location is
+  // preserved when no remap occurred (the common case). After a successful remap, fileColumn is
+  // always a string (String(original.column)), so no null check is needed.
+  const fullFilePath = remappedSource != null ? `${remappedSource}:${fileLine}:${fileColumn}` : sanitizedLocation;
 
   return {
     fullFilePath,

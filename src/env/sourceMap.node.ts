@@ -354,9 +354,10 @@ export function sourceMapResolutionEnabled(): boolean {
 }
 
 /**
- * Build the {@link SourceMapResolver} the node/universal providers inject into `providerBase`, or
- * `undefined` when resolution is disabled (production default, or `TSLOG_SOURCE_MAPS=off`) — passing
- * `undefined` means `parseServerStackLine` skips resolution entirely, at zero per-call cost.
+ * Build the {@link SourceMapResolver} the node/universal providers inject into `providerBase`. The
+ * resolver itself decides per call whether resolution is enabled (production default off, or
+ * `TSLOG_SOURCE_MAPS=off`) and returns `undefined` when it is not, so the caller keeps the transpiled
+ * position.
  *
  * The enablement check (`sourceMapResolutionEnabled`) is evaluated **per call**, not frozen at logger
  * construction. This means flipping `TSLOG_SOURCE_MAPS` or `NODE_ENV` at runtime takes effect

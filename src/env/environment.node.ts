@@ -24,9 +24,9 @@ import { getStdoutJsonSink } from "./stdoutSink.node.js";
  * the polyfill/`resolveInspect()` instead; core never statically imports `node:util`.
  *
  * Source-map resolution (issue #307): `resolveSourceMap` (from `./sourceMap.node.js`) is wired in so
- * server-style frames remap through a source map when one is discoverable, outside production (see
- * {@link createSourceMapResolver}). `undefined` in production — `parseServerStackLine` then skips
- * resolution entirely.
+ * server-style frames remap through a source map when one is discoverable. The resolver checks
+ * enablement per call (production default off, `TSLOG_SOURCE_MAPS` override — see
+ * {@link createSourceMapResolver}) and falls back to the transpiled position when disabled.
  *
  * Lazy stack capture (M1.2): when stack capture is on, `getMeta` does NOT eagerly parse frames. It
  * captures the `Error` cheaply and installs an enumerable, self-caching getter on `_logMeta.path` that

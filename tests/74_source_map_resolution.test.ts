@@ -521,6 +521,26 @@ describe("source-map resolution (issue #307)", () => {
     });
   });
 
+  test("fullFilePath stays absolute after a remap even when filePath is cwd-relativized", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "cwdrel.js");
+      const mapPath = join(dir, "cwdrel.js.map");
+      await writeFile(jsPath, "line one\nline two\n//# sourceMappingURL=cwdrel.js.map\n");
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["cwdrel.ts"], names: [], mappings: SIMPLE_MAPPINGS }));
+
+      // getCwd returns the tempdir, so the remapped source sits under cwd: filePath must relativize,
+      // fullFilePath must keep the absolute resolver output (the field's "full path" contract).
+      const frame = parseServerStackLine(
+        `    at boom (${jsPath}:2:11)`,
+        () => dir,
+        (filePath, line, column) => resolveOriginalPosition(filePath, line, column),
+      );
+
+      expect(frame?.filePath).toBe("cwdrel.ts");
+      expect(frame?.fullFilePath).toBe(`${join(dir, "cwdrel.ts")}:2:9`);
+    });
+  });
+
   test("parseServerStackLine preserves the transpiled fullFilePath when no remap occurs", () => {
     const frame = parseServerStackLine(
       "    at boom (/no/map/here.js:5:3)",
