@@ -127,6 +127,9 @@ export class BaseLogger<LogObj> {
   private hasCustomLevels = false;
   // The pre-mask bindings as supplied by the caller; the source getSubLogger merges from (see above).
   private rawBindings?: Record<string, unknown>;
+  // Cached no-op stand-in returned by `if(false)` — built lazily on first falsy conditional call so a
+  // logger that never uses `if()` pays nothing. See _getConditionalNoop().
+  private _conditionalNoop?: this;
 
   constructor(
     settings: ISettingsParam<LogObj> | undefined,
@@ -414,6 +417,51 @@ export class BaseLogger<LogObj> {
       return false;
     }
     return resolved >= this.settings.minLevel;
+  }
+
+  /**
+   * Conditional-logging gate (issue #299). Returns this logger when `condition` is truthy, or a no-op
+   * stand-in when it is falsy, so a per-call condition reads as a fluent chain without an `if` statement
+   * or a throwaway helper:
+   *
+   * @example
+   * logger.if(!ok).info("action failed", { id });
+   * logger.if(retries > maxRetries).warn("giving up", { retries });
+   *
+   * The no-op stand-in accepts every level method (defaults and custom) and returns `undefined` from
+   * each — matching a real log call's `undefined` return when it is below `minLevel` — but its arguments
+   * are still evaluated, so guard *expensive* payload construction with {@link isLevelEnabled} instead,
+   * which short-circuits before the arguments are built. `if()` gates a single log call; it is not meant
+   * to be chained ahead of `getSubLogger`/`child`.
+   */
+  public if(condition: unknown): this {
+    return condition ? this : (this._getConditionalNoop() as this);
+  }
+
+  /**
+   * Lazily build (and cache) the no-op stand-in returned by {@link if} for a falsy condition. A Proxy so
+   * it covers every current and future method — default levels, `addLevel()` levels — uniformly: any
+   * property resolves to a function that ignores its arguments and returns `undefined`, exactly like a
+   * suppressed log call.
+   */
+  private _getConditionalNoop(): this {
+    if (this._conditionalNoop == null) {
+      const noopMethod = (): undefined => undefined;
+      this._conditionalNoop = new Proxy(this, {
+        get(target, prop, receiver): unknown {
+          // Preserve Promise/thenable semantics: never fabricate a `then`, so awaiting the stand-in
+          // (or feeding it to Promise.resolve) doesn't hang or resolve unexpectedly.
+          if (prop === "then") {
+            return undefined;
+          }
+          // Non-method properties (e.g. `settings`) read through to the real logger so introspection
+          // still works; anything callable becomes an argument-ignoring no-op returning `undefined`.
+          const actual = Reflect.get(target, prop, receiver);
+          return typeof actual === "function" ? noopMethod : actual;
+        },
+      }) as this;
+    }
+    return this._conditionalNoop;
   }
 
   /**

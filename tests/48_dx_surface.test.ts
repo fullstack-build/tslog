@@ -1,4 +1,4 @@
-import type { ISettingsParam } from "../src/index.js";
+import type { ILogObj, ISettingsParam } from "../src/index.js";
 import { defineConfig, Logger, LogLevel, TslogConfigError } from "../src/index.js";
 
 // M3b — additive DX surface (E1–E6): isLevelEnabled, child() alias, Symbol.dispose, Logger.fromEnv,
@@ -360,5 +360,69 @@ describe("unknown-key and v4-flat-key validation", () => {
     } finally {
       warnSpy.mockRestore();
     }
+  });
+});
+
+describe("conditional logging: logger.if(cond) (issue #299)", () => {
+  test("a truthy condition returns the same logger and logs", () => {
+    const logger = new Logger({ type: "hidden" });
+    expect(logger.if(true)).toBe(logger);
+    // A real log record comes back (type: hidden still builds and returns the log object).
+    const record = logger.if(1 === 1).info("logged");
+    expect(record).toBeDefined();
+  });
+
+  test("a falsy condition returns a no-op that suppresses the log", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({ type: "pretty" });
+      const record = logger.if(false).info("should not print", { a: 1 });
+      expect(record).toBeUndefined();
+      expect(consoleSpy).not.toHaveBeenCalled();
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  test("all falsy values gate the log; all truthy values pass it through", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({ type: "pretty" });
+      for (const falsy of [false, 0, "", null, undefined, Number.NaN]) {
+        logger.if(falsy).info("nope");
+      }
+      expect(consoleSpy).not.toHaveBeenCalled();
+      for (const truthy of [true, 1, "x", {}, []]) {
+        logger.if(truthy).info("yep");
+      }
+      expect(consoleSpy).toHaveBeenCalledTimes(5);
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  test("the no-op suppresses custom levels too and reads settings through", () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({ type: "pretty", name: "gated", minLevel: 3.5, customLevels: { NOTICE: 3.5 } }) as Logger<ILogObj> & {
+        notice: (...args: unknown[]) => unknown;
+      };
+      // Custom level method routed through the no-op returns undefined and prints nothing.
+      expect(logger.if(false).notice("hidden notice")).toBeUndefined();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      // Non-method introspection still reads through to the real logger.
+      expect(logger.if(false).settings.minLevel).toBe(3.5);
+      expect(logger.if(false).settings.name).toBe("gated");
+    } finally {
+      consoleSpy.mockRestore();
+    }
+  });
+
+  test("the no-op is not thenable (awaiting it does not hang)", async () => {
+    const logger = new Logger({ type: "hidden" });
+    const gate = logger.if(false);
+    expect((gate as unknown as { then?: unknown }).then).toBeUndefined();
+    // Resolving it must not deadlock on a fabricated then().
+    await expect(Promise.resolve(gate)).resolves.toBeDefined();
   });
 });
