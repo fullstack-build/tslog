@@ -417,6 +417,19 @@ export interface IPrettySettings {
   styles?: IPrettyLogStyles;
   /** Maps a log level name (or `"*"`) to the console method used to print it. See {@link TPrettyLogLevelMethod}. */
   levelMethod?: TPrettyLogLevelMethod;
+  /**
+   * Pass non-Error arguments to the console method as their raw values instead of pre-rendering them
+   * into the log string via `util.inspect`/`formatWithOptions`. Default: `false`.
+   *
+   * With this on, the styled meta prefix is still printed, but objects and arrays are handed to
+   * `console.log`/`console.error`/… untouched — so a browser DevTools console renders them as
+   * interactive, collapsible trees (issues #263/#295) and `console.error`/`console.warn` (via
+   * {@link IPrettySettings.levelMethod}) attach their own expandable stack group (issue #226).
+   * `inspectOptions` no longer applies to those args (the console owns the rendering); `Error`
+   * arguments are still formatted through the pretty error template.
+   * @example { pretty: { passObjectsNatively: true, levelMethod: { error: "error", warn: "warn" } } }
+   */
+  passObjectsNatively?: boolean;
   /** Options passed to the runtime's `util.inspect`/`formatWithOptions` when rendering pretty args. */
   inspectOptions?: InspectOptions;
 }

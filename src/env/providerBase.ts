@@ -229,6 +229,10 @@ export function createProviderBase(config: ProviderBaseConfig): ProviderBase {
     },
     transportFormatted<LogObj>(logMetaMarkup: string, logArgs: unknown[], logErrors: string[], logMeta: IMeta | undefined, settings: ISettings<LogObj>): void {
       const prettyLogs = settings.pretty.style !== false;
+      // When passing objects natively, the raw args become trailing console arguments rather than part
+      // of the rendered string, so any inter-arg spacing is the console's job — the string ends at the
+      // meta prefix (kept only when there are no native args to trail, e.g. an errors-only record).
+      const nativeArgs = settings.pretty.passObjectsNatively;
       const logErrorsStr = (logErrors.length > 0 && logArgs.length > 0 ? "\n" : "") + logErrors.join("\n");
       const log = getPrettyLogMethod(logMeta?.logLevelName, settings.pretty.levelMethod);
 
@@ -237,23 +241,31 @@ export function createProviderBase(config: ProviderBaseConfig): ProviderBase {
       if (prettyLogs && usesBrowserStack && consoleSupportsCssStyling()) {
         const sanitizedMetaMarkup = stripAnsi(logMetaMarkup);
         settings.pretty.inspectOptions.colors = false;
-        const formattedArgs = formatWithOptionsSafe(settings.pretty.inspectOptions, logArgs);
+        const formattedArgs = nativeArgs ? "" : formatWithOptionsSafe(settings.pretty.inspectOptions, logArgs);
         const cssMeta = logMeta != null ? buildCssMetaOutput(settings, logMeta) : { text: sanitizedMetaMarkup, styles: [] };
         const hasCssMeta = cssMeta.text.length > 0 && cssMeta.styles.length > 0;
         const metaOutput = hasCssMeta ? cssMeta.text : sanitizedMetaMarkup;
-        const output = metaOutput + formattedArgs + logErrorsStr;
+        // Errors stay as pre-rendered strings; native args trail as separate console arguments so
+        // DevTools keeps them interactive/collapsible.
+        const output = metaOutput + formattedArgs + (nativeArgs ? "" : logErrorsStr);
+        const trailing = nativeArgs ? [...logArgs, ...(logErrorsStr ? [logErrorsStr] : [])] : [];
 
         if (hasCssMeta) {
-          log(output, ...cssMeta.styles);
+          log(output, ...cssMeta.styles, ...trailing);
         } else {
-          log(output);
+          log(output, ...trailing);
         }
         return;
       }
 
       settings.pretty.inspectOptions.colors = prettyLogs;
+      const metaPrefix = prettyLogs ? logMetaMarkup : stripAnsi(logMetaMarkup);
+      if (nativeArgs) {
+        log(metaPrefix, ...logArgs, ...(logErrorsStr ? [logErrorsStr] : []));
+        return;
+      }
       const formattedArgs = formatWithOptionsSafe(settings.pretty.inspectOptions, logArgs);
-      log((prettyLogs ? logMetaMarkup : stripAnsi(logMetaMarkup)) + formattedArgs + logErrorsStr);
+      log(metaPrefix + formattedArgs + logErrorsStr);
     },
     transportJSON<LogObj>(json: LogObj & ILogObjMeta): void {
       nativeConsoleMethod("log")(jsonStringifyRecursive(json));

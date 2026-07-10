@@ -85,6 +85,7 @@ const KNOWN_GROUP_KEYS: Record<string, Set<string>> = {
     "timeZone",
     "styles",
     "levelMethod",
+    "passObjectsNatively",
     "inspectOptions",
   ]),
   json: new Set(["messageKey", "levelKey", "levelIdKey", "timeKey", "time", "errorKey", "numericLevel", "stableKeyOrder"]),
@@ -498,6 +499,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
         fileNameWithLine: "white",
       },
       levelMethod: settings?.pretty?.levelMethod ?? {},
+      passObjectsNatively: settings?.pretty?.passObjectsNatively ?? false,
       inspectOptions: settings?.pretty?.inspectOptions ?? {
         colors: true,
         compact: false,
