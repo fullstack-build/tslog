@@ -90,6 +90,9 @@ bower_components
 # Playwright test results
 /test-results/
 
+# Deno lockfile (written by the deno test adapter run; jsr deps are pinned per-run in CI)
+/deno.lock
+
 # Agent config
 # AGENTS.md and CLAUDE.md are shared with contributors (committed).
 # Personal, machine-local overrides go in CLAUDE.local.md (never committed).
