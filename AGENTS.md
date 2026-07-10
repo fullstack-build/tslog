@@ -1,12 +1,12 @@
 ## Project Overview
 
-tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an environment-aware default `type`, flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_logMeta.v` in JSON output is `5`).
+tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an always-`pretty` default `type` (only colorization is env-aware), flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_logMeta.v` in JSON output is `5`).
 
 ### Settings are grouped (v5)
 
 There are no flat settings keys. Configuration is organized into groups passed to `new Logger({ ... })`:
 
-- Top-level: `type` (`"json" | "pretty" | "hidden"`, env-aware default), `name`, `minLevel` (name or 0..6), `prefix`, `customLevels`, `strictConfig`, `clock` (injectable `() => Date`).
+- Top-level: `type` (`"json" | "pretty" | "hidden"`, defaults to `"pretty"`), `name`, `minLevel` (name or 0..6), `prefix`, `customLevels`, `strictConfig`, `clock` (injectable `() => Date`).
 - `mask: { keys, paths, regex, caseInsensitive, placeholder, censor }` — redact secrets/PII/prompts by key, dotted path (`*` = one segment), or regex.
 - `json: { messageKey, levelKey, levelIdKey, timeKey, time, errorKey, numericLevel, stableKeyOrder }` — structured-output key names/shape (`time`: `"iso" | "epoch" | false | fn`).
 - `pretty: { enabled, template, errorTemplate, style, timeZone, styles, levelMethod, inspectOptions, ... }`.
@@ -72,7 +72,7 @@ npm run coverage     # Run tests with coverage report
 
 ## Source Architecture
 
-v5 is organized into `core/` (runtime-agnostic logic), `env/` (per-runtime), `render/` (output), and `subpaths/` (tree-shakeable add-ons). The three entry points differ only in which environment factory they bind; the `Logger` class itself is shared.
+v5 is organized into `core/` (runtime-agnostic logic), `env/` (per-runtime environment providers), `internal/` (small shared helpers), `render/` (output), and `subpaths/` (tree-shakeable add-ons). The entry points differ only in which environment factory they bind; the `Logger` class itself is shared.
 
 ```
 src/
@@ -83,9 +83,10 @@ src/
 ├── BaseLogger.ts             # Core logger plumbing
 ├── interfaces.ts             # All TypeScript interfaces and types
 ├── formatTemplate.ts         # Template string replacement
-├── prettyLogStyles.ts        # Default pretty-print styles
+├── formatNumberAddZeros.ts   # Zero-padding for template date/time parts
+├── urlToObj.ts               # URL → plain-object serialization
 ├── core/                     # Runtime-agnostic logic
-│   ├── settings.ts           # Grouped-settings normalization/merge
+│   ├── settings.ts           # Grouped-settings normalization/merge + v4-key migration warnings
 │   ├── config.ts             # defineConfig + TslogConfigError
 │   ├── pipeline.ts           # log() → mask → logObj → meta → format → transport
 │   ├── masking.ts            # keys / paths / regex / censor masking
@@ -95,23 +96,38 @@ src/
 │   ├── transports.ts         # Transport registry + isolation
 │   ├── asyncContext.ts       # runInContext / getContext (AsyncLocalStorage)
 │   ├── fromEnv.ts            # Logger.fromEnv (TSLOG_LEVEL/TYPE/NAME)
-│   └── levelPersistence.ts   # persistLevel (browser localStorage)
-├── env/                      # Runtime detection + per-runtime environment
+│   ├── levelPersistence.ts   # persistLevel (browser localStorage)
+│   ├── features.ts           # CoreFeatures seam (what a build ships: masking, JSON renderer, …)
+│   └── features.full.ts      # Full feature set injected by the standard entries
+├── env/                      # Per-runtime environment providers
+│   ├── environment.ts        # EnvironmentProvider contract + factory types
 │   ├── environment.node.ts   # createNodeEnvironment
 │   ├── environment.browser.ts# createBrowserEnvironment
 │   ├── environment.universal.ts # createUniversalEnvironment / selectEnvironment
-│   ├── environment.ts        # shared env-aware default-type logic
-│   └── stackTrace.ts         # stack capture/parse
+│   ├── environment.slim.ts   # Minimal provider for tslog/slim
+│   ├── providerBase.ts       # Shared provider base (meta markup, transport formatting)
+│   ├── shared.ts             # Helpers shared across providers (paths, meta text)
+│   ├── stackTrace.ts         # Stack capture/parse
+│   ├── sourceMap.node.ts     # Source-map error-position resolution (Node/Bun/Deno)
+│   └── stdoutSink.node.ts    # Buffered stdout sink (Node JSON output)
+├── internal/                 # Small shared helpers
+│   ├── environment.ts        # Runtime detection, TTY/color probing, resolveDefaultType
+│   ├── errorUtils.ts         # Error introspection helpers
+│   ├── exitHooks.ts          # Process/page exit flushing for transports
+│   ├── jsonStringifyRecursive.ts # Circular-safe JSON stringify
+│   ├── metaFormatting.ts     # Pretty meta template rendering
+│   ├── nativeConsole.ts      # Untouched console method access
+│   └── InspectOptions.interface.ts # Runtime-free InspectOptions type
 ├── render/                   # Output formatting
-│   ├── json.ts               # JSON serialization (flat, fields-first)
+│   ├── json.ts               # JSON serialization (flat, fields-first, _logMeta.v)
 │   ├── inspect.ts            # native util.inspect (Node)
 │   ├── inspect.polyfill.ts   # off-Node inspect polyfill
 │   └── styles.ts             # pretty styling
 └── subpaths/                 # Tree-shakeable add-ons (each its own export)
     ├── presets/{pino,otel,genai}.ts
-    ├── transports/{file,http,ringBuffer}.ts
+    ├── transports/{file,http,ringBuffer,worker,worker.runner}.ts
     ├── serializers/std.ts    ├── pretty/box.ts
-    ├── lite.ts   ├── testing.ts   ├── throttle.ts
+    ├── lite.ts   ├── slim.ts   ├── testing.ts   ├── throttle.ts
     ├── wrapConsole.ts        └── cli.ts   # tslog bin (NDJSON pretty-printer)
 ```
 
@@ -130,7 +146,7 @@ src/
 
 - Uses **np** for releases (`npm run release`)
 - Publishes from `dist/` directory (`publishConfig.directory: "dist"`)
-- `scripts/prepare-publish.mjs` writes a dist-relative `package.json` and copies `LICENSE`, `README.md`, `llms.txt`, and `RECIPES.md` into `dist/`
+- `scripts/prepare-publish.mjs` writes a dist-relative `package.json` and copies `LICENSE`, `README.md`, `llms.txt`, `RECIPES.md`, and `MIGRATION_v4_to_v5.md` into `dist/`
 - Supports: Node.js (ESM), browsers (IIFE), Deno, Bun, React Native — all ESM, no CJS
 
 ## Key Conventions

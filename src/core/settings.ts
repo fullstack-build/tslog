@@ -399,8 +399,8 @@ function resolveStackCapture<LogObj>(settings: ISettingsParam<LogObj> | undefine
 /**
  * Resolve the effective output `type` (M3.2). An explicit `type` always wins. Otherwise, when
  * `pretty.enabled` is set it decides (`true` -> "pretty", `false` -> "json"); when it is unset the
- * type is resolved from the environment (interactive non-CI TTY -> "pretty", else "json"; browser,
- * worker, and React Native -> "pretty"; NO_COLOR only strips styling, never switches the format).
+ * default is always "pretty" (see `resolveDefaultType` — only colorization is env-aware; switching
+ * to JSON is an explicit choice via `type`, `Logger.fromEnv()`/`TSLOG_TYPE`, or a JSON transport).
  */
 function resolveType<LogObj>(settings: ISettingsParam<LogObj> | undefined): "json" | "pretty" | "hidden" {
   if (settings?.type != null) {

@@ -23,7 +23,7 @@
 - 🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation
 - 👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names
 - 🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal
-- 🤓 **Pretty errors & stack traces** — structured, fully serializable, lazy by default for speed
+- 🤓 **Pretty errors & stack traces** — structured, fully serializable, captured only when needed (`"auto"` for pretty, `"off"` for JSON)
 
 
 ## Example
@@ -57,7 +57,7 @@ const safeLog = new Logger({
   },
 });
 safeLog.info({ user: { name: "Ada", password: "hunter2" } });
-// → {"message":…,"user":{"name":"Ada","password":"[***]"}, …}
+// → {"user":{"name":"Ada","password":"[***]"},"level":"INFO", …} (a lone object spreads its fields — no message key)
 ```
 
 
@@ -159,7 +159,7 @@ bun run main.ts
 
 A prebuilt IIFE bundle is also published for `<script src="tslog.js">` usage, exposing the global `window.tslog`. In the browser, the default output renders pretty logs with CSS styling.
 
-**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.8KB gzip vs ~20.6KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
+**Bundle-size sensitive?** `import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline at less than half the size (~9.8KB gzip vs ~20.7KB) by leaving out masking, pretty output, and stack capture — `mask` settings and `type: "pretty"` throw there instead of silently degrading. Both sizes are enforced by a CI budget (`npm run check-bundle-size`).
 
 **Enable TypeScript source-map support** so `tslog` can point at the correct line in your source:
 
@@ -191,7 +191,7 @@ One package, purpose-built distributions. For most apps the answer is simply `ts
 |-----------|--------|-----|
 | **Development** (server, browser, RN) | `tslog` | Zero config: colorized pretty output on an interactive TTY / in the devtools console, code positions via stack capture, config validation with did-you-mean hints. |
 | **Production** (services, containers, CI) | `tslog` | The very same import: pretty stays uncolored when piped/non-TTY; opt into flat fields-first JSON with `type: "json"`. Add `mask` for secrets/PII, `bindings` + `runInContext` for correlation, and transports to ship logs. |
-| **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.8KB vs ~20.6KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
+| **Production, size-critical bundles** (browser apps, edge workers) | `tslog/slim` | The same JSON pipeline at less than half the size (~9.8KB vs ~20.7KB gzip) by leaving out masking, pretty output, and stack capture — and it throws on `mask` / `type: "pretty"` instead of silently degrading. Develop against `tslog`, ship `tslog/slim`. |
 | **Testing** | `tslog/testing` | `createTestLogger()` captures every record and rendered line for assertions — no console noise, no spies. (Any build also accepts `type: "hidden"` to mute the console while still returning records.) |
 | **Browser debugging with native line numbers** | `tslog/lite` | Thin `console` wrappers with zero processing, so devtools still shows the *caller's* file:line instead of the logger's. |
 | **Reading production logs as a human** | `tslog` CLI | Pipe NDJSON into the bundled bin and get the local pretty rendering: `kubectl logs api \| npx tslog -l warn`. |
@@ -315,11 +315,11 @@ You can override the default `logObj` per child by passing a second argument: `m
 
 v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`, `maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing; the groups cover everything else.
 
-**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for pretty everywhere, colored on a TTY), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
+**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for pretty everywhere, colored on a TTY), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `bindings` (static bound fields — merged down the child chain, per-call fields win, masked once at construction), `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
-| `pretty`  | `template`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `inspectOptions`, `enabled` |
+| `pretty`  | `template`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `passObjectsNatively` (boolean), `inspectOptions`, `enabled` |
 | `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `time` (`"iso" \| "epoch" \| false \| fn`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
 | `mask`    | `keys` (`[]`), `caseInsensitive`, `regex` (`RegExp[]`), `placeholder` (`"[***]"`), `paths` (JSONPath-lite), `censor` (`string \| "remove" \| "hash" \| fn`), `hashLabel` (`"hash"`) |
 | `stack`   | `capture` (`"off" \| "lazy" \| "auto" \| "full"`), `internalFramePatterns` (`RegExp[]`) |
@@ -494,12 +494,12 @@ const log = new Logger({
 
 Masking is leak-proof by construction: `regex` patterns are always applied **globally** (every occurrence in a string is redacted, whether or not you wrote the `g` flag), shared references and circular structures resolve to the same *masked* clone (a secret can never escape through a second reference to the same object), and `mask.keys` / `regex` also apply **inside `Map` and `Set`** contents (`mask.paths` does not descend into them).
 
-The `censor` option controls *how* a match is replaced:
+The `censor` option controls *how* a **`paths`-matched** value is replaced (`keys`- and `regex`-matched values always use `placeholder`, with one exception below):
 
 - a **string** — replace with that literal
 - `"remove"` — drop the key entirely
 - a **function** — custom logic returning the replacement
-- `"hash"` — replace with a fast, synchronous, non-cryptographic correlation token (e.g. `"[hash:1a2b3c4d]"`, label configurable via `hashLabel`) so you can correlate a redacted value across logs without ever storing it
+- `"hash"` — replace with a fast, synchronous, non-cryptographic correlation token (e.g. `"[hash:1a2b3c4d]"`, label configurable via `hashLabel`) so you can correlate a redacted value across logs without ever storing it. `"hash"` is the one censor that **also applies to `keys` matches**, so `mask.keys` and `mask.paths` hash alike
 
 ```typescript
 const log = new Logger({ mask: { keys: ["ssn"], censor: "hash", hashLabel: "hash" } });
@@ -611,7 +611,7 @@ import { pinoFormat, pinoTransport } from "tslog/presets/pino";
 
 const log = new Logger();
 // or attach a transport with { format: pinoFormat() }
-log.attachTransport(pinoTransport());
+log.attachTransport(pinoTransport((line) => process.stdout.write(line + "\n")));
 ```
 
 Errors are emitted in pino's serializer shape — `err: { type, message, stack }` with `stack` as the
@@ -803,7 +803,38 @@ new Logger({
 });
 ```
 
-On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.inspectOptions`.
+On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.inspectOptions`. For example, `pretty.inspectOptions.breakLength` controls when inspected objects wrap onto multiple lines — set it high (e.g. `Infinity`) to keep an object on a single line while preserving color, which is handy in log aggregators (CloudWatch, Datadog) that treat each line as one entry.
+
+### Interactive objects in the browser console (`pretty.passObjectsNatively`)
+
+By default, pretty output renders every argument — including objects — into the log string before printing, so a browser DevTools console shows a pre-expanded text dump rather than the collapsible, clickable tree you get from a raw `console.log(obj)`. Set `pretty.passObjectsNatively: true` to hand non-`Error` arguments to the console method **by reference** instead: the styled meta prefix is still printed, but objects and arrays stay live so DevTools renders them interactively.
+
+```typescript
+new Logger({
+  type: "pretty",
+  pretty: {
+    passObjectsNatively: true,
+    // Pair with levelMethod so warn/error use the console methods that attach an
+    // expandable stack group in the browser:
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
+  },
+});
+
+log.info("user loaded", { id: 42, roles: ["admin"] }); // object is collapsible in DevTools
+```
+
+With this on, `inspectOptions` no longer applies to those arguments (the console owns the rendering); logged `Error`s are still formatted through the pretty error template.
+
+### Conditional logging (`log.if(condition)`)
+
+`log.if(condition)` returns the logger when `condition` is truthy and a no-op stand-in when it is falsy, so a per-call condition reads as a fluent chain instead of an `if` statement or a throwaway helper:
+
+```typescript
+log.if(!ok).info("action failed", { id });
+log.if(retries > maxRetries).warn("giving up", { retries });
+```
+
+The falsy stand-in still evaluates its arguments, so to skip *expensive* payload construction use `isLevelEnabled` instead — it short-circuits before the arguments are built. `if()` gates a single call; it isn't meant to be chained ahead of `getSubLogger`/`child`.
 
 
 ## Other subpaths
@@ -812,7 +843,7 @@ On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.i
 |--------|-------------------|
 | `tslog/lite` | `lite` (ready instance), `LiteLogger`, `createLiteLogger(opts?)` — minimal console wrappers, no mask/stack/clone, preserves native console line numbers |
 | `tslog/slim` | `Logger`, `createLogger` — the smallest structured-JSON build: the full pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size, minus masking/pretty/stack capture (`mask` and `type: "pretty"` throw instead of silently degrading) |
-| `tslog/testing` | `createTestLogger(settings?)` → `{ logger, logs, lines, clear }`, plus `mockLogger(settings?)` |
+| `tslog/testing` | `createTestLogger(settings?, { now?, normalize? })` → `{ logger, logs, lines, clear }`, plus `mockLogger(settings?)` and `normalizeMeta(recordOrLine)` for snapshot-stable output |
 | `tslog/throttle` | `throttle({ windowMs, key?, now? })` middleware (off by default), `defaultThrottleKey` |
 | `tslog/serializers` | `stdSerializers` `{ err, req, res, user }`, the `serialize(map)` middleware helper, and the individual serializers |
 | `tslog/pretty/box` | `box(content, opts?)`, `tree(node, opts?)` for boxed / tree-rendered output |
@@ -834,8 +865,8 @@ logger.info({ ok: true }, "tested");
 The defaults are tuned for a great developer experience; for hot production paths, the biggest lever is stack capture.
 
 - **Batched stdout by default (Node).** JSON lines are buffered and written to stdout once per event-loop turn instead of one `console.log` per line, with flush/exit-hook safeguards (see *Batched stdout on Node* above).
-- **Lazy stack capture by default.** Stack frames (and therefore log-position lookup) are captured lazily, so you only pay for them when something actually reads them.
-- **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths, or `"full"` when you want complete frames for debugging.
+- **Stack capture only when it's needed.** Pretty output defaults to `stack: { capture: "auto" }` — frames are captured only when the rendered template actually shows a code position — and `type: "json"` defaults to `"off"`, so production JSON pays nothing.
+- **The stack lever.** Set `stack: { capture: "off" }` to skip code-position capture entirely on hot paths, `"lazy"` to capture cheaply and defer parsing until something reads the frames, or `"full"` when you want complete frames for debugging.
 - **Tree-shakeable everything.** Presets, transports and helpers are opt-in subpaths with `sideEffects: false`, so unused features never reach your bundle.
 
 Benchmarks are run internally against pino, winston, bunyan, and consola, but the raw numbers aren't published — they vary too much by machine and workload to be a fair, stable comparison to share.

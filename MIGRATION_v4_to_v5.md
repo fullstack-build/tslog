@@ -439,10 +439,11 @@ the message buried under `"0"`, the level only reachable inside `_logMeta`.
   "_logMeta": {
     // schema version
     "v": 5,
-    "runtime": "Nodejs",
+    // runtime names are lowercase in v5: "node" | "browser" | "deno" | "bun" | "worker" | "react-native"
+    "runtime": "node",
     "logLevelId": 3,
-    "logLevelName": "INFO",
-    "path": { /* ... */ }
+    "logLevelName": "INFO"
+    // "path": { ... } appears only when stack capture is on — json output defaults stack.capture to "off"
   }
 }
 ```
@@ -512,10 +513,12 @@ class MyLogger<T> extends Logger<T> {
 }
 
 // AFTER (v5) — same position, renamed concept (callerFrame); NaN = auto-detect
+import { BaseLogger, createNodeEnvironment } from "tslog"; // universal entry: createUniversalEnvironment
+
 class MyLogger<T> extends BaseLogger<T> {
   constructor(s?: ISettingsParam<T>, o?: T) {
     // callerFrame = 5
-    super(s, o, getEnvironment(), 5);
+    super(s, o, createNodeEnvironment(), 5);
   }
 }
 ```

@@ -116,6 +116,47 @@ const log = new Logger({
 });
 ```
 
+## 6a. Collapsible objects in the browser console
+
+By default pretty output inspects objects into the log string, so the browser shows a pre-expanded text dump. `pretty.passObjectsNatively` hands non-`Error` args to the console **by reference** instead, so DevTools renders them as interactive, collapsible trees — and, paired with `levelMethod`, warn/error get their native expandable stack group.
+
+```ts
+const log = new Logger({
+  type: "pretty",
+  pretty: {
+    passObjectsNatively: true,
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
+  },
+});
+
+log.info("user loaded", { id: 42, roles: ["admin"] }); // object stays clickable in DevTools
+```
+
+`inspectOptions` no longer applies to those args (the console renders them); logged `Error`s still use the pretty error template.
+
+## 6b. Keep pretty output on one line (log aggregators)
+
+Aggregators like CloudWatch or Datadog treat each line as one entry, so a multi-line inspected object becomes several fragmented entries. Raise `inspectOptions.breakLength` to keep objects on a single line while keeping color:
+
+```ts
+const log = new Logger({
+  type: "pretty",
+  pretty: { inspectOptions: { breakLength: Infinity, colors: true, compact: true } },
+});
+
+log.info("request", { method: "GET", path: "/health", ms: 3 }); // one line, still colored
+```
+
+## 6c. Log only when a condition holds
+
+`log.if(condition)` returns the logger when truthy and a no-op when falsy, so a per-call guard reads as a chain:
+
+```ts
+log.if(!ok).warn("action failed", { id });
+```
+
+The falsy no-op still evaluates its arguments — to skip *expensive* construction, guard with `isLevelEnabled` (recipe 12).
+
 ## 7. Ship logs to a backend (custom transport + middleware)
 
 Transports run in isolation — a transport that throws never crashes logging or stops siblings. Use `use(...)` middleware to enrich or drop logs before they are formatted.
@@ -254,8 +295,8 @@ Built-in exit safety: the file transport registers guarded exit hooks by default
 opts out) — an async flush on `beforeExit` and a synchronous drain on `exit`, so even a bare
 `process.exit(0)` or an uncaught exception does not lose the buffered tail. fs errors (disk full,
 permissions) are contained and reported via `onError` (default: one `console.error` per error burst);
-a failed open is retried on the next write. The http and worker transports flush on `beforeExit`
-(and `pagehide` in browsers) the same way.
+a failed open is retried on the next write. The http transport flushes on `beforeExit` (and
+`pagehide` in browsers) the same way; the worker transport (Node-only) drains on `beforeExit`.
 
 ## 10b. Graceful shutdown on SIGTERM/SIGINT (app-owned)
 
@@ -334,7 +375,7 @@ Off by default in production (`NODE_ENV === "production"`) since it costs a sour
 The full entry ships masking, pretty rendering, and stack parsing whether or not your config uses them (output `type` is a runtime value, so bundlers cannot drop them). When bundle size matters more, `tslog/slim` is the same structured-JSON pipeline at less than half the size — and it fails HONESTLY: `mask` settings and `type: "pretty"` throw instead of being silently ignored.
 
 ```ts
-import { Logger } from "tslog/slim"; // ~9.8KB gzip vs ~20.6KB for the full browser entry
+import { Logger } from "tslog/slim"; // ~9.8KB gzip vs ~20.7KB for the full browser entry
 
 const log = new Logger({ name: "edge", bindings: { service: "checkout" } });
 log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-first JSON
