@@ -52,7 +52,9 @@ describe("Browser CSS styling", () => {
   // grouped `pretty` path, so overrides are merged into settings.pretty.
   function prettySettings(prettyOverrides: Partial<ISettings<unknown>["pretty"]> = {}): ISettings<unknown> {
     const settings = new Logger({ type: "pretty" }).settings as ISettings<unknown>;
-    return { ...settings, pretty: { ...settings.pretty, ...prettyOverrides } };
+    // These suites assert rendered-string/CSS-markup mechanics, so the browser default of
+    // passObjectsNatively is pinned off (native-arg behavior has its own tests).
+    return { ...settings, pretty: { ...settings.pretty, passObjectsNatively: false, ...prettyOverrides } };
   }
 
   describe("CSS styling path in transportFormatted", () => {

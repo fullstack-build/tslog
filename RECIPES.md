@@ -118,13 +118,12 @@ const log = new Logger({
 
 ## 6a. Collapsible objects in the browser console
 
-By default pretty output inspects objects into the log string, so the browser shows a pre-expanded text dump. `pretty.passObjectsNatively` hands non-`Error` args to the console **by reference** instead, so DevTools renders them as interactive, collapsible trees — and, paired with `levelMethod`, warn/error get their native expandable stack group.
+In real browsers `pretty.passObjectsNatively` is **on by default**: non-`Error` args reach the console **by reference**, so DevTools renders them as interactive, collapsible trees — and, paired with `levelMethod`, warn/error get their native expandable stack group. Everywhere else (Node, workers/edge, React Native) it defaults off, because captured-as-text consoles degrade raw references.
 
 ```ts
 const log = new Logger({
   type: "pretty",
   pretty: {
-    passObjectsNatively: true,
     levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
   },
 });
@@ -132,7 +131,9 @@ const log = new Logger({
 log.info("user loaded", { id: 42, roles: ["admin"] }); // object stays clickable in DevTools
 ```
 
-`inspectOptions` no longer applies to those args (the console renders them); logged `Error`s still use the pretty error template.
+`inspectOptions` does not apply to natively-passed args (the console renders them); logged `Error`s still use the pretty error template.
+
+Switch it off (`pretty: { passObjectsNatively: false }`) when you need **log-time snapshots** (a raw reference expanded later shows the object's *current*, possibly mutated state — unless `mask` is configured, which clones args) or **text-matchable output** (the DevTools filter box and console-capturing harnesses only match the rendered string).
 
 ## 6b. Keep pretty output on one line (log aggregators)
 

@@ -53,6 +53,42 @@ describe("transport behaviour", () => {
     }
   });
 
+  test("passObjectsNatively defaults on in a browser environment and off elsewhere; explicit false wins", async () => {
+    const globalAny = globalThis as unknown as { window?: unknown; document?: unknown };
+    const originalWindow = globalAny.window;
+    const originalDocument = globalAny.document;
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+
+    // Node (no window/document): default off.
+    const nodeLogger = new Logger({ type: "pretty" });
+    expect(nodeLogger.settings.pretty.passObjectsNatively).toBe(false);
+
+    globalAny.window = {};
+    globalAny.document = {};
+    try {
+      // Browser globals present: default on — DevTools renders raw references as collapsible trees.
+      const browserLogger = new Logger({ type: "pretty" });
+      expect(browserLogger.settings.pretty.passObjectsNatively).toBe(true);
+
+      // The opt-out for log-time snapshots / text-matchable logs still wins.
+      const optOut = new Logger({ type: "pretty", pretty: { passObjectsNatively: false } });
+      expect(optOut.settings.pretty.passObjectsNatively).toBe(false);
+    } finally {
+      if (originalWindow === undefined) {
+        delete globalAny.window;
+      } else {
+        globalAny.window = originalWindow;
+      }
+      if (originalDocument === undefined) {
+        delete globalAny.document;
+      } else {
+        globalAny.document = originalDocument;
+      }
+    }
+  });
+
   test("passObjectsNatively hands raw objects to the console (Node path)", async () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
@@ -245,7 +281,8 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty", pretty: { template: "static output" } });
+    // passObjectsNatively pinned off: this test asserts the single-string sanitized fallback.
+    const logger = new Logger({ type: "pretty", pretty: { template: "static output", passObjectsNatively: false } });
     logger.info("unstyled");
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("static output"));

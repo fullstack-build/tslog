@@ -807,15 +807,14 @@ On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.i
 
 ### Interactive objects in the browser console (`pretty.passObjectsNatively`)
 
-By default, pretty output renders every argument — including objects — into the log string before printing, so a browser DevTools console shows a pre-expanded text dump rather than the collapsible, clickable tree you get from a raw `console.log(obj)`. Set `pretty.passObjectsNatively: true` to hand non-`Error` arguments to the console method **by reference** instead: the styled meta prefix is still printed, but objects and arrays stay live so DevTools renders them interactively.
+In a real browser (`window` + `document` present), pretty output hands non-`Error` arguments to the console method **by reference** — the styled meta prefix is still printed, but objects and arrays stay live, so DevTools renders them as the collapsible, clickable trees you'd get from a raw `console.log(obj)`. This is `pretty.passObjectsNatively`, and it is **on by default in browsers** (best DX out of the box) and off everywhere else — Node, workers/edge runtimes, and React Native typically capture console output as text, where a raw reference degrades to `[object Object]`.
 
 ```typescript
 new Logger({
   type: "pretty",
   pretty: {
-    passObjectsNatively: true,
-    // Pair with levelMethod so warn/error use the console methods that attach an
-    // expandable stack group in the browser:
+    // on by default in browsers — pair with levelMethod so warn/error use the
+    // console methods that attach an expandable stack group:
     levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
   },
 });
@@ -823,7 +822,12 @@ new Logger({
 log.info("user loaded", { id: 42, roles: ["admin"] }); // object is collapsible in DevTools
 ```
 
-With this on, `inspectOptions` no longer applies to those arguments (the console owns the rendering); logged `Error`s are still formatted through the pretty error template.
+While it's on, `inspectOptions` does not apply to those arguments (the console owns the rendering); logged `Error`s are still formatted through the pretty error template.
+
+**When to switch it off** (`pretty: { passObjectsNatively: false }`) — the rendered-string mode has two properties the native mode gives up:
+
+- **Log-time snapshots.** DevTools renders a raw reference *lazily*: if the object mutates after the log call, expanding it shows the **current** state, not what you logged — the classic `console.log` gotcha. Rendering into the string freezes the value at log time. (With `mask` configured, arguments are masked clones, so they're frozen either way.)
+- **Text-matchable logs.** The DevTools filter box and any console-capturing harness (test runners, screenshot-based tooling) only match the rendered string — field values inside natively-passed objects are invisible to them.
 
 ### Conditional logging (`log.if(condition)`)
 

@@ -397,6 +397,20 @@ If you previously relied on a v4 setting to strip colors when piping, you can dr
 default. If any downstream parser was reading JSON from tslog, set `type: "json"` explicitly (or use
 `TSLOG_TYPE=json`); it is no longer produced by accident.
 
+### 6b. Browsers now pass objects to the console natively by default
+
+In a real browser, v5 defaults `pretty.passObjectsNatively` to `true`: non-`Error` arguments reach
+`console.*` **by reference**, so DevTools renders them as collapsible, interactive trees instead of the
+pre-rendered text dump v4 printed. Node, workers/edge, and React Native keep the v4-style rendered
+string (default `false`).
+
+If your browser tests or tooling assert on the printed console *string*, or you rely on log-time
+snapshots of mutable objects, restore the old behavior with:
+
+```ts
+const log = new Logger({ pretty: { passObjectsNatively: false } });
+```
+
 ---
 
 ## 7. Default JSON shape changed (flat, fields-first, `_logMeta.v: 5`)

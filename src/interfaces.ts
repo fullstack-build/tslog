@@ -419,7 +419,9 @@ export interface IPrettySettings {
   levelMethod?: TPrettyLogLevelMethod;
   /**
    * Pass non-Error arguments to the console method as their raw values instead of pre-rendering them
-   * into the log string via `util.inspect`/`formatWithOptions`. Default: `false`.
+   * into the log string via `util.inspect`/`formatWithOptions`. Default: `true` in real browsers
+   * (`window` + `document` present), `false` everywhere else (Node, workers/edge, React Native), where
+   * console output is typically captured as text and raw references degrade to `[object Object]`.
    *
    * With this on, the styled meta prefix is still printed, but objects and arrays are handed to
    * `console.log`/`console.error`/… untouched — so a browser DevTools console renders them as
@@ -427,7 +429,13 @@ export interface IPrettySettings {
    * {@link IPrettySettings.levelMethod}) attach their own expandable stack group (issue #226).
    * `inspectOptions` no longer applies to those args (the console owns the rendering); `Error`
    * arguments are still formatted through the pretty error template.
-   * @example { pretty: { passObjectsNatively: true, levelMethod: { error: "error", warn: "warn" } } }
+   *
+   * Set it to `false` when you need log-time snapshots or text-matchable logs: DevTools renders a raw
+   * reference lazily, so an object mutated AFTER the log call shows its CURRENT state when expanded
+   * (unless masking is active — masked args are cloned and therefore frozen at log time), and the
+   * DevTools filter box only matches the rendered string, so field values inside natively-passed
+   * objects are invisible to it.
+   * @example { pretty: { passObjectsNatively: false } } // back to rendered-string output
    */
   passObjectsNatively?: boolean;
   /** Options passed to the runtime's `util.inspect`/`formatWithOptions` when rendering pretty args. */

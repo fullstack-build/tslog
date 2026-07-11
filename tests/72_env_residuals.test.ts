@@ -75,8 +75,9 @@ describe("universal provider residual branches", () => {
 
       const env = createUniversalEnvironment();
       // A numeric style token is neither string, array, nor object → collectStyleTokens' final `return []` runs.
+      // passObjectsNatively is pinned off: this test asserts the rendered-string fallback.
       const settings = prettySettings({
-        pretty: { styles: { logLevelName: 42 as never } },
+        pretty: { styles: { logLevelName: 42 as never }, passObjectsNatively: false },
       });
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
 

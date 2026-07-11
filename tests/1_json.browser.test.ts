@@ -85,7 +85,7 @@ test("pretty disables styling when turned off", async ({ page }) => {
       originalLog.apply(console, args as []);
     };
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.info("Browser no styling");
     console.log = originalLog;
     return calls;
@@ -100,7 +100,7 @@ test("pretty disables styling when turned off", async ({ page }) => {
 test("pretty no styles undefined", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.fatal("Test undefined", { test: undefined });
   });
 
@@ -109,8 +109,8 @@ test("pretty no styles undefined", async ({ page }) => {
 
 test("pretty string interpolation", async ({ page }) => {
   await page.evaluate(() => {
-    // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    // @ts-ignore — passObjectsNatively off: this asserts tslog's own %s interpolation into the string
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.info("Foo %s", "bar");
   });
 
@@ -120,7 +120,7 @@ test("pretty string interpolation", async ({ page }) => {
 test("pretty undefined", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.info(undefined);
   });
   expect(consoleMessages.some((msg) => msg.includes("undefined"))).toBe(true);
@@ -129,7 +129,7 @@ test("pretty undefined", async ({ page }) => {
 test("pretty null", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.info(null);
   });
   expect(consoleMessages.some((msg) => msg.includes("null"))).toBe(true);
@@ -138,7 +138,7 @@ test("pretty null", async ({ page }) => {
 test("pretty nullish", async ({ page }) => {
   await page.evaluate(() => {
     // @ts-ignore
-    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false } });
+    const logger = new tslog.Logger({ type: "pretty", pretty: { style: false, passObjectsNatively: false } });
     logger.info({ foo: null, bar: undefined });
   });
   const combined = consoleMessages.join("\n");

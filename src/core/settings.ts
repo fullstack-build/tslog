@@ -499,7 +499,10 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
         fileNameWithLine: "white",
       },
       levelMethod: settings?.pretty?.levelMethod ?? {},
-      passObjectsNatively: settings?.pretty?.passObjectsNatively ?? false,
+      // Default ON in real browsers (window+document): DevTools renders live references as collapsible
+      // trees, which is the DX people expect there. Everywhere else — Node, workers (incl. edge runtimes),
+      // React Native — output is typically captured as text, where live references degrade, so default OFF.
+      passObjectsNatively: settings?.pretty?.passObjectsNatively ?? isBrowserEnvironment(),
       inspectOptions: settings?.pretty?.inspectOptions ?? {
         colors: true,
         compact: false,

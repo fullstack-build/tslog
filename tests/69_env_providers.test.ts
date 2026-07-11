@@ -326,12 +326,15 @@ describe("Universal EnvironmentProvider", () => {
         });
 
         expect(calls).toHaveLength(1);
-        const [line, ...styleArgs] = calls[0];
-        // %c placeholders wrap styled tokens; the CSS strings are passed as trailing args.
+        const [line, ...restArgs] = calls[0];
+        // %c placeholders wrap styled meta tokens; the CSS strings are passed as trailing args. With
+        // the browser default passObjectsNatively, the log arg itself trails raw instead of being
+        // rendered into the line.
         expect(String(line)).toContain("%c");
-        expect(String(line)).toContain("hello css");
-        expect(styleArgs.length).toBeGreaterThan(0);
-        expect(styleArgs.some((css) => /:/.test(String(css)))).toBe(true);
+        expect(String(line)).not.toContain("hello css");
+        expect(restArgs.length).toBeGreaterThan(0);
+        expect(restArgs.some((css) => /:/.test(String(css)))).toBe(true);
+        expect(restArgs).toContain("hello css");
       });
     });
   });

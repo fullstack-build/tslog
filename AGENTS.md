@@ -1,6 +1,6 @@
 ## Project Overview
 
-tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an always-`pretty` default `type` (only colorization is env-aware), flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_logMeta.v` in JSON output is `5`).
+tslog is a TypeScript logger for browsers, Node.js, Deno, and Bun, React Native, and workers. It supports JSON and pretty-printed output, stack traces, error formatting, custom transports, and sub-loggers. v5 adds an always-`pretty` default `type` (colorization and `pretty.passObjectsNatively` — on by default in real browsers — are the env-aware parts, never the format), flat fields-first JSON, async-context correlation, path/regex masking, a middleware chain, and pino/otel/genai presets. Current version: 5.x (the `5` line; `_logMeta.v` in JSON output is `5`).
 
 ### Settings are grouped (v5)
 
