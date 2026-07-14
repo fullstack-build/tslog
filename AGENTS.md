@@ -15,6 +15,7 @@ There are no flat settings keys. Configuration is organized into groups passed t
 
 New runtime surface: `getSubLogger`/`child` (aliases), `runInContext`/`getContext` (AsyncLocalStorage correlation), `attachTransport`, `use` (middleware), `flush`, `addLevel`, `isLevelEnabled`, `[Symbol.asyncDispose]`/`[Symbol.dispose]`, `Logger.fromEnv`, and the `defineConfig` helper. Presets ship as subpaths: `tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`; transports as `tslog/transports/{file,http,ringbuffer}`.
 
+
 ## Quick Reference
 
 ```bash

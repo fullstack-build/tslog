@@ -44,3 +44,15 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+      - name: Verify site is live
+        run: |
+          # Guard against Pages config drift (custom domain dropped or build_type
+          # reset to legacy), which makes deploy succeed while the site 404s.
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L https://tslog.js.org)
+            echo "attempt $i: HTTP $code"
+            [ "$code" = "200" ] && exit 0
+            sleep 15
+          done
+          echo "::error::tslog.js.org did not return 200 after deploy"
+          exit 1
