@@ -11,8 +11,8 @@ describe("Pretty: Log level", () => {
   test("log object", (): void => {
     const logObj: any = logger.log(123, "test", "Test");
     expect(logObj?.["0"]).toContain("Test");
-    expect(logObj?._meta?.logLevelId === 123).toBeTruthy();
-    expect(logObj?._meta?.logLevelName).toContain("test");
+    expect(logObj?._logMeta?.logLevelId === 123).toBeTruthy();
+    expect(logObj?._logMeta?.logLevelName).toContain("test");
   });
 
   test("silly (console)", (): void => {

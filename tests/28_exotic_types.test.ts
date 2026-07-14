@@ -9,19 +9,19 @@ describe("Exotic types", () => {
 
     test("Symbol as log argument", () => {
       expect(() => logger.info(Symbol("test-sym"))).not.toThrow();
-      expect(getConsoleLog()).toContain("_meta");
+      expect(getConsoleLog()).toContain("_logMeta");
     });
 
     test("RegExp as log argument", () => {
       const logObj = logger.info(/test-pattern/gi);
       expect(logObj).toBeDefined();
       // RegExp serializes to { lastIndex: 0 } via JSON.stringify (no source property)
-      expect(getConsoleLog()).toContain("_meta");
+      expect(getConsoleLog()).toContain("_logMeta");
     });
 
     test("Typed array (Uint8Array)", () => {
       expect(() => logger.info(new Uint8Array([1, 2, 3]))).not.toThrow();
-      expect(getConsoleLog()).toContain("_meta");
+      expect(getConsoleLog()).toContain("_logMeta");
     });
 
     test("BigInt serializes in JSON output", () => {

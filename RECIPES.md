@@ -1,6 +1,6 @@
 # tslog Recipes
 
-Copy-paste patterns for common logging tasks, with a focus on production services and AI/agentic apps. All patterns use the public API only.
+Copy-paste patterns for common logging tasks, with a focus on production services and AI/agentic apps. All patterns use the public v5 API. Settings are **grouped** (`mask`, `json`, `pretty`, `stack`, `meta`) — there are no flat keys. Snippets that construct a logger assume `import { Logger } from "tslog";` — recipe-specific imports are shown inline.
 
 ## 1. Structured JSON for observability / LLM ingestion
 
@@ -9,137 +9,422 @@ import { Logger } from "tslog";
 
 const log = new Logger({ type: "json", minLevel: "INFO" });
 
+// Fields-first (pino-style) or string-first — both work:
 log.info({ event: "request", method: "GET", path: "/users", status: 200, durationMs: 12 });
-// → one JSON object per line, ready for Datadog / Loki / OpenTelemetry / another LLM to parse
+log.info("request complete", { status: 200 });
+// → one flat, fields-first JSON object per line:
+//   { "message": "...", "level": "INFO", "levelId": 3, "time": "…", "status": 200, "_logMeta": { "v": 5, … } }
 ```
+
+The default `type` is `pretty` everywhere: `new Logger()` is pretty + colorized in an interactive
+terminal, and uncolored pretty when piped/redirected/CI (`NO_COLOR` just strips colors). Structured
+JSON is opt-in — pass `type: "json"`.
 
 ## 2. Per-request (or per-agent) child logger
 
-Child loggers inherit settings, names, prefixes, and transports — create one per request, job, or agent step.
+Child loggers inherit settings, names, prefixes, and transports — create one per request, job, or agent step. `child(...)` is an alias for `getSubLogger(...)`.
 
 ```ts
 const log = new Logger({ type: "json", name: "api" });
 
 function handleRequest(req) {
-  const requestLog = log.getSubLogger({ name: "req" });
+  const requestLog = log.getSubLogger({ name: "req" }); // or log.child({ name: "req" })
   requestLog.info("started", { method: req.method, path: req.url });
-  // ... requestLog.debug/info/error within this request
 }
 ```
 
-## 3. Automatic request correlation with AsyncLocalStorage
+## 3. Automatic request correlation with `runInContext` (AsyncLocalStorage)
 
-Function-valued fields on the default `logObj` are evaluated on every log, so a `requestId` (or `traceId`) is attached automatically to everything logged within the request — including from deep sub-loggers — without threading it through your code.
+`runInContext(ctx, fn)` attaches its fields onto every log emitted inside `fn` — across `await`, timers, and nested sub-loggers — without threading ids through your code. Backed by `AsyncLocalStorage`, auto-resolved on Node/Deno/Bun; a graceful no-op in browsers. `getContext()` reads the active fields.
 
 ```ts
-import { AsyncLocalStorage } from "node:async_hooks";
-import { Logger } from "tslog";
+const log = new Logger({ type: "json" });
 
-const store = new AsyncLocalStorage<{ requestId: string }>();
-
-const log = new Logger<{ requestId?: string | (() => string | undefined) }>(
-  { type: "json" },
-  { requestId: () => store.getStore()?.requestId }, // evaluated per log
-);
-
-// In your middleware:
-function withRequestId(requestId: string, next: () => Promise<void>) {
-  return store.run({ requestId }, next);
+function withRequest(req, next) {
+  return log.runInContext({ requestId: req.id, traceId: req.traceId }, next);
 }
 
-// Anywhere inside the request, every log includes the current requestId:
+// Anywhere inside the request — including deep sub-loggers — every log carries the ids under _logMeta:
 log.info("processing");
 ```
 
-## 4. Redact secrets and prompts
+On **Cloudflare Workers**, auto-resolution can't work — inject the storage instead (enable the `nodejs_als` or `nodejs_compat` compatibility flag in `wrangler.toml`):
 
-Keep passwords, API keys, and (for AI apps) prompts and PII out of your logs.
+```ts
+import { AsyncLocalStorage } from "node:async_hooks";
+
+const log = new Logger({ type: "json", contextStorage: new AsyncLocalStorage() });
+
+export default {
+  async fetch(request, env, ctx) {
+    return log.runInContext({ requestId: crypto.randomUUID() }, () => handle(request));
+  },
+};
+```
+
+## 4. Redact secrets, PII, and prompts
+
+Mask by key, by dotted path (`*` matches one segment), or by regex — all grouped under `mask`.
 
 ```ts
 const log = new Logger({
   type: "json",
-  maskValuesOfKeys: ["password", "apiKey", "authorization", "token", "prompt", "completion"],
-  // also redact substrings inside strings (e.g. env secrets, emails):
-  maskValuesRegEx: [/\b[A-Za-z0-9]{32,}\b/g],
+  mask: {
+    keys: ["password", "apiKey", "authorization", "token", "prompt", "completion"],
+    caseInsensitive: true,
+    paths: ["user.password", "*.token", "headers.authorization"],
+    // censor shapes PATH-matched values ("hash" also applies to key matches);
+    // values matched by `keys` are otherwise always replaced with the placeholder:
+    // censor: "remove",             // delete a path-matched key instead of replacing its value
+    // censor: (v) => `****${String(v).slice(-4)}`,
+    regex: [/\b[A-Za-z0-9]{32,}\b/g], // long token-like substrings in strings
+  },
 });
 
-log.info("auth", { user: "alice", password: "hunter2", apiKey: "sk-..." });
-// → { "user": "alice", "password": "[***]", "apiKey": "[***]", ... }
+log.info({ user: "alice", password: "hunter2", apiKey: "sk-..." }, "auth");
+// → { "message": "auth", "user": "alice", "password": "[***]", "apiKey": "[***]", ... }
 ```
 
-## 5. Logging LLM calls (tokens, cost, latency, model)
+## 5. Logging LLM calls (tokens, cost, latency, model) with the genai preset
 
-A consistent shape makes multi-agent economics easy to aggregate downstream.
+`tslog/presets/genai` maps a friendly input to OpenTelemetry `gen_ai.*` attributes plus a compact summary. Spread the result into a log call.
 
 ```ts
+import { genai } from "tslog/presets/genai";
+
 const log = new Logger({ type: "json", name: "llm" });
 
-async function callModel(prompt: string) {
-  const start = Date.now();
-  const res = await client.complete(prompt);
-  log.info("llm_call", {
-    model: res.model,
-    promptTokens: res.usage.prompt_tokens,
-    completionTokens: res.usage.completion_tokens,
-    costUsd: res.usage.cost,
-    latencyMs: Date.now() - start,
-  });
-  return res;
-}
+log.info("chat completion", genai({
+  model: "claude-opus-4",
+  inputTokens: 1200,
+  outputTokens: 350,
+  costUsd: 0.021,
+  latencyMs: 845,
+  tool: "search",
+}));
+// emits gen_ai.* attributes + a { model, tokens, costUsd, latencyMs } summary
 ```
 
 ## 6. Route levels to the right console method
 
-Useful for browser DevTools filtering and log collectors that key off the console method.
-
 ```ts
 const log = new Logger({
   type: "pretty",
-  prettyLogLevelMethod: {
-    WARN: console.warn,
-    ERROR: console.error,
-    FATAL: console.error,
-    "*": console.log,
+  pretty: {
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error, "*": console.log },
   },
 });
 ```
 
-## 7. Ship logs to a backend (custom transport)
+## 6a. Collapsible objects in the browser console
 
-Transports run in isolation — a transport that throws never crashes logging or stops other transports.
+In real browsers `pretty.passObjectsNatively` is **on by default**: non-`Error` args reach the console **by reference**, so DevTools renders them as interactive, collapsible trees — and, paired with `levelMethod`, warn/error get their native expandable stack group. Everywhere else (Node, workers/edge, React Native) it defaults off, because captured-as-text consoles degrade raw references.
+
+```ts
+const log = new Logger({
+  type: "pretty",
+  pretty: {
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
+  },
+});
+
+log.info("user loaded", { id: 42, roles: ["admin"] }); // object stays clickable in DevTools
+```
+
+`inspectOptions` does not apply to natively-passed args (the console renders them); logged `Error`s still use the pretty error template.
+
+Switch it off (`pretty: { passObjectsNatively: false }`) when you need **log-time snapshots** (a raw reference expanded later shows the object's *current*, possibly mutated state — unless `mask` is configured, which clones args) or **text-matchable output** (the DevTools filter box and console-capturing harnesses only match the rendered string).
+
+## 6b. Keep pretty output on one line (log aggregators)
+
+Aggregators like CloudWatch or Datadog treat each line as one entry, so a multi-line inspected object becomes several fragmented entries. Raise `inspectOptions.breakLength` to keep objects on a single line while keeping color:
+
+```ts
+const log = new Logger({
+  type: "pretty",
+  pretty: { inspectOptions: { breakLength: Infinity, colors: true, compact: true } },
+});
+
+log.info("request", { method: "GET", path: "/health", ms: 3 }); // one line, still colored
+```
+
+## 6c. Log only when a condition holds
+
+`log.if(condition)` returns the logger when truthy and a no-op when falsy, so a per-call guard reads as a chain:
+
+```ts
+log.if(!ok).warn("action failed", { id });
+```
+
+The falsy no-op still evaluates its arguments — to skip *expensive* construction, guard with `isLevelEnabled` (recipe 12).
+
+## 7. Ship logs to a backend (custom transport + middleware)
+
+Transports run in isolation — a transport that throws never crashes logging or stops siblings. Use `use(...)` middleware to enrich or drop logs before they are formatted.
 
 ```ts
 const log = new Logger({ type: "json" });
 
-log.attachTransport((logObj) => {
-  // logObj is the full structured object (including _meta)
-  if (logObj._meta.logLevelId >= 4 /* WARN+ */) {
-    void fetch("https://logs.example.com/ingest", {
-      method: "POST",
-      body: JSON.stringify(logObj),
-    });
-  }
+// Enrich every log, then sample below WARN:
+log.use((ctx) => { ctx.meta.region = "eu"; return ctx; });
+log.use((ctx) => (ctx.logLevelId >= 4 || Math.random() < 0.1 ? ctx : null));
+
+// A sink that only sees WARN+ and receives a JSON line regardless of the logger's type:
+const detach = log.attachTransport({
+  name: "http",
+  minLevel: "WARN",
+  format: "json",
+  write: (record, line) => { void fetch("https://logs.example.com/ingest", { method: "POST", body: line }); },
 });
 ```
 
-## 8. Write to a file (Node) with rotation
+## 7b. Send errors and logs to Sentry
 
-tslog stays zero-dependency, so file rotation is a tiny composition with `rotating-file-stream`.
+Errors as Sentry issues: the record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy.
+
+```ts
+import * as Sentry from "@sentry/node";
+
+const log = new Logger();
+
+log.attachTransport({
+  name: "sentry",
+  minLevel: "ERROR", // only errors and fatals leave the process
+  format: "json", // `line` is the flat JSON record regardless of the logger's type
+  write(record, line) {
+    const { _logMeta, ...fields } = JSON.parse(line);
+    const level = _logMeta.logLevelName === "FATAL" ? "fatal" : "error";
+    const nativeError = [record, ...Object.values(record)]
+      .map((value) => (value as { nativeError?: unknown } | null)?.nativeError)
+      .find((candidate): candidate is Error => candidate instanceof Error);
+    if (nativeError) Sentry.captureException(nativeError, { level, extra: fields });
+    else Sentry.captureMessage(String(fields.message ?? line), { level, extra: fields });
+  },
+});
+```
+
+Records as [Sentry Logs](https://docs.sentry.io/platforms/javascript/guides/node/logs/): enable logs in the SDK (`Sentry.init({ dsn, enableLogs: true })`) and forward every record through `Sentry.logger.*` — the seven tslog levels map one-to-one, with `SILLY` joining `trace`. Runs fine alongside the issues transport above.
+
+```ts
+const toSentry = { SILLY: "trace", TRACE: "trace", DEBUG: "debug", INFO: "info", WARN: "warn", ERROR: "error", FATAL: "fatal" } as const;
+
+log.attachTransport({
+  name: "sentry-logs",
+  format: "json", // fields of the flat JSON record become Sentry log attributes
+  write(_record, line) {
+    const { _logMeta, message, ...attributes } = JSON.parse(line);
+    const method = toSentry[_logMeta.logLevelName as keyof typeof toSentry] ?? "info";
+    Sentry.logger[method](String(message ?? ""), attributes);
+  },
+});
+```
+
+## 7c. Ship to Better Stack (Logtail)
+
+Better Stack ingests JSON over HTTP: point `httpTransport` at your source's ingesting host, authorize with the source token, and rename the time key to `dt`.
+
+```ts
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({ type: "json", json: { timeKey: "dt" } }); // Better Stack reads the timestamp from "dt"
+
+log.attachTransport(
+  httpTransport({
+    url: "https://in.logs.betterstack.com", // your source's ingesting host (see the source's settings page)
+    headers: { authorization: `Bearer ${process.env.BETTER_STACK_SOURCE_TOKEN}` },
+    format: "json",
+    bodyFormat: "array", // Better Stack accepts a JSON array of events per request
+    batchSize: 50,
+    flushIntervalMs: 2000,
+  }),
+);
+
+await log.flush(); // drain before shutdown (await using does this automatically)
+```
+
+## 8. Emit pino-shaped NDJSON (drop-in for pino consumers)
+
+```ts
+import { pinoTransport } from "tslog/presets/pino";
+
+const log = new Logger({ type: "hidden" }); // suppress console, let the transport own output
+log.attachTransport(pinoTransport((line) => process.stdout.write(line + "\n")));
+log.info({ userId: 42 }, "user logged in");
+// → {"level":30,"time":1751191872000,"pid":12345,"hostname":"…","msg":"user logged in","userId":42}
+// Errors ship in pino's serializer shape: err: { type, message, stack: "<raw multi-line string>", cause? }
+// (pino-pretty and error trackers parse it as-is; pinoFormat({ errorShape: "tslog" }) keeps frame arrays.)
+```
+
+## 9. OpenTelemetry logs — POST straight to a collector (OTLP/JSON)
+
+`otlpFormat` emits real OTLP/JSON (camelCase proto3 fields, typed attributes, `exception.*` mapping
+for logged errors); `otlpBatchBody` merges each HTTP batch into ONE envelope, so the transport can
+POST directly to a collector's `/v1/logs` endpoint.
+
+```ts
+import { otlpFormat, otlpBatchBody } from "tslog/otel";
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({ type: "hidden" });
+log.attachTransport(
+  httpTransport({
+    url: "http://collector:4318/v1/logs",
+    format: otlpFormat({ resource: { "service.name": "checkout" }, getSpanContext: () => log.getContext() }),
+    encodeBody: otlpBatchBody,
+  }),
+);
+```
+
+For a custom (non-collector) pipeline that prefers the spec's prose field names (`Timestamp`, `Body`,
+`Attributes`, ...), use `otelFormat`/`toOtelRecord` instead — collectors do not ingest that shape.
+
+## 10. Write to a file (Node), with flush on shutdown
+
+The `tslog/transports/file` transport buffers and flushes; `await using` (or `flush()`) drains it before exit.
 
 ```ts
 import { Logger } from "tslog";
-import { createStream } from "rotating-file-stream";
+import { fileTransport } from "tslog/transports/file";
 
-const stream = createStream("app.log", { size: "10M", interval: "1d", compress: "gzip" });
-
-const log = new Logger({ type: "json" });
-log.attachTransport((logObj) => stream.write(JSON.stringify(logObj) + "\n"));
+await using log = new Logger({ type: "json" });
+log.attachTransport(fileTransport({ path: "./logs/app.log", format: "json" }));
+log.info("ready");
+// the buffered file output is flushed when the `await using` scope ends
 ```
 
-## 9. Fast production logging
+Built-in exit safety: the file transport registers guarded exit hooks by default (`exitHooks: false`
+opts out) — an async flush on `beforeExit` and a synchronous drain on `exit`, so even a bare
+`process.exit(0)` or an uncaught exception does not lose the buffered tail. fs errors (disk full,
+permissions) are contained and reported via `onError` (default: one `console.error` per error burst);
+a failed open is retried on the next write. The http transport flushes on `beforeExit` (and
+`pagehide` in browsers) the same way; the worker transport (Node-only) drains on `beforeExit`.
 
-Skip stack capture (the dominant per-log cost) when you don't need code position in production.
+## 10b. Graceful shutdown on SIGTERM/SIGINT (app-owned)
+
+Signal handling belongs to the application — a library installing a `SIGTERM` listener would change
+your process's termination semantics. Wire the logger into your own handler:
 
 ```ts
-const log = new Logger({ type: "json", hideLogPositionForProduction: true });
+import { Logger } from "tslog";
+
+const log = new Logger({ type: "json" });
+
+async function shutdown(code: number): Promise<void> {
+  await log.flush(); // awaits async transport writes AND each transport's own flush()
+  process.exit(code);
+}
+process.on("SIGTERM", () => void shutdown(0));
+process.on("SIGINT", () => void shutdown(130));
+process.on("uncaughtException", (error) => {
+  log.fatal("uncaught exception", error);
+  void shutdown(1);
+});
 ```
+
+Note: disposing a sub-logger (`await using child = log.child(...)`) flushes shared transports but
+only *disposes* transports the child itself attached — a request-scoped child can never terminate
+the root logger's sinks.
+
+## 11. Keep slow sink I/O off the event loop (Node worker thread)
+
+The `tslog/transports/worker` transport runs its destination write on a `node:worker_threads` worker, so a slow file/stream sink under high log volume doesn't stall the application's event loop (like pino's `thread-stream`). Note: this does **not** speed up `log.info()` — the record is still built and serialized on the main thread; only the write moves off-thread. Off Node it falls back to a synchronous inline write via `node:fs` where available (Deno/Bun); on runtimes without `fs` (browsers/edge) the line is dropped.
+
+```ts
+import { Logger } from "tslog";
+import { workerTransport } from "tslog/transports/worker";
+
+const log = new Logger({ type: "json" });
+await using sink = workerTransport({ destination: "file", path: "./logs/app.log", format: "json" });
+log.attachTransport(sink);
+
+log.info("ready");
+// `await using` drains the worker queue and terminates the thread on scope exit;
+// or call `await sink.flush()` then `await sink[Symbol.asyncDispose]()` manually.
+```
+
+## 12. Fast production logging
+
+Skip stack capture (the dominant per-log cost) when you don't need code position. `type: "json"` already defaults `stack.capture` to `"off"`; set it explicitly for pretty too.
+
+```ts
+const log = new Logger({ type: "json", stack: { capture: "off" } });
+
+// Guard expensive payload construction with isLevelEnabled:
+if (log.isLevelEnabled("DEBUG")) {
+  log.debug("state", expensiveSnapshot());
+}
+```
+
+## 12a. Original `.ts` positions in error stacks (Node, Bun & Deno)
+
+Logging an `Error` thrown from transpiled or bundled TypeScript normally reports the compiled `dist/*.js` position. Outside production, tslog resolves that position through the file's source map back to your original `.ts` file/line/column automatically — no config needed:
+
+```ts
+const log = new Logger();
+
+try {
+  riskyCall(); // throws from compiled dist/app.js, which has a sourceMappingURL
+} catch (err) {
+  log.error(err); // stack frames report src/app.ts, not dist/app.js
+}
+```
+
+Off by default in production (`NODE_ENV === "production"`) since it costs a source-map read/parse the first time each file's frame is logged (cached after that). Force it either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`. Node/Bun/Deno only — browsers already get this from devtools, so tslog never attempts it there.
+
+## 12b. Smallest browser / edge bundle (`tslog/slim`)
+
+The full entry ships masking, pretty rendering, and stack parsing whether or not your config uses them (output `type` is a runtime value, so bundlers cannot drop them). When bundle size matters more, `tslog/slim` is the same structured-JSON pipeline at less than half the size — and it fails HONESTLY: `mask` settings and `type: "pretty"` throw instead of being silently ignored.
+
+```ts
+import { Logger } from "tslog/slim"; // ~9.8KB gzip vs ~20.7KB for the full browser entry
+
+const log = new Logger({ name: "edge", bindings: { service: "checkout" } });
+log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-first JSON
+```
+
+Kept: levels, sub-loggers, bindings, custom levels, middleware, `runInContext` correlation, transports. Dropped: masking, pretty output, stack capture (`_logMeta.path`; error `stack` arrays are empty), `fromEnv`, settings validation. Develop against the full entry, ship slim.
+
+## 13. Configure from environment / typed config
+
+```ts
+import { Logger, defineConfig } from "tslog";
+
+// TSLOG_LEVEL / TSLOG_TYPE / TSLOG_NAME (plus NO_COLOR / FORCE_COLOR), overrides win:
+const log = Logger.fromEnv({ name: "api" });
+
+// defineConfig gives editor/agent autocomplete on the grouped settings:
+const settings = defineConfig({ type: "json", mask: { keys: ["password"] } });
+const log2 = new Logger(settings);
+```
+
+## 14. Deterministic logs in tests (snapshots without fake timers)
+
+`createTestLogger` can freeze ONLY the logger's clock (interval-driven transports and user timers keep
+running — no `vi.useFakeTimers()` sledgehammer) and normalize machine-varying meta for snapshots.
+
+```ts
+import { createTestLogger, normalizeMeta } from "tslog/testing";
+
+// Frozen per-logger clock:
+const { logger, logs, lines } = createTestLogger({ type: "json" }, { now: () => new Date("2026-01-01T00:00:00Z") });
+
+// Snapshot-stable output (epoch clock, hostname/runtimeVersion pinned, no _logMeta.path):
+const snap = createTestLogger({ type: "json" }, { normalize: true });
+snap.logger.info("ready", { port: 3000 });
+expect(snap.lines[0]).toMatchSnapshot();
+
+// Or scrub output captured elsewhere:
+expect(normalizeMeta(capturedJsonLine)).toMatchSnapshot();
+```
+
+The same seam works on any logger in production: `new Logger({ clock: () => new Date(...) })`.
+
+## 15. Timestamp control (`json.time`)
+
+```ts
+new Logger({ type: "json", json: { time: "epoch" } }); // "time": 1751191872000 — pino-style epoch ms
+new Logger({ type: "json", json: { time: false } });   // no top-level time key — diff-friendly CI output
+new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_000_000n) } }); // ns (Loki)
+```
+
+`_logMeta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.

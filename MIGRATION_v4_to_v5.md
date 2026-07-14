@@ -1,0 +1,730 @@
+# Migrating from tslog v4 to v5
+
+> [!IMPORTANT]
+> **4.11.0 is the safe staying point. Stay on it until you are ready to follow this guide — do not pressure-upgrade.**
+>
+> Most of the v5 performance wins and the GitHub-issue fixes were back-ported into **tslog 4.11.0**: the
+> faster lazy stack capture, the transport isolation hardening, the masking `$`-escape and numeric-key
+> fixes, and the new 4.11.0 settings all ship there with **zero breaking changes**. If you are on the 4.x
+> line today, `npm install tslog@4.11.0` gets you those wins for free and keeps your existing settings,
+> CJS `require`, Node 16+, and JSON shape exactly as they are.
+>
+> v5 is a deliberate, breaking redesign (ESM-only, grouped settings, a new default JSON shape, middleware
+> instead of `overwrite.*`). Upgrade to v5 when you actually want the new capabilities below — not because
+> a number changed. There is no deprecation pressure: 4.11.0 is a fine place to live for a long time.
+
+---
+
+## What's new in v5 / why upgrade
+
+You should upgrade to v5 when you want one or more of these. None of them exist on the 4.x line.
+
+- **Environment-aware colorization.** `new Logger()` and the ready-made `log` stay **pretty everywhere**
+  (as in v4), but the coloring now adapts to the environment: colored on an interactive TTY and uncolored
+  when piped/redirected/CI, so no ANSI escapes leak into files or log collectors. Structured JSON is
+  opt-in via `type: "json"`, `TSLOG_TYPE=json`, or a JSON transport.
+- **Flat, fields-first JSON.** The default `type: "json"` output is now a flat, observability-friendly
+  object — `message` / `level` / `levelId` / `time` at the top level, your fields spread next to them,
+  runtime metadata nested under `_logMeta` with a `v: 5` schema version. No more positional args under
+  numeric keys or the level buried inside `_logMeta`. Every key name is configurable via the `json` group
+  (`messageKey`, `levelKey`, `timeKey`, `errorKey`, …).
+- **Drop-in presets** (tree-shakeable subpaths, off by default):
+  - `tslog/presets/pino` — `pinoFormat()` / `pinoTransport()` emit pino-compatible NDJSON (numeric
+    `level`, `time` ms epoch, `msg`), so existing pino tooling (`pino-pretty`, transports) keeps working.
+  - `tslog/otel` — `otelFormat()` / `otelTraceContext()` emit OpenTelemetry log records with the right
+    `SeverityNumber` and trace/span correlation; `otlpFormat()` / `otlpBatchBody()` emit real OTLP/JSON for collectors (pair with `httpTransport({ encodeBody: otlpBatchBody })`).
+  - `tslog/presets/genai` — `genai()` / `genaiAttributes()` / `genaiSummary()` build GenAI/agentic
+    semantic-convention attributes (model, tokens, tool calls) for LLM apps.
+- **JSONPath-lite masking.** The `mask` group adds `paths` (dotted paths with `*` wildcards, e.g.
+  `"user.password"`, `"*.token"`) alongside key/regex masking, plus a per-match `censor` that can be a
+  replacement string, `"remove"`, a function, or **`"hash"`** — a fast, synchronous, non-cryptographic
+  correlation token (`"[hash:1a2b3c4d]"`) so you can correlate a redacted secret across logs without
+  exposing it.
+- **Async-context propagation (ALS).** `logger.runInContext(ctx, fn)` / `logger.getContext()` thread
+  request/trace fields onto every log's `_logMeta` across `await`, timers, and nested calls (Node/Bun/Deno;
+  graceful no-op on browsers/edge).
+- **Async transports + lifecycle.** `attachTransport` accepts a full `Transport` (per-transport
+  `minLevel`, `format`, async `write`, `flush`, `[Symbol.asyncDispose]`) **and returns a detach
+  function**. `logger.flush()` drains buffered transports; `await using log = new Logger()` disposes them.
+  First-class file (`tslog/transports/file`), HTTP/NDJSON (`tslog/transports/http`), ring-buffer
+  (`tslog/transports/ringbuffer`), and worker-thread (`tslog/transports/worker`) transports ship as subpaths.
+- **Middleware via `logger.use(...)`.** A single composable chain replaces the eight `overwrite.*` hooks:
+  enrich, rewrite, sample, or drop a log. Plus exported, tree-shakeable middleware (`serialize(...)` for
+  pino-style serializers, `otelTraceContext(...)`).
+- **Faster lazy stack capture.** Stack frames are parsed only when actually needed, driven by the
+  `stack.capture` mode (`"off" | "lazy" | "auto" | "full"`); JSON defaults to `"off"`, pretty to `"auto"`.
+- **Tree-shakeable subpath architecture & zero import-time side effects** (`sideEffects: false`): the core
+  stays tiny and presets/transports/serializers/testing/box are pulled in only when imported.
+- **Better AI / agentic DX.** Fields-first call signatures (`log.info({ userId: 42 }, "msg")`), additive
+  custom levels (`customLevels` / `addLevel()`), `Logger.fromEnv()`, strict-config validation (`strictConfig`
+  → `TslogConfigError`), a `tslog/testing` helper, and a `tslog/pretty/box` renderer.
+- **Browser-native pretty objects.** `pretty.passObjectsNatively` (on by default in real browsers) hands
+  non-`Error` args to the console by reference for collapsible DevTools trees; pair with `pretty.levelMethod`
+  for native warn/error stack groups.
+- **Conditional logging.** `log.if(condition)` returns the logger when truthy and a no-op when falsy —
+  `log.if(!ok).warn("failed", { id })` — without a surrounding `if` statement.
+- **Source-mapped error positions.** On Node, Bun, and Deno, logged `Error` stacks resolve through source
+  maps back to original `.ts` positions (automatic outside production; `TSLOG_SOURCE_MAPS=on`/`off` to force).
+- **`tslog/slim`.** The same structured-JSON pipeline at less than half the bundle size — masking, pretty output, and stack capture are omitted (`mask` and `type: "pretty"` throw instead of silently degrading).
+
+---
+
+## Prerequisites & install
+
+| | v4 | v5 |
+|---|---|---|
+| Module system | ESM **and** CJS (`require` worked) | **ESM-only** — no CJS, no `require` |
+| Node.js | 16+ | **20+** |
+| TS target | es2020 | **es2022** |
+| Runtime deps | none | none |
+
+```bash
+npm install tslog@5
+```
+
+v5 publishes **ESM only** with conditional exports. There is no `dist/cjs` and no `require("tslog")`.
+
+```js
+// v4 (CommonJS) — NO LONGER SUPPORTED in v5
+const { Logger } = require("tslog");
+
+// v5 — ESM import
+import { Logger } from "tslog";
+```
+
+If you cannot move your app to ESM yet, **stay on 4.11.0**. The interop options for an ESM-only dependency
+from a CJS file are a dynamic `import()` (`const { Logger } = await import("tslog")`) or a bundler —
+neither is required if you remain on 4.x.
+
+Set your `tsconfig.json` to es2022 and a NodeNext module resolution, and write relative imports with `.js`
+extensions if you author ESM TypeScript.
+
+---
+
+## 1. ESM-only
+
+**Breaking:** v5 ships no CommonJS build. `require("tslog")` throws.
+
+```js
+// BEFORE (v4, CJS)
+const { Logger, log } = require("tslog");
+
+// AFTER (v5, ESM)
+import { Logger, log } from "tslog";
+```
+
+The package root (`tslog`) resolves, via conditional exports, to the universal build, which auto-detects
+Node, browsers, Deno, Bun, React Native, and workers at construction time. The named exports are unchanged: `Logger`,
+`BaseLogger`, the ready-made `log` instance, and all interface/enum types.
+
+---
+
+## 2. Flat settings → grouped settings (full mapping table)
+
+**Breaking:** every flat `prettyLog*` / `maskValues*` / `stack*` / `meta*` key is gone. Settings are now
+organized into the `pretty`, `json`, `mask`, `stack`, and `meta` groups, with a handful of top-level keys
+(`type`, `name`, `minLevel`, `customLevels`, `middleware`, `prefix`, `attachedTransports`,
+`strictConfig`, …). **There is no flat-key fallback** — an old flat key does not configure anything.
+tslog detects carried-over v4 keys (and typo'd/unknown keys) at construction: in development it warns with
+the exact new location (e.g. `"maskValuesOfKeys" was removed in v5 — use mask.keys`), and with
+`strictConfig: true` it throws a typed `TslogConfigError` (`V4_FLAT_KEY` / `UNKNOWN_SETTING`) so a stale
+config can never ship silently.
+
+```ts
+// BEFORE (v4) — flat keys
+const log = new Logger({
+  type: "pretty",
+  minLevel: "warn",
+  prettyLogTimeZone: "local",
+  stylePrettyLogs: true,
+  prettyLogTemplate: "{{logLevelName}}\t{{filePathWithLine}}\t",
+  maskValuesOfKeys: ["password", "apiKey"],
+  maskValuesOfKeysCaseInsensitive: true,
+  maskPlaceholder: "[REDACTED]",
+  metaProperty: "$meta",
+});
+
+// AFTER (v5) — grouped
+const log = new Logger({
+  type: "pretty",
+  minLevel: "WARN",
+  pretty: {
+    timeZone: "local",
+    style: true,
+    template: "{{logLevelName}}\t{{filePathWithLine}}\t",
+  },
+  mask: {
+    keys: ["password", "apiKey"],
+    caseInsensitive: true,
+    placeholder: "[REDACTED]",
+  },
+  meta: { property: "$meta" },
+});
+```
+
+### Mapping table — every v4 flat key → v5 grouped path
+
+| v4 flat key | v5 grouped path |
+|---|---|
+| `type` | `type` *(unchanged top-level; default now env-aware — see §6)* |
+| `name` | `name` *(unchanged)* |
+| `parentNames` | `parentNames` *(unchanged)* |
+| `minLevel` | `minLevel` *(unchanged; still accepts a name or numeric id)* |
+| `argumentsArrayName` | `argumentsArrayName` *(unchanged)* |
+| `prefix` | `prefix` *(unchanged)* |
+| `prettyLogTemplate` | `pretty.template` |
+| `prettyErrorTemplate` | `pretty.errorTemplate` |
+| `prettyErrorStackTemplate` | `pretty.errorStackTemplate` |
+| `prettyErrorParentNamesSeparator` | `pretty.errorParentNamesSeparator` |
+| `prettyErrorLoggerNameDelimiter` | `pretty.errorLoggerNameDelimiter` |
+| `stylePrettyLogs` | `pretty.style` |
+| `prettyLogTimeZone` | `pretty.timeZone` |
+| `prettyLogStyles` | `pretty.styles` |
+| `prettyInspectOptions` | `pretty.inspectOptions` |
+| *(new)* | `pretty.enabled` — explicit pretty on/off, overriding the env-aware default |
+| `prettyLogLevelMethod` *(4.11)* | `pretty.levelMethod` — map a level name (or `"*"`) to a `console` method |
+| *(new)* | `pretty.passObjectsNatively` — hand non-`Error` args to the console by reference (default `true` in browsers) |
+| `maskValuesOfKeys` | `mask.keys` — **default is now `[]` (masking OFF); see §5** |
+| `maskValuesOfKeysCaseInsensitive` | `mask.caseInsensitive` |
+| `maskValuesRegEx` | `mask.regex` |
+| `maskPlaceholder` | `mask.placeholder` |
+| *(new)* | `mask.paths` — JSONPath-lite dotted paths with `*` wildcards |
+| *(new)* | `mask.censor` — `"remove"` / `"hash"` / replacement string / function |
+| *(new)* | `mask.hashLabel` — label inside the `"hash"` token (`"[<label>:…]"`) |
+| `metaProperty` | `meta.property` |
+| *(new)* | `meta.attachContext` — async-context auto-attach (default `true`) |
+| `hideLogPositionForProduction` | **REMOVED → `stack.capture: "off"`** (or leave default `"auto"`); see §3 |
+| `stackDepthLevel` *(constructor arg)* | **renamed → `callerFrame`** (constructor arg); see §7 |
+| *(new)* | `stack.capture` — `"off" \| "lazy" \| "auto" \| "full"` |
+| `internalFramePatterns` *(4.11)* | `stack.internalFramePatterns` |
+| *(new)* | `json.messageKey` / `levelKey` / `levelIdKey` / `timeKey` / `errorKey` |
+| *(new)* | `json.numericLevel` / `json.stableKeyOrder` |
+| *(new)* | `json.time` — `"iso"` / `"epoch"` / `false` / `fn` (top-level timestamp shape; `_logMeta.date` stays UTC ISO) |
+| *(new)* | `clock` — injectable `() => Date` (deterministic tests; inherited by sub-loggers) |
+| *(new)* | `persistLevel` / `persistLevelKey` — browser-only `localStorage` persistence for runtime `setMinLevel()` |
+| *(new)* | `contextStorage` — bring-your-own `AsyncLocalStorage` for `runInContext` (Cloudflare Workers) |
+| `attachedTransports` | `attachedTransports` *(now `Transport \| TransportFn`; see §9)* |
+| `overwrite.*` | **REMOVED → `middleware` / `logger.use()` / per-transport `format`; see §4** |
+| *(new)* | `middleware` — middleware chain seed |
+| *(new)* | `customLevels` — additive custom levels (installed as real methods; `createLogger` types them) |
+| *(new)* | `bindings` — static fields on every record; merge down the child chain, per-call fields win |
+| *(new)* | `strictConfig` — throw `TslogConfigError` on misconfiguration |
+
+> Tip: `defineConfig({ ... })` (re-exported from `tslog`) gives you a typed, autocompleted settings object
+> you can share across loggers and validate against the grouped shape.
+
+---
+
+## 3. `hideLogPositionForProduction` removed
+
+**Breaking:** the boolean is gone. Code-position capture is now controlled by `stack.capture`.
+
+```ts
+// BEFORE (v4)
+const log = new Logger({ type: "json", hideLogPositionForProduction: true });
+
+// AFTER (v5) — never capture a stack (cheapest)
+const log = new Logger({ type: "json", stack: { capture: "off" } });
+```
+
+`stack.capture` modes:
+
+- `"off"` — never capture (equivalent to the old `hideLogPositionForProduction: true`); the default for
+  `type: "json"`.
+- `"lazy"` — capture the `Error` cheaply, parse frames only on first read of `_logMeta.path`.
+- `"auto"` — capture only when the pretty template references a code-position placeholder; the default for
+  `type: "pretty"`.
+- `"full"` — always capture and parse eagerly.
+
+If you set `type: "json"` you already get `"off"` by default, so most production configs can simply drop
+`hideLogPositionForProduction` with no replacement.
+
+---
+
+## 4. `overwrite.*` hooks removed → `logger.use()` middleware + per-transport `format`
+
+**Breaking:** the entire `overwrite` object (`mask`, `toLogObj`, `addMeta`, `addPlaceholders`,
+`formatMeta`, `formatLogObj`, `transportFormatted`, `transportJSON`) is gone. Its responsibilities split
+cleanly into two well-defined extension points:
+
+- **`logger.use(middleware)`** (or the `middleware: []` seed) — runs on every log *before* the record is
+  built. Enrich/rewrite the `LogContext` (`logLevelId`, `logLevelName`, `args`, `meta`) or drop the log by
+  returning `null` / `false`.
+- **A custom `Transport` with a `format` / `write`** — owns turning the finished record into a line and
+  sending it somewhere. Use a per-transport `format` (a `LogFormatter`) for output shape, and `write` for
+  the sink.
+
+### Hook-by-hook mapping
+
+| v4 `overwrite.*` hook | v5 replacement |
+|---|---|
+| `overwrite.mask(args)` | A `middleware` that rewrites `ctx.args`, or the built-in `mask` group / `serialize()` middleware. |
+| `overwrite.toLogObj(args, logObj)` | A `middleware` that rewrites `ctx.args` into the shape you want. |
+| `overwrite.addMeta(logObj, id, name)` | A `middleware` that writes onto `ctx.meta` (attached under `_logMeta`). |
+| `overwrite.addPlaceholders(meta, values)` | A `middleware` that stashes values on `ctx.meta` for a formatter to read. |
+| `overwrite.formatMeta(meta)` | A custom `LogFormatter` (per-transport `format`) or `pretty.template`. |
+| `overwrite.formatLogObj(args, settings)` | A custom `LogFormatter` (per-transport `format`). |
+| `overwrite.transportFormatted(markup, …)` | A `Transport` whose `format` produces the line and `write` consumes it. |
+| `overwrite.transportJSON(json)` | A `Transport` with `format: "json"` (or a custom formatter) and `write`. |
+
+### Examples
+
+Enrich every log and drop everything below INFO:
+
+```ts
+// BEFORE (v4)
+const log = new Logger({
+  overwrite: {
+    addMeta: (logObj, id, name) => {
+      (logObj as any)._logMeta = { traceId: getTraceId() };
+      return logObj as any;
+    },
+  },
+});
+
+// AFTER (v5)
+const log = new Logger();
+log.use((ctx) => {
+  // ends up under _logMeta
+  ctx.meta.traceId = getTraceId();
+  // drop below INFO
+  return ctx.logLevelId >= 3 ? ctx : null;
+});
+```
+
+Custom transport output shape (replaces `transportFormatted` / `transportJSON`):
+
+```ts
+// BEFORE (v4)
+const log = new Logger({
+  overwrite: {
+    transportJSON: (json) => myBackend.send(json),
+  },
+});
+
+// AFTER (v5)
+import type { LogFormatter } from "tslog";
+
+const log = new Logger();
+log.attachTransport({
+  name: "backend",
+  // or a custom LogFormatter
+  format: "json",
+  write: (_record, line) => myBackend.send(line),
+});
+```
+
+A custom per-transport formatter (replaces `formatLogObj` / `formatMeta`):
+
+```ts
+import type { LogFormatter } from "tslog";
+
+const csv: LogFormatter<MyLog> = (record, settings) => {
+  const meta = record[settings.meta.property];
+  return `${meta.logLevelName},${meta.date.toISOString()}`;
+};
+
+log.attachTransport({ name: "csv", format: csv, write: (_r, line) => append(line) });
+```
+
+---
+
+## 5. Masking is now OFF by default
+
+**Breaking behavior change:** v4 shipped with `maskValuesOfKeys: ["password"]` — passwords were masked out
+of the box. v5's `mask.keys` defaults to `[]`, so **nothing is masked unless you opt in**.
+
+```ts
+// BEFORE (v4) — "password" masked implicitly
+const log = new Logger();
+// → password rendered as [***]
+log.info({ password: "hunter2" });
+
+// AFTER (v5) — masking OFF unless configured
+const log = new Logger({
+  mask: { keys: ["password", "apiKey", "authorization", "token"] },
+});
+// → password rendered as [***]
+log.info({ password: "hunter2" });
+```
+
+**Audit every logger and set `mask.keys` (and/or `mask.paths`) explicitly.** If you relied on the implicit
+`"password"` masking, you must add it back — silently logging plaintext passwords is the failure mode here.
+
+New v5 masking capabilities you may want while you are in there:
+
+```ts
+const log = new Logger({
+  mask: {
+    // key masking
+    keys: ["password", "apiKey", "prompt"],
+    // also masks "Password"/"PASSWORD"
+    caseInsensitive: true,
+    // JSONPath-lite (M*: dotted, * = one segment)
+    paths: ["user.password", "*.token"],
+    // long token-like strings
+    regex: [/\b[A-Za-z0-9]{32,}\b/g],
+    // "[hash:1a2b3c4d]" correlation token
+    censor: "hash",
+    // → "[id:1a2b3c4d]"
+    hashLabel: "id",
+  },
+});
+```
+
+`censor` accepts a replacement string, `"remove"` (delete the key), `"hash"` (a fast, synchronous,
+**non-cryptographic** correlation token — same value always hashes to the same token, never use it as a
+security primitive), or a function `(value, path) => unknown`.
+
+---
+
+## 6. Default `type` stays `"pretty"`; only piped output is now uncolored
+
+Like v4, v5's default `type` is `"pretty"` on **every** runtime — a pipe, a redirect, or a CI build log is
+still read by a human most of the time, so the format never changes on you. The only behavior change is
+cosmetic: when stdout is **not** an interactive TTY, the default pretty output is now **uncolored**, so ANSI
+escape codes no longer leak into a file or a log collector. (In v4 you typically disabled that yourself.)
+
+- interactive **TTY** → `"pretty"`, colorized
+- **piped / redirected / CI** (non-TTY) → `"pretty"`, uncolored
+- **browser / React Native** → `"pretty"` (CSS styling in the browser)
+
+Structured JSON is a deliberate production choice, so it is **opt-in** — there is no environment that
+silently switches you to it:
+
+```ts
+// Default — pretty everywhere (colored on a TTY, uncolored when piped):
+const log = new Logger();
+
+// Opt into structured JSON when you want it (explicit):
+const json = new Logger({ type: "json" });
+// or via the environment, with no code change:
+//   TSLOG_TYPE=json node app.js   →  Logger.fromEnv()
+// or attach a JSON transport/sink and keep the console pretty.
+
+// Force uncolored pretty (or colored) regardless of the TTY:
+const plain = new Logger({ pretty: { style: false } });
+```
+
+If you previously relied on a v4 setting to strip colors when piping, you can drop it — that is now the
+default. If any downstream parser was reading JSON from tslog, set `type: "json"` explicitly (or use
+`TSLOG_TYPE=json`); it is no longer produced by accident.
+
+### 6b. Browsers now pass objects to the console natively by default
+
+In a real browser, v5 defaults `pretty.passObjectsNatively` to `true`: non-`Error` arguments reach
+`console.*` **by reference**, so DevTools renders them as collapsible, interactive trees instead of the
+pre-rendered text dump v4 printed. Node, workers/edge, and React Native keep the v4-style rendered
+string (default `false`).
+
+If your browser tests or tooling assert on the printed console *string*, or you rely on log-time
+snapshots of mutable objects, restore the old behavior with:
+
+```ts
+const log = new Logger({ pretty: { passObjectsNatively: false } });
+```
+
+Pair with `pretty.levelMethod` so warn/error use the console methods that attach an expandable stack group:
+
+```ts
+new Logger({
+  pretty: {
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
+  },
+});
+```
+
+### 6c. Single-line pretty objects (`pretty.inspectOptions.breakLength`)
+
+Log aggregators (CloudWatch, Datadog) treat each line as one entry. On Node, raise
+`pretty.inspectOptions.breakLength` to keep inspected objects on a single line while preserving color:
+
+```ts
+new Logger({
+  pretty: { inspectOptions: { breakLength: Infinity, colors: true, compact: true } },
+});
+```
+
+---
+
+## 7. Default JSON shape changed (flat, fields-first, `_logMeta.v: 5`)
+
+**Breaking behavior change:** the structured (`type: "json"`) output is a different shape. **Update your
+log parsers, queries, dashboards, and alerts.**
+
+v4 produced a near-1:1 `JSON.stringify` of the internal log object: positional args under numeric keys,
+the message buried under `"0"`, the level only reachable inside `_logMeta`.
+
+```jsonc
+// BEFORE (v4) — log.info("user logged in", { userId: 42 })
+{
+  "0": "user logged in",
+  "1": { "userId": 42 },
+  "_logMeta": {
+    "runtime": "Nodejs",
+    "logLevelId": 3,
+    "logLevelName": "INFO",
+    "date": "2026-06-29T10:11:12.000Z",
+    "path": { /* ... */ }
+  }
+}
+```
+
+```jsonc
+// AFTER (v5) — log.info("user logged in", { userId: 42 })
+{
+  // configurable: json.messageKey
+  "message": "user logged in",
+  // the level NAME: json.levelKey
+  "level": "INFO",
+  // the numeric id: json.levelIdKey (only when json.numericLevel)
+  "levelId": 3,
+  // ISO timestamp from _logMeta.date: json.timeKey
+  "time": "2026-06-29T10:11:12.000Z",
+  // your own fields spread at the top level
+  "userId": 42,
+  // runtime meta, key name from meta.property
+  "_logMeta": {
+    // schema version
+    "v": 5,
+    // runtime names are lowercase in v5: "node" | "browser" | "deno" | "bun" | "worker" | "react-native"
+    "runtime": "node",
+    "logLevelId": 3,
+    "logLevelName": "INFO"
+    // "path": { ... } appears only when stack capture is on — json output defaults stack.capture to "off"
+  }
+}
+```
+
+Query migration (jq examples):
+
+```diff
+- # v4: message and level
+- jq '."0"'            # message
+- jq '._logMeta.logLevelName'  # level
++ # v5
++ jq '.message'
++ jq '.level'
+```
+
+Call-site mapping in v5:
+
+- `log.info("hi")` → `{ message: "hi" }`.
+- `log.info({ userId: 42 })` → fields spread: `{ userId: 42 }`.
+- `log.info({ userId: 42 }, "hi")` (pino-style fields-first) → `{ message: "hi", userId: 42 }`.
+- `log.info("hi", { userId: 42 })` (message-first) → `{ message: "hi", userId: 42 }` — symmetric with the
+  pino shape; a **single** trailing plain object always spreads.
+- `log.info("hi", a, b)` (two or more trailing values) → `{ message: "hi", "1": a, "2": b }` (or all under
+  `argumentsArrayName` when set).
+- User fields named like the canonical head keys (`level`, `levelId`, `time`) are dropped from the JSON
+  line — the canonical values always win.
+- Any logged `Error`(s) → under `error` (`json.errorKey`), serialized with the `cause` chain preserved.
+
+Every key name is configurable via the `json` group — to match pino, ECS, etc.:
+
+```ts
+// pino-style head keys
+new Logger({ type: "json", json: { messageKey: "msg", levelKey: "level", timeKey: "time", numericLevel: true } });
+
+// Elastic Common Schema-ish
+new Logger({ type: "json", json: { levelKey: "log.level", timeKey: "@timestamp", numericLevel: false } });
+```
+
+Or skip manual key-mapping entirely and use the pino preset, which emits pino-compatible NDJSON:
+
+```ts
+import { pinoTransport } from "tslog/presets/pino";
+const log = new Logger({ type: "hidden" });
+log.attachTransport(pinoTransport((line) => process.stdout.write(`${line}\n`)));
+```
+
+---
+
+## 7b. JSON output on Node bypasses `console.log`
+
+v4 printed every JSON line via `console.log`. v5's Node entry writes `type: "json"` lines through a
+buffered stdout sink (batched `process.stdout.write`, drained by `flush()`/`await using`/exit hooks). If you intercepted logs by patching `console.log` — e.g. in tests — spy on
+`process.stdout.write` instead, or use `type: "hidden"` and attach a transport (the supported way to
+own the output). Browser, Deno, Bun, and worker builds still print via `console.log`.
+
+## 8. `stackDepthLevel` → `callerFrame`; `loggerEnvironment` removed (BC11)
+
+**Breaking:** the manual stack-frame index constructor argument was renamed `stackDepthLevel` → `callerFrame`.
+
+```ts
+// BEFORE (v4) — 4th constructor arg
+class MyLogger<T> extends Logger<T> {
+  constructor(s?: ISettingsParam<T>, o?: T) {
+    // stackDepthLevel = 5
+    super(s, o, undefined, 5);
+  }
+}
+
+// AFTER (v5) — same position, renamed concept (callerFrame); NaN = auto-detect
+import { BaseLogger, createNodeEnvironment } from "tslog"; // universal entry: createUniversalEnvironment
+
+class MyLogger<T> extends BaseLogger<T> {
+  constructor(s?: ISettingsParam<T>, o?: T) {
+    // callerFrame = 5
+    super(s, o, createNodeEnvironment(), 5);
+  }
+}
+```
+
+For the common "my wrapper file should report its caller's position" case, prefer the declarative
+`stack.internalFramePatterns` instead of a hand-counted frame index:
+
+```ts
+const log = new Logger({ stack: { internalFramePatterns: [/myLogger\.ts/] } });
+```
+
+**Also removed (BC11):** the module-level `loggerEnvironment` / `createLoggerEnvironment` exports. The
+runtime environment is now an injected provider (the Node/browser/universal builds wire it in for you via
+the package's conditional exports), not a singleton you import and mutate. If you imported
+`loggerEnvironment` to stub the runtime in tests, use the `tslog/testing` helpers
+(`createTestLogger` / `mockLogger`) or inject a provider into `BaseLogger` directly.
+
+---
+
+## 9. `attachTransport` is more powerful (detach, async, per-transport level/format)
+
+**Behavior change (mostly additive, but the signature is richer):** `attachTransport` now accepts a full
+`Transport` **or** a bare `TransportFn`, and **returns a detach function**. v4's bare-function callback
+still works (it is wrapped into a `Transport` with no `flush`).
+
+```ts
+// BEFORE (v4) — bare function, no way to detach
+log.attachTransport((logObj) => myQueue.push(logObj));
+
+// AFTER (v5) — still works, now returns a detach fn
+const detach = log.attachTransport((record) => myQueue.push(record));
+// stop receiving logs
+detach();
+
+// AFTER (v5) — a full transport: own level, own format, flush, async dispose
+const detach2 = log.attachTransport({
+  name: "file",
+  // this sink only sees WARN and above
+  minLevel: "WARN",
+  // receives a JSON line regardless of the logger's `type`
+  format: "json",
+  write: (_record, line) => { buffer.push(line); },
+  flush: async () => { await fs.appendFile("app.log", buffer.join("\n")); buffer.length = 0; },
+});
+```
+
+New lifecycle methods:
+
+```ts
+// drain every transport's flush()
+await log.flush();
+
+// scoped disposal (drains + disposes transports on scope exit)
+await using log = new Logger();
+log.attachTransport(bufferedTransport);
+// ...logs...
+// flush + dispose happen automatically at scope end
+```
+
+Ready-made transports (tree-shakeable subpaths):
+
+```ts
+import { fileTransport } from "tslog/transports/file";
+import { httpTransport } from "tslog/transports/http";
+import { ringBufferTransport } from "tslog/transports/ringbuffer";
+import { workerTransport } from "tslog/transports/worker";
+```
+
+---
+
+## 10. New v5 capabilities (additive — nothing to migrate from v4)
+
+These ship in v5 with no v4 equivalent. None are required for migration, but they are worth adopting once you are on v5.
+
+### Conditional logging — `log.if(condition)`
+
+```ts
+log.if(!ok).warn("action failed", { id });
+log.if(retries > maxRetries).error("giving up", { retries });
+```
+
+The falsy stand-in still evaluates its arguments — use `isLevelEnabled()` to skip expensive payload
+construction. `if()` gates a single call; do not chain it ahead of `getSubLogger`/`child`.
+
+### Runtime custom levels — `addLevel()`
+
+Declare levels in `customLevels` at construction, or register at runtime (chainable):
+
+```ts
+log.addLevel("NOTICE", 3.5).notice("heads up");
+```
+
+Use `createLogger({ customLevels: { AUDIT: 8 } })` when you want the methods fully typed.
+
+### Async-context readback — `getContext()`
+
+`runInContext(ctx, fn)` threads fields onto every log inside `fn`. `getContext()` reads the active store —
+handy for OTel span correlation or passing ids into a transport encoder:
+
+```ts
+await log.runInContext({ requestId: "abc" }, async () => {
+  const { requestId } = log.getContext();
+  log.info("handling", { requestId });
+});
+```
+
+### Source-mapped error positions (Node / Bun / Deno)
+
+When you log an `Error` from transpiled or bundled TypeScript, v5 resolves stack frames through a
+discoverable source map back to your original `.ts` file/line/column — automatically outside production
+(`NODE_ENV !== "production"`). Force either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`.
+Browsers already get this from devtools, so tslog never attempts it there.
+
+### OTLP collector wire format
+
+`otelFormat()` emits the OTel data-model prose shape for custom pipelines. For a real collector endpoint,
+use the OTLP/JSON wire format:
+
+```ts
+import { otlpBatchBody, otlpFormat } from "tslog/otel";
+import { httpTransport } from "tslog/transports/http";
+
+log.attachTransport(
+  httpTransport({
+    url: "http://collector:4318/v1/logs",
+    format: otlpFormat({ resource: { "service.name": "checkout" } }),
+    encodeBody: otlpBatchBody,
+  }),
+);
+```
+
+### `tslog/slim` for size-critical bundles
+
+`import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline (levels, sub-loggers,
+`bindings`, custom levels, middleware, `runInContext`, transports) at less than half the gzip size by
+omitting masking, pretty output, and stack capture. `mask` settings and `type: "pretty"` throw instead of
+silently degrading. Develop against `tslog`, ship `tslog/slim`.
+
+---
+
+## Migration checklist
+
+- [ ] Move the app (or the file importing tslog) to **ESM**; bump Node to **20+**, TS target to **es2022**.
+- [ ] Replace `require("tslog")` with `import`.
+- [ ] Translate every flat setting key to its **grouped path** (table in §2).
+- [ ] Replace `hideLogPositionForProduction` with `stack.capture: "off"` (or drop it for `type: "json"`).
+- [ ] Replace every `overwrite.*` hook with `logger.use(...)` middleware and/or a custom `Transport`/`format` (§4).
+- [ ] **Re-add masking explicitly** — set `mask.keys` (and/or `mask.paths`); v5 masks nothing by default (§5).
+- [ ] Decide whether you want the env-aware default `type` or an explicit `type` (§6).
+- [ ] **Update JSON log parsers/queries/dashboards** for the flat, fields-first shape with `_logMeta.v: 5` (§7).
+- [ ] Rename the `stackDepthLevel` constructor arg to `callerFrame`; drop `loggerEnvironment` imports (§8).
+- [ ] Capture `attachTransport`'s detach fn where you need teardown; adopt `flush()` / `await using` for
+      buffered/async transports (§9).
+- [ ] (Optional) Adopt presets (`tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`), `tslog/testing`,
+      `tslog/slim`, `Logger.fromEnv()`, `customLevels`/`addLevel()`, `log.if()`, source-map resolution, `pretty.passObjectsNatively`/`levelMethod` (browsers), and `strictConfig` (§10).
+
+---
+
+If any of this is more churn than you have appetite for right now, that is fine — **stay on tslog 4.11.0**,
+which already has the performance and bug-fix wins, and migrate to v5 when the new capabilities are worth
+it to you.

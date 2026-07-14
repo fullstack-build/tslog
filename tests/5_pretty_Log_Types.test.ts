@@ -113,10 +113,9 @@ describe("Pretty: Log Types", () => {
     expect(Buffer.isBuffer(secondArgs[1])).toBe(true);
     expect((secondArgs[1] as Buffer).equals(buffer)).toBe(true);
 
+    // Native node:util inspect renders Buffers in their canonical hex form.
     const output = getConsoleLogStripped();
-    expect(output).toMatch(/'0':\s*102/);
-    expect(output).toMatch(/'1':\s*111/);
-    expect(output).toMatch(/'2':\s*111/);
+    expect(output).toContain("<Buffer 66 6f 6f>");
   });
 
   test("Object", (): void => {
@@ -136,6 +135,8 @@ describe("Pretty: Log Types", () => {
   });
 
   test("URL", (): void => {
+    // URL -> plain-object expansion runs in the log-object path regardless of masking config (v5),
+    // so it works with the default maskValuesOfKeys: [] — no masking needs to be enabled.
     const logger = new Logger({ type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" });
     const url = new URL("https://example.com");
     logger.log(1234, "testLevel", url);

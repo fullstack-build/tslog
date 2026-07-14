@@ -4,18 +4,22 @@
 
 import { assertEquals, assertExists } from "jsr:@std/assert";
 
-const { Logger } = await import("../dist/esm/index.js");
+// Runtime import from the built ESM output. Deno would otherwise infer types from the
+// compiled JS, where optional parameters look required — these tests assert runtime
+// behavior, so type the boundary loosely; the type surface is checked by tsgo.
+// deno-lint-ignore no-explicit-any
+const { Logger } = (await import("../dist/esm/index.js")) as unknown as { Logger: new (settings?: unknown) => any };
 
 Deno.test("JSON output contains meta with runtime", () => {
   const logger = new Logger({ type: "hidden" });
   const logObj = logger.info("deno test");
 
   assertExists(logObj);
-  assertExists(logObj._meta);
-  assertEquals(logObj._meta.logLevelName, "INFO");
-  assertEquals(logObj._meta.logLevelId, 3);
-  assertEquals(typeof logObj._meta.runtime, "string");
-  assertExists(logObj._meta.date);
+  assertExists(logObj._logMeta);
+  assertEquals(logObj._logMeta.logLevelName, "INFO");
+  assertEquals(logObj._logMeta.logLevelId, 3);
+  assertEquals(typeof logObj._logMeta.runtime, "string");
+  assertExists(logObj._logMeta.date);
 });
 
 Deno.test("all 7 log levels work", () => {
@@ -26,7 +30,7 @@ Deno.test("all 7 log levels work", () => {
   for (let i = 0; i < levels.length; i++) {
     const logObj = logger[levels[i]](`${levels[i]} message`);
     assertExists(logObj);
-    assertEquals(logObj._meta.logLevelId, expectedIds[i]);
+    assertEquals(logObj._logMeta.logLevelId, expectedIds[i]);
   }
 });
 
@@ -38,7 +42,7 @@ Deno.test("minLevel filtering", () => {
 });
 
 Deno.test("masking works", () => {
-  const logger = new Logger({ type: "hidden", maskValuesOfKeys: ["password"] });
+  const logger = new Logger({ type: "hidden", mask: { keys: ["password"] } });
   const logObj = logger.info({ user: "alice", password: "secret" });
 
   assertExists(logObj);
@@ -74,8 +78,8 @@ Deno.test("sub-logger preserves parent names", () => {
   const logObj = child.info("from child");
 
   assertExists(logObj);
-  assertEquals(logObj._meta.name, "child");
-  assertEquals(logObj._meta.parentNames, ["root"]);
+  assertEquals(logObj._logMeta.name, "child");
+  assertEquals(logObj._logMeta.parentNames, ["root"]);
 });
 
 Deno.test("sub-logger accumulates prefixes", () => {
@@ -124,7 +128,7 @@ Deno.test("circular reference handled gracefully in JSON mode", () => {
 Deno.test("regex masking", () => {
   const logger = new Logger({
     type: "hidden",
-    maskValuesRegEx: [/\d{3}-\d{2}-\d{4}/],
+    mask: { regex: [/\d{3}-\d{2}-\d{4}/] },
   });
 
   const logObj = logger.info("SSN is 123-45-6789");

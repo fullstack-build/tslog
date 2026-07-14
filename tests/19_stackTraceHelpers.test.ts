@@ -1,15 +1,13 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
-import { IStackFrame } from "../src/interfaces.js";
+import { createNodeEnvironment } from "../src/env/environment.node.js";
 import {
+  buildStackTrace,
   clampIndex,
   findFirstExternalFrameIndex,
   getDefaultIgnorePatterns,
-  getFrameAt,
-  isIgnorableFrame,
-  pickCallerStackFrame,
   sanitizeStackLines,
   splitStackLines,
-} from "../src/internal/stackTrace.js";
+} from "../src/env/stackTrace.js";
+import { IStackFrame } from "../src/interfaces.js";
 
 describe("stack trace helpers", () => {
   test("split and sanitize stack lines", () => {
@@ -58,43 +56,55 @@ describe("stack trace helpers", () => {
     expect(clampIndex(1, 3)).toBe(1);
   });
 
-  test("getFrameAt returns undefined for out of range indices", () => {
-    const frames: IStackFrame[] = [{ filePath: "src/app.ts" }];
-    expect(getFrameAt(frames, -1)).toBeUndefined();
-    expect(getFrameAt(frames, 5)).toBeUndefined();
-  });
-
-  test("isIgnorableFrame checks both relative and absolute paths", () => {
+  // Re-expressed from the dropped `isIgnorableFrame` helper. The surviving API
+  // `findFirstExternalFrameIndex` encodes the same predicate: a frame that matches
+  // the default ignore patterns is skipped. A lone ignorable frame yields the
+  // "all matched" fallback index 0, while placing an external frame after it lands
+  // on index 1 — proving the first frame is treated as ignorable.
+  test("default ignore patterns match internal tslog frames (both relative and absolute paths)", () => {
     const patterns = getDefaultIgnorePatterns();
-    const frame: IStackFrame = {
+    const ignorableFrame: IStackFrame = {
       filePath: "node_modules/tslog/src/internal/environment.ts",
       fullFilePath: "/tmp/project/node_modules/tslog/src/internal/environment.ts:10:2",
     };
+    const externalFrame: IStackFrame = { filePath: "src/app.ts", fullFilePath: "/tmp/project/src/app.ts:1:1" };
 
-    expect(isIgnorableFrame(frame, patterns)).toBe(true);
+    expect(findFirstExternalFrameIndex([ignorableFrame], patterns)).toBe(0);
+    expect(findFirstExternalFrameIndex([ignorableFrame, externalFrame], patterns)).toBe(1);
+
+    // Matching must consider absolute paths too: a frame whose relative filePath is clean
+    // but whose fullFilePath matches the pattern is still ignored.
+    const absoluteOnlyIgnorable: IStackFrame = { filePath: "app.ts", fullFilePath: "/tmp/node_modules/tslog/src/index.ts:1:1" };
+    expect(findFirstExternalFrameIndex([absoluteOnlyIgnorable, externalFrame], patterns)).toBe(1);
   });
 
-  test("pickCallerStackFrame honors manual depth", () => {
+  // Re-expressed from the dropped `pickCallerStackFrame(..., { stackDepthLevel })` helper.
+  // Manual depth selects that index into the parsed (sanitized) frames.
+  test("manual depth selects the frame at that index", () => {
     const error = {
       stack: ["Error", "frameA", "frameB"].join("\n"),
     } as unknown as Error;
-    const frame = pickCallerStackFrame(error, (line) => ({ filePath: line }), { stackDepthLevel: 1 });
 
+    const frames = buildStackTrace(error, (line) => ({ filePath: line }));
+    expect(frames).toEqual([{ filePath: "frameA" }, { filePath: "frameB" }]);
+
+    const frame = frames[clampIndex(1, frames.length)];
     expect(frame?.filePath).toBe("frameB");
   });
 
-  test("pickCallerStackFrame returns undefined when parser yields no frames", () => {
+  // Re-expressed from the dropped `pickCallerStackFrame` "no frames" case: when the parser
+  // yields nothing, no frames are produced (the public getCallerStackFrame returns {} below).
+  test("yields no frames when the parser produces none", () => {
     const error = {
       stack: "Error\n    at ignored",
     } as unknown as Error;
 
-    const frame = pickCallerStackFrame(error, () => undefined, { stackDepthLevel: undefined });
-
-    expect(frame).toBeUndefined();
+    const frames = buildStackTrace(error, () => undefined);
+    expect(frames).toEqual([]);
   });
 
   test("getCallerStackFrame returns empty object without frames", () => {
-    const runtime = createLoggerEnvironment();
+    const runtime = createNodeEnvironment();
     const frame = runtime.getCallerStackFrame(Number.NaN, { stack: "Error" } as Error);
     expect(frame).toEqual({});
   });

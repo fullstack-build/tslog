@@ -2,6 +2,57 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.0] - 2026-06-30
+
+A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and built with TypeScript 7 / ES2022. Settings are grouped, JSON output is fields-first, and the logger gains a middleware pipeline, async transports, JSONPath masking, OpenTelemetry/pino/GenAI presets, ready-made file/http/ringbuffer/worker transports, and tree-shakeable subpath modules. v5 also adds first-class support for agents and LLMs — fields-first calls, agent/session correlation, and OTel-GenAI attributes; [OpenClaw](https://openclaw.ai) uses tslog for its agent logging. This is a breaking release — see [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md) for the upgrade path.
+
+### Added
+- **Grouped settings** — related options now live under `pretty`, `json`, `mask`, `stack`, and `meta` groups instead of a flat list of `prettyLog*`/`maskValues*` keys. Sub-loggers merge groups rather than overwrite them.
+- **Fields-first JSON output** — every level method is overloaded pino-style: `info(fields, message?, ...args)` as well as `info(message, ...args)`. A single object spreads its fields to the top level, a leading object plus string spreads fields and sets `message`, and positional args land under `message`/`"1"`/… Runtime metadata moves under `_logMeta` carrying a `v: 5` schema marker. All JSON keys are configurable via the `json` group.
+- **Middleware pipeline** — `logger.use(middleware)` runs functions over each log context to mutate `logObj`/`meta` or drop the log entirely (return `null`/`false`).
+- **Async transports** with `attachTransport()` returning a detach function, `logger.flush()`, and `Symbol.asyncDispose`/`Symbol.dispose` support (`await using`). Each transport may declare its own `minLevel` and `format` (`"pretty"`, `"json"`, or a custom formatter).
+- **Advanced masking** — `mask.paths` (JSONPath-ish patterns such as `user.password` or `*.token`), `mask.regex`, and a `mask.censor` of `"remove"`, `"hash"`, a string, or a function (with `mask.hashLabel`).
+- **Presets** — `tslog/presets/pino` (`pinoFormat`, `pinoTransport`, `toPinoLevel`), `tslog/otel` (`otelFormat`, `toOtelRecord`, `levelToSeverityNumber`, `OtelSeverityNumber`, `otelTraceContext`, `stringifyOtelRecord`), and `tslog/presets/genai` (`genai`, `genaiAttributes`, `genaiSummary` emitting OTel `gen_ai.*` fields).
+- **Built-in transports** — `tslog/transports/file` (`fileTransport`, non-blocking, flush/dispose), `tslog/transports/http` (`httpTransport`, batched), `tslog/transports/ringbuffer` (`ringBufferTransport` with `.dump()`/`.clear()`), and `tslog/transports/worker` (`workerTransport`, Node-only off-thread sink I/O).
+- **Standard serializers** — `tslog/serializers` exports `stdSerializers` (`err`, `req`, `res`, `user`), the individual serializers, and a `serialize(map)` middleware helper.
+- **Context propagation** — `runInContext(ctx, fn)` uses AsyncLocalStorage to attach context fields to `_logMeta` when `meta.attachContext` is enabled. Auto-resolves on Node/Deno/Bun; on Cloudflare Workers inject one via the `contextStorage` setting (graceful no-op in browsers, with a one-time development warning).
+- **Custom levels** via the `customLevels` setting and `log(levelId, levelName, ...args)`.
+- **New API surface** — `child()` (alias of `getSubLogger()`), `isLevelEnabled()`, `getContext()`, `addLevel()`, `logger.if(condition)`, `Logger.fromEnv()`, `defineConfig()`, and `TslogConfigError` (thrown when `strictConfig` is on).
+- **Subpath modules** (all tree-shakeable) — `tslog/lite` (minimal console wrappers preserving native line numbers), `tslog/cli` (also the `tslog` bin, an NDJSON pretty-printer for stdin), `tslog/testing` (`createTestLogger`, `mockLogger`), `tslog/throttle` (rate-limit middleware), `tslog/pretty/box` (`box`, `tree`), and `tslog/console` (`wrapConsole`, `restoreConsole`, `isConsoleWrapped`).
+- **Env-aware colorization** — when `type` is omitted, output is `pretty` everywhere (server, CI, browser, React Native); only the coloring adapts to the environment: colored on an interactive TTY (CSS in the browser) and uncolored when stdout is piped/redirected/CI, so no ANSI escapes leak into files or log collectors. Structured JSON is opt-in via `type: "json"`, `TSLOG_TYPE=json`, or a JSON transport. `NO_COLOR` strips colors without switching the format; `FORCE_COLOR` forces styled pretty. Applies to both `new Logger()` and the ready-made `log`.
+- **React Native support** — detected via `navigator.product` (`_logMeta.runtime: "react-native"`, Hermes engine version when available), Hermes/JSC stack frames parsed with a hybrid parser, pretty output by default.
+- **Real hostname in server JSON logs** — `_logMeta.hostname` resolves from `HOSTNAME`/`HOST`/`COMPUTERNAME`, then the OS hostname (`Deno.hostname()` / `node:os` via `process.getBuiltinModule`), instead of defaulting to `"unknown"`.
+- **Tree-shakeable exports** — `sideEffects: false` (audited) with per-runtime conditional exports.
+- **`tslog/slim`** — the smallest structured-JSON build (~9KB gzip vs ~19KB for the full browser entry, budget-checked in CI): the same pipeline minus masking, pretty output, and stack capture; `mask` settings and `type: "pretty"` throw instead of silently degrading.
+- **Buffered stdout sink (Node)** — the Node entry writes `type: "json"` lines through a batched `process.stdout.write` (one write per event-loop turn, early flush past ~8KB) instead of per-line `console.log`; drained by `logger.flush()`, `await using`, and guarded `beforeExit`/`exit` hooks (a bare `process.exit()` loses nothing). Browser/universal entries keep `console.log`.
+- **Time seam** — an injectable top-level `clock: () => Date` (deterministic tests, offset/monotonic stamping; inherited by sub-loggers, hostile clocks ignored) and `json.time: "iso" | "epoch" | false | fn` controlling the top-level timestamp representation (`_logMeta.date` stays UTC ISO).
+- **Deterministic test output** — `createTestLogger(settings, { now, normalize })`: `now` freezes only that logger's clock (no fake-timer sledgehammer), `normalize: true` yields snapshot-stable records/lines; plus a standalone `normalizeMeta(recordOrLine)` scrubber (all in `tslog/testing`).
+- **Real OTLP/JSON in `tslog/otel`** — `otlpFormat`/`toOtlpJson`/`toOtlpLogRecord`/`toOtlpAnyValue`/`stringifyOtlpRequest` emit the collector wire format (camelCase proto3 fields, typed attributes, `resourceLogs[].scopeLogs[].logRecords[]` envelope, `exception.*` semconv mapping for logged errors), and `otlpBatchBody` pairs with the http transport's new `encodeBody` option to POST merged batches straight to `/v1/logs`.
+- **`httpTransport({ encodeBody })`** — custom body encoder for endpoints whose payload is neither NDJSON nor a JSON array (used by the OTLP pairing above).
+- **Conditional logging** — `logger.if(condition)` returns the logger when the condition is truthy and a no-op stand-in when falsy, so a per-call guard reads as a fluent chain (`log.if(!ok).warn("failed", { id })`). Use `isLevelEnabled()` to skip expensive payload construction.
+- **Browser-native pretty objects** — `pretty.passObjectsNatively` hands non-`Error` arguments to the console by reference (on by default in real browsers), so DevTools renders collapsible, interactive trees; pair with `pretty.levelMethod` for native warn/error stack groups. Set `false` for log-time snapshots or text-matchable console output.
+- **Source-mapped error positions** — on Node, Bun, and Deno, logged `Error` stack frames resolve through discoverable source maps back to original `.ts` file/line/column (automatic outside production; override with `TSLOG_SOURCE_MAPS=on`/`off`).
+
+### Changed
+- **ESM-only** and **Node >=20**; the project now targets **TypeScript 7 / ES2022**.
+- **JSON output on Node no longer goes through `console.log`** (see the buffered stdout sink above) — code intercepting `console.log` must spy on `process.stdout.write` or use `type: "hidden"` plus a transport.
+- **`tslog/otel` resource precedence** — in `toOtelRecord`, `resource` attributes now win over colliding per-record fields (resource identity semantics); in the OTLP shape they live in the envelope, separate from record attributes.
+- The default JSON shape is fields-first with `_logMeta.v: 5`; `name`/`parentNames` appear only when set (no `"[undefined]"` noise).
+- **Masking is off by default** — `mask.keys` starts empty; enable it explicitly.
+
+### Removed
+- The **CommonJS build** and `require("tslog")` — the package is ESM-only.
+- The **`overwrite.*` hooks** (`mask`, `toLogObj`, `addMeta`, `formatMeta`, `formatLogObj`, `transportFormatted`, `transportJSON`, `addPlaceholders`) — use middleware and per-transport `format` instead.
+- **Flat settings keys** — `prettyLogTemplate`/`prettyError*`/`prettyLog*`, `stylePrettyLogs`, `maskValuesOfKeys`/`maskValuesRegEx`/`maskPlaceholder`, `metaProperty`, and `stackDepthLevel` (now the `callerFrame` constructor parameter).
+- **`hideLogPositionForProduction`** — superseded by the `stack` group and env-aware defaults.
+- The **`loggerEnvironment`/`createLoggerEnvironment` singleton** — each entry point exports its own environment factory (`createNodeEnvironment`, `createBrowserEnvironment`, `createUniversalEnvironment`/`selectEnvironment`).
+- The nested `{"0": message}` JSON shape.
+
+### Fixed
+- During the rewrite: `URL` values now render correctly instead of as empty objects; caller-frame detection no longer over-matches internal frames; the pino fields-first overload no longer collides with the string-first signature; and bare `Error` arguments preserve their `cause` chain instead of dropping it.
+- The browser stack parser now handles Windows drive-letter paths served by Vite (`/@fs/C:/…`), so log positions resolve correctly on Windows instead of being truncated to `/@fs/C`. (#323, #302)
+
+
 ## [4.11.0] - 2026-07-07
 
 A backward-compatible release that adds several requested features, fixes a batch of reported bugs, unifies code-position detection across every runtime, and modernises the test/build tooling. No breaking changes — see the upcoming **v5** for those.

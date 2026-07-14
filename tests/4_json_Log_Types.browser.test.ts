@@ -15,7 +15,8 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", "Test");
     `,
     );
-    expect(combined).toContain('"0":"Test"');
+    // v5 flat shape: a bare string is promoted to the top-level message key.
+    expect(combined).toContain('"message":"Test"');
   });
 
   test("two plain string", async ({ page }) => {
@@ -27,7 +28,8 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", "Test1", "Test2");
     `,
     );
-    expect(combined).toContain('"0":"Test1"');
+    // v5: the leading string becomes `message`; trailing positional args keep their numeric index keys.
+    expect(combined).toContain('"message":"Test1"');
     expect(combined).toContain('"1":"Test2"');
   });
 
@@ -40,7 +42,7 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.info(undefined);
     `,
     );
-    expect(combined).toContain('"0":"[undefined]"');
+    expect(combined).toContain('"message":"[undefined]"');
   });
 
   test("pretty null", async ({ page }) => {
@@ -52,7 +54,7 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.info(null);
     `,
     );
-    expect(combined).toContain('"0":null');
+    expect(combined).toContain('"message":null');
   });
 
   test("pretty nullish", async ({ page }) => {
@@ -77,7 +79,8 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", true);
     `,
     );
-    expect(combined).toContain('"0":true');
+    // v5: a single primitive arg is lifted to `message`.
+    expect(combined).toContain('"message":true');
   });
 
   test("number", async ({ page }) => {
@@ -89,7 +92,7 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", 555);
     `,
     );
-    expect(combined).toContain('"0":555');
+    expect(combined).toContain('"message":555');
   });
 
   test("Array", async ({ page }) => {
@@ -113,7 +116,10 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
     `,
     );
-    expect(combined).toContain('{"test":true,"nested":{"1":false},"_meta":{');
+    // v5: a single object arg has its keys spread at the top level; _logMeta now carries v:5.
+    expect(combined).toContain('"test":true');
+    expect(combined).toContain('"nested":{"1":false}');
+    expect(combined).toContain('"_logMeta":{"v":5,');
   });
 
   test("Date", async ({ page }) => {
@@ -124,6 +130,8 @@ test.describe("JSON: Log Types (browser)", () => {
       const date = new Date(0);
       const logger = new tslog.Logger(settings);
       const log1 = logger.log(1234, "testLevel", date);
+      // v5: the returned in-memory logObj keeps the Date under its positional "0" key (matching the Node suite);
+      // only the JSON output promotes it to the ISO message string (asserted below).
       return { isDate: log1["0"] instanceof Date, time: log1["0"].getTime(), expected: date.getTime() };
     `,
     );
@@ -150,8 +158,12 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
     `,
     );
-    expect(combined).toContain('"0":"test"');
-    expect(combined).toContain('"1":{"test":true,"nested":{"1":false}},');
+    // Leading string -> `message`; a single trailing plain object spreads at the top level,
+    // symmetric with the pino-style object-first shape (mirrors the Node twin of this test).
+    expect(combined).toContain('"message":"test"');
+    expect(combined).toContain('"test":true');
+    expect(combined).toContain('"nested":{"1":false}');
+    expect(combined).not.toContain('"1":{');
   });
 
   test("Object, String", async ({ page }) => {
@@ -163,8 +175,12 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.log(1234, "testLevel", { test: true, nested: { 1: false } }, "test");
     `,
     );
-    expect(combined).toContain('"0":{"test":true,"nested":{"1":false}},');
-    expect(combined).toContain('"1":"test"');
+    // v5 pino-style (M2.1): a leading object followed by a string spreads the object's fields at the top
+    // level and promotes the trailing string to `message` (no numeric "0"/"1" buckets in the flat JSON shape).
+    expect(combined).toContain('"message":"test"');
+    expect(combined).toContain('"test":true');
+    expect(combined).toContain('"nested":{"1":false}');
+    expect(combined).not.toContain('"0":');
   });
 
   test("Error", async ({ page }) => {
@@ -198,7 +214,8 @@ test.describe("JSON: Log Types (browser)", () => {
       logger.info(42n);
     `,
     );
-    expect(combined).toContain('"0":"42"');
+    // v5: single bigint arg -> `message`, stringified (JSON has no bigint).
+    expect(combined).toContain('"message":"42"');
   });
 
   test("Error with cause chain", async ({ page }) => {

@@ -1,61 +1,219 @@
 /*
- * tslog docs — docsify vue theme replica
- * White background, green (#42b983) accents, left-side TOC navigation.
+ * tslog docs — a crafted dark theme.
+ *
+ * Design intent: restraint. A deep ink canvas (not pure black), one green
+ * accent used sparingly for links and active state, a real modular type
+ * scale, and generous whitespace. No glow, no gradients, no background grid,
+ * no fake-terminal decoration — the dark log screenshots are the hero, and
+ * the page gets out of their way. Reads as current, ages well.
+ *
+ * References in spirit: Bun, Biome, Vercel, Radix docs.
  */
 
-/* ── Vue-green accent ── */
-:root,
-:root[data-theme="light"],
-:root[data-theme="dark"] {
-  --sl-color-accent-low: hsl(153, 47%, 92%);
-  --sl-color-accent: hsl(153, 47%, 42%);
-  --sl-color-accent-high: hsl(153, 47%, 18%);
-  --sl-color-text-accent: hsl(153, 47%, 35%);
+/* ── Tokens ────────────────────────────────────────────────────────────── */
+:root {
+  --f-sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --f-mono: "JetBrains Mono", "SF Mono", ui-monospace, "Fira Code",
+    "Roboto Mono", Menlo, Consolas, monospace;
+
+  /* Ink surfaces — cool, desaturated, layered */
+  --ink-0: #0f1115; /* page */
+  --ink-1: #14171d; /* raised (nav, code, cards) */
+  --ink-2: #191d25; /* hover / inline code */
+  --line: #262b34; /* hairline borders */
+  --line-2: #333a45; /* stronger borders */
+
+  /* Text */
+  --fg: #e7e9ee; /* primary */
+  --fg-muted: #a2a9b6; /* secondary */
+  --fg-faint: #6b7280; /* tertiary / labels */
+
+  /* One accent. Green, calm — not neon. */
+  --accent: #4ac97e;
+  --accent-strong: #6fd898;
+  --accent-ink: #0c1a10; /* text on accent fill */
 
   /*
-   * Starlight light-mode mapping:
-   *   white → text (dark), black → background (light)
-   *   gray-1 (near white/text, dark) → gray-7 (near black/bg, light)
+   * tslog's own log-level palette (verbatim from src/render/styles.ts).
+   * This is the product's design language — used with intent for the hero
+   * terminal, the highlight-card accents, and level pills.
    */
-  --sl-color-white: hsl(0, 0%, 13%);
-  --sl-color-black: hsl(0, 0%, 100%);
-  --sl-color-gray-1: hsl(0, 0%, 17%);
-  --sl-color-gray-2: hsl(0, 0%, 25%);
-  --sl-color-gray-3: hsl(0, 0%, 45%);
-  --sl-color-gray-4: hsl(0, 0%, 62%);
-  --sl-color-gray-5: hsl(0, 0%, 80%);
-  --sl-color-gray-6: hsl(0, 0%, 90%);
-  --sl-color-gray-7: hsl(0, 0%, 96%);
+  --lvl-silly: #fafafa;
+  --lvl-trace: #ffffff;
+  --lvl-debug: #66bb6a;
+  --lvl-info: #42a5f5;
+  --lvl-warn: #fdd835;
+  --lvl-error: #ef5350;
+  --lvl-fatal: #ff7043;
 
-  /* Typography — match docsify's system font stack */
-  --sl-font: "Helvetica Neue", Helvetica, "Source Sans Pro", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --sl-font-system-mono: "Roboto Mono", Monaco, courier, monospace;
+  /* Semantic (asides) — muted, single-purpose */
+  --blue: #5aa9e6;
+  --amber: #e0a54a;
+  --red: #e5766b;
 
-  /* Layout */
-  --sl-nav-height: 0rem;
-  --sl-sidebar-width: 16rem;
-  --sl-content-width: 55rem;
+  /* Map onto Starlight's tokens */
+  --sl-color-accent-low: #14251a;
+  --sl-color-accent: var(--accent);
+  --sl-color-accent-high: var(--accent-strong);
+  --sl-color-text-accent: var(--accent);
+  --sl-color-white: var(--fg);
+  --sl-color-gray-1: #d2d6dd;
+  --sl-color-gray-2: var(--fg-muted);
+  --sl-color-gray-3: var(--fg-faint);
+  --sl-color-gray-4: #4b515c;
+  --sl-color-gray-5: var(--line-2);
+  --sl-color-gray-6: var(--line);
+  --sl-color-gray-7: var(--ink-1);
+  --sl-color-black: var(--ink-0);
+  --sl-color-bg: var(--ink-0);
+  --sl-color-bg-nav: var(--ink-0);
+  --sl-color-hairline: var(--line);
+  --sl-color-hairline-shade: var(--line);
 
-  color-scheme: light;
+  --sl-font: var(--f-sans);
+  --sl-font-system-mono: var(--f-mono);
+
+  --sl-nav-height: 3.5rem;
+  --sl-sidebar-width: 16.5rem;
+  --sl-content-width: 48rem;
+
+  color-scheme: dark;
 }
 
-/* ── Hide header (docsify has no top bar) ── */
+/* ── Canvas ────────────────────────────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
+  background: var(--ink-0);
+}
+
+body {
+  background: var(--ink-0);
+  color: var(--fg);
+  font-family: var(--f-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.page,
+.main-frame {
+  position: relative;
+}
+
+/* ── Header (custom Header.astro) ──────────────────────────────────────── */
 header.header {
-  display: none !important;
+  display: block !important;
+  height: auto !important;
+  background: color-mix(in srgb, var(--ink-0) 82%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+  -webkit-backdrop-filter: saturate(140%) blur(12px);
+  border-bottom: 1px solid var(--line);
 }
 
-/* ── Page layout: no top padding since header is hidden ── */
+.tslog-header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  height: var(--sl-nav-height);
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+
+.tslog-brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--fg) !important;
+  text-decoration: none !important;
+  letter-spacing: -0.02em;
+}
+
+.tslog-brand-mark {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tslog-brand-tag {
+  font-family: var(--f-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.05rem 0.35rem;
+  border-radius: 5px;
+  color: var(--fg-muted);
+  background: var(--ink-2);
+  border: 1px solid var(--line-2);
+  letter-spacing: 0;
+}
+
+.tslog-nav {
+  display: flex;
+  gap: 1.5rem;
+  margin-inline-start: 0.75rem;
+  flex: 1;
+}
+
+.tslog-nav a {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--fg-muted) !important;
+  text-decoration: none !important;
+  transition: color 0.12s ease;
+  white-space: nowrap;
+}
+
+.tslog-nav a:hover {
+  color: var(--fg) !important;
+}
+
+.tslog-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tslog-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  padding: 0.4rem 0.85rem;
+  border-radius: 7px;
+  border: 1px solid var(--line-2);
+  color: var(--fg) !important;
+  text-decoration: none !important;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.tslog-action:hover {
+  background: var(--ink-2);
+  border-color: var(--fg-faint);
+}
+
+.tslog-action--primary {
+  background: var(--ink-1);
+  border-color: var(--line-2);
+}
+
+.tslog-action--primary:hover {
+  background: var(--ink-2);
+}
+
+@media (max-width: 62rem) {
+  .tslog-nav {
+    display: none;
+  }
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────── */
 .page {
   padding-top: 0 !important;
 }
 
-/* Hide theme toggle */
-starlight-theme-select {
-  display: none !important;
-}
-
-/* ── Left sidebar (Starlight's nav sidebar) — hide it (single-page doc) ── */
 nav.sidebar,
 .sidebar-pane {
   display: none !important;
@@ -63,10 +221,9 @@ nav.sidebar,
 
 .main-frame {
   padding-inline-start: 0 !important;
+  padding-top: var(--sl-nav-height) !important;
 }
 
-/* ── Right sidebar (TOC) — restyle to match docsify's left sidebar ── */
-/* Move the TOC to the left by reordering the grid */
 @media (min-width: 72rem) {
   .main-pane {
     flex-direction: row-reverse !important;
@@ -81,164 +238,358 @@ nav.sidebar,
 
   .right-sidebar {
     position: fixed !important;
-    top: 0 !important;
+    top: var(--sl-nav-height) !important;
     width: var(--sl-sidebar-width) !important;
-    height: 100vh !important;
+    height: calc(100vh - var(--sl-nav-height)) !important;
     border-inline-start: none !important;
-    border-inline-end: none !important;
-    padding-top: 1.5rem !important;
-    background: rgba(255, 255, 255, 0.3) !important;
+    border-inline-end: 1px solid var(--line) !important;
+    padding-top: 2rem !important;
+    background: var(--ink-0) !important;
     overflow-y: auto !important;
   }
 
-  /* Content panel fills the rest */
   .content-panel {
     flex: 1 !important;
     min-width: 0 !important;
   }
+
+  /* Breathing room around the content column */
+  .content-panel .sl-container {
+    padding-top: 3rem !important;
+    padding-inline: 3rem !important;
+  }
 }
 
-/* ── TOC styling to match docsify sidebar ── */
+/* ── TOC (left rail) ───────────────────────────────────────────────────── */
 .right-sidebar-panel h2 {
   display: none !important;
 }
 
-/* Add the "tslog" title at the top of the TOC */
 .right-sidebar::before {
-  content: "\01F4DD tslog";
+  content: "On this page";
   display: block;
-  text-align: center;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: var(--sl-color-white);
-  padding-bottom: 1rem;
-  margin-bottom: 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fg-faint);
+  padding: 0 1.5rem 0.85rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.right-sidebar-panel {
+  padding-inline: 1.5rem !important;
 }
 
 .right-sidebar a {
-  font-size: 0.875rem !important;
-  color: hsl(0, 0%, 25%) !important;
+  font-size: 0.82rem !important;
+  color: var(--fg-muted) !important;
   text-decoration: none !important;
-  padding: 0.25rem 0 !important;
+  padding: 0.3rem 0 !important;
   display: block !important;
-  line-height: 1.6 !important;
-  transition: color 0.15s ease, border-color 0.15s ease !important;
+  line-height: 1.45 !important;
+  border-inline-start: 2px solid transparent !important;
+  padding-inline-start: 0.85rem !important;
+  margin-inline-start: -0.85rem !important;
+  transition: color 0.12s ease, border-color 0.12s ease !important;
 }
 
-.right-sidebar a:hover,
-.right-sidebar a[aria-current="true"] {
-  color: #42b983 !important;
+.right-sidebar a:hover {
+  color: var(--fg) !important;
 }
 
 .right-sidebar a[aria-current="true"] {
-  border-inline-start: 3px solid #42b983 !important;
-  padding-inline-start: 0.5rem !important;
+  color: var(--accent-strong) !important;
+  border-inline-start-color: var(--accent) !important;
   font-weight: 500 !important;
 }
 
-/* ── Content area ── */
+/* ── Content typography ────────────────────────────────────────────────── */
 .sl-markdown-content {
-  font-size: 0.9375rem;
-  line-height: 1.75;
-  color: hsl(0, 0%, 20%);
-  max-width: 50rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--fg-muted);
+  max-width: var(--sl-content-width);
 }
 
-/* Main title */
-.content-panel h1 {
-  font-size: 2rem !important;
-  font-weight: 300 !important;
-  color: hsl(0, 0%, 20%) !important;
+.sl-markdown-content strong {
+  color: var(--fg);
+  font-weight: 650;
+}
+
+.content-panel h1,
+.sl-markdown-content h1 {
+  font-size: clamp(2.1rem, 3.5vw, 2.9rem) !important;
+  font-weight: 750 !important;
+  letter-spacing: -0.025em !important;
+  line-height: 1.08 !important;
+  color: var(--fg) !important;
+  margin-bottom: 0.5rem !important;
 }
 
 .sl-markdown-content h2 {
-  font-size: 1.75rem !important;
-  font-weight: 300 !important;
-  margin-top: 2.5rem !important;
-  padding-bottom: 0.5rem !important;
-  border-bottom: none !important;
-  color: hsl(0, 0%, 20%) !important;
+  font-size: 1.55rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  margin-top: 3.5rem !important;
+  padding-bottom: 0.6rem !important;
+  border-bottom: 1px solid var(--line) !important;
+  color: var(--fg) !important;
 }
 
 .sl-markdown-content h3 {
-  font-size: 1.375rem !important;
-  font-weight: 400 !important;
-  color: hsl(0, 0%, 20%) !important;
+  font-size: 1.22rem !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.015em !important;
+  color: var(--fg) !important;
+  margin-top: 2.25rem !important;
 }
 
 .sl-markdown-content h4 {
-  font-size: 1.125rem !important;
-  font-weight: 600 !important;
-  color: hsl(0, 0%, 20%) !important;
+  font-size: 1rem !important;
+  font-weight: 650 !important;
+  color: var(--fg) !important;
 }
 
-/* Links — vue green */
+.sl-markdown-content p,
+.sl-markdown-content li {
+  color: var(--fg-muted);
+}
+
+/* Links — the one place the accent lives in body text */
 .sl-markdown-content a {
-  color: #42b983 !important;
+  color: var(--accent-strong) !important;
   text-decoration: none !important;
-  font-weight: 600 !important;
+  font-weight: 550 !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  transition: border-color 0.12s ease;
 }
 
 .sl-markdown-content a:hover {
-  text-decoration: underline !important;
+  border-bottom-color: var(--accent);
 }
 
-/* ── Inline code — green text on very light bg (docsify style) ── */
+.sl-markdown-content a:has(img[src*="shields.io"]),
+.sl-markdown-content a:has(img[src*="badge.svg"]) {
+  border-bottom: none !important;
+}
+
+/* ── Inline code ───────────────────────────────────────────────────────── */
 .sl-markdown-content :not(pre) > code {
-  background: #f8f8f8 !important;
-  color: #e96900 !important;
-  border-radius: 2px !important;
-  padding: 0.15em 0.4em !important;
+  background: var(--ink-2) !important;
+  color: var(--fg) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 5px !important;
+  padding: 0.1em 0.4em !important;
   font-size: 0.85em !important;
-  white-space: nowrap !important;
-  border: none !important;
+  font-family: var(--f-mono) !important;
+  font-weight: 450 !important;
 }
 
-/* ── Code blocks — light gray bg with subtle border (docsify-like) ── */
+/* ── Code blocks — flat, bordered, quiet chrome ────────────────────────── */
 .expressive-code .frame {
-  border-radius: 4px !important;
-  border: 1px solid hsl(0, 0%, 90%) !important;
+  border-radius: 10px !important;
+  border: 1px solid var(--line) !important;
   box-shadow: none !important;
-  background: #f8f8f8 !important;
+  overflow: hidden;
 }
 
 .expressive-code pre {
   font-size: 0.85rem !important;
-  line-height: 1.6 !important;
-  padding: 1rem 1.5rem !important;
-  background: #f8f8f8 !important;
+  line-height: 1.65 !important;
+  padding: 1.1rem 1.3rem !important;
+  background: var(--ink-1) !important;
+  font-family: var(--f-mono) !important;
 }
 
 .expressive-code .header {
-  background: #f8f8f8 !important;
-  border-bottom: 1px solid hsl(0, 0%, 90%) !important;
+  background: var(--ink-1) !important;
+  border-bottom: 1px solid var(--line) !important;
 }
 
-/* ── Blockquotes — green left border ── */
-.sl-markdown-content blockquote {
-  border-inline-start: 4px solid #42b983 !important;
-  color: hsl(0, 0%, 40%) !important;
-  padding: 0.5rem 1rem !important;
+.expressive-code .copy button {
+  background: var(--ink-2) !important;
+  border-color: var(--line-2) !important;
+}
+
+/* ── Tables ────────────────────────────────────────────────────────────── */
+/*
+ * Starlight keeps `<table>` itself `display: block; overflow: auto` so a
+ * too-wide table can scroll horizontally on narrow screens — necessary, so
+ * we keep it. But a `display: block` table box no longer establishes a CSS
+ * table formatting context, so its thead/tbody/tr shrink-to-fit instead of
+ * stretching to the (block) table's own width — tables visibly stop short
+ * of the content column's right edge. Fix: re-establish the table context
+ * one level down, on thead/tbody, sized to 100% of that block box. Narrow
+ * tables now fill the row; genuinely wide tables (many columns) still get
+ * real horizontal scroll instead of being clipped.
+ */
+.sl-markdown-content table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  font-size: 0.9rem;
+}
+
+.sl-markdown-content table > thead,
+.sl-markdown-content table > tbody {
+  display: table;
+  width: 100%;
+  table-layout: auto;
+}
+
+/*
+ * The "Log levels" table (docs-only, raw HTML from sync-readme.mjs) always
+ * fits without needing mobile scroll, so it keeps genuine `display: table`
+ * on the <table> itself instead of the thead/tbody workaround above — that's
+ * what lets its <colgroup> (12/28/60%) drive exact column widths; splitting
+ * the table context onto thead/tbody separately breaks colgroup's effect.
+ */
+.log-levels-table table {
+  display: table !important;
+  table-layout: fixed;
+}
+.log-levels-table table > thead,
+.log-levels-table table > tbody {
+  display: table-header-group;
+  width: auto;
+  table-layout: inherit;
+}
+.log-levels-table table > tbody {
+  display: table-row-group;
+}
+
+/* Level names colored exactly like tslog's real pretty-print output — same
+ * tokens as the homepage hero terminal (src/render/styles.ts defaults). */
+.lvl-pill {
+  font-weight: 700;
+  font-family: var(--f-mono);
+}
+.lvl-pill--silly { color: var(--lvl-silly); }
+.lvl-pill--trace { color: var(--lvl-trace); }
+.lvl-pill--debug { color: var(--lvl-debug); }
+.lvl-pill--info  { color: var(--lvl-info); }
+.lvl-pill--warn  { color: var(--lvl-warn); }
+.lvl-pill--error { color: var(--lvl-error); }
+.lvl-pill--fatal { color: var(--lvl-fatal); }
+
+.sl-markdown-content th {
+  background: var(--ink-1) !important;
+  color: var(--fg) !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  /* Respect the markdown table's own alignment (align="left"/"center" from
+   * the `:---`/`:---:` separator row) instead of forcing one for every table. */
+  padding: 0.7rem 1.1rem !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
+}
+
+.sl-markdown-content td {
+  padding: 0.7rem 1.1rem !important;
+  border: none !important;
+  border-bottom: 1px solid var(--line) !important;
   background: transparent !important;
+  vertical-align: top;
+  line-height: 1.55;
 }
 
-/* ── Headings anchor icon ── */
-.sl-heading-wrapper .sl-anchor-icon {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+/* Add a little row rhythm without touching the border cadence. */
+.sl-markdown-content td:first-child,
+.sl-markdown-content th:first-child {
+  padding-inline-start: 1.25rem !important;
+}
+.sl-markdown-content td:last-child,
+.sl-markdown-content th:last-child {
+  padding-inline-end: 1.25rem !important;
 }
 
-.sl-heading-wrapper:hover .sl-anchor-icon {
-  opacity: 0.4;
+.sl-markdown-content tr:last-child td {
+  border-bottom: none !important;
 }
 
-/* ── Images ── */
-.sl-markdown-content img {
-  border-radius: 0;
+/* Keep install/import snippets on a single line (no mid-command wrapping). */
+.sl-markdown-content td code {
+  white-space: nowrap !important;
+}
+
+/* ── Blockquotes / Starlight asides ────────────────────────────────────── */
+.sl-markdown-content blockquote {
+  border-inline-start: 3px solid var(--line-2) !important;
+  color: var(--fg-muted) !important;
+  padding: 0.25rem 1rem !important;
+  background: transparent !important;
+  font-style: normal;
+}
+
+.starlight-aside {
+  border-radius: 9px !important;
+  border: 1px solid var(--line) !important;
+  border-inline-start-width: 3px !important;
+  background: var(--ink-1) !important;
+  padding: 1rem 1.25rem !important;
+}
+
+.starlight-aside--note {
+  border-inline-start-color: var(--blue) !important;
+}
+.starlight-aside--tip {
+  border-inline-start-color: var(--accent) !important;
+}
+.starlight-aside--caution {
+  border-inline-start-color: var(--amber) !important;
+}
+.starlight-aside--danger {
+  border-inline-start-color: var(--red) !important;
+}
+
+.starlight-aside__title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--fg) !important;
+}
+
+.starlight-aside__content {
+  color: var(--fg-muted) !important;
+}
+
+/* ── Lead screenshot ───────────────────────────────────────────────────── */
+/*
+ * The homepage's README hero screenshot (tslog.png) is superseded by the live
+ * terminal hero above, so hide its panel there. Any other content image (e.g.
+ * the lifecycle diagram) still gets a restrained light panel so dark/
+ * transparent artwork reads.
+ */
+.sl-markdown-content > p:has(> img[src*="tslog.png"]) {
+  display: none !important;
+}
+
+.sl-markdown-content
+  > p:has(> img:not([src*="shields"]):not([src*="badge"]):not([src*="codecov"])) {
+  margin: 2.25rem 0;
+  padding: 1.5rem;
+  background: #eef0f2;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+}
+
+.sl-markdown-content
+  > p
+  > img:not([src*="shields"]):not([src*="badge"]):not([src*="codecov"]) {
+  display: block;
   border: none;
+  border-radius: 6px;
+  box-shadow: none;
 }
 
-/* Badge images: force inline so they flow on one line */
+/* Badges — inline, quiet */
 .sl-markdown-content img[src*="shields.io"],
 .sl-markdown-content img[src*="badge.svg"],
 .sl-markdown-content img[src*="codecov.io"],
@@ -247,97 +598,346 @@ nav.sidebar,
   vertical-align: middle !important;
   height: 20px !important;
   margin: 0 2px !important;
+  border: none !important;
+  border-radius: 3px !important;
 }
 
-/* ── Pagination links — hide (docsify doesn't have these) ── */
-.pagination-links {
-  display: none !important;
+/* ── Back-link on deep pages ("← Back to tslog docs") ──────────────────── */
+.sl-markdown-content > p:first-of-type > a[href="/"] {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--fg-muted) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 7px;
+  padding: 0.35rem 0.8rem;
+  background: var(--ink-1);
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
-/* ── Footer / mobile preferences — hide ── */
-.mobile-preferences {
-  display: none !important;
+.sl-markdown-content > p:first-of-type > a[href="/"]:hover {
+  color: var(--fg) !important;
+  background: var(--ink-2);
 }
 
-/* ── Background — soft ambient glow across the full viewport ── */
-body::before {
+/* ── Highlights as feature cards — quiet, no glow ──────────────────────── */
+.sl-heading-wrapper:has(#highlights) + ul {
+  list-style: none !important;
+  padding: 0 !important;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 0.75rem;
+  margin-top: 1.75rem !important;
+}
+
+.sl-heading-wrapper:has(#highlights) + ul > li {
+  position: relative;
+  margin: 0 !important;
+  padding: 1.15rem 1.3rem 1.15rem 1.5rem !important;
+  background: var(--ink-1);
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  line-height: 1.55;
+  color: var(--fg-muted);
+  overflow: hidden;
+  transition: border-color 0.14s ease, transform 0.14s ease;
+}
+
+/* A colored tick down the left edge — cycling tslog's level palette. */
+.sl-heading-wrapper:has(#highlights) + ul > li::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: radial-gradient(
-    ellipse 100% 60% at 50% 0%,
-    hsla(153, 47%, 72%, 0.4),
-    transparent
-  );
-  pointer-events: none;
-  z-index: 0;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: var(--tick, var(--accent));
+  opacity: 0.85;
 }
 
-/* ── Smooth scrolling ── */
-html {
-  scroll-behavior: smooth;
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 1) { --tick: var(--lvl-info); }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 2) { --tick: var(--lvl-debug); }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 3) { --tick: var(--lvl-warn); }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 4) { --tick: var(--lvl-fatal); }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 5) { --tick: var(--lvl-error); }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 6) { --tick: #ab47bc; }
+.sl-heading-wrapper:has(#highlights) + ul > li:nth-child(7n + 7) { --tick: #26c6da; }
+
+.sl-heading-wrapper:has(#highlights) + ul > li::marker {
+  content: "" !important;
 }
 
-/* ── Hide mobile menu button ── */
-starlight-menu-button {
-  display: none !important;
+.sl-heading-wrapper:has(#highlights) + ul > li:hover {
+  border-color: var(--line-2);
+  transform: translateY(-1px);
 }
 
-/* ── Selection highlight ── */
+.sl-heading-wrapper:has(#highlights) + ul > li strong {
+  color: var(--fg);
+  font-weight: 650;
+}
+
+/* ── Anchor icons ──────────────────────────────────────────────────────── */
+.sl-heading-wrapper .sl-anchor-icon {
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  color: var(--fg-faint);
+}
+
+.sl-heading-wrapper:hover .sl-anchor-icon {
+  opacity: 0.7;
+}
+
+/* ── Selection ─────────────────────────────────────────────────────────── */
 ::selection {
-  background: hsla(153, 47%, 42%, 0.2);
+  background: color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
-/* ── Search — hide ── */
-site-search {
-  display: none !important;
+/* ── Scrollbar ─────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-2) transparent;
 }
 
-/* ── Skip to content link — hide ── */
+/* ── Hero terminal (homepage; markup in overrides/Hero.astro) ──────────── */
+/*
+ * A live terminal that streams real tslog pretty output. The level colors are
+ * tslog's own defaults (src/render/styles.ts) — this is the product showing
+ * itself, which is the whole point of "beautiful logging".
+ */
+.hero-term {
+  margin: 1.9rem 0 0.5rem;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: #0b0d11;
+  overflow: hidden;
+  /* Establish a container so the body font can scale to the terminal's own
+   * width (see .hero-term__body font-size) — keeps the aligned log lines
+   * fitting on every screen without a horizontal scrollbar. */
+  container-type: inline-size;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 18px 50px -20px rgba(0, 0, 0, 0.7);
+}
+
+.hero-term__bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.9rem;
+  background: #13161c;
+  border-bottom: 1px solid var(--line);
+}
+
+.hero-term__dots {
+  display: inline-flex;
+  gap: 0.4rem;
+}
+.hero-term__dots i {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-radius: 50%;
+  background: #3a3f4a;
+}
+.hero-term__dots i:nth-child(1) { background: #ef5350; }
+.hero-term__dots i:nth-child(2) { background: #fdd835; }
+.hero-term__dots i:nth-child(3) { background: #66bb6a; }
+
+.hero-term__title {
+  font-family: var(--f-mono);
+  font-size: 0.78rem;
+  color: var(--fg-faint);
+  letter-spacing: 0.01em;
+}
+.hero-term__spacer { flex: 1; }
+
+.hero-term__body {
+  margin: 0;
+  padding: 1.1rem 1.1rem 1.25rem;
+  font-family: var(--f-mono);
+  /* Fluid size tied to the terminal's own width (container query units) so the
+   * aligned log lines always fit — no horizontal scroll on any screen. */
+  font-size: clamp(0.42rem, 1.86cqi, 0.82rem);
+  line-height: 1.9;
+  overflow-x: hidden;
+  color: var(--fg);
+  background: #0b0d11;
+}
+
+/* On a narrow terminal, trim horizontal padding so the font can stay larger. */
+@container (max-width: 34rem) {
+  .hero-term__body {
+    padding-inline: 0.7rem;
+    line-height: 1.75;
+  }
+}
+.hero-term__body code {
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  color: inherit;
+  white-space: pre;
+}
+
+/* tslog level colors — verbatim from src/render/styles.ts */
+.hero-term .lvl { font-weight: 700; }
+.hero-term .lvl--silly { color: var(--lvl-silly); }
+.hero-term .lvl--trace { color: var(--lvl-trace); }
+.hero-term .lvl--debug { color: var(--lvl-debug); }
+.hero-term .lvl--info  { color: var(--lvl-info); }
+.hero-term .lvl--warn  { color: var(--lvl-warn); }
+.hero-term .lvl--error { color: var(--lvl-error); }
+.hero-term .lvl--fatal { color: var(--lvl-fatal); }
+
+/*
+ * Message/template colors — all verbatim from tslog's default styles
+ * (src/render/styles.ts COLOR_HEX). `def` is the terminal's default
+ * foreground for plain message text; `white` (#fafafa) is what tslog uses for
+ * dateIsoStr / filePathWithLine / name.
+ */
+.hero-term .c-def { color: #e7e9ee; }
+.hero-term .c-white { color: #fafafa; }
+/* Slightly dimmed white for the timestamp + [path] — hierarchy only. */
+.hero-term .c-meta { color: #9aa1ad; }
+.hero-term .c-green { color: #66bb6a; }
+.hero-term .c-yellow { color: #fdd835; }
+.hero-term .c-blue { color: #42a5f5; }
+.hero-term .c-cyan { color: #26c6da; }
+.hero-term .c-magenta { color: #ab47bc; }
+.hero-term .c-red { color: #ef5350; }
+
+/* errorName default style: bold + whiteBright text on a bright-red background. */
+.hero-term .err-name {
+  font-weight: 700;
+  color: #ffffff;
+  background: #b3261e;
+  padding: 0 0.3em;
+  border-radius: 2px;
+}
+
+/* Stream the lines in one after another. ~0.34s/line; the stack frames land
+ * a touch quicker so the whole trace doesn't feel slow. */
+.hero-line {
+  display: inline;
+  opacity: 0;
+  animation: hero-reveal 0.26s ease forwards;
+  animation-delay: calc(var(--i) * 0.5s + 0.2s);
+}
+
+.hero-caret {
+  display: inline-block;
+  width: 0.55rem;
+  height: 1.05em;
+  vertical-align: text-bottom;
+  background: rgb(107, 114, 128);
+  margin-left: 0.15rem;
+  opacity: 0;
+  animation: hero-caret-in 0.1s ease forwards,
+    hero-blink 1.1s steps(1) infinite;
+  /* last block index is 4 (4 log lines + 1 error block) → 4*0.5+0.2 = 2.2s */
+  animation-delay: 2.3s, 2.3s;
+}
+
+@keyframes hero-reveal {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hero-caret-in { to { opacity: 1; } }
+@keyframes hero-blink {
+  0%, 55% { opacity: 1; }
+  56%, 100% { opacity: 0; }
+}
+
+/* Supported runtimes / environments — the "universal" promise as a logo row.
+ * The label stays left; the button row is centered underneath it. */
+.hero-platforms {
+  margin: 1.4rem 0 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+}
+
+.hero-platforms__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+.hero-platforms__list {
+  list-style: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.hero-platforms__list .pf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 !important;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ink-1);
+  font-size: 0.83rem;
+  font-weight: 550;
+  color: var(--fg-muted);
+  transition: color 0.14s ease, border-color 0.14s ease;
+}
+
+/* Full-color brand logos: slightly muted at rest, full punch on hover. */
+.hero-platforms__list .pf img {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.85;
+  transition: opacity 0.14s ease;
+}
+
+.hero-platforms__list .pf:hover {
+  color: var(--fg);
+  border-color: var(--line-2);
+}
+
+.hero-platforms__list .pf:hover img {
+  opacity: 1;
+}
+
+/* The browsers chip holds the four browser marks with no text label. */
+.hero-platforms__list .pf--browsers {
+  gap: 0.6rem;
+  padding-inline: 0.85rem;
+}
+
+/* Deno's mark is black-on-transparent — invert it so it reads on dark. */
+.hero-platforms__list .pf img.pf-invert {
+  filter: invert(1);
+}
+
+/* ── Reduced motion ────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+  /* Ensure the streamed hero lines are visible when motion is disabled. */
+  .hero-line,
+  .hero-caret {
+    opacity: 1 !important;
+  }
+}
+
+/* ── Hide chrome we don't use ──────────────────────────────────────────── */
+.pagination-links,
+.mobile-preferences,
+starlight-menu-button,
+site-search,
 a[href="#_top"] {
   display: none !important;
-}
-
-/* ── GitHub corner badge (top-right octocat) ── */
-.github-corner svg {
-  fill: #42b983;
-  color: #fff;
-  position: fixed;
-  top: 0;
-  right: 0;
-  border: 0;
-  z-index: 9999;
-  width: 80px;
-  height: 80px;
-}
-
-.github-corner:hover .octo-arm {
-  animation: octocat-wave 560ms ease-in-out;
-}
-
-@keyframes octocat-wave {
-  0%,
-  100% {
-    transform: rotate(0);
-  }
-  20%,
-  60% {
-    transform: rotate(-25deg);
-  }
-  40%,
-  80% {
-    transform: rotate(10deg);
-  }
-}
-
-@media (max-width: 500px) {
-  .github-corner:hover .octo-arm {
-    animation: none;
-  }
-  .github-corner .octo-arm {
-    animation: octocat-wave 560ms ease-in-out;
-  }
 }

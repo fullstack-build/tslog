@@ -167,4 +167,72 @@ describe("Advanced error handling", () => {
       expect(getConsoleLogStripped()).toContain("oops");
     });
   });
+
+  describe("hostile error causes never crash the logger", () => {
+    test.each(["json", "pretty", "hidden"] as const)("type %s: an Error with a circular non-Error cause does not throw", (type) => {
+      mockConsoleLog(true, false);
+      const logger = new Logger({ type });
+      const circular: Record<string, unknown> = {};
+      circular.self = circular;
+
+      expect(() => logger.error(new Error("boom", { cause: circular }))).not.toThrow();
+    });
+
+    test.each(["json", "pretty", "hidden"] as const)("type %s: an Error with a BigInt-bearing cause does not throw", (type) => {
+      mockConsoleLog(true, false);
+      const logger = new Logger({ type });
+
+      expect(() => logger.error(new Error("boom", { cause: { n: 10n } }))).not.toThrow();
+    });
+
+    test("the circular cause still serializes into the cause chain", () => {
+      const logger = new Logger({ type: "hidden" });
+      const circular: Record<string, unknown> = { hint: "root" };
+      circular.self = circular;
+
+      const logObj = logger.error(new Error("boom", { cause: circular }));
+      expect(logObj?.message).toBe("boom");
+      expect(logObj?.cause?.message).toContain("[Circular]");
+    });
+
+    test.each(["json", "pretty", "hidden"] as const)("type %s: a throwing `cause` getter on the Error does not throw", (type) => {
+      mockConsoleLog(true, false);
+      const logger = new Logger({ type });
+      const err = new Error("outer");
+      Object.defineProperty(err, "cause", {
+        enumerable: true,
+        get() {
+          throw new Error("boom from cause getter");
+        },
+      });
+
+      expect(() => logger.error(err)).not.toThrow();
+    });
+
+    test.each(["json", "pretty", "hidden"] as const)("type %s: an Error cause with a hostile `stack` getter does not throw", (type) => {
+      mockConsoleLog(true, false);
+      const logger = new Logger({ type });
+      const hostileCause = new Error("inner");
+      Object.defineProperty(hostileCause, "stack", {
+        get() {
+          throw new Error("boom from stack getter");
+        },
+      });
+
+      expect(() => logger.error(new Error("outer", { cause: hostileCause }))).not.toThrow();
+    });
+
+    test.each(["json", "pretty", "hidden"] as const)("type %s: hostile `name`/`message` getters on the Error do not throw", (type) => {
+      mockConsoleLog(true, false);
+      const logger = new Logger({ type });
+      const err = new Error("outer");
+      Object.defineProperty(err, "name", {
+        get() {
+          throw new Error("boom from name getter");
+        },
+      });
+
+      expect(() => logger.error(err)).not.toThrow();
+    });
+  });
 });

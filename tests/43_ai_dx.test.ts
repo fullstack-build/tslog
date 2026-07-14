@@ -1,4 +1,4 @@
-import { DefaultLogLevels, Logger, log } from "../src/index.js";
+import { Logger, LogLevel, log } from "../src/index.js";
 
 // Tests for the developer-experience additions: named minLevel, the ready-to-use `log` export,
 // and dev-mode configuration warnings.
@@ -9,11 +9,11 @@ describe("minLevel accepts level names", () => {
     expect(named.info("below")).toBeUndefined();
     expect(named.warn("at")).toBeDefined();
     expect(named.error("above")).toBeDefined();
-    expect(named.settings.minLevel).toBe(DefaultLogLevels.WARN);
+    expect(named.settings.minLevel).toBe(LogLevel.WARN);
   });
 
   test("a numeric minLevel still works", () => {
-    const numeric = new Logger({ type: "hidden", minLevel: DefaultLogLevels.ERROR });
+    const numeric = new Logger({ type: "hidden", minLevel: LogLevel.ERROR });
     expect(numeric.warn("below")).toBeUndefined();
     expect(numeric.error("at")).toBeDefined();
   });
@@ -23,7 +23,7 @@ describe("minLevel accepts level names", () => {
     const child = parent.getSubLogger({ minLevel: "ERROR" });
     expect(child.warn("below")).toBeUndefined();
     expect(child.error("at")).toBeDefined();
-    expect(child.settings.minLevel).toBe(DefaultLogLevels.ERROR);
+    expect(child.settings.minLevel).toBe(LogLevel.ERROR);
   });
 });
 
@@ -32,7 +32,7 @@ describe("the ready-to-use log export", () => {
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     expect(log).toBeInstanceOf(Logger);
     const out = log.info("hello from default logger");
-    expect(out?._meta.logLevelName).toBe("INFO");
+    expect(out?._logMeta.logLevelName).toBe("INFO");
     consoleSpy.mockRestore();
   });
 });
@@ -54,13 +54,13 @@ describe("dev-mode configuration warnings", () => {
     expect(expectWarning({ type: "hidden", minLevel: "LOUD" as never }, /unknown minLevel/)).toBe(true);
   });
 
-  test("warns on an unknown prettyLogTemplate placeholder (typo)", () => {
-    expect(expectWarning({ type: "pretty", prettyLogTemplate: "{{loglevelname}} " }, /unknown placeholder "\{\{loglevelname\}\}"/)).toBe(true);
+  test("warns on an unknown pretty.template placeholder (typo)", () => {
+    expect(expectWarning({ type: "pretty", pretty: { template: "{{loglevelname}} " } }, /unknown placeholder "\{\{loglevelname\}\}"/)).toBe(true);
   });
 
   test("does not warn on a valid configuration", () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    new Logger({ type: "json", minLevel: "INFO", prettyLogTemplate: "{{logLevelName}}\t{{filePathWithLine}}" });
+    new Logger({ type: "json", minLevel: "INFO", pretty: { template: "{{logLevelName}}\t{{filePathWithLine}}" } });
     const warned = warnSpy.mock.calls.some((c) => String(c[0]).startsWith("tslog:"));
     warnSpy.mockRestore();
     expect(warned).toBe(false);

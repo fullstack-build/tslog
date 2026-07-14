@@ -1,9 +1,24 @@
+import { MaskingEngine } from "../src/core/masking.js";
+import { normalizeSettings } from "../src/core/settings.js";
+import { createNodeEnvironment } from "../src/env/environment.node.js";
 import { Logger } from "../src/index.js";
+import type { ISettingsParam } from "../src/interfaces.js";
 
-type MaskInternals = {
-  _recursiveCloneAndMaskValuesOfKeys: (source: unknown, keys: (string | number)[], seen?: unknown[]) => unknown;
-  _getMaskKeys: () => (string | number)[];
-};
+/**
+ * Build a MaskingEngine wired to a fully-normalized settings object and the Node runtime predicates.
+ *
+ * v5 moved the masking internals out of the Logger and into a standalone `MaskingEngine` (core/masking.ts).
+ * The v4 tests reached into the Logger via `_recursiveCloneAndMaskValuesOfKeys` / `_getMaskKeys`; those
+ * methods now live on the engine, so the genuine masking unit tests below are repointed to it directly.
+ */
+function createMaskingEngine(settings?: ISettingsParam<unknown>): MaskingEngine<unknown> {
+  const normalized = normalizeSettings(settings);
+  const env = createNodeEnvironment();
+  return new MaskingEngine<unknown>(normalized, {
+    isError: (value): value is Error => env.isError(value),
+    isBuffer: (value) => env.isBuffer(value),
+  });
+}
 
 describe("Robustness fixes", () => {
   describe("Fix 1 - attached transport isolation", () => {
@@ -37,7 +52,7 @@ describe("Robustness fixes", () => {
 
       // The log object is still returned despite a transport throwing.
       expect(returnValue).toBeDefined();
-      expect((returnValue as Record<string, unknown>)?._meta).toBeDefined();
+      expect((returnValue as Record<string, unknown>)?._logMeta).toBeDefined();
 
       consoleErrorSpy.mockRestore();
     });
@@ -62,7 +77,7 @@ describe("Robustness fixes", () => {
       expect(consoleErrorSpy).toHaveBeenCalled();
       // The log object is still returned (defined) even when a transport throws.
       expect(returnValue).toBeDefined();
-      expect((returnValue as Record<string, unknown>)?._meta).toBeDefined();
+      expect((returnValue as Record<string, unknown>)?._logMeta).toBeDefined();
 
       consoleLogSpy.mockRestore();
       consoleErrorSpy.mockRestore();
@@ -99,25 +114,29 @@ describe("Robustness fixes", () => {
 
   describe("Fix 2 - maskValuesRegEx placeholder $ is escaped and inserted literally", () => {
     test('placeholder "$1SECRET" is inserted verbatim, not interpreted as a capture-group substitution', () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesRegEx: [/(.)(.)/],
-        maskPlaceholder: "$1SECRET",
-      }) as unknown as MaskInternals;
+        mask: {
+          regex: [/(.)(.)/],
+          placeholder: "$1SECRET",
+        },
+      });
 
-      const result = logger._recursiveCloneAndMaskValuesOfKeys("ab", []);
+      const result = engine.recursiveCloneAndMaskValuesOfKeys("ab", []);
       // Without escaping "$1" would expand to the first capture group ("a") yielding "aSECRET".
       expect(result).toBe("$1SECRET");
     });
 
     test('placeholder containing "$&" is inserted literally, not the whole match', () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesRegEx: [/secret/gi],
-        maskPlaceholder: "[$&]",
-      }) as unknown as MaskInternals;
+        mask: {
+          regex: [/secret/gi],
+          placeholder: "[$&]",
+        },
+      });
 
-      const result = logger._recursiveCloneAndMaskValuesOfKeys("my secret here", []) as string;
+      const result = engine.recursiveCloneAndMaskValuesOfKeys("my secret here", []) as string;
       // "$&" must NOT expand to the matched "secret".
       expect(result).toContain("[$&]");
       expect(result).not.toContain("[secret]");
@@ -125,38 +144,44 @@ describe("Robustness fixes", () => {
     });
 
     test('default placeholder "[***]" (no "$") is still replaced normally', () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesRegEx: [/secret/gi],
-      }) as unknown as MaskInternals;
+        mask: {
+          regex: [/secret/gi],
+        },
+      });
 
-      const result = logger._recursiveCloneAndMaskValuesOfKeys("my secret here", []) as string;
+      const result = engine.recursiveCloneAndMaskValuesOfKeys("my secret here", []) as string;
       expect(result).toBe("my [***] here");
     });
   });
 
   describe("Fix 3 - numeric maskValuesOfKeys match string property names", () => {
     test("a numeric mask key masks the matching string property name", () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesOfKeys: [123 as unknown as string],
-      }) as unknown as MaskInternals;
+        mask: {
+          keys: [123 as unknown as string],
+        },
+      });
 
-      const maskKeys = logger._getMaskKeys();
-      const result = logger._recursiveCloneAndMaskValuesOfKeys({ 0: "ok", 123: "secret" }, maskKeys) as Record<string, unknown>;
+      const maskKeys = engine.getMaskKeys();
+      const result = engine.recursiveCloneAndMaskValuesOfKeys({ 0: "ok", 123: "secret" }, maskKeys) as Record<string, unknown>;
 
       expect(result["123"]).toBe("[***]");
       expect(result["0"]).toBe("ok");
     });
 
     test("mixed string and numeric mask keys", () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesOfKeys: ["password", 42 as unknown as string],
-      }) as unknown as MaskInternals;
+        mask: {
+          keys: ["password", 42 as unknown as string],
+        },
+      });
 
-      const maskKeys = logger._getMaskKeys();
-      const result = logger._recursiveCloneAndMaskValuesOfKeys({ password: "p", 42: "q", keep: "k" }, maskKeys) as Record<string, unknown>;
+      const maskKeys = engine.getMaskKeys();
+      const result = engine.recursiveCloneAndMaskValuesOfKeys({ password: "p", 42: "q", keep: "k" }, maskKeys) as Record<string, unknown>;
 
       expect(result["password"]).toBe("[***]");
       expect(result["42"]).toBe("[***]");
@@ -164,27 +189,31 @@ describe("Robustness fixes", () => {
     });
 
     test("case-insensitive masking still works alongside string keys", () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesOfKeys: ["Token"],
-        maskValuesOfKeysCaseInsensitive: true,
-      }) as unknown as MaskInternals;
+        mask: {
+          keys: ["Token"],
+          caseInsensitive: true,
+        },
+      });
 
-      const maskKeys = logger._getMaskKeys();
-      const result = logger._recursiveCloneAndMaskValuesOfKeys({ token: "abc", other: "v" }, maskKeys) as Record<string, unknown>;
+      const maskKeys = engine.getMaskKeys();
+      const result = engine.recursiveCloneAndMaskValuesOfKeys({ token: "abc", other: "v" }, maskKeys) as Record<string, unknown>;
 
       expect(result["token"]).toBe("[***]");
       expect(result["other"]).toBe("v");
     });
 
     test("the case-sensitive mask-keys cache returns a stable normalized array across calls", () => {
-      const logger = new Logger({
+      const engine = createMaskingEngine({
         type: "json",
-        maskValuesOfKeys: ["password", 7 as unknown as string],
-      }) as unknown as MaskInternals;
+        mask: {
+          keys: ["password", 7 as unknown as string],
+        },
+      });
 
-      const first = logger._getMaskKeys();
-      const second = logger._getMaskKeys();
+      const first = engine.getMaskKeys();
+      const second = engine.getMaskKeys();
 
       // Same reference returned from the cache on the second call.
       expect(second).toBe(first);

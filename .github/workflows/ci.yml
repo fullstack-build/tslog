@@ -2,21 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [master, v4, development]
+    branches: [master, v4, v5, development]
   pull_request:
-    branches: [master, development]
+    branches: [master, v4, v5, development]
 
 jobs:
     test-node:
         runs-on: ubuntu-latest
 
         strategy:
+            fail-fast: false
             matrix:
-                node-version: [20.x]
+                node-version: ['20', '22', '24', '26', 'latest']
 
         env:
             CI: true
-            COVERAGE: ${{ matrix.node-version == '20.x' && true || false }}
 
         steps:
             - uses: actions/checkout@v5
@@ -26,10 +26,27 @@ jobs:
                   node-version: ${{ matrix.node-version }}
             - run: npm ci
 
-            # Node test suite + coverage.
-            - name: Run coverage
+            # Fail fast if the AI-facing docs (llms.txt/RECIPES.md) drifted from the source.
+            - name: Check doc sync
+              run: npm run check-doc-sync
+
+            # Guard the gzip budgets of the slim and full browser bundles.
+            - name: Check bundle size
+              run: npm run check-bundle-size
+
+            # Run the full test suite on every supported Node version.
+            # Coverage + Codecov report only on the minimum supported version (20)
+            # to avoid redundant uploads and overhead.
+            - name: Run tests (with coverage)
+              if: matrix.node-version == '20'
               run: npm run coverage
+
+            - name: Run tests
+              if: matrix.node-version != '20'
+              run: npm test
+
             - name: Report coverage
+              if: matrix.node-version == '20'
               uses: codecov/codecov-action@v5
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}
@@ -46,7 +63,7 @@ jobs:
             - uses: actions/checkout@v5
             - uses: actions/setup-node@v5
               with:
-                  node-version: 20.x
+                  node-version: 22
             - run: npm ci
             - name: Install Playwright ${{ matrix.browser }}
               run: npx playwright install --with-deps ${{ matrix.browser }}
@@ -59,7 +76,7 @@ jobs:
             - uses: actions/checkout@v5
             - uses: actions/setup-node@v5
               with:
-                  node-version: 20.x
+                  node-version: 22
             - uses: oven-sh/setup-bun@v2
               with:
                   bun-version: latest
@@ -73,7 +90,7 @@ jobs:
             - uses: actions/checkout@v5
             - uses: actions/setup-node@v5
               with:
-                  node-version: 20.x
+                  node-version: 22
             - uses: denoland/setup-deno@v2
               with:
                   deno-version: v2.x

@@ -9,7 +9,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("plain string", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", "Test");
@@ -21,7 +21,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("string interpolation", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", "Foo %s", "bar");
@@ -33,7 +33,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("two plain string", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", "Test1", "Test2");
@@ -45,7 +45,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("pretty undefined", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.info(undefined);
@@ -57,7 +57,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("pretty null", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.info(null);
@@ -69,7 +69,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("pretty nullish", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.info({ foo: null, bar: undefined });
@@ -82,7 +82,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("boolean", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", true);
@@ -94,7 +94,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("number", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", 555);
@@ -106,7 +106,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("BigInt", async ({ page }) => {
     const result = await inPage<{ isBigInt: boolean; equals: boolean }>(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       const log = logger.info(42n);
@@ -119,7 +119,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.info(42n);
@@ -133,7 +133,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("null", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", null);
@@ -142,10 +142,10 @@ test.describe("Pretty: Log Types (browser)", () => {
     expect(combined).toContain("null");
   });
 
-  test("Array, stylePrettyLogs: false", async ({ page }) => {
+  test("Array, pretty.style: false", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", [1, 2, 3, "test"]);
@@ -162,7 +162,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Object", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
@@ -176,7 +176,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Date", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", new Date(0));
@@ -188,7 +188,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("URL", async ({ page }) => {
     const first = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", new URL("https://example.com"));
@@ -199,7 +199,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const second = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", { url2: new URL("https://example2.com") });
@@ -212,7 +212,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Map", async ({ page }) => {
     const result = await inPage<{ isMap: boolean; size: number }>(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       const log = logger.log(1234, "testLevel", new Map());
@@ -225,7 +225,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", new Map());
@@ -237,7 +237,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Set", async ({ page }) => {
     const result = await inPage<{ isSet: boolean; size: number }>(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       const log = logger.log(1234, "testLevel", new Set());
@@ -250,7 +250,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", new Set());
@@ -262,7 +262,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("String, Object", async ({ page }) => {
     const result = await inPage<{ arg0: unknown; arg1Test: unknown }>(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       const log = logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
@@ -274,7 +274,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
@@ -287,7 +287,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Object, String", async ({ page }) => {
     const result = await inPage<{ arg0Test: unknown; arg1: unknown }>(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       const log = logger.log(1234, "testLevel", { test: true, nested: { 1: false } }, "test");
@@ -299,7 +299,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false, argumentsArrayName: "args" },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false }, argumentsArrayName: "args" },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", { test: true, nested: { 1: false } }, "test");
@@ -312,7 +312,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Error", async ({ page }) => {
     const isError = await inPage<boolean>(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       const errorLog = logger.log(1234, "testLevel", new Error("test"));
@@ -323,7 +323,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", new Error("test"));
@@ -337,7 +337,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Error with multiple parameters", async ({ page }) => {
     const isError = await inPage<boolean>(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       class CustomError extends Error {
@@ -355,7 +355,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       class CustomError extends Error {
@@ -377,7 +377,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("string and Error", async ({ page }) => {
     const isError = await inPage<boolean>(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       const errorLog = logger.log(1234, "testLevel", "test", new Error("test"));
@@ -388,7 +388,7 @@ test.describe("Pretty: Log Types (browser)", () => {
 
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       logger.log(1234, "testLevel", "test", new Error("test"));
@@ -402,7 +402,7 @@ test.describe("Pretty: Log Types (browser)", () => {
   test("Error cause chain pretty output", async ({ page }) => {
     const { combined } = await captureConsole(
       page,
-      { type: "pretty", stylePrettyLogs: false },
+      { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
       `
       const logger = new tslog.Logger(settings);
       const deepest = new Error("deepest");

@@ -1,5 +1,5 @@
+import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../../src/env/stackTrace.js";
 import type { IMeta, IStackFrame } from "../../src/interfaces.js";
-import { findFirstExternalFrameIndex, getDefaultIgnorePatterns } from "../../src/internal/stackTrace.js";
 
 type AsyncOrSync<T> = T | Promise<T>;
 

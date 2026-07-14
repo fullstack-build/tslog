@@ -1,9 +1,11 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { Logger } from "../src/index.js";
 import type { IMeta } from "../src/interfaces.js";
 
-// Unified code-position detection: auto-detection (NaN stackDepthLevel) resolves the caller
+// Unified code-position detection: auto-detection (NaN callerFrame) resolves the caller
 // frame the same way across every runtime, replacing the previous hardcoded Safari 4 / other 5.
+// BC11: the v4 createLoggerEnvironment() singleton is gone; the universal provider re-detects the
+// runtime at construction and adapts (server vs browser stack parsing), so it stands in directly.
 
 describe("Unified caller detection across runtimes", () => {
   const globalAny = globalThis as Record<string, unknown>;
@@ -41,7 +43,7 @@ describe("Unified caller detection across runtimes", () => {
       globalAny.location = { origin: "https://app.example.com" };
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" });
     }
-    return createLoggerEnvironment();
+    return createUniversalEnvironment();
   }
 
   // Server-style stacks (Node / Bun / Deno): "at fn (path:line:col)" or anonymous "at path:line:col".
@@ -112,7 +114,7 @@ describe("Unified caller detection across runtimes", () => {
     globalAny.document = {};
     globalAny.location = { origin: "https://app.example.com" };
     vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 (Macintosh) Version/17 Safari/605" });
-    const env = createLoggerEnvironment();
+    const env = createUniversalEnvironment();
     const stack = [
       "getCallerStackFrame@https://app.example.com/node_modules/tslog/dist/esm/BaseLogger.js:51:45",
       "log@https://app.example.com/node_modules/tslog/dist/esm/BaseLogger.js:830:25",
@@ -127,7 +129,7 @@ describe("Unified caller detection across runtimes", () => {
 
 describe("internalFramePatterns lets wrappers report their caller (#282)", () => {
   test("a wrapper frame is skipped so the position points at the wrapper's caller", () => {
-    const env = createLoggerEnvironment();
+    const env = createUniversalEnvironment();
     // A custom "company logger" wraps tslog; without internalFramePatterns auto-detect would stop
     // at the wrapper file. Registering it as internal moves detection to the real caller.
     const stack = [
@@ -150,7 +152,7 @@ describe("internalFramePatterns lets wrappers report their caller (#282)", () =>
     const logger = new Logger({ type: "hidden", internalFramePatterns: [/never-matches-anything/] });
     // Logger still produces a valid position for its real caller (this test file).
     const out = logger.info("x");
-    const meta = out?._meta as IMeta | undefined;
+    const meta = out?._logMeta as IMeta | undefined;
     expect(meta?.path?.fileName).toContain("42_stack_position_unified.test.ts");
   });
 });
