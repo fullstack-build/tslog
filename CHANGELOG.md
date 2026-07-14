@@ -52,7 +52,8 @@ A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and buil
 - During the rewrite: `URL` values now render correctly instead of as empty objects; caller-frame detection no longer over-matches internal frames; the pino fields-first overload no longer collides with the string-first signature; and bare `Error` arguments preserve their `cause` chain instead of dropping it.
 - The browser stack parser now handles Windows drive-letter paths served by Vite (`/@fs/C:/…`), so log positions resolve correctly on Windows instead of being truncated to `/@fs/C`. (#323, #302)
 
-## [4.11.0] - Unreleased
+
+## [4.11.0] - 2026-07-07
 
 A backward-compatible release that adds several requested features, fixes a batch of reported bugs, unifies code-position detection across every runtime, and modernises the test/build tooling. No breaking changes — see the upcoming **v5** for those.
 
