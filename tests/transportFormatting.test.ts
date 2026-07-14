@@ -26,7 +26,7 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty" });
+    const logger = new Logger({ type: "pretty", pretty: { style: true } });
     logger.info("styled output");
 
     expect(consoleSpy).toHaveBeenCalled();
@@ -57,6 +57,9 @@ describe("transport behaviour", () => {
     const globalAny = globalThis as unknown as { window?: unknown; document?: unknown };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
+
+    delete globalAny.window;
+    delete globalAny.document;
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
@@ -159,7 +162,7 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty", pretty: { passObjectsNatively: true } });
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: true } });
     const payload = { user: 42 };
     logger.info("styled", payload);
 
@@ -206,7 +209,7 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty", pretty: { passObjectsNatively: true } });
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: true } });
     const payload = { user: 42 };
     logger.error("styled", payload, new Error("kaboom"));
 
@@ -327,7 +330,7 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty" });
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: false } });
     logger.settings.pretty.template = "{{logLevelName}}";
     logger.settings.pretty.styles = {
       ...logger.settings.pretty.styles,

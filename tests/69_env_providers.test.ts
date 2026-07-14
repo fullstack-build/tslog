@@ -46,7 +46,12 @@ function withStubbedGlobals(run: () => void): void {
 
 /** A full, defaulted pretty settings object obtained from a real Logger (all pretty defaults present). */
 function prettySettings(overrides?: ConstructorParameters<typeof Logger>[0]): ISettings<Record<string, unknown>> {
-  const logger = new Logger<Record<string, unknown>>({ type: "pretty", minLevel: "FATAL", ...overrides });
+  const logger = new Logger<Record<string, unknown>>({
+    type: "pretty",
+    minLevel: "FATAL",
+    pretty: { style: true },
+    ...overrides,
+  });
   return logger.settings as unknown as ISettings<Record<string, unknown>>;
 }
 

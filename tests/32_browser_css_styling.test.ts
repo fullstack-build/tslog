@@ -54,7 +54,10 @@ describe("Browser CSS styling", () => {
     const settings = new Logger({ type: "pretty" }).settings as ISettings<unknown>;
     // These suites assert rendered-string/CSS-markup mechanics, so the browser default of
     // passObjectsNatively is pinned off (native-arg behavior has its own tests).
-    return { ...settings, pretty: { ...settings.pretty, passObjectsNatively: false, ...prettyOverrides } };
+    return {
+      ...settings,
+      pretty: { ...settings.pretty, style: true, passObjectsNatively: false, ...prettyOverrides },
+    };
   }
 
   describe("CSS styling path in transportFormatted", () => {

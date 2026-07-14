@@ -167,7 +167,7 @@ describe("Coverage completion: CSS styling edge cases", () => {
     // The browser provider is the one that implements the CSS `%c` styling path; create it under the
     // browser globals stubbed above so its detected runtime is "browser".
     const env = createBrowserEnvironment();
-    const base = new Logger({ type: "pretty" });
+    const base = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: false } });
     const settings = base.settings as unknown as ISettings<unknown>;
     settings.pretty.template = template;
     settings.pretty.styles = styles as ISettings<unknown>["pretty"]["styles"];

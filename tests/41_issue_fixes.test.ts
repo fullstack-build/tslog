@@ -140,7 +140,8 @@ describe("#262: Web Workers are treated as CSS-capable consoles", () => {
   test("a worker actually emits %c css meta through transportFormatted", () => {
     makeWorker("Mozilla/5.0 Firefox/117");
     const env = createUniversalEnvironment();
-    const settings = new Logger({ type: "pretty" }).settings as never as import("../src/interfaces.js").ISettings<unknown>;
+    const settings = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: false } })
+      .settings as never as import("../src/interfaces.js").ISettings<unknown>;
     settings.pretty.template = "{{logLevelName}}";
     const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
