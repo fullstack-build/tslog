@@ -209,6 +209,7 @@ How `tslog` compares to the most popular JavaScript loggers. **This table looks 
 |:---|:---:|:---:|:---:|:---:|:---:|
 | Runtime dependencies | **0** | many | many | heavy (native) | 0 (bundled) |
 | Universal (Node + browser + Deno/Bun) | ✅ | 🟡<br>polyfill | ❌<br>Node-only | ❌<br>Node-only | ✅ |
+| First-class TypeScript types | ✅ | ✅ | 🟡<br>loose | 🟡 | ✅ |
 | Pretty output **in-process** | ✅ | ⚪<br>`pino-pretty` | ✅ | ⚪<br>CLI pipe | ✅ |
 | Structured, fields-first JSON | ✅ | ✅ | 🟡<br>via formats | ✅ | ❌ |
 | Env-aware colorization (color ↔ plain) | ✅ | ❌ | ❌ | ❌ | 🟡<br>fancy↔basic |
@@ -220,14 +221,13 @@ How `tslog` compares to the most popular JavaScript loggers. **This table looks 
 | `flush()` / disposal | ✅ | ✅ | ❌ | ❌ | ❌ |
 | Async-context correlation (ALS) | ✅ | ⚪<br>`pino-http` | ⚪ | ❌ | ❌ |
 | OpenTelemetry / GenAI presets | ✅ | ⚪ | ⚪ | ❌ | ❌ |
-| File / HTTP / ring-buffer transports | ⚪<br>subpaths | ⚪<br>targets | ⚪<br>transports | 🟡<br>streams | ❌ |
-| Off-event-loop (worker-thread) sink | ⚪<br>subpath | ✅<br>thread-stream | ❌ | ❌ | ❌ |
-| First-class TypeScript types | ✅ | ✅ | 🟡<br>loose | 🟡 | ✅ |
+| File / HTTP / ring-buffer transports | ✅<br>subpaths | ✅<br>targets | ⚪<br>transports | 🟡<br>streams | ❌ |
+| Off-event-loop (worker-thread) sink | ✅<br>subpath | ✅<br>thread-stream | ❌ | ❌ | ❌ |
 
 > [!NOTE]
-> A ⚪ does **not** mean a library "can't" do something — pino, winston and the rest have rich plugin ecosystems, and a ⚪ is often a one-line `install` away. The point of comparing core packages is that `tslog` aims to give you universal runtime support, pretty **and** structured output, masking, error formatting and correlation **from a single zero-dependency install**, with transports/presets opting in as tree-shakeable subpaths only when you need them.
+> A ⚪ does **not** mean a library "can't" do something — pino, winston and the rest have rich plugin ecosystems, and a ⚪ is often a one-line `install` away. The point of comparing core packages is that `tslog` aims to give you <b>universal</b> runtime support, pretty **and** structured output, masking, error formatting and correlation **from a single zero-dependency batteries included install**, with transports/presets opting in as tree-shakeable subpaths only when you need them.
 >
->`tslog` is built for the case where one logger has to be good in the browser *and* the server, readable in dev *and* machine-parseable in prod.
+>`tslog` is built for the case where one logger has to be great in the browser *and* the server, readable in dev *and* machine-parseable in prod.
 
 **Ready to switch?** Step-by-step guides: [Migrating from pino, winston, or consola](#migrating-from-pino-winston-or-consola).
 
