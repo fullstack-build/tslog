@@ -77,7 +77,22 @@ log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "compl
 Tree-shakeable, opt-in subpaths that emit other ecosystems' shapes:
 
 - `tslog/presets/pino` — `pinoFormat()` / `pinoTransport()` emit pino-compatible NDJSON, so `pino-pretty` and pino transports keep working.
-- `tslog/otel` — `otelFormat()` / `otelTraceContext()` produce OpenTelemetry log records with the right `SeverityNumber` and trace/span correlation.
+- `tslog/otel` — `otelFormat()` / `otelTraceContext()` produce OpenTelemetry log records with the right `SeverityNumber` and trace/span correlation; `otlpFormat()` / `otlpBatchBody()` emit real OTLP/JSON for collectors (pair with `httpTransport({ encodeBody: otlpBatchBody })`).
+
+### Browser pretty DX
+In real browsers, `pretty.passObjectsNatively` is **on by default**: non-`Error` arguments reach the console by reference, so DevTools renders them as collapsible, interactive trees instead of a pre-rendered text dump. Pair with `pretty.levelMethod` so warn/error get the native expandable stack group. Set `pretty: { passObjectsNatively: false }` when you need log-time snapshots or text-matchable console output. On Node, `pretty.inspectOptions.breakLength: Infinity` keeps inspected objects on a single line for log aggregators.
+
+### Conditional logging
+`log.if(condition)` returns the logger when truthy and a no-op when falsy — `log.if(!ok).warn("failed", { id })` — without a surrounding `if` statement. Use `isLevelEnabled()` to skip expensive payload construction.
+
+### Source-mapped error positions
+On Node, Bun, and Deno, logged `Error` stack frames resolve through discoverable source maps back to your original `.ts` file/line/column — automatically outside production (`NODE_ENV !== "production"`). Override with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`.
+
+### Buffered stdout on Node
+The Node entry writes `type: "json"` lines through a batched `process.stdout.write` sink instead of per-line `console.log`, drained by `flush()` / `await using` / exit hooks. Code that intercepted logs via `console.log` must spy on `process.stdout.write` instead, or use `type: "hidden"` plus a transport.
+
+### `tslog/slim`
+The same structured-JSON pipeline at less than half the gzip size (~9KB vs ~20KB in the browser) by omitting masking, pretty output, and stack capture. `mask` settings and `type: "pretty"` throw instead of silently degrading — develop against `tslog`, ship `tslog/slim`.
 
 ### ALS correlation
 `logger.runInContext(ctx, fn)` threads request/trace fields onto every log's `_logMeta` across `await`, timers, and nested calls when `meta.attachContext` is on (Node/Bun/Deno; graceful no-op on browsers/edge).
@@ -85,11 +100,14 @@ Tree-shakeable, opt-in subpaths that emit other ecosystems' shapes:
 ### Tree-shakeable subpaths
 The core stays tiny; everything else is pulled in only when imported, with audited `sideEffects: false`:
 
-`tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`, `tslog/transports/file`, `tslog/transports/http`, `tslog/transports/ringbuffer`, `tslog/serializers`, `tslog/pretty/box`, `tslog/lite`, `tslog/testing`, `tslog/throttle`, `tslog/console`, plus a `tslog` (also `tslog/cli`) NDJSON pretty-printer binary.
+`tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`, `tslog/transports/file`, `tslog/transports/http`, `tslog/transports/ringbuffer`, `tslog/transports/worker`, `tslog/serializers`, `tslog/pretty/box`, `tslog/lite`, `tslog/slim`, `tslog/testing`, `tslog/throttle`, `tslog/console`, plus a `tslog` (also `tslog/cli`) NDJSON pretty-printer binary.
 
 ### A cleaner DX surface
 - `logger.child(settings?, logObj?)` — alias for `getSubLogger`, names accumulate into `_logMeta.parentNames`.
 - `logger.isLevelEnabled(level)` — guard expensive payloads.
+- `logger.getContext()` — read active async-context fields set by `runInContext`.
+- `logger.if(condition)` — fluent per-call conditional logging gate.
+- `logger.addLevel(name, id)` — register a custom level at runtime (chainable).
 - `Logger.fromEnv(overrides?)` — read `TSLOG_LEVEL` / `TSLOG_TYPE` / `TSLOG_NAME`.
 - `defineConfig(...)` — validated, typed config (throws `TslogConfigError` under `strictConfig`).
 - Fields-first signatures: `log.info({ userId: 42 }, "msg")` *and* `log.info("msg", ...args)` both work.

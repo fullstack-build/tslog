@@ -32,7 +32,7 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
   - `tslog/presets/pino` — `pinoFormat()` / `pinoTransport()` emit pino-compatible NDJSON (numeric
     `level`, `time` ms epoch, `msg`), so existing pino tooling (`pino-pretty`, transports) keeps working.
   - `tslog/otel` — `otelFormat()` / `otelTraceContext()` emit OpenTelemetry log records with the right
-    `SeverityNumber` and trace/span correlation.
+    `SeverityNumber` and trace/span correlation; `otlpFormat()` / `otlpBatchBody()` emit real OTLP/JSON for collectors (pair with `httpTransport({ encodeBody: otlpBatchBody })`).
   - `tslog/presets/genai` — `genai()` / `genaiAttributes()` / `genaiSummary()` build GenAI/agentic
     semantic-convention attributes (model, tokens, tool calls) for LLM apps.
 - **JSONPath-lite masking.** The `mask` group adds `paths` (dotted paths with `*` wildcards, e.g.
@@ -46,8 +46,8 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
 - **Async transports + lifecycle.** `attachTransport` accepts a full `Transport` (per-transport
   `minLevel`, `format`, async `write`, `flush`, `[Symbol.asyncDispose]`) **and returns a detach
   function**. `logger.flush()` drains buffered transports; `await using log = new Logger()` disposes them.
-  First-class file (`tslog/transports/file`), HTTP/NDJSON (`tslog/transports/http`), and ring-buffer
-  (`tslog/transports/ringbuffer`) transports ship as subpaths.
+  First-class file (`tslog/transports/file`), HTTP/NDJSON (`tslog/transports/http`), ring-buffer
+  (`tslog/transports/ringbuffer`), and worker-thread (`tslog/transports/worker`) transports ship as subpaths.
 - **Middleware via `logger.use(...)`.** A single composable chain replaces the eight `overwrite.*` hooks:
   enrich, rewrite, sample, or drop a log. Plus exported, tree-shakeable middleware (`serialize(...)` for
   pino-style serializers, `otelTraceContext(...)`).
@@ -56,8 +56,16 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
 - **Tree-shakeable subpath architecture & zero import-time side effects** (`sideEffects: false`): the core
   stays tiny and presets/transports/serializers/testing/box are pulled in only when imported.
 - **Better AI / agentic DX.** Fields-first call signatures (`log.info({ userId: 42 }, "msg")`), additive
-  custom levels (`customLevels`), `Logger.fromEnv()`, strict-config validation (`strictConfig` →
-  `TslogConfigError`), a `tslog/testing` helper, and a `tslog/pretty/box` renderer.
+  custom levels (`customLevels` / `addLevel()`), `Logger.fromEnv()`, strict-config validation (`strictConfig`
+  → `TslogConfigError`), a `tslog/testing` helper, and a `tslog/pretty/box` renderer.
+- **Browser-native pretty objects.** `pretty.passObjectsNatively` (on by default in real browsers) hands
+  non-`Error` args to the console by reference for collapsible DevTools trees; pair with `pretty.levelMethod`
+  for native warn/error stack groups.
+- **Conditional logging.** `log.if(condition)` returns the logger when truthy and a no-op when falsy —
+  `log.if(!ok).warn("failed", { id })` — without a surrounding `if` statement.
+- **Source-mapped error positions.** On Node, Bun, and Deno, logged `Error` stacks resolve through source
+  maps back to original `.ts` positions (automatic outside production; `TSLOG_SOURCE_MAPS=on`/`off` to force).
+- **`tslog/slim`.** The same structured-JSON pipeline at less than half the bundle size — masking, pretty output, and stack capture are omitted (`mask` and `type: "pretty"` throw instead of silently degrading).
 
 ---
 
@@ -175,6 +183,7 @@ const log = new Logger({
 | `prettyInspectOptions` | `pretty.inspectOptions` |
 | *(new)* | `pretty.enabled` — explicit pretty on/off, overriding the env-aware default |
 | `prettyLogLevelMethod` *(4.11)* | `pretty.levelMethod` — map a level name (or `"*"`) to a `console` method |
+| *(new)* | `pretty.passObjectsNatively` — hand non-`Error` args to the console by reference (default `true` in browsers) |
 | `maskValuesOfKeys` | `mask.keys` — **default is now `[]` (masking OFF); see §5** |
 | `maskValuesOfKeysCaseInsensitive` | `mask.caseInsensitive` |
 | `maskValuesRegEx` | `mask.regex` |
@@ -190,7 +199,11 @@ const log = new Logger({
 | `internalFramePatterns` *(4.11)* | `stack.internalFramePatterns` |
 | *(new)* | `json.messageKey` / `levelKey` / `levelIdKey` / `timeKey` / `errorKey` |
 | *(new)* | `json.numericLevel` / `json.stableKeyOrder` |
-| `attachedTransports` | `attachedTransports` *(now `Transport \| TransportFn`; see §8)* |
+| *(new)* | `json.time` — `"iso"` / `"epoch"` / `false` / `fn` (top-level timestamp shape; `_logMeta.date` stays UTC ISO) |
+| *(new)* | `clock` — injectable `() => Date` (deterministic tests; inherited by sub-loggers) |
+| *(new)* | `persistLevel` / `persistLevelKey` — browser-only `localStorage` persistence for runtime `setMinLevel()` |
+| *(new)* | `contextStorage` — bring-your-own `AsyncLocalStorage` for `runInContext` (Cloudflare Workers) |
+| `attachedTransports` | `attachedTransports` *(now `Transport \| TransportFn`; see §9)* |
 | `overwrite.*` | **REMOVED → `middleware` / `logger.use()` / per-transport `format`; see §4** |
 | *(new)* | `middleware` — middleware chain seed |
 | *(new)* | `customLevels` — additive custom levels (installed as real methods; `createLogger` types them) |
@@ -411,6 +424,27 @@ snapshots of mutable objects, restore the old behavior with:
 const log = new Logger({ pretty: { passObjectsNatively: false } });
 ```
 
+Pair with `pretty.levelMethod` so warn/error use the console methods that attach an expandable stack group:
+
+```ts
+new Logger({
+  pretty: {
+    levelMethod: { WARN: console.warn, ERROR: console.error, FATAL: console.error },
+  },
+});
+```
+
+### 6c. Single-line pretty objects (`pretty.inspectOptions.breakLength`)
+
+Log aggregators (CloudWatch, Datadog) treat each line as one entry. On Node, raise
+`pretty.inspectOptions.breakLength` to keep inspected objects on a single line while preserving color:
+
+```ts
+new Logger({
+  pretty: { inspectOptions: { breakLength: Infinity, colors: true, compact: true } },
+});
+```
+
 ---
 
 ## 7. Default JSON shape changed (flat, fields-first, `_logMeta.v: 5`)
@@ -598,7 +632,78 @@ Ready-made transports (tree-shakeable subpaths):
 import { fileTransport } from "tslog/transports/file";
 import { httpTransport } from "tslog/transports/http";
 import { ringBufferTransport } from "tslog/transports/ringbuffer";
+import { workerTransport } from "tslog/transports/worker";
 ```
+
+---
+
+## 10. New v5 capabilities (additive — nothing to migrate from v4)
+
+These ship in v5 with no v4 equivalent. None are required for migration, but they are worth adopting once you are on v5.
+
+### Conditional logging — `log.if(condition)`
+
+```ts
+log.if(!ok).warn("action failed", { id });
+log.if(retries > maxRetries).error("giving up", { retries });
+```
+
+The falsy stand-in still evaluates its arguments — use `isLevelEnabled()` to skip expensive payload
+construction. `if()` gates a single call; do not chain it ahead of `getSubLogger`/`child`.
+
+### Runtime custom levels — `addLevel()`
+
+Declare levels in `customLevels` at construction, or register at runtime (chainable):
+
+```ts
+log.addLevel("NOTICE", 3.5).notice("heads up");
+```
+
+Use `createLogger({ customLevels: { AUDIT: 8 } })` when you want the methods fully typed.
+
+### Async-context readback — `getContext()`
+
+`runInContext(ctx, fn)` threads fields onto every log inside `fn`. `getContext()` reads the active store —
+handy for OTel span correlation or passing ids into a transport encoder:
+
+```ts
+await log.runInContext({ requestId: "abc" }, async () => {
+  const { requestId } = log.getContext();
+  log.info("handling", { requestId });
+});
+```
+
+### Source-mapped error positions (Node / Bun / Deno)
+
+When you log an `Error` from transpiled or bundled TypeScript, v5 resolves stack frames through a
+discoverable source map back to your original `.ts` file/line/column — automatically outside production
+(`NODE_ENV !== "production"`). Force either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`.
+Browsers already get this from devtools, so tslog never attempts it there.
+
+### OTLP collector wire format
+
+`otelFormat()` emits the OTel data-model prose shape for custom pipelines. For a real collector endpoint,
+use the OTLP/JSON wire format:
+
+```ts
+import { otlpBatchBody, otlpFormat } from "tslog/otel";
+import { httpTransport } from "tslog/transports/http";
+
+log.attachTransport(
+  httpTransport({
+    url: "http://collector:4318/v1/logs",
+    format: otlpFormat({ resource: { "service.name": "checkout" } }),
+    encodeBody: otlpBatchBody,
+  }),
+);
+```
+
+### `tslog/slim` for size-critical bundles
+
+`import { Logger } from "tslog/slim"` ships the same structured-JSON pipeline (levels, sub-loggers,
+`bindings`, custom levels, middleware, `runInContext`, transports) at less than half the gzip size by
+omitting masking, pretty output, and stack capture. `mask` settings and `type: "pretty"` throw instead of
+silently degrading. Develop against `tslog`, ship `tslog/slim`.
 
 ---
 
@@ -616,7 +721,7 @@ import { ringBufferTransport } from "tslog/transports/ringbuffer";
 - [ ] Capture `attachTransport`'s detach fn where you need teardown; adopt `flush()` / `await using` for
       buffered/async transports (§9).
 - [ ] (Optional) Adopt presets (`tslog/presets/pino`, `tslog/otel`, `tslog/presets/genai`), `tslog/testing`,
-      `Logger.fromEnv()`, `customLevels`, and `strictConfig`.
+      `tslog/slim`, `Logger.fromEnv()`, `customLevels`/`addLevel()`, `log.if()`, source-map resolution, `pretty.passObjectsNatively`/`levelMethod` (browsers), and `strictConfig` (§10).
 
 ---
 

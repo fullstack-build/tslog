@@ -23,6 +23,7 @@
 - 🙊 **Secret masking** — keys, JSONPath-lite paths, regex, and a hashing censor for correlation
 - 👨‍👧‍👦 **Sub-loggers with inheritance** — `child()` / `getSubLogger()` with merged settings and accumulated names
 - 🔌 **Pluggable transports & middleware** — per-transport level/format, a `use()` pipeline, `flush()` and disposal
+- 🖥 **Interactive browser objects** — `pretty.passObjectsNatively` (on by default in browsers) keeps logged objects collapsible in DevTools
 - 🤓 **Pretty errors & stack traces** — structured, fully serializable, captured only when needed (`"auto"` for pretty, `"off"` for JSON)
 
 
@@ -315,7 +316,7 @@ You can override the default `logObj` per child by passing a second argument: `m
 
 v5 settings are organized into **groups** — there are no flat keys like `prettyLogTemplate`, `maskValuesOfKeys`, or `hideLogPositionForProduction` anymore. Top-level keys cover identity and routing; the groups cover everything else.
 
-**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for pretty everywhere, colored on a TTY), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix`, `bindings` (static bound fields — merged down the child chain, per-call fields win, masked once at construction), `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser opt-in), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
+**Top-level:** `type` (`"pretty" | "json" | "hidden"` — omit for pretty everywhere, colored on a TTY), `name`, `parentNames`, `minLevel`, `argumentsArrayName`, `prefix` (string args prepended to every call and concatenated down the child chain — use `bindings` for JSON fields, `prefix` for message text), `bindings` (static bound fields — merged down the child chain, per-call fields win, masked once at construction), `attachedTransports`, `middleware`, `customLevels`, `persistLevel` / `persistLevelKey` (browser-only — persist runtime `setMinLevel()` changes in `localStorage` and restore on reload), `contextStorage` (bring-your-own `AsyncLocalStorage` for `runInContext` — the Cloudflare Workers seam), `clock` (injectable `() => Date` — deterministic tests, offset/monotonic stamping), `strictConfig` (throw a typed `TslogConfigError` on bad config — including unknown/typo'd keys and carried-over v4 flat keys, which otherwise warn in development with a did-you-mean suggestion).
 
 | Group     | Keys |
 |-----------|------|
@@ -377,6 +378,9 @@ Resolution runs automatically outside production (`NODE_ENV !== "production"`) o
     log.info("handling request");
     await doWork();
   });
+
+  // read active context fields (e.g. for OTel span correlation)
+  const { requestId } = log.getContext();
   ```
 
   `runInContext` propagates on Node, Deno, and Bun automatically. On runtimes where `AsyncLocalStorage` cannot be auto-resolved — most notably Cloudflare Workers — inject one via the `contextStorage` setting (requires the `nodejs_als` or `nodejs_compat` compatibility flag):
