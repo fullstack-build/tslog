@@ -1,5 +1,11 @@
 ---
-const heading = "Beautiful logging experience for TypeScript";
+// Render the current page's real title, and on the homepage follow it with
+// the live log-stream hero terminal (the product's own design language).
+import Hero from "./Hero.astro";
+const { title } = Astro.locals.starlightRoute.entry.data;
+const id = Astro.locals.starlightRoute.id;
+const isHome = id === "" || id === "index" || id === "index.md";
 ---
 
-<h1 id="_top" set:html={heading} />
+<h1 id="_top" set:html={title} />
+{isHome && <Hero />}

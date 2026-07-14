@@ -26,7 +26,7 @@ describe("Pretty: Settings", () => {
     const logger = new Logger({ type: "pretty", name: "logger" });
     const log = logger.log(1, "testLevel", "foo bar");
     expect(log).toBeDefined();
-    expect(log?._meta?.name).toBe("logger");
+    expect(log?._logMeta?.name).toBe("logger");
     expect(getConsoleLogStripped()).toContain(`logger`);
   });
 
@@ -42,9 +42,9 @@ describe("Pretty: Settings", () => {
     expect(log2).toBeDefined();
     expect(log3).toBeDefined();
 
-    expect(log1?._meta?.name).toBe("logger1");
-    expect(log2?._meta?.name).toBe("logger2");
-    expect(log3?._meta?.name).toBe("logger3");
+    expect(log1?._logMeta?.name).toBe("logger1");
+    expect(log2?._logMeta?.name).toBe("logger2");
+    expect(log3?._logMeta?.name).toBe("logger3");
 
     expect(getConsoleLogStripped()).toContain(`logger1`);
     expect(getConsoleLogStripped()).toContain(`logger1:logger2`);
@@ -60,16 +60,18 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLogStripped()).toContain("Test1 Test2");
   });
 
-  test("hideLogPositionForProduction", (): void => {
+  // M3a: `hideLogPositionForProduction` was removed. Its production behavior (no code position in
+  // pretty output) is now expressed via `stack.capture: "off"`; `"auto"` keeps the normal position.
+  test("stack.capture off hides log position", (): void => {
     const loggerNormal = new Logger({
       type: "pretty",
-      hideLogPositionForProduction: false,
-      stylePrettyLogs: false,
+      stack: { capture: "auto" },
+      pretty: { style: false },
     });
     const loggerProduction = new Logger({
       type: "pretty",
-      hideLogPositionForProduction: true,
-      stylePrettyLogs: false,
+      stack: { capture: "off" },
+      pretty: { style: false },
     });
 
     loggerNormal.log(1234, "testLevel", "Normal log");
@@ -89,7 +91,7 @@ describe("Pretty: Settings", () => {
   });
 
   test("metaProperty", (): void => {
-    const logger = new Logger({ type: "pretty", metaProperty: "_test" });
+    const logger = new Logger({ type: "pretty", meta: { property: "_test" } });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLogStripped()).toContain("Test");
   });
@@ -97,7 +99,7 @@ describe("Pretty: Settings", () => {
   test("Don't mask", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: [],
+      mask: { keys: [] },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -115,21 +117,21 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLogStripped()).toContain("swordfish");
   });
 
-  test("maskValuesOfKeys not set", (): void => {
+  test("maskValuesOfKeys not set (default is now [], nothing masked)", (): void => {
+    // BC5 (v5): default maskValuesOfKeys is [] — without opting in, nothing is masked.
     const logger = new Logger({ type: "pretty" });
     logger.log(1234, "testLevel", {
       password: "pass123",
     });
     expect(getConsoleLogStripped()).toContain("password:");
-    expect(getConsoleLogStripped()).toContain("'[***]'");
-    expect(getConsoleLogStripped()).not.toContain("pass123");
+    expect(getConsoleLogStripped()).not.toContain("'[***]'");
+    expect(getConsoleLogStripped()).toContain("pass123");
   });
 
   test("maskValuesOfKeys set and maskPlaceholder", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: ["otherKey"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["otherKey"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -145,8 +147,7 @@ describe("Pretty: Settings", () => {
   test("maskValuesOfKeys set two keys and maskPlaceholder", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: ["password", "otherKey", "yetanotherKey"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["password", "otherKey", "yetanotherKey"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -165,8 +166,7 @@ describe("Pretty: Settings", () => {
   test("maskValuesOfKeys set and maskPlaceholder nested object", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: ["otherKey", "moviePassword"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["otherKey", "moviePassword"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -188,8 +188,7 @@ describe("Pretty: Settings", () => {
   test("maskValuesOfKeys and maskValuesOfKeysCaseInsensitive", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: ["password", "otherkey"],
-      maskValuesOfKeysCaseInsensitive: true,
+      mask: { keys: ["password", "otherkey"], caseInsensitive: true },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -209,8 +208,7 @@ describe("Pretty: Settings", () => {
   test("maskValuesOfKeys and don't manipulate original", (): void => {
     const logger = new Logger({
       type: "pretty",
-      maskValuesOfKeys: ["password", "otherkey"],
-      maskValuesOfKeysCaseInsensitive: true,
+      mask: { keys: ["password", "otherkey"], caseInsensitive: true },
     });
     const obj = {
       password: "pass123",
@@ -229,8 +227,8 @@ describe("Pretty: Settings", () => {
   test("maskValuesRegEx with different types and without manipulating the original object", (): void => {
     const logger = new Logger({
       type: "pretty",
-      stylePrettyLogs: false,
-      maskValuesRegEx: [new RegExp("otherKey", "g")],
+      pretty: { style: false },
+      mask: { regex: [new RegExp("otherKey", "g")] },
     });
 
     const logObj = {
@@ -242,8 +240,9 @@ describe("Pretty: Settings", () => {
 
     const logOutput = getConsoleLogStripped();
 
-    expect(logOutput).toContain("password: '[***]'");
-    expect(logOutput).not.toContain("pass123");
+    // BC5 (v5): default maskValuesOfKeys is [] — password is not key-masked here.
+    // Only maskValuesRegEx applies, and it matches "otherKey" inside string values.
+    expect(logOutput).toContain("password: 'pass123'");
     expect(logOutput).toContain("otherKey: '[***]456'");
     expect(logOutput).not.toContain("otherKey456");
 
@@ -261,9 +260,8 @@ describe("Pretty: Settings", () => {
     expect(getConsoleLogStripped()).toContain("T");
     expect(getConsoleLogStripped()).toContain("Z");
     logger.log(4567, "testLevel", Buffer.from("foo"));
-    expect(getConsoleLogStripped()).toMatch(/'0':\s*102/);
-    expect(getConsoleLogStripped()).toMatch(/'1':\s*111/);
-    expect(getConsoleLogStripped()).toMatch(/'2':\s*111/);
+    // Native node:util inspect renders Buffers in their canonical hex form.
+    expect(getConsoleLogStripped()).toContain("<Buffer 66 6f 6f>");
     logger.log(4567, "testLevel", new Error("test"));
     expect(getConsoleLogStripped()).toContain("error stack");
 
@@ -277,8 +275,7 @@ describe("Pretty: Settings", () => {
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}** ", style: false },
     });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLogStripped()).toContain(`**${new Date().toISOString().replace("T", " ").split(".")[0]}`);
@@ -288,8 +285,7 @@ describe("Pretty: Settings", () => {
   test("stylePrettyLogs: false / prettyLogTemplate - no shortcut: {{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{dd}}.{{mm}}.{{yyyy}} {{hh}}:{{MM}}** ", style: false },
     });
     logger.log(1234, "testLevel", "Test");
     const yyyy = new Date().getUTCFullYear();
@@ -307,8 +303,7 @@ describe("Pretty: Settings", () => {
   test("stylePrettyLogs: false / prettyLogTemplate - shortcut: {{dateIsoStr}}", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{dateIsoStr}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{dateIsoStr}}** ", style: false },
     });
     logger.log(1234, "testLevel", "Test");
     const output = getConsoleLogStripped();
@@ -319,8 +314,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTemplate - rawIsoStr", (): void => {
     const logger = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{rawIsoStr}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{rawIsoStr}}** ", style: false },
     });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLogStripped()).toContain(`**${new Date().toISOString().split(".")[0]}`);
@@ -330,8 +324,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - rawIsoStr - UTC (default)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{rawIsoStr}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{rawIsoStr}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -341,9 +334,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - rawIsoStr - UTC (configured)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTimeZone: "UTC",
-      prettyLogTemplate: "**{{rawIsoStr}}** ",
-      stylePrettyLogs: false,
+      pretty: { timeZone: "UTC", template: "**{{rawIsoStr}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -353,9 +344,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - rawIsoStr - local (configured)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTimeZone: "local",
-      prettyLogTemplate: "**{{rawIsoStr}}** ",
-      stylePrettyLogs: false,
+      pretty: { timeZone: "local", template: "**{{rawIsoStr}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -365,8 +354,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - UTC (default)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
-      stylePrettyLogs: false,
+      pretty: { template: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -376,9 +364,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - UTC (configured)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTimeZone: "UTC",
-      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
-      stylePrettyLogs: false,
+      pretty: { timeZone: "UTC", template: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -388,9 +374,7 @@ describe("Pretty: Settings", () => {
   test("prettyLogTimeZone - {{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}} - local (configured)", (): void => {
     const loggerShortcut = new Logger({
       type: "pretty",
-      prettyLogTimeZone: "local",
-      prettyLogTemplate: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ",
-      stylePrettyLogs: false,
+      pretty: { timeZone: "local", template: "**{{yyyy}}-{{mm}}-{{dd}}T{{hh}}:{{MM}}:{{ss}}** ", style: false },
     });
 
     loggerShortcut.log(1234, "testLevel", "Test");
@@ -427,14 +411,16 @@ test("prettyLogLevelMethod: dispatches to correct console method per level", ():
 
   const logger = new Logger({
     type: "pretty",
-    prettyLogLevelMethod: {
-      TRACE: traceSpy,
-      DEBUG: debugSpy,
-      INFO: infoSpy,
-      WARN: warnSpy,
-      ERROR: errorSpy,
-      FATAL: errorSpy,
-      "*": fallbackSpy,
+    pretty: {
+      levelMethod: {
+        TRACE: traceSpy,
+        DEBUG: debugSpy,
+        INFO: infoSpy,
+        WARN: warnSpy,
+        ERROR: errorSpy,
+        FATAL: errorSpy,
+        "*": fallbackSpy,
+      },
     },
   });
 

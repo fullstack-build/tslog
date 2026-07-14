@@ -202,7 +202,7 @@ test.describe("Advanced error handling (browser)", () => {
     test("error property with null-prototype object does not throw", async ({ page }) => {
       const { combined, returnValue } = await captureConsole<{ threw: boolean }>(
         page,
-        { type: "pretty", stylePrettyLogs: false },
+        { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
         `
         const logger = new tslog.Logger(settings);
         const err = new Error("boom");
@@ -224,7 +224,7 @@ test.describe("Advanced error handling (browser)", () => {
     test("error property with throwing toString does not throw", async ({ page }) => {
       const { combined, returnValue } = await captureConsole<{ threw: boolean }>(
         page,
-        { type: "pretty", stylePrettyLogs: false },
+        { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
         `
         const logger = new tslog.Logger(settings);
         const err = new Error("kaboom");
@@ -248,7 +248,7 @@ test.describe("Advanced error handling (browser)", () => {
     test("error property with Symbol.toPrimitive returning object does not throw", async ({ page }) => {
       const { combined, returnValue } = await captureConsole<{ threw: boolean }>(
         page,
-        { type: "pretty", stylePrettyLogs: false },
+        { type: "pretty", pretty: { style: false, passObjectsNatively: false } },
         `
         const logger = new tslog.Logger(settings);
         const err = new Error("oops");

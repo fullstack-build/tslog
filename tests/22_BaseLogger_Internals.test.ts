@@ -1,14 +1,51 @@
+import { cloneError, type LogObjDeps, recursiveCloneAndExecuteFunctions, toErrorObject } from "../src/core/logObj.js";
+import { MaskingEngine, type MaskingPredicates } from "../src/core/masking.js";
 import { Logger } from "../src/index.js";
 import { IErrorObject } from "../src/interfaces.js";
 
+/**
+ * v5 migration note: the v4 monolith exposed these internals as private `_`-prefixed methods on the
+ * logger instance. In v5 they live in dedicated, runtime-agnostic core modules:
+ *   - cloning / error / logObj helpers -> ../src/core/logObj.js
+ *   - the masking engine               -> ../src/core/masking.js (MaskingEngine)
+ * Both take explicit predicate/deps parameters instead of reaching for a module-level `runtime`
+ * singleton. The tests below repoint to those new homes. `_resolveLogArguments` and
+ * `_shouldCaptureStack` are still private methods on BaseLogger, so those tests still cast the logger.
+ *
+ * The masking predicates intentionally delegate to the LIVE `logger.runtime.isError` / `isBuffer` at
+ * call time (rather than capturing the function references) so tests that spy on
+ * `logger.runtime.isError` still observe the engine's calls — matching the v4 behavior where the
+ * monolith read `this.runtime.isError` on every invocation.
+ */
+function predicatesFor<LogObj>(logger: Logger<LogObj>): MaskingPredicates {
+  const runtime = (logger as unknown as { runtime: { isError: (v: unknown) => boolean; isBuffer: (v: unknown) => boolean } }).runtime;
+  return {
+    isError: (value): value is Error => runtime.isError(value),
+    isBuffer: (value) => runtime.isBuffer(value),
+  };
+}
+
+function maskingEngineFor<LogObj>(logger: Logger<LogObj>): MaskingEngine<LogObj> {
+  return new MaskingEngine<LogObj>(logger.settings, predicatesFor(logger));
+}
+
+function logObjDepsFor<LogObj>(logger: Logger<LogObj>, maxErrorCauseDepth = 5): LogObjDeps {
+  const runtime = (
+    logger as unknown as { runtime: { isError: (v: unknown) => boolean; isBuffer: (v: unknown) => boolean; getErrorTrace: (e: Error) => unknown } }
+  ).runtime;
+  return {
+    isError: (value): value is Error => runtime.isError(value),
+    isBuffer: (value) => runtime.isBuffer(value),
+    // biome-ignore lint/suspicious/noExplicitAny: stack frame typing irrelevant for these tests
+    getErrorTrace: (error) => runtime.getErrorTrace(error) as any,
+    maxErrorCauseDepth,
+  };
+}
+
 describe("BaseLogger internals", () => {
   test("cloneError creates a new instance", () => {
-    const logger = new Logger({ type: "json" });
-    const base = logger as unknown as {
-      _cloneError: (error: Error) => Error;
-    };
     const original = new Error("boom");
-    const clone = base._cloneError(original);
+    const clone = cloneError(original);
 
     expect(clone).not.toBe(original);
     expect(clone.message).toBe("boom");
@@ -16,24 +53,20 @@ describe("BaseLogger internals", () => {
 
   test("toErrorObject respects max depth", () => {
     const logger = new Logger({ type: "json" });
-    const base = logger as unknown as {
-      _toErrorObject: (error: Error, depth?: number, seen?: Set<Error>) => IErrorObject;
-      maxErrorCauseDepth: number;
-    };
+    const deps = logObjDepsFor(logger);
 
     const tail = new Error("tail");
     const head = new Error("head");
     (head as Error & { cause?: unknown }).cause = tail;
 
-    const capped = base._toErrorObject(head, base.maxErrorCauseDepth);
+    // Call at depth === maxErrorCauseDepth: the cause chain must not be followed.
+    const capped: IErrorObject = toErrorObject(head, deps, deps.maxErrorCauseDepth);
     expect(capped.cause).toBeUndefined();
   });
 
   test("masking gracefully falls back to null when getters throw", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    const engine = maskingEngineFor(logger);
 
     const source: Record<string, unknown> = {};
     Object.defineProperty(source, "safe", {
@@ -49,35 +82,25 @@ describe("BaseLogger internals", () => {
       },
     });
 
-    const cloned = internals._recursiveCloneAndMaskValuesOfKeys(source, []) as Record<string, unknown>;
+    const cloned = engine.recursiveCloneAndMaskValuesOfKeys(source, []) as Record<string, unknown>;
 
     expect(cloned.safe).toBe("ok");
     expect(cloned.boom).toBeNull();
   });
 
   test("cloning duplicates date instances instead of reusing references", () => {
-    const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndExecuteFunctions: <T>(source: T, seen?: unknown[]) => T;
-    };
-
     const original = new Date("2024-01-01T00:00:00Z");
-    const cloned = internals._recursiveCloneAndExecuteFunctions(original) as Date;
+    const cloned = recursiveCloneAndExecuteFunctions(original) as Date;
 
     expect(cloned).not.toBe(original);
-    expect((cloned as Date).getTime()).toBe(original.getTime());
+    expect(cloned.getTime()).toBe(original.getTime());
   });
 
   test("recursive cloning breaks array cycles via shallow copies", () => {
-    const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndExecuteFunctions: <T>(source: T, seen?: unknown[]) => T;
-    };
-
     const cyclic: unknown[] = [];
     cyclic.push(cyclic);
 
-    const cloned = internals._recursiveCloneAndExecuteFunctions(cyclic) as unknown[];
+    const cloned = recursiveCloneAndExecuteFunctions(cyclic) as unknown[];
 
     expect(Array.isArray(cloned)).toBe(true);
     expect(cloned).not.toBe(cyclic);
@@ -89,15 +112,12 @@ describe("BaseLogger internals", () => {
   test("mask key lookup caches normalized values in case-insensitive mode", () => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["Password"],
-      maskValuesOfKeysCaseInsensitive: true,
+      mask: { keys: ["Password"], caseInsensitive: true },
     });
-    const internals = logger as unknown as {
-      _getMaskKeys: () => (string | number)[];
-    };
+    const engine = maskingEngineFor(logger);
 
-    const first = internals._getMaskKeys();
-    const second = internals._getMaskKeys();
+    const first = engine.getMaskKeys();
+    const second = engine.getMaskKeys();
 
     expect(first).toBe(second);
     expect(first).toEqual(["password"]);
@@ -105,37 +125,35 @@ describe("BaseLogger internals", () => {
 
   test("get mask keys normalizes and caches the result in case-sensitive mode", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _getMaskKeys: () => (string | number)[];
-    };
+    const engine = maskingEngineFor(logger);
 
-    logger.settings.maskValuesOfKeys = ["token"];
-    const result = internals._getMaskKeys();
+    logger.settings.mask.keys = ["token"];
+    const result = engine.getMaskKeys();
 
     // String keys keep their value but the result is a normalized copy (numeric keys become strings),
     // never a live reference to settings.maskValuesOfKeys.
     expect(result).toEqual(["token"]);
     // A subsequent call with the same source returns the cached normalized array.
-    expect(internals._getMaskKeys()).toBe(result);
+    expect(engine.getMaskKeys()).toBe(result);
   });
 
   test("numeric mask keys are normalized when lower-casing", () => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeysCaseInsensitive: true,
+      mask: { caseInsensitive: true },
     });
-    logger.settings.maskValuesOfKeys = [123 as unknown as string];
-    const internals = logger as unknown as { _getMaskKeys: () => (string | number)[] };
+    logger.settings.mask.keys = [123 as unknown as string];
+    const engine = maskingEngineFor(logger);
 
-    expect(internals._getMaskKeys()).toEqual(["123"]);
+    expect(engine.getMaskKeys()).toEqual(["123"]);
   });
 
   test("mask keys fall back to empty array when not configured", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as { _getMaskKeys: () => (string | number)[] };
-    logger.settings.maskValuesOfKeys = undefined as unknown as string[];
+    const engine = maskingEngineFor(logger);
+    logger.settings.mask.keys = undefined as unknown as string[];
 
-    expect(internals._getMaskKeys()).toEqual([]);
+    expect(engine.getMaskKeys()).toEqual([]);
   });
 
   test("resolveLogArguments executes zero-arity functions", () => {
@@ -156,24 +174,24 @@ describe("BaseLogger internals", () => {
 
   test("recursive masking clones maps, sets, and URLs", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    const engine = maskingEngineFor(logger);
 
     const originalMap = new Map([["a", 1]]);
-    const clonedMap = internals._recursiveCloneAndMaskValuesOfKeys(originalMap, []);
+    const clonedMap = engine.recursiveCloneAndMaskValuesOfKeys(originalMap, []);
     expect(clonedMap).toBeInstanceOf(Map);
     expect(clonedMap).not.toBe(originalMap);
     expect([...clonedMap.entries()]).toEqual([...originalMap.entries()]);
 
     const originalSet = new Set([1, 2]);
-    const clonedSet = internals._recursiveCloneAndMaskValuesOfKeys(originalSet, []);
+    const clonedSet = engine.recursiveCloneAndMaskValuesOfKeys(originalSet, []);
     expect(clonedSet).toBeInstanceOf(Set);
     expect(clonedSet).not.toBe(originalSet);
     expect([...clonedSet.values()]).toEqual([...originalSet.values()]);
 
+    // v5: URLs are normalized to a plain serializable object (urlToObject) rather than a URL clone,
+    // but the inspected fields are preserved, so toMatchObject still asserts the same intent.
     const originalUrl = new URL("https://example.com/path?x=1");
-    const clonedUrl = internals._recursiveCloneAndMaskValuesOfKeys(originalUrl, []);
+    const clonedUrl = engine.recursiveCloneAndMaskValuesOfKeys(originalUrl, []);
     expect(clonedUrl).toMatchObject({
       href: "https://example.com/path?x=1",
       protocol: "https:",
@@ -181,58 +199,45 @@ describe("BaseLogger internals", () => {
       search: "?x=1",
     });
 
-    const maskedObject = internals._recursiveCloneAndMaskValuesOfKeys({ secret: "value", other: "keep" }, ["secret"]) as Record<string, unknown>;
-    expect(maskedObject.secret).toBe(logger.settings.maskPlaceholder);
+    const maskedObject = engine.recursiveCloneAndMaskValuesOfKeys({ secret: "value", other: "keep" }, ["secret"]) as Record<string, unknown>;
+    expect(maskedObject.secret).toBe(logger.settings.mask.placeholder);
     expect(maskedObject.other).toBe("keep");
 
-    const plainString = internals._recursiveCloneAndMaskValuesOfKeys("public", []);
+    const plainString = engine.recursiveCloneAndMaskValuesOfKeys("public", []);
     expect(plainString).toBe("public");
 
     const caseInsensitiveLogger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["Secret"],
-      maskValuesOfKeysCaseInsensitive: true,
-      maskPlaceholder: "[case]",
+      mask: { keys: ["Secret"], caseInsensitive: true, placeholder: "[case]" },
     });
-    const caseInternals = caseInsensitiveLogger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
-    const caseKeys = (caseInsensitiveLogger as unknown as { _getMaskKeys: () => (string | number)[] })._getMaskKeys();
-    const caseMasked = caseInternals._recursiveCloneAndMaskValuesOfKeys({ secret: "value" }, caseKeys) as Record<string, unknown>;
+    const caseEngine = maskingEngineFor(caseInsensitiveLogger);
+    const caseKeys = caseEngine.getMaskKeys();
+    const caseMasked = caseEngine.recursiveCloneAndMaskValuesOfKeys({ secret: "value" }, caseKeys) as Record<string, unknown>;
     expect(caseMasked.secret).toBe("[case]");
   });
 
   test("recursive masking applies regex replacements for strings", () => {
-    const logger = new Logger({ type: "json", maskPlaceholder: "[***]", maskValuesRegEx: [/secret/gi] });
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    const logger = new Logger({ type: "json", mask: { placeholder: "[***]", regex: [/secret/gi] } });
+    const engine = maskingEngineFor(logger);
 
-    const masked = internals._recursiveCloneAndMaskValuesOfKeys("SECRET-value", []);
+    const masked = engine.recursiveCloneAndMaskValuesOfKeys("SECRET-value", []);
     expect(masked).toBe("[***]-value");
 
     const noRegexLogger = new Logger({ type: "json" });
-    const noRegexInternals = noRegexLogger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
-    expect(noRegexInternals._recursiveCloneAndMaskValuesOfKeys("unaltered", [])).toBe("unaltered");
+    const noRegexEngine = maskingEngineFor(noRegexLogger);
+    expect(noRegexEngine.recursiveCloneAndMaskValuesOfKeys("unaltered", [])).toBe("unaltered");
   });
 
   test("case-insensitive masking handles non-string property names", () => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeysCaseInsensitive: true,
-      maskValuesOfKeys: [123 as unknown as string],
-      maskPlaceholder: "[case]",
+      mask: { caseInsensitive: true, keys: [123 as unknown as string], placeholder: "[case]" },
     });
-    const internals = logger as unknown as {
-      _getMaskKeys: () => (string | number)[];
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
-    const maskKeys = internals._getMaskKeys();
+    const engine = maskingEngineFor(logger);
+    const maskKeys = engine.getMaskKeys();
     const spy = vi.spyOn(Object, "getOwnPropertyNames").mockImplementationOnce(() => [123 as unknown as string] as unknown as string[]);
 
-    const result = internals._recursiveCloneAndMaskValuesOfKeys({ [123]: "value" } as Record<string, unknown>, maskKeys) as Record<string, unknown>;
+    const result = engine.recursiveCloneAndMaskValuesOfKeys({ [123]: "value" } as Record<string, unknown>, maskKeys) as Record<string, unknown>;
 
     spy.mockRestore();
     expect(result[123 as unknown as string]).toBe("[case]");
@@ -240,34 +245,33 @@ describe("BaseLogger internals", () => {
 
   test("string masking supports undefined regex configuration", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    const engine = maskingEngineFor(logger);
 
-    logger.settings.maskValuesRegEx = null as unknown as RegExp[];
+    logger.settings.mask.regex = null as unknown as RegExp[];
 
-    expect(internals._recursiveCloneAndMaskValuesOfKeys("plain", [])).toBe("plain");
+    expect(engine.recursiveCloneAndMaskValuesOfKeys("plain", [])).toBe("plain");
   });
 
   test("should capture stack when template requests file information", () => {
     const withStack = new Logger({
       type: "pretty",
-      prettyLogTemplate: "{{filePath}}",
+      pretty: { template: "{{filePath}}" },
     });
+    // M3a: hideLogPositionForProduction removed; its "never capture stack" behavior is now stack.capture: "off".
     const withoutStack = new Logger({
       type: "pretty",
-      hideLogPositionForProduction: true,
-      prettyLogTemplate: "{{dateIsoStr}}",
+      stack: { capture: "off" },
+      pretty: { template: "{{dateIsoStr}}" },
     });
     const templateWithoutPlaceholder = new Logger({
       type: "pretty",
-      prettyLogTemplate: "{{dateIsoStr}}",
+      pretty: { template: "{{dateIsoStr}}" },
     });
     const internalsWithStack = withStack as unknown as { _shouldCaptureStack: () => boolean };
     const internalsWithoutStack = withoutStack as unknown as { _shouldCaptureStack: () => boolean };
     const internalsTemplateOnly = templateWithoutPlaceholder as unknown as { _shouldCaptureStack: () => boolean };
     const defaultPretty = new Logger({ type: "pretty" });
-    defaultPretty.settings.prettyLogTemplate = undefined as unknown as string;
+    defaultPretty.settings.pretty.template = undefined as unknown as string;
     const internalsDefaultTemplate = defaultPretty as unknown as { _shouldCaptureStack: () => boolean };
 
     expect(internalsWithStack._shouldCaptureStack()).toBe(true);
@@ -279,8 +283,7 @@ describe("BaseLogger internals", () => {
   test("case-sensitive masking is exercised through log flow", () => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["token"],
-      maskValuesOfKeysCaseInsensitive: false,
+      mask: { keys: ["token"], caseInsensitive: false },
     });
 
     const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
@@ -294,33 +297,28 @@ describe("BaseLogger internals", () => {
 
   test("toErrorObject falls back to default error name", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _toErrorObject: (error: Error, depth?: number, seen?: Set<Error>) => IErrorObject;
-    };
+    const deps = logObjDepsFor(logger);
 
     const unnamed = new Error("boom");
     (unnamed as { name?: string }).name = undefined;
-    const result = internals._toErrorObject(unnamed);
+    const result = toErrorObject(unnamed, deps);
     expect(result.name).toBe("Error");
   });
 
   test("recursion guard recognizes error instances", () => {
     const logger = new Logger({ type: "json" });
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    const engine = maskingEngineFor(logger);
 
     const error = new Error("boom");
-    const result = internals._recursiveCloneAndMaskValuesOfKeys(error, []);
+    const result = engine.recursiveCloneAndMaskValuesOfKeys(error, []);
     expect(result).toBe(error);
   });
 
   test("recursive masking clones error prototypes when encountered", () => {
     const logger = new Logger({ type: "json" });
     const runtimeInternals = logger as unknown as { runtime: { isError: (value: unknown) => boolean } };
-    const internals = logger as unknown as {
-      _recursiveCloneAndMaskValuesOfKeys: <T>(source: T, keys: (number | string)[], seen?: unknown[]) => T;
-    };
+    // The engine delegates to the live runtime.isError on each call, so spying here is observed.
+    const engine = maskingEngineFor(logger);
 
     const errorLike = { message: "boom" };
     const isErrorSpy = vi.spyOn(runtimeInternals.runtime, "isError");
@@ -329,7 +327,7 @@ describe("BaseLogger internals", () => {
       .mockImplementationOnce(() => true)
       .mockImplementation(() => false);
 
-    const cloned = internals._recursiveCloneAndMaskValuesOfKeys(errorLike, []);
+    const cloned = engine.recursiveCloneAndMaskValuesOfKeys(errorLike, []);
     expect(cloned).not.toBe(errorLike);
     isErrorSpy.mockRestore();
   });

@@ -1,4 +1,4 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import type { IMeta } from "../src/interfaces.js";
 
 describe("Worker and edge runtime environments", () => {
@@ -40,7 +40,7 @@ describe("Worker and edge runtime environments", () => {
       delete globalAny.Bun;
       delete globalAny.importScripts;
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
 
       // Still detects as "node" because process exists, which is correct —
@@ -59,8 +59,8 @@ describe("Worker and edge runtime environments", () => {
 
       const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
 
-      const env = createLoggerEnvironment();
-      env.transportJSON({ msg: "hello", _meta: { logLevelId: 3, logLevelName: "INFO" } });
+      const env = createUniversalEnvironment();
+      env.transportJSON({ msg: "hello", _logMeta: { logLevelId: 3, logLevelName: "INFO" } });
 
       expect(consoleSpy).toHaveBeenCalled();
       const output = consoleSpy.mock.calls[0]?.[0] as string;
@@ -76,7 +76,7 @@ describe("Worker and edge runtime environments", () => {
       delete globalAny.Bun;
       delete globalAny.importScripts;
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const error = new Error("edge error");
       const frames = env.getErrorTrace(error);
 
@@ -91,7 +91,7 @@ describe("Worker and edge runtime environments", () => {
       delete globalAny.Bun;
       delete globalAny.importScripts;
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       expect(env.isError(new Error("test"))).toBe(true);
       expect(env.isError(new TypeError("test"))).toBe(true);
       expect(env.isError({ name: "CustomError", message: "msg" })).toBe(true);
@@ -107,7 +107,7 @@ describe("Worker and edge runtime environments", () => {
       globalAny.importScripts = function importScripts() {};
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Worker" });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
 
       expect(meta.runtime).toBe("worker");
@@ -119,7 +119,7 @@ describe("Worker and edge runtime environments", () => {
       globalAny.importScripts = function importScripts() {};
       vi.stubGlobal("navigator", { userAgent: "test-worker-agent" });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.runtime).toBe("worker");
@@ -132,7 +132,7 @@ describe("Worker and edge runtime environments", () => {
       globalAny.importScripts = function importScripts() {};
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const error = { stack: "Error\nfn@http://localhost/worker.js:10:5" } as Error;
       const frames = env.getErrorTrace(error);
 
@@ -147,7 +147,7 @@ describe("Worker and edge runtime environments", () => {
       globalAny.importScripts = function importScripts() {};
       vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0" });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as IMeta;
 
       expect(meta.date).toBeInstanceOf(Date);
@@ -169,7 +169,7 @@ describe("Worker and edge runtime environments", () => {
     test("runtime detected as 'deno' when Deno global is present", () => {
       setupDeno({ version: { deno: "2.1.0" } });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.runtime).toBe("deno");
@@ -182,7 +182,7 @@ describe("Worker and edge runtime environments", () => {
         env: { get: (key: string) => (key === "HOSTNAME" ? "deno-host" : undefined) },
       });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.hostname).toBe("deno-host");
@@ -194,7 +194,7 @@ describe("Worker and edge runtime environments", () => {
         hostname: () => "deno-hostname-fn",
       });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.hostname).toBe("deno-hostname-fn");
@@ -203,7 +203,7 @@ describe("Worker and edge runtime environments", () => {
     test("Deno without version info still detects as deno", () => {
       setupDeno({});
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.runtime).toBe("deno");
@@ -222,7 +222,7 @@ describe("Worker and edge runtime environments", () => {
     test("runtime detected as 'bun' when Bun global is present", () => {
       setupBun({ version: "1.1.0" });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.runtime).toBe("bun");
@@ -232,7 +232,7 @@ describe("Worker and edge runtime environments", () => {
     test("Bun hostname from env", () => {
       setupBun({ version: "1.1.0", env: { HOSTNAME: "bun-host" } });
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.hostname).toBe("bun-host");
@@ -241,7 +241,7 @@ describe("Worker and edge runtime environments", () => {
     test("Bun without version still detects as bun", () => {
       setupBun({});
 
-      const env = createLoggerEnvironment();
+      const env = createUniversalEnvironment();
       const meta = env.getMeta(3, "INFO", Number.NaN, false) as Record<string, unknown>;
 
       expect(meta.runtime).toBe("bun");

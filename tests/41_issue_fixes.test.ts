@@ -1,9 +1,9 @@
-import { createLoggerEnvironment } from "../src/BaseLogger.js";
+import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { Logger } from "../src/index.js";
 import type { IMeta } from "../src/interfaces.js";
 import { consoleSupportsCssStyling, isWorkerEnvironment } from "../src/internal/environment.js";
 import { buildPrettyMeta } from "../src/internal/metaFormatting.js";
-import { inspect } from "../src/internal/util.inspect.polyfill.js";
+import { inspect } from "../src/render/inspect.polyfill.js";
 import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 
 // Regression tests for fixed GitHub issues. Each assertion fails against the pre-fix code.
@@ -51,7 +51,7 @@ describe("#268: IMetaStatic exposes runtime meta fields", () => {
   test("hostname/runtimeVersion are accessible on the logged meta without a cast", () => {
     const logger = new Logger({ type: "hidden" });
     const out = logger.info("x");
-    const meta = out?._meta;
+    const meta = out?._logMeta;
     expect(meta).toBeDefined();
     // These are typed on IMetaStatic now; accessing them must compile and be defined on node.
     expect(typeof meta?.runtime).toBe("string");
@@ -65,7 +65,7 @@ describe("#268: IMetaStatic exposes runtime meta fields", () => {
 
 describe("#207: local-timezone rawIsoStr carries the real offset, not a misleading Z", () => {
   function rawIso(tz: "UTC" | "local"): string {
-    const settings = new Logger({ type: "pretty", prettyLogTimeZone: tz }).settings as never;
+    const settings = new Logger({ type: "pretty", pretty: { timeZone: tz } }).settings as never;
     const meta = { date: new Date("2023-01-19T11:05:37.263Z"), logLevelName: "DEBUG", logLevelId: 2, runtime: "node" } as unknown as IMeta;
     return buildPrettyMeta(settings, meta).placeholders.rawIsoStr as string;
   }
@@ -86,7 +86,7 @@ describe("#207: local-timezone rawIsoStr carries the real offset, not a misleadi
   });
 
   test("the offset sign reflects timezones on both sides of UTC", () => {
-    const settings = new Logger({ type: "pretty", prettyLogTimeZone: "local" }).settings as never;
+    const settings = new Logger({ type: "pretty", pretty: { timeZone: "local" } }).settings as never;
     const make = () => ({ date: new Date("2023-06-15T12:00:00Z"), logLevelName: "INFO", logLevelId: 3, runtime: "node" }) as unknown as IMeta;
 
     // West of UTC (e.g. US Eastern): getTimezoneOffset() is positive → "-" suffix.
@@ -139,9 +139,10 @@ describe("#262: Web Workers are treated as CSS-capable consoles", () => {
 
   test("a worker actually emits %c css meta through transportFormatted", () => {
     makeWorker("Mozilla/5.0 Firefox/117");
-    const env = createLoggerEnvironment();
-    const settings = new Logger({ type: "pretty" }).settings as never as import("../src/interfaces.js").ISettings<unknown>;
-    settings.prettyLogTemplate = "{{logLevelName}}";
+    const env = createUniversalEnvironment();
+    const settings = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: false } })
+      .settings as never as import("../src/interfaces.js").ISettings<unknown>;
+    settings.pretty.template = "{{logLevelName}}";
     const meta = env.getMeta(3, "INFO", Number.NaN, true) as IMeta;
     const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
     env.transportFormatted("META", [], [], meta, settings);

@@ -9,7 +9,7 @@ describe("Deep sub-loggers", () => {
     const l5 = l4.getSubLogger({ name: "child4" });
 
     const logObj = l5.info("deep log");
-    const meta = logObj?._meta;
+    const meta = logObj?._logMeta;
 
     expect(meta?.name).toBe("child4");
     expect(meta?.parentNames).toEqual(["root", "child1", "child2", "child3"]);

@@ -21,26 +21,28 @@ describe("JSON: Log Types", () => {
   test("plain string", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test");
-    expect(getConsoleLog()).toContain('"0":"Test"');
+    // v5 flat shape: a bare string is promoted to the configurable messageKey (default "message").
+    expect(getConsoleLog()).toContain('"message":"Test"');
   });
 
   test("two plain string", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test1", "Test2");
-    expect(getConsoleLog()).toContain('"0":"Test1"');
+    // v5: the leading string becomes `message`; trailing positional args keep their numeric index keys.
+    expect(getConsoleLog()).toContain('"message":"Test1"');
     expect(getConsoleLog()).toContain('"1":"Test2"');
   });
 
   it("pretty undefined", async () => {
     const logger = new Logger({ type: "json" });
     logger.info(undefined);
-    expect(getConsoleLog()).toContain('"0":"[undefined]"');
+    expect(getConsoleLog()).toContain('"message":"[undefined]"');
   });
 
   it("pretty null", async () => {
     const logger = new Logger({ type: "json" });
     logger.info(null);
-    expect(getConsoleLog()).toContain('"0":null');
+    expect(getConsoleLog()).toContain('"message":null');
   });
 
   it("pretty nullish", async () => {
@@ -54,13 +56,14 @@ describe("JSON: Log Types", () => {
   test("boolean", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", true);
-    expect(getConsoleLog()).toContain('"0":true');
+    // v5: a single primitive arg is lifted to `message`.
+    expect(getConsoleLog()).toContain('"message":true');
   });
 
   test("number", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", 555);
-    expect(getConsoleLog()).toContain('"0":555');
+    expect(getConsoleLog()).toContain('"message":555');
   });
 
   test("Array", (): void => {
@@ -82,7 +85,10 @@ describe("JSON: Log Types", () => {
   test("Object", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", { test: true, nested: { 1: false } });
-    expect(getConsoleLog()).toContain(`{"test":true,"nested":{"1":false},"_meta":{`);
+    // v5: a single object arg has its keys spread at the top level (next to level/time); _logMeta now carries v:5.
+    expect(getConsoleLog()).toContain(`"test":true`);
+    expect(getConsoleLog()).toContain(`"nested":{"1":false}`);
+    expect(getConsoleLog()).toContain(`"_logMeta":{"v":5,`);
   });
 
   test("Date", (): void => {
@@ -96,15 +102,71 @@ describe("JSON: Log Types", () => {
   test("String, Object", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "test", { test: true, nested: { 1: false } });
-    expect(getConsoleLog()).toContain('"0":"test"');
-    expect(getConsoleLog()).toContain(`"1":{"test":true,"nested":{"1":false}},`);
+    // Leading string -> `message`; a single trailing plain object spreads at the top level,
+    // symmetric with the pino-style object-first shape.
+    expect(getConsoleLog()).toContain('"message":"test"');
+    expect(getConsoleLog()).toContain('"test":true');
+    expect(getConsoleLog()).toContain('"nested":{"1":false}');
+    expect(getConsoleLog()).not.toContain('"1":{');
+  });
+
+  test("String, Object and Object, String produce the same flat fields", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info("ready", { userId: 42 });
+    const messageFirst = getConsoleLog();
+    mockConsoleLog(true, false);
+    logger.info({ userId: 42 }, "ready");
+    const objectFirst = getConsoleLog();
+
+    for (const line of [messageFirst, objectFirst]) {
+      expect(line).toContain('"message":"ready"');
+      expect(line).toContain('"userId":42');
+      expect(line).not.toContain('"0":');
+      expect(line).not.toContain('"1":');
+    }
+  });
+
+  test("String with two trailing values keeps positional bucketing", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info("msg", { a: 1 }, { b: 2 });
+    expect(getConsoleLog()).toContain('"message":"msg"');
+    expect(getConsoleLog()).toContain('"1":{"a":1}');
+    expect(getConsoleLog()).toContain('"2":{"b":2}');
+  });
+
+  test("user fields cannot clobber the canonical level/levelId/time head keys", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info({ level: "fake", levelId: -1, time: "fake-time", ok: true });
+    expect(getConsoleLog()).toContain('"level":"INFO"');
+    expect(getConsoleLog()).toContain('"levelId":3');
+    expect(getConsoleLog()).not.toContain('"level":"fake"');
+    expect(getConsoleLog()).not.toContain('"time":"fake-time"');
+    expect(getConsoleLog()).toContain('"ok":true');
   });
 
   test("Object, String", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", { test: true, nested: { 1: false } }, "test");
-    expect(getConsoleLog()).toContain(`"0":{"test":true,"nested":{"1":false}},`);
-    expect(getConsoleLog()).toContain('"1":"test"');
+    // v5 pino-style (M2.1): a leading object followed by a string spreads the object's fields at the top
+    // level and promotes the trailing string to `message`. So `({ test, nested }, "test")` → message "test"
+    // with `test` and `nested` lifted alongside it (no numeric "0"/"1" buckets in the flat JSON shape).
+    const out = getConsoleLog();
+    expect(out).toContain('"message":"test"');
+    expect(out).toContain('"test":true');
+    expect(out).toContain('"nested":{"1":false}');
+    expect(out).not.toContain('"0":');
+  });
+
+  test("pino-style fields-first: log.info({ fields }, message)", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.info({ userId: 42, action: "login" }, "user logged in");
+    const out = getConsoleLog();
+    // The idiomatic pino call shape: object fields spread at the top level, string under `message`.
+    expect(out).toContain('"message":"user logged in"');
+    expect(out).toContain('"userId":42');
+    expect(out).toContain('"action":"login"');
+    expect(out).not.toContain('"0":');
+    expect(out).not.toContain('"1":');
   });
 
   test("Error", (): void => {
@@ -116,11 +178,27 @@ describe("JSON: Log Types", () => {
     expect(serializedError?.nativeError).not.toBeInstanceOf(Array);
   });
 
+  test("bare Error in JSON output nests under errorKey with cause chain, no nativeError leak", (): void => {
+    const logger = new Logger({ type: "json" });
+    logger.error(new Error("wrapped", { cause: new Error("root cause") }));
+    const out = getConsoleLog();
+    const parsed = JSON.parse(out.trim().split("\n").pop() as string);
+    // The error is nested under `error` (not spread as loose top-level name/stack/nativeError fields)...
+    expect(parsed.error?.message).toBe("wrapped");
+    expect(parsed).not.toHaveProperty("nativeError");
+    expect(parsed).not.toHaveProperty("stack");
+    // ...and the cause chain is preserved.
+    expect(parsed.error?.cause?.message).toBe("root cause");
+    // The non-serializable native Error must never leak into the JSON line.
+    expect(out).not.toContain("nativeError");
+  });
+
   test("BigInt is stringified", (): void => {
     const logger = new Logger({ type: "json" });
     logger.info(42n);
 
-    expect(getConsoleLog()).toContain('"0":"42"');
+    // v5: single bigint arg -> `message`, stringified (JSON has no bigint).
+    expect(getConsoleLog()).toContain('"message":"42"');
   });
 
   test("Error with cause chain", (): void => {

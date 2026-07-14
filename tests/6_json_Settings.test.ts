@@ -9,8 +9,12 @@ describe("JSON: Settings", () => {
   test("plain string", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test");
-    expect(getConsoleLog()).toContain('"0":"Test"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    // v5 flat shape: a bare string lands under the configurable messageKey ("message"), the level
+    // name/id are promoted to the top level, and runtime meta stays nested under _logMeta (now with v: 5).
+    expect(getConsoleLog()).toContain('"message":"Test"');
+    expect(getConsoleLog()).toContain('"level":"testLevel"');
+    expect(getConsoleLog()).toContain('"levelId":1234');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
     expect(getConsoleLog()).toContain('"logLevelId":1234');
     expect(getConsoleLog()).toContain('"logLevelName":"testLevel"');
   });
@@ -18,9 +22,10 @@ describe("JSON: Settings", () => {
   test("two strings", (): void => {
     const logger = new Logger({ type: "json" });
     logger.log(1234, "testLevel", "Test1", "Test2");
-    expect(getConsoleLog()).toContain('"0":"Test1"');
+    // First positional string -> messageKey; the remaining positional arg stays bucketed under "1".
+    expect(getConsoleLog()).toContain('"message":"Test1"');
     expect(getConsoleLog()).toContain('"1":"Test2"');
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
   });
 
   test("name", (): void => {
@@ -30,7 +35,7 @@ describe("JSON: Settings", () => {
     });
     const log = logger.log(1, "testLevel", "foo bar");
     expect(log).toBeDefined();
-    expect(log?._meta?.name).toBe("logger");
+    expect(log?._logMeta?.name).toBe("logger");
     expect(getConsoleLog()).toContain(`logger`);
   });
 
@@ -49,17 +54,17 @@ describe("JSON: Settings", () => {
     expect(log2).toBeDefined();
     expect(log3).toBeDefined();
 
-    expect(log1?._meta?.name).toBe("logger1");
-    expect(log2?._meta?.name).toBe("logger2");
-    expect(log3?._meta?.name).toBe("logger3");
+    expect(log1?._logMeta?.name).toBe("logger1");
+    expect(log2?._logMeta?.name).toBe("logger2");
+    expect(log3?._logMeta?.name).toBe("logger3");
 
     expect(getConsoleLog()).toContain(`logger1`);
     expect(getConsoleLog()).toContain(`logger2`);
     expect(getConsoleLog()).toContain(`logger3`);
 
-    expect(log2?._meta?.parentNames).toContain("logger1");
-    expect(log3?._meta?.parentNames).toContain("logger1");
-    expect(log3?._meta?.parentNames).toContain("logger2");
+    expect(log2?._logMeta?.parentNames).toContain("logger1");
+    expect(log3?._logMeta?.parentNames).toContain("logger1");
+    expect(log3?._logMeta?.parentNames).toContain("logger2");
   });
 
   test("minLevel", (): void => {
@@ -82,35 +87,20 @@ describe("JSON: Settings", () => {
     });
     logger.log(1234, "testLevel", "Test1", "Test2");
     expect(getConsoleLog()).toContain(`"argumentsArray":["Test1","Test2"]`);
-    expect(getConsoleLog()).toContain('"_meta":{');
+    expect(getConsoleLog()).toContain('"_logMeta":{');
   });
 
-  test("hideLogPositionForProduction", (): void => {
-    const loggerNormal = new Logger({
-      type: "json",
-      hideLogPositionForProduction: false,
-      stylePrettyLogs: false,
-    });
-    const loggerProduction = new Logger({
-      type: "json",
-      hideLogPositionForProduction: true,
-      stylePrettyLogs: false,
-    });
-
-    loggerProduction.log(1234, "testLevel", "Production log");
-    expect(getConsoleLog()).not.toContain('"fileName":"6_json_Settings.test.ts"');
-    loggerNormal.log(1234, "testLevel", "Normal log");
-    expect(getConsoleLog()).toContain('"fileName":"6_json_Settings.test.ts"');
-  });
+  // Removed in v5 M3a: hideLogPositionForProduction (was the deprecated alias for stackCapture) has no
+  // replacement key; use stack.capture: "off"/"auto" where that behavior is still needed.
 
   test("metaProperty", (): void => {
-    const logger = new Logger({ type: "json", metaProperty: "_test" });
+    const logger = new Logger({ type: "json", meta: { property: "_test" } });
     logger.log(1234, "testLevel", "Test");
     expect(getConsoleLog()).toContain('"_test":{');
   });
 
   test("maskValuesOfKeys and maskValuesRegEx empty", (): void => {
-    const logger = new Logger({ type: "pretty", maskValuesOfKeys: [], maskValuesRegEx: undefined });
+    const logger = new Logger({ type: "pretty", mask: { keys: [], regex: undefined } });
     logger.log(1234, "testLevel", {
       password: "pass123",
       null: null,
@@ -122,8 +112,8 @@ describe("JSON: Settings", () => {
     expect(getConsoleLog()).toContain("pass123");
   });
 
-  test("maskValuesOfKeys not set", (): void => {
-    const logger = new Logger({ type: "json" });
+  test("maskValuesOfKeys set masks the key", (): void => {
+    const logger = new Logger({ type: "json", mask: { keys: ["password"] } });
     logger.log(1234, "testLevel", {
       password: "pass123",
       null: null,
@@ -138,8 +128,7 @@ describe("JSON: Settings", () => {
   test("maskValuesOfKeys set and maskPlaceholder", (): void => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["otherKey"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["otherKey"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -153,8 +142,7 @@ describe("JSON: Settings", () => {
   test("maskValuesOfKeys set and maskPlaceholder nested object", (): void => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["otherKey", "moviePassword"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["otherKey", "moviePassword"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -173,8 +161,7 @@ describe("JSON: Settings", () => {
   test("maskValuesOfKeys set two keys and maskPlaceholder", (): void => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["password", "otherKey", "yetanotherKey"],
-      maskPlaceholder: "[###]",
+      mask: { keys: ["password", "otherKey", "yetanotherKey"], placeholder: "[###]" },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -191,8 +178,7 @@ describe("JSON: Settings", () => {
   test("maskValuesOfKeys and maskValuesOfKeysCaseInsensitive", (): void => {
     const logger = new Logger({
       type: "json",
-      maskValuesOfKeys: ["password", "otherkey"],
-      maskValuesOfKeysCaseInsensitive: true,
+      mask: { keys: ["password", "otherkey"], caseInsensitive: true },
     });
     logger.log(1234, "testLevel", {
       password: "pass123",
@@ -207,7 +193,7 @@ describe("JSON: Settings", () => {
   test("maskValuesRegEx with different types and without manipulating the original object", (): void => {
     const logger = new Logger({
       type: "json",
-      maskValuesRegEx: [new RegExp("otherKey", "g")],
+      mask: { regex: [new RegExp("otherKey", "g")] },
     });
 
     const logObj = {
@@ -216,8 +202,8 @@ describe("JSON: Settings", () => {
     };
 
     logger.log(1234, "testLevel", logObj);
-    expect(getConsoleLog()).toContain('"password":"[***]"');
-    expect(getConsoleLog()).not.toContain("pass123");
+    // password is not matched by the regex (and is no longer masked by default in v5)
+    expect(getConsoleLog()).toContain('"password":"pass123"');
     expect(getConsoleLog()).toContain('"otherKey":"[***]456"');
     expect(getConsoleLog()).not.toContain("otherKey456");
 
@@ -244,7 +230,9 @@ describe("JSON: Settings", () => {
       password: "pass123",
       otherKey: "otherKey456",
     });
-    expect(getConsoleLog()).toContain('"0":1');
+    // prefix args are prepended to the call args: [1, 2, "test", {obj}]. The first positional value (1)
+    // is promoted to messageKey; the rest stay bucketed under their positional index keys.
+    expect(getConsoleLog()).toContain('"message":1');
     expect(getConsoleLog()).toContain('"1":2');
     expect(getConsoleLog()).toContain('"2":"test"');
     expect(getConsoleLog()).toContain('"3":{');

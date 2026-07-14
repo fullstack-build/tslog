@@ -54,11 +54,12 @@ const main = async () => {
       "type",
       "engines",
     ]),
-    main: adjustPaths(rootPkg.main),
+    // ESM-only as of v5: no `main`/CJS entry. `module` kept for legacy bundlers.
     module: adjustPaths(rootPkg.module),
     types: adjustPaths(rootPkg.types),
     browser: adjustPaths(rootPkg.browser),
     exports: adjustPaths(rootPkg.exports),
+    bin: adjustPaths(rootPkg.bin),
     "react-native": adjustPaths(rootPkg["react-native"]),
   };
 
@@ -78,7 +79,9 @@ const main = async () => {
   await copyFile(licensePath, path.join(distDir, "LICENSE"));
 
   // Copy docs that help humans and AI tools discover the API (README plus machine-readable surface).
-  for (const file of ["README.md", "llms.txt", "RECIPES.md"]) {
+  // MIGRATION_v4_to_v5.md ships too: the README links it relatively and the v4-key runtime warnings
+  // point users at it.
+  for (const file of ["README.md", "llms.txt", "RECIPES.md", "MIGRATION_v4_to_v5.md"]) {
     try {
       await copyFile(path.join(rootDir, file), path.join(distDir, file));
     } catch (error) {

@@ -26,13 +26,202 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty" });
+    const logger = new Logger({ type: "pretty", pretty: { style: true } });
     logger.info("styled output");
 
     expect(consoleSpy).toHaveBeenCalled();
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%c"));
     expect(call).toBeDefined();
     expect(call && call.length).toBeGreaterThan(1);
+
+    consoleSpy.mockRestore();
+
+    if (originalWindow === undefined) {
+      delete globalAny.window;
+    } else {
+      globalAny.window = originalWindow;
+    }
+    if (originalDocument === undefined) {
+      delete globalAny.document;
+    } else {
+      globalAny.document = originalDocument;
+    }
+    if (originalCSS === undefined) {
+      delete globalAny.CSS;
+    } else {
+      globalAny.CSS = originalCSS;
+    }
+  });
+
+  test("passObjectsNatively defaults on in a browser environment and off elsewhere; explicit false wins", async () => {
+    const globalAny = globalThis as unknown as { window?: unknown; document?: unknown };
+    const originalWindow = globalAny.window;
+    const originalDocument = globalAny.document;
+
+    delete globalAny.window;
+    delete globalAny.document;
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+
+    // Node (no window/document): default off.
+    const nodeLogger = new Logger({ type: "pretty" });
+    expect(nodeLogger.settings.pretty.passObjectsNatively).toBe(false);
+
+    globalAny.window = {};
+    globalAny.document = {};
+    try {
+      // Browser globals present: default on — DevTools renders raw references as collapsible trees.
+      const browserLogger = new Logger({ type: "pretty" });
+      expect(browserLogger.settings.pretty.passObjectsNatively).toBe(true);
+
+      // The opt-out for log-time snapshots / text-matchable logs still wins.
+      const optOut = new Logger({ type: "pretty", pretty: { passObjectsNatively: false } });
+      expect(optOut.settings.pretty.passObjectsNatively).toBe(false);
+    } finally {
+      if (originalWindow === undefined) {
+        delete globalAny.window;
+      } else {
+        globalAny.window = originalWindow;
+      }
+      if (originalDocument === undefined) {
+        delete globalAny.document;
+      } else {
+        globalAny.document = originalDocument;
+      }
+    }
+  });
+
+  test("passObjectsNatively hands raw objects to the console (Node path)", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", pretty: { passObjectsNatively: true } });
+    const payload = { nested: { a: 1 }, arr: [1, 2, 3] };
+    logger.info("here", payload);
+
+    expect(consoleSpy).toHaveBeenCalledTimes(1);
+    const call = consoleSpy.mock.calls[0] ?? [];
+    // The meta prefix + the "here" string are rendered, but the object arg is passed by reference so a
+    // DevTools console can render it collapsibly — i.e. NOT stringified into the first argument.
+    expect(call).toContain(payload);
+    expect(String(call[0])).not.toContain("nested");
+
+    consoleSpy.mockRestore();
+  });
+
+  test("passObjectsNatively keeps the string-only path a single argument", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", pretty: { passObjectsNatively: true } });
+    logger.info("just a string");
+
+    const call = consoleSpy.mock.calls[0] ?? [];
+    // Meta prefix is the first arg; the plain string trails as a second, raw arg.
+    expect(call).toContain("just a string");
+
+    consoleSpy.mockRestore();
+  });
+
+  test("passObjectsNatively still routes errors through the pretty template as strings", async () => {
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", pretty: { passObjectsNatively: true } });
+    logger.error("boom", new Error("kaboom"));
+
+    const call = consoleSpy.mock.calls[0] ?? [];
+    // The rendered error stack is a pre-formatted string trailing after the raw args, never an Error object.
+    const joined = call.map((part) => (typeof part === "string" ? part : "")).join("\n");
+    expect(joined).toContain("kaboom");
+    expect(call.some((part) => part instanceof Error)).toBe(false);
+
+    consoleSpy.mockRestore();
+  });
+
+  test("passObjectsNatively trails raw objects after the CSS-styled meta (browser path)", async () => {
+    const globalAny = globalThis as unknown as {
+      window?: unknown;
+      document?: unknown;
+      CSS?: { supports?: (property: string, value: string) => boolean };
+    };
+    const originalWindow = globalAny.window;
+    const originalDocument = globalAny.document;
+    const originalCSS = globalAny.CSS;
+
+    globalAny.window = {};
+    globalAny.document = {};
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox" });
+    globalAny.CSS = { supports: () => true };
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: true } });
+    const payload = { user: 42 };
+    logger.info("styled", payload);
+
+    const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%c"));
+    expect(call).toBeDefined();
+    // The raw object survives past the %c style values as a trailing, by-reference argument.
+    expect(call).toContain(payload);
+
+    consoleSpy.mockRestore();
+
+    if (originalWindow === undefined) {
+      delete globalAny.window;
+    } else {
+      globalAny.window = originalWindow;
+    }
+    if (originalDocument === undefined) {
+      delete globalAny.document;
+    } else {
+      globalAny.document = originalDocument;
+    }
+    if (originalCSS === undefined) {
+      delete globalAny.CSS;
+    } else {
+      globalAny.CSS = originalCSS;
+    }
+  });
+
+  test("passObjectsNatively trails the rendered error string after the raw args (browser path)", async () => {
+    const globalAny = globalThis as unknown as {
+      window?: unknown;
+      document?: unknown;
+      CSS?: { supports?: (property: string, value: string) => boolean };
+    };
+    const originalWindow = globalAny.window;
+    const originalDocument = globalAny.document;
+    const originalCSS = globalAny.CSS;
+
+    globalAny.window = {};
+    globalAny.document = {};
+    vi.stubGlobal("navigator", { userAgent: "Mozilla/5.0 Firefox" });
+    globalAny.CSS = { supports: () => true };
+
+    const consoleSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+
+    vi.resetModules();
+    const { Logger } = await import("../src/index.js");
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: true } });
+    const payload = { user: 42 };
+    logger.error("styled", payload, new Error("kaboom"));
+
+    const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%c"));
+    expect(call).toBeDefined();
+    // Raw args stay by-reference, and the pretty-rendered error stack still arrives — as the final
+    // trailing string argument, never as an Error object.
+    expect(call).toContain(payload);
+    const last = call?.[call.length - 1];
+    expect(typeof last).toBe("string");
+    expect(last).toContain("kaboom");
+    expect(call?.some((part) => part instanceof Error)).toBe(false);
 
     consoleSpy.mockRestore();
 
@@ -70,8 +259,8 @@ describe("transport behaviour", () => {
 
   test("runtime marks objects with Error-like names as errors", async () => {
     vi.resetModules();
-    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
-    const env = createLoggerEnvironment();
+    const { createNodeEnvironment } = await import("../src/env/environment.node.js");
+    const env = createNodeEnvironment();
     const errorLike = { name: "CustomError" };
     expect(env.isError(errorLike)).toBe(true);
   });
@@ -95,7 +284,8 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty", prettyLogTemplate: "static output" });
+    // passObjectsNatively pinned off: this test asserts the single-string sanitized fallback.
+    const logger = new Logger({ type: "pretty", pretty: { template: "static output", passObjectsNatively: false } });
     logger.info("unstyled");
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("static output"));
@@ -140,10 +330,10 @@ describe("transport behaviour", () => {
 
     vi.resetModules();
     const { Logger } = await import("../src/index.js");
-    const logger = new Logger({ type: "pretty" });
-    logger.settings.prettyLogTemplate = "{{logLevelName}}";
-    logger.settings.prettyLogStyles = {
-      ...logger.settings.prettyLogStyles,
+    const logger = new Logger({ type: "pretty", pretty: { style: true, passObjectsNatively: false } });
+    logger.settings.pretty.template = "{{logLevelName}}";
+    logger.settings.pretty.styles = {
+      ...logger.settings.pretty.styles,
       logLevelName: {
         INFO: ["bold", "underline", "hidden", "dim", "italic"],
         "*": ["italic"],
@@ -195,8 +385,8 @@ describe("transport behaviour", () => {
     globalAny.location = { origin: "http://localhost" };
 
     vi.resetModules();
-    const { createLoggerEnvironment } = await import("../src/BaseLogger.js");
-    const env = createLoggerEnvironment();
+    const { createBrowserEnvironment } = await import("../src/env/environment.browser.js");
+    const env = createBrowserEnvironment();
     const frames = env.getErrorTrace({ stack: "Error\ngarbage frame" } as Error);
     expect(frames).toEqual([]);
 

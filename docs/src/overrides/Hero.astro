@@ -1,0 +1,140 @@
+---
+/*
+ * The homepage hero: a live terminal that streams real tslog pretty-print
+ * log lines, ending in an ERROR with a pretty stack trace — tslog's own
+ * output is the design language, so the docs *show* "beautiful logging"
+ * instead of describing it.
+ *
+ * Every color here matches what tslog emits by DEFAULT — the pretty `styles`
+ * from src/core/settings.ts resolved through src/render/styles.ts:
+ *   logLevelName  INFO=blue #42a5f5 · DEBUG=green #66bb6a · WARN=yellow #fdd835
+ *                 · ERROR=red #ef5350 · TRACE=whiteBright #fff
+ *   dateIsoStr / filePathWithLine / fileNameWithLine  → white  #fafafa
+ *   name (logger name)                                → white bold
+ *   errorName    bold + whiteBright ON bgRedBright     → white on red
+ *   fileName (stack frame)                            → yellow #fdd835
+ * Free-text message parts render in the default foreground (white); only
+ * inspected object VALUES get token colors (green numbers, etc.), which we
+ * reproduce for the couple of inspected fields shown.
+ *
+ * Templates (src/core/settings.ts):
+ *   errorTemplate      "\n{{errorName}} {{errorMessage}}\nerror stack:\n…"
+ *   errorStackTemplate "  • {{fileName}}\t{{method}}\n\t{{filePathWithLine}}"
+ */
+
+const ts = "2026-07-08 11:04:07.312";
+
+// [colorToken, text]. "def" = default foreground (plain message text).
+// These reveal one at a time. The ERROR log line itself is part of the
+// error block below (it, the error, and its stack all land as one event).
+const logLines = [
+  { lvl: "INFO", file: "server.ts:24", parts: [["def", "listening on "], ["green", "http://localhost:3000"]] },
+  { lvl: "DEBUG", file: "db/pool.ts:12", parts: [["def", "pool acquired conn#7 in "], ["green", "1.2"], ["def", "ms"]] },
+  { lvl: "INFO", file: "agent/planner.ts:88", parts: [["def", "tool search "], ["green", "142"], ["def", "ms · "], ["green", "318"], ["def", "t"]] },
+  { lvl: "WARN", file: "cache.ts:51", parts: [["def", "cache miss "], ["green", "user:42:profile"]] },
+];
+
+const errorLine = { lvl: "ERROR", file: "billing.ts:140", parts: [["def", "charge failed"]] };
+
+// The pretty error + stack that follows the ERROR line (tslog's format).
+const errName = "PaymentDeclinedError";
+const errMsg = "card ending 4242 was declined";
+const stack = [
+  { fn: "Billing.charge", loc: "/src/billing.ts:140" },
+  { fn: "Checkout.processOrder", loc: "/src/checkout.ts:52" },
+  { fn: "handler", loc: "/src/routes/pay.ts:18" },
+];
+
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+let i = 0;
+// Each call bumps --i, so each wrapped chunk reveals at its own stagger step.
+const reveal = (html) => `<span class="hero-line" style="--i:${i++}">${html}</span>`;
+const line = (html) => reveal(html + "\n");
+
+// Default template order: date  LEVEL  filePathWithLine  <tab>  message.
+// date + filePath are `white`; the level uses its per-level color.
+const logLineHtml = (l) => {
+  const lvl = `<span class="lvl lvl--${l.lvl.toLowerCase()}">${l.lvl.padEnd(5)}</span>`;
+  // tslog renders date + path in white; we dim them slightly here purely for
+  // visual hierarchy so the level and message read first.
+  const file = `<span class="c-meta">[${esc(l.file)}]</span>`;
+  const msg = l.parts.map(([c, t]) => `<span class="c-${c}">${esc(t)}</span>`).join("");
+  return `<span class="c-meta">${ts}</span> ${lvl} ${file}  ${msg}`;
+};
+
+// Each log line reveals individually (one --i step per line).
+let body = logLines.map((l) => line(logLineHtml(l))).join("");
+
+// The ERROR log line + the error + its full stack trace all reveal together
+// as a single block (one --i step) — it's one event, not a log call
+// followed by a separate sequence.
+// errorName renders white-on-red (bold + bgRedBright + whiteBright); message
+// in default foreground; each stack frame: bullet, yellow fileName, method,
+// then an indented white file path with line.
+let errorBlock = logLineHtml(errorLine) + "\n";
+errorBlock += `<span class="err-name">${esc(errName)}</span> <span class="c-def">${esc(errMsg)}</span>\n`;
+errorBlock += `<span class="c-def">error stack:</span>\n`;
+for (const f of stack) {
+  const fileName = f.loc.split("/").pop();
+  errorBlock += `  <span class="c-def">•</span> <span class="c-yellow">${esc(fileName)}</span>\t<span class="c-def">${esc(f.fn)}</span>\n`;
+  errorBlock += `\t<span class="c-white">${esc(f.loc)}</span>\n`;
+}
+body += reveal(errorBlock);
+body += `<span class="hero-caret" aria-hidden="true"></span>`;
+
+// Supported runtimes / environments — the "universal" promise, as a logo row.
+// Full-color brand marks live in /public/assets/logos (served same-origin,
+// CSP-safe) and are referenced as <img> so each SVG's gradient/ids stay
+// scoped and can't collide.
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const logo = (f) => `${base}/assets/logos/${f}`;
+
+const runtimes = [
+  { name: "Node.js", file: "nodejs.svg" },
+  { name: "Deno", file: "deno.svg" },
+  { name: "Bun", file: "bun.svg" },
+  { name: "Workers", file: "cloudflare-workers.svg" },
+  { name: "React Native", file: "react.svg" },
+];
+const browsers = [
+  { name: "Chrome", file: "chrome.svg" },
+  { name: "Safari", file: "safari.svg" },
+  { name: "Edge", file: "edge.svg" },
+  { name: "Firefox", file: "firefox.svg" },
+];
+---
+
+<div class="hero-term" role="img" aria-label="A terminal streaming colorized tslog output ending in a pretty stack trace">
+  <div class="hero-term__bar">
+    <span class="hero-term__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="hero-term__title">node app.ts — tslog</span>
+    <span class="hero-term__spacer"></span>
+  </div>
+  <pre class="hero-term__body"><code set:html={body} /></pre>
+</div>
+
+<div class="hero-platforms" aria-label="Runs on Node.js, Deno, Bun, Cloudflare Workers, React Native, and every major browser">
+  <span class="hero-platforms__label">Same logger on every platform</span>
+  <ul class="hero-platforms__list">
+    {runtimes.map((p) => (
+      <li class="pf">
+        <img
+          src={logo(p.file)}
+          alt=""
+          width="18"
+          height="18"
+          loading="lazy"
+          decoding="async"
+          class={p.name === "Deno" ? "pf-invert" : undefined}
+        />
+        <span>{p.name}</span>
+      </li>
+    ))}
+    <li class="pf pf--browsers" aria-label="All major browsers">
+      {browsers.map((b) => (
+        <img src={logo(b.file)} alt={b.name} title={b.name} width="18" height="18" loading="lazy" decoding="async" />
+      ))}
+    </li>
+  </ul>
+</div>

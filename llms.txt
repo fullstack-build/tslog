@@ -1,57 +1,67 @@
 # tslog
 
-> Universal TypeScript logger for Node.js, browsers, Deno, Bun, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret masking, and structured error/cause formatting. A strong fit for AI/agentic apps that need structured, redacted, correlated logs.
-
-## Install
-`npm install tslog`
+> Universal TypeScript logger for Node.js, browsers, Deno, Bun, React Native, and workers. Zero runtime dependencies. Pretty or JSON output, sub-loggers, secret/PII/prompt masking, async-context correlation, structured error/cause formatting. A strong fit for AI/agentic apps needing structured, redacted, correlated logs.
 
 ## Import
 ```ts
-import { Logger } from "tslog";       // create your own
-import { log } from "tslog";          // ready-to-use default (pretty)
-import { Logger, DefaultLogLevels, ILogObj } from "tslog";
+import { Logger, createLogger, log } from "tslog"; // class + typed-custom-levels factory + ready-to-use default instance
 ```
 
 ## Core API
-- `new Logger(settings?, logObj?)` — create a logger. `logObj` is a default object merged into every log; function-valued fields are evaluated per log (great for `requestId`).
-- `log.silly|trace|debug|info|warn|error|fatal(...args)` — log at a level. Returns the structured log object (with `_meta`).
-- `log.getSubLogger(settings?, logObj?)` — child logger; inherits settings, names, prefixes, and transports.
-- `log.attachTransport((logObj) => void)` — send every log object somewhere (file, HTTP, observability backend). Transports are isolated: a throwing transport never breaks logging.
+- `new Logger({ type: "json" })` — structured one-object-per-line output (production / observability / LLM ingestion). Default `type` is always `"pretty"` (colored on a TTY, uncolored when piped/CI). JSON is opt-in via `type: "json"`, `TSLOG_TYPE=json` (read by `Logger.fromEnv()`, not plain `new Logger()`), or a JSON transport. `NO_COLOR` only strips colors, never switches the format.
+- `log.info|warn|error|debug|trace|silly|fatal(...)` — fields-first or string-first: `log.info({ userId: 42 }, "ready")` or `log.info("ready", { userId: 42 })`.
+- `log.getSubLogger({ name })` / `log.child({ name })` — child logger (aliases); inherits settings, names, prefixes, transports. Bind static fields via `bindings: { tenant }` — merged down the chain, per-call fields win, masked once at construction.
+- Custom levels install real methods: `createLogger({ customLevels: { AUDIT: 7 } }).audit(...)` (typed) or `log.addLevel("NOTICE", 3.5).notice(...)`; names resolve case-insensitively.
+- `log.runInContext({ requestId }, fn)` — AsyncLocalStorage correlation: fields attach to every log inside `fn`, across awaits. `log.getContext()` reads them. Auto-resolves on Node/Deno/Bun; on Cloudflare Workers pass `contextStorage: new AsyncLocalStorage()` (from "node:async_hooks", needs the nodejs_als or nodejs_compat flag).
+- `log.attachTransport(t)` extra sink; `log.use(mw)` middleware; `log.flush()` awaits async transport writes + each transport's `flush()`; `await using` disposes owned transports (a child never disposes inherited ones).
+- Custom transport: a bare `(record) => void|Promise<void>` or `{ write(record, line), minLevel?, format?, flush? }` (per-sink level/format; errors isolated per transport). Middleware: `log.use((ctx) => ctx)` — mutate `ctx.args`/`ctx.meta`, return `null` to drop the log.
+- `log.setMinLevel("DEBUG")` — switch the level at runtime; `log.isLevelEnabled("TRACE")` — guard expensive log-argument construction.
+- `log.if(condition)` — returns `log` when truthy, a no-op when falsy: `log.if(!ok).warn("failed", { id })`. Gates a single call; args are still evaluated (use `isLevelEnabled` to skip expensive construction).
+- `Logger.fromEnv(overrides?)` — build from env vars: `TSLOG_LEVEL` → `minLevel`, `TSLOG_TYPE` → `type`, `TSLOG_NAME` → `name`; explicit `overrides` win. `defineConfig({ ... })` — typed helper for sharing settings across loggers.
 
-## Key settings (ISettingsParam)
-- `type: "pretty" | "json" | "hidden"` — `"json"` for production/observability/LLM ingestion; `"pretty"` (default) for local dev; `"hidden"` to suppress console but still run transports.
-- `minLevel: number | DefaultLogLevels | "SILLY".."FATAL"` — accepts a level name (e.g. `"WARN"`) or number (0..6).
-- `name: string` — logger name, shown in pretty output and inherited by sub-loggers (use per-module or per-agent).
-- `maskValuesOfKeys: string[]` — redact the values of these keys anywhere in the data. Use for secrets and, in AI apps, prompts/PII: `["password","apiKey","authorization","token","prompt"]`.
-- `maskValuesRegEx: RegExp[]` — redact substrings in string values (env secrets, emails, IPs).
-- `prettyLogLevelMethod` — map levels to console methods (e.g. `{ WARN: console.warn, ERROR: console.error, "*": console.log }`).
-- `overwrite.addMeta(logObj, id, name, defaultMeta?)` — attach correlation/trace ids or cost fields to every log (set `overwrite.includeDefaultMetaInAddMeta: true` to extend the default meta).
-- `hideLogPositionForProduction: true` — skip stack capture for max throughput in production.
+## Settings are GROUPED (no flat keys)
+- `type`, `name`, `minLevel: "INFO"` (name or 0..6), `prefix: ["[api]"]` (args prepended to every call, concatenated down the sub-logger chain; use `bindings` for JSON fields, `prefix` for message text), `strictConfig: true` (throw `TslogConfigError` on unknown/typo'd/v4-flat keys; without it they warn in dev with a did-you-mean).
+- `persistLevel: true` (browser-only) — persist runtime `setMinLevel()` changes in `localStorage` and restore them on reload; key name via `persistLevelKey`; no-op outside browsers.
+- `mask: { keys: ["password","apiKey","token","prompt"], paths: ["user.password","*.token"], caseInsensitive, regex, censor, placeholder: "[***]" }` — redact secrets/PII/prompts by key, dotted path, or regex. Regexes always apply globally (no `g` flag needed); keys/regex also mask inside `Map`/`Set` contents; shared/circular references resolve to the same masked clone.
+- `json: { messageKey, levelKey, timeKey, errorKey, time: "iso"|"epoch"|false|fn }` (`time` shapes the top-level timestamp; `_logMeta.date` stays UTC ISO), `pretty: { template, timeZone, style, levelMethod, passObjectsNatively, inspectOptions }`, `stack: { capture: "off"|"lazy"|"auto"|"full" }`, `meta: { property, attachContext }`. `pretty.template` reshapes the log line via `{{placeholders}}` — `{{logLevelName}}`, `{{name}}`, `{{filePathWithLine}}`, `{{dateIsoStr}}`, or date parts `{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}` — and `stack.capture: "auto"` (the pretty default; json defaults to `"off"`) captures frames only when the template renders a code position. `pretty.passObjectsNatively` hands non-Error args to the console by reference (collapsible objects in browser DevTools; pair with `levelMethod` for native warn/error stack groups) — default TRUE in real browsers, false elsewhere; set `false` for log-time snapshots (raw references show post-mutation state when expanded) or text-matchable output (DevTools filter/console-capture only match the rendered string); `pretty.inspectOptions.breakLength: Infinity` keeps inspected objects on one line for log aggregators.
+- Source-mapped error positions (Node/Bun/Deno, not browser): `_logMeta.path` and pretty error stacks resolve through a source map back to the original `.ts` file/line/column when one is discoverable, automatically outside production (`NODE_ENV !== "production"`); force with `TSLOG_SOURCE_MAPS=on`/`off`.
+- `clock: () => Date` — injectable clock (deterministic tests, offset stamping); inherited by sub-loggers; a throwing/invalid clock is ignored.
 
-## Common correct patterns
-```ts
-// Structured JSON, filtered to INFO and above:
-const log = new Logger({ type: "json", minLevel: "INFO" });
-log.info({ event: "request", method: "GET", path: "/users", status: 200, ms: 12 });
+## Output shape (type:"json")
+Flat, fields-first: `{ message, level, levelId, time, ...yourFields, error?, _logMeta: { v: 5, runtime, logLevelId, ... } }`.
+On Node, json lines go through a buffered stdout sink (batched `process.stdout.write` per event-loop turn, drained by `flush()`/exit hooks) — NOT `console.log`; patching `console.log` will not intercept them (spy on `process.stdout.write`, or use `type: "hidden"` + a transport).
 
-// Per-request child logger with an inherited request id:
-const reqLog = log.getSubLogger({ name: "req" }, { requestId: () => getRequestId() });
+## Presets (subpaths)
+- `tslog/presets/pino` — `pinoTransport`/`pinoFormat` (pino NDJSON; errors as pino's `err: { type, message, stack: "<raw string>", cause? }`, or `errorShape: "tslog"` for frame arrays).
+- `tslog/otel` — `otlpFormat`/`toOtlpJson`/`toOtlpLogRecord`/`otlpBatchBody` (REAL OTLP/JSON for collectors: pair `httpTransport({ url: "http://collector:4318/v1/logs", format: otlpFormat({ resource }), encodeBody: otlpBatchBody })`; logged errors map to `exception.*` semconv). `otelFormat`/`toOtelRecord` emit the data-model prose shape for custom pipelines (NOT collector-ingestible).
+- `tslog/presets/genai` — `genai({ model, inputTokens, outputTokens, costUsd })` → spread into a log call.
 
-// Redact secrets and prompts:
-const log = new Logger({ type: "json", maskValuesOfKeys: ["password", "apiKey", "prompt"] });
+## Transports (subpaths, opt-in)
+- `tslog/transports/file` — `fileTransport({ path, format, append, onError, exitHooks })` (Node; buffered; never crashes on fs errors; exit hooks drain on `process.exit`/crash via `flushSync()`).
+- `tslog/transports/http` — `httpTransport({ url, batchSize, flushIntervalMs, timeoutMs, retries, maxBufferedLines, keepalive, onError })` (batched fetch; per-attempt timeout, retry with backoff, bounded buffer with oldest-first drop, flush on `beforeExit`/`pagehide`; drop reports reach `onError` as an `IHttpTransportDropError` carrying `droppedCount`).
+- `tslog/transports/ringbuffer` — `ringBufferTransport({ size })` (in-memory; `.dump()`/`.clear()`).
+- `tslog/transports/worker` — `workerTransport({ destination: "file"|"stdout"|"stderr", path, format, maxRespawns })` (Node-only; runs sink I/O on a worker thread to keep it off the event loop — does NOT speed up `log.info()` itself; the worker is unref'd so it never blocks process exit, drains on `beforeExit`, and a dead worker respawns then falls back to inline writes).
 
-// Ship logs to a backend without blocking:
-log.attachTransport((o) => sendToObservability(o));
-```
+## Utilities (subpaths)
+- `tslog/console` — `wrapConsole(logger)` routes global `console.log/info/debug/warn/error` through the logger; returns a restore fn (`restoreConsole()` also undoes it).
+- `tslog/serializers` — pino-style `stdSerializers` (`err`, `req`, `res`, `user`) + `serialize(map)` middleware: `log.use(serialize({ req: stdSerializers.req }))` shapes matching top-level fields before output.
+- `tslog/throttle` — `log.use(throttle({ windowMs: 1000 }))` collapses identical consecutive messages within the window; the run-ending log carries `repeated: N`. `key: (ctx) => string` tunes identity, `now` for deterministic tests.
+- `tslog/pretty/box` — pure string builders: `box(content, { title, padding, borderStyle, align })` and `tree(obj)`; print via `log.info("\n" + box(...))`.
+- CLI: `node app.js | npx tslog` pretty-prints tslog NDJSON in dev (the pino-pretty analogue; non-JSON lines pass through); programmatic API at `tslog/cli`.
+
+## Size-critical builds (subpaths)
+- `tslog/slim` — `Logger`/`createLogger` with the SAME JSON pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size. No masking (`mask` settings THROW), no pretty (`type: "pretty"` throws; default type is "json"), no stack capture (`_logMeta.path` absent, error `stack` arrays empty), no `fromEnv`, no settings validation.
+- `tslog/lite` — `lite`/`createLiteLogger({ minLevel })`: the seven level methods ARE bound native `console.*` functions (devtools shows YOUR file:line), level gating only — no JSON pipeline, no `_logMeta`, no masking, no transports. Pick slim for structured JSON, lite for a leveled console.
+
+## Testing (subpath)
+- `tslog/testing` — `createTestLogger(settings?, { now?, normalize? })` (in-memory capture: `logs`/`lines`/`clear`; `now` freezes ONLY this logger's clock; `normalize: true` makes output snapshot-stable), `mockLogger()` (recording level methods), `normalizeMeta(recordOrLine)` (pin date/hostname/runtimeVersion, drop `_logMeta.path`).
 
 ## Notes for code generation
-- Prefer `type: "json"` for anything machine-read (observability, LLM ingestion).
-- Prefer `minLevel: "INFO"` (a name) over a bare number for readability.
-- Use `getSubLogger` (not new top-level loggers) for per-request/per-agent context.
-- Always set `maskValuesOfKeys` when logging objects that may contain secrets or prompts.
-- tslog has no runtime dependencies and works in every JS runtime — no environment-specific setup needed.
+- Prefer `type: "json"` and `minLevel: "INFO"` for machine-read logs.
+- Never pass `mask` settings to `tslog/slim` (they throw) — use the full `tslog` entry where masking is needed.
+- Use `getSubLogger`/`child` per request/agent, `runInContext` for correlation.
+- Always set `mask.keys`/`mask.paths` when logging objects that may hold secrets or prompts.
 
 ## Links
-- Docs: https://tslog.js.org
 - Recipes: ./RECIPES.md
 - Repo: https://github.com/fullstack-build/tslog

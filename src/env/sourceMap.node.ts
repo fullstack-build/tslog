@@ -1,0 +1,374 @@
+import { createRequire } from "node:module";
+import { devWarningsEnabled } from "../core/settings.js";
+import { safeEnvGet } from "../internal/environment.js";
+import { normalizeFilePath, type SourceMapResolver } from "./shared.js";
+
+/**
+ * Best-effort source-map resolution for Node/Bun/Deno server-style stack frames (issue #307): a
+ * transpiled/bundled frame like `dist/index.js:42:9` is remapped to its original `src/index.ts:12:3`
+ * when a source map is discoverable, so error output matches what devtools/`--enable-source-maps`
+ * already show for `console.log`. Node's own V8 stack rewriting only fires when the process was
+ * started with `--enable-source-maps`, and Bun does not honor that flag at all (verified: Bun leaves
+ * `.stack` pointing at the bundled file even with a `sourceMappingURL` comment present) — so this is a
+ * manual fallback, not a duplicate of Node's native behavior.
+ *
+ * Zero runtime dependencies (project convention): this hand-rolls a minimal source-map v3 consumer
+ * (Base64-VLQ decode + a segment scan) instead of pulling in the `source-map` package. `node:fs` and
+ * `node:module` are resolved lazily via `createRequire`, never imported at module top level, so this
+ * file stays side-effect free and is only ever reached from the Node/universal (Bun/Deno) providers —
+ * never from the browser bundle.
+ *
+ * Every failure mode (no `sourceMappingURL`, unreadable file, malformed JSON, no matching segment)
+ * resolves to `undefined` and the caller keeps the original transpiled position. This must never throw
+ * and never slow down logging when no source map is present.
+ */
+
+const BASE64_VLQ_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+const BASE64_VLQ_INDEX: Record<string, number> = Object.fromEntries([...BASE64_VLQ_CHARS].map((char, index) => [char, index]));
+
+interface RawSourceMap {
+  version?: number;
+  sources?: string[];
+  sourcesContent?: (string | null)[];
+  names?: string[];
+  mappings?: string;
+  sourceRoot?: string;
+}
+
+/** One decoded mapping segment: generated position -> original position. */
+interface MappingSegment {
+  genLine: number;
+  genColumn: number;
+  sourceIndex: number;
+  origLine: number;
+  origColumn: number;
+}
+
+export interface OriginalPosition {
+  source: string;
+  line: number;
+  column: number;
+}
+
+interface ParsedSourceMap {
+  sources: string[];
+  sourceRoot: string;
+  /** Directory the map's relative `sources` entries resolve against: the `.map` file's own directory (the generated file's for inline `data:` maps). */
+  mapDir: string;
+  segmentsByLine: Map<number, MappingSegment[]>;
+}
+
+/** Decode one Base64-VLQ run into signed integers (source-map spec: 5 mantissa bits/char, MSB = continuation, LSB = sign). */
+function decodeVlq(segment: string): number[] {
+  const values: number[] = [];
+  let shift = 0;
+  let result = 0;
+  for (let i = 0; i < segment.length; i += 1) {
+    const char = segment[i];
+    const digit = BASE64_VLQ_INDEX[char];
+    if (digit == null) {
+      continue;
+    }
+    const continuation = digit & 32;
+    const bits = digit & 31;
+    result += bits << shift;
+    if (continuation) {
+      shift += 5;
+      continue;
+    }
+    const negate = result & 1;
+    result >>= 1;
+    values.push(negate ? -result : result);
+    result = 0;
+    shift = 0;
+  }
+  return values;
+}
+
+/** Parse a source-map v3 `mappings` string into per-generated-line segment lists, sorted by column. */
+function parseMappings(mappings: string): Map<number, MappingSegment[]> {
+  const segmentsByLine = new Map<number, MappingSegment[]>();
+  const lines = mappings.split(";");
+  let sourceIndex = 0;
+  let origLine = 0;
+  let origColumn = 0;
+
+  for (let genLine = 0; genLine < lines.length; genLine += 1) {
+    let genColumn = 0;
+    const line = lines[genLine];
+    if (line.length === 0) {
+      continue;
+    }
+    const lineSegments: MappingSegment[] = [];
+    for (const rawSegment of line.split(",")) {
+      if (rawSegment.length === 0) {
+        continue;
+      }
+      const fields = decodeVlq(rawSegment);
+      if (fields.length < 4) {
+        continue;
+      }
+      genColumn += fields[0];
+      sourceIndex += fields[1];
+      origLine += fields[2];
+      origColumn += fields[3];
+      lineSegments.push({ genLine, genColumn, sourceIndex, origLine, origColumn });
+    }
+    if (lineSegments.length > 0) {
+      lineSegments.sort((a, b) => a.genColumn - b.genColumn);
+      segmentsByLine.set(genLine, lineSegments);
+    }
+  }
+  return segmentsByLine;
+}
+
+function requireNodeModule<T>(name: string): T | undefined {
+  try {
+    const require = createRequire(import.meta.url);
+    return require(name) as T;
+    /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node/Bun/Deno; covers exotic loaders */
+  } catch {
+    return undefined;
+  }
+}
+
+type FsLike = { readFileSync: (path: string, encoding: "utf8") => string; existsSync: (path: string) => boolean };
+
+let cachedFs: FsLike | null | undefined;
+function getFs(): FsLike | undefined {
+  if (cachedFs === undefined) {
+    /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node/Bun/Deno, the only runtimes this resolver is wired into */
+    cachedFs = requireNodeModule<FsLike>("node:fs") ?? null;
+  }
+  return cachedFs ?? undefined;
+}
+
+function dirnameOf(filePath: string): string {
+  const index = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
+  return index === -1 ? "." : filePath.slice(0, index);
+}
+
+function joinPath(dir: string, relative: string): string {
+  if (/^([A-Za-z]:)?[/\\]/.test(relative)) {
+    return relative;
+  }
+  return `${dir.replace(/[/\\]+$/, "")}/${relative}`;
+}
+
+/** Read the trailing `//# sourceMappingURL=...` comment (last one wins, per spec) from a source file. */
+function extractSourceMappingUrl(source: string): string | undefined {
+  const matches = source.match(/\/[*/]#\s*sourceMappingURL=([^\s*]+)\s*(?:\*\/)?\s*$/gm);
+  if (matches == null || matches.length === 0) {
+    return undefined;
+  }
+  const last = matches[matches.length - 1];
+  const urlMatch = last.match(/sourceMappingURL=([^\s*]+)/);
+  return urlMatch?.[1];
+}
+
+/** A parsed raw map plus the directory its relative `sources` entries resolve against. */
+interface LoadedSourceMap {
+  raw: RawSourceMap;
+  mapDir: string;
+}
+
+function loadRawSourceMap(filePath: string, fs: FsLike): LoadedSourceMap | undefined {
+  let fileContents: string;
+  try {
+    fileContents = fs.readFileSync(filePath, "utf8");
+  } catch {
+    return undefined;
+  }
+
+  const mappingUrl = extractSourceMappingUrl(fileContents);
+  if (mappingUrl == null) {
+    return undefined;
+  }
+
+  try {
+    if (mappingUrl.startsWith("data:")) {
+      const base64Marker = "base64,";
+      const base64Index = mappingUrl.indexOf(base64Marker);
+      if (base64Index === -1) {
+        return undefined;
+      }
+      const decoded = Buffer.from(mappingUrl.slice(base64Index + base64Marker.length), "base64").toString("utf8");
+      return { raw: JSON.parse(decoded) as RawSourceMap, mapDir: dirnameOf(filePath) };
+    }
+
+    const mapPath = joinPath(dirnameOf(filePath), mappingUrl);
+    if (!fs.existsSync(mapPath)) {
+      return undefined;
+    }
+    return { raw: JSON.parse(fs.readFileSync(mapPath, "utf8")) as RawSourceMap, mapDir: dirnameOf(mapPath) };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Parsed-map cache, keyed by the generated file's path — a process only ever has finitely many loaded modules. */
+const PARSED_MAP_CACHE_LIMIT = 256;
+const parsedMapCache = new Map<string, ParsedSourceMap | null>();
+
+function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
+  const cached = parsedMapCache.get(filePath);
+  if (cached !== undefined) {
+    return cached ?? undefined;
+  }
+
+  // Defensive cap: a pathological process could load thousands of modules with source maps. Evict
+  // the oldest entry (FIFO — the cost of re-reading one file is negligible) to bound memory.
+  if (parsedMapCache.size >= PARSED_MAP_CACHE_LIMIT) {
+    const firstKey = parsedMapCache.keys().next().value;
+    if (firstKey !== undefined) {
+      parsedMapCache.delete(firstKey);
+    }
+  }
+
+  const fs = getFs();
+  /* v8 ignore next 4 -- defensive: node:fs is always resolvable on Node/Bun/Deno, the only runtimes this resolver is wired into */
+  if (fs == null) {
+    parsedMapCache.set(filePath, null);
+    return undefined;
+  }
+
+  const loaded = loadRawSourceMap(filePath, fs);
+  if (loaded?.raw.mappings == null || loaded.raw.sources == null || loaded.raw.sources.length === 0) {
+    parsedMapCache.set(filePath, null);
+    return undefined;
+  }
+
+  const parsed: ParsedSourceMap = {
+    sources: loaded.raw.sources,
+    sourceRoot: loaded.raw.sourceRoot ?? "",
+    mapDir: loaded.mapDir,
+    segmentsByLine: parseMappings(loaded.raw.mappings),
+  };
+  parsedMapCache.set(filePath, parsed);
+  return parsed;
+}
+
+/** Matches a URL-scheme prefix (`webpack://`, `webpack-internal://`, `file://`, ...) on a `sources` entry. */
+const SOURCE_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:\/\//i;
+
+/**
+ * Turn a raw `sources` entry into a usable path. Per the source-map spec, `sources` are relative to
+ * `sourceRoot` and then to the map's own location — reporting them verbatim would show `../src/app.ts`
+ * for a map in `dist/`, which neither cwd-relativizes nor opens in an editor. So: apply `sourceRoot`,
+ * strip a `file://` prefix, reduce bundler-virtual schemes (`webpack://_N_E/./src/x.ts` and friends) to
+ * their project-relative tail (the virtual path has no on-disk anchor, so the readable tail is the best
+ * available), and anchor plain relative paths to `mapDir` so `dist/app.js.map` + `../src/app.ts` yields
+ * the real on-disk `src/app.ts`.
+ */
+function resolveSourcePath(source: string, sourceRoot: string, mapDir: string): string {
+  const combined = sourceRoot.length > 0 ? joinPath(sourceRoot, source) : source;
+  if (combined.startsWith("file://")) {
+    const stripped = normalizeFilePath(combined.replace(/^file:\/\//, ""));
+    return stripped.length > 0 ? stripped : combined;
+  }
+  const scheme = combined.match(SOURCE_SCHEME_REGEX);
+  if (scheme != null) {
+    // Bundler-virtual path: drop the scheme and the namespace segment (e.g. webpack://_N_E/./src/x.ts).
+    const rest = combined.slice(scheme[0].length);
+    const slash = rest.indexOf("/");
+    const tail = slash === -1 ? rest : rest.slice(slash + 1);
+    const cleaned = normalizeFilePath(tail);
+    return cleaned.length > 0 ? cleaned : combined;
+  }
+  if (/^([A-Za-z]:)?[/\\]/.test(combined)) {
+    return combined;
+  }
+  // normalizeFilePath already falls back to its input when normalization collapses to empty, and
+  // joinPath(mapDir, combined) always produces a non-empty string, so no empty-check is needed here.
+  return normalizeFilePath(joinPath(mapDir, combined));
+}
+
+/** Find the mapping segment on `genLine` at or immediately before `genColumn` (source maps snap to segment start). */
+function findSegment(segments: MappingSegment[], genColumn: number): MappingSegment | undefined {
+  // Binary search: segments are sorted by genColumn (parseMappings sorts on insertion). A linear scan
+  // would be O(n) per frame, and a single bundled output line can carry hundreds of segments.
+  let lo = 0;
+  let hi = segments.length - 1;
+  let candidate: MappingSegment | undefined;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const segment = segments[mid];
+    if (segment.genColumn <= genColumn) {
+      candidate = segment;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+  return candidate;
+}
+
+/**
+ * Resolve a transpiled/bundled `(filePath, line, column)` (1-based line, as produced by V8 stack
+ * frames) to its original source position via that file's source map, if one is discoverable.
+ * Returns `undefined` on any failure — no source map, unparsable map, or no covering segment — so
+ * callers can fall back to the transpiled position unconditionally.
+ */
+export function resolveOriginalPosition(filePath: string, line: number, column: number): OriginalPosition | undefined {
+  if (!Number.isFinite(line) || line < 1) {
+    return undefined;
+  }
+  const map = getParsedSourceMap(filePath);
+  if (map == null) {
+    return undefined;
+  }
+
+  const segments = map.segmentsByLine.get(line - 1);
+  if (segments == null || segments.length === 0) {
+    return undefined;
+  }
+
+  const zeroBasedColumn = Number.isFinite(column) && column >= 1 ? column - 1 : 0;
+  const segment = findSegment(segments, zeroBasedColumn) ?? segments[0];
+  const source = map.sources[segment.sourceIndex];
+  if (source == null) {
+    return undefined;
+  }
+
+  const resolvedSource = resolveSourcePath(source, map.sourceRoot, map.mapDir);
+  return { source: resolvedSource, line: segment.origLine + 1, column: segment.origColumn + 1 };
+}
+
+/** Clear the parsed-source-map cache. Exposed for tests only. */
+export function clearSourceMapCacheForTests(): void {
+  parsedMapCache.clear();
+}
+
+/**
+ * Whether source-map resolution should be attempted: on by default outside production (matching
+ * {@link devWarningsEnabled}'s `NODE_ENV` check — this is a dev-ergonomics feature, and the sync file
+ * reads it costs are not something a production deployment should pay for), with a dedicated
+ * `TSLOG_SOURCE_MAPS` override so it can be forced on/off independent of dev-warning noise.
+ */
+export function sourceMapResolutionEnabled(): boolean {
+  const override = safeEnvGet("TSLOG_SOURCE_MAPS");
+  if (override != null) {
+    return override !== "off" && override !== "false" && override !== "0";
+  }
+  return devWarningsEnabled();
+}
+
+/**
+ * Build the {@link SourceMapResolver} the node/universal providers inject into `providerBase`. The
+ * resolver itself decides per call whether resolution is enabled (production default off, or
+ * `TSLOG_SOURCE_MAPS=off`) and returns `undefined` when it is not, so the caller keeps the transpiled
+ * position.
+ *
+ * The enablement check (`sourceMapResolutionEnabled`) is evaluated **per call**, not frozen at logger
+ * construction. This means flipping `TSLOG_SOURCE_MAPS` or `NODE_ENV` at runtime takes effect
+ * immediately — important for tests that toggle the flag between cases without recreating the logger.
+ * The cost is a single env-var read per stack frame, negligible behind the parsed-map cache.
+ */
+export function createSourceMapResolver(): SourceMapResolver | undefined {
+  return (filePath, line, column) => {
+    if (!sourceMapResolutionEnabled()) {
+      return undefined;
+    }
+    return resolveOriginalPosition(filePath, line, column);
+  };
+}

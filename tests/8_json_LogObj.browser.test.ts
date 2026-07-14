@@ -12,7 +12,10 @@ test.describe("JSON: LogObj (browser)", () => {
       {},
       `
       const defaultLogObject = { name: "test" };
-      const logger = new tslog.BaseLogger({ type: "json" }, defaultLogObject);
+      // v5 BaseLogger takes the EnvironmentProvider as a 3rd constructor arg (no module-level singleton).
+      // The bundle doesn't export createBrowserEnvironment, so borrow the live browser provider off a Logger.
+      const environment = new tslog.Logger().runtime;
+      const logger = new tslog.BaseLogger({ type: "json" }, defaultLogObject, environment);
       const logMsg = logger.log(1234, "testLevel", "Test");
       return { name: logMsg.name };
     `,
@@ -24,12 +27,16 @@ test.describe("JSON: LogObj (browser)", () => {
       {},
       `
       const defaultLogObject = { name: "test" };
-      const logger = new tslog.BaseLogger({ type: "json" }, defaultLogObject);
+      // v5 BaseLogger takes the EnvironmentProvider as a 3rd constructor arg (no module-level singleton).
+      // The bundle doesn't export createBrowserEnvironment, so borrow the live browser provider off a Logger.
+      const environment = new tslog.Logger().runtime;
+      const logger = new tslog.BaseLogger({ type: "json" }, defaultLogObject, environment);
       logger.log(1234, "testLevel", "Test");
     `,
     );
     expect(combined).toContain(`"name":"test",`);
-    expect(combined).toContain(`"0":"Test",`);
+    // v5 flat shape: a bare-string arg is promoted from index key "0" to the top-level message key.
+    expect(combined).toContain(`"message":"Test",`);
   });
 
   test("Logger with LogObj", async ({ page }) => {
@@ -55,7 +62,8 @@ test.describe("JSON: LogObj (browser)", () => {
     `,
     );
     expect(combined).toContain(`"name":"test",`);
-    expect(combined).toContain(`"0":"Test",`);
+    // v5 flat shape: a bare-string arg is promoted from index key "0" to the top-level message key.
+    expect(combined).toContain(`"message":"Test",`);
   });
 
   test("Logger with LogObj: silly", async ({ page }) => {
@@ -81,7 +89,8 @@ test.describe("JSON: LogObj (browser)", () => {
     `,
     );
     expect(combined).toContain(`"name":"test",`);
-    expect(combined).toContain(`"0":"Test",`);
+    // v5 flat shape: a bare-string arg is promoted from index key "0" to the top-level message key.
+    expect(combined).toContain(`"message":"Test",`);
   });
 
   test("Logger with LogObj: function call", async ({ page }) => {
@@ -108,7 +117,8 @@ test.describe("JSON: LogObj (browser)", () => {
     `,
     );
     expect(combined).toContain(`"name":"test",`);
-    expect(combined).toContain(`"0":"Test",`);
+    // v5 flat shape: a bare-string arg is promoted from index key "0" to the top-level message key.
+    expect(combined).toContain(`"message":"Test",`);
     expect(combined).toContain(`"functionCall":"test",`);
   });
 
@@ -134,7 +144,9 @@ test.describe("JSON: LogObj (browser)", () => {
       logger.silly("Test");
     `,
     );
-    expect(combined).toContain(`"0":"1",`);
+    // The default-logObj array spreads index-keyed (0,1,2) and overwrites the bare "Test" at index 0.
+    // In the v5 flat shape index key "0" ("1") is promoted to the top-level message key; "1"/"2" remain.
+    expect(combined).toContain(`"message":"1",`);
     expect(combined).toContain(`"1":"2",`);
     expect(combined).toContain(`"2":"3"`);
   });
