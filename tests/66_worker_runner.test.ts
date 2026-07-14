@@ -131,14 +131,16 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
     let port = await loadRunner({ destination: "file", path, eol: "|", encoding: "utf8", append: false });
     port.emit("message", { type: "write", line: "a" });
     port.emit("message", { type: "write", line: "b" });
+    await untilFileHasBytes(path);
     port.emit("message", { type: "close" });
-    await until(() => port.close.mock.calls.length > 0);
+    await until(() => port.close.mock.calls.length > 0, 500, "port close");
     expect(readFileSync(path, "utf8")).toBe("a|b|");
 
     port = await loadRunner({ destination: "file", path, eol: "|", encoding: "utf8", append: false });
     port.emit("message", { type: "write", line: "c" });
+    await untilFileHasBytes(path);
     port.emit("message", { type: "close" });
-    await until(() => port.close.mock.calls.length > 0);
+    await until(() => port.close.mock.calls.length > 0, 500, "port close");
     expect(readFileSync(path, "utf8")).toBe("c|"); // truncated, not appended
   });
 
