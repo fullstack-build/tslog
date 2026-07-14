@@ -1,6 +1,6 @@
 {
   "name": "tslog",
-  "version": "4.10.2",
+  "version": "5.0.0-rc.0",
   "description": "Universal TypeScript logger for Node.js, browsers, Deno, Bun, React Native, and workers — pretty or structured JSON output, masking, transports.",
   "author": "Eugene <opensource@terehov.de> (https://fullstack.build)",
   "license": "MIT",
