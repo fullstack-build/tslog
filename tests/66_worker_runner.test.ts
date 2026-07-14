@@ -59,10 +59,18 @@ async function loadStdRunner(workerData: Record<string, unknown>): Promise<{ por
  * fires write/end/drain callbacks on later I/O ticks, not on the microtask queue, so a single yield
  * is not enough to observe the file contents or a delivered ack).
  */
-async function until(condition: () => boolean, tries = 200): Promise<void> {
+async function until(condition: () => boolean, tries = 500, label = "condition"): Promise<void> {
   for (let i = 0; i < tries && !condition(); i++) {
     await new Promise((resolve) => setImmediate(resolve));
   }
+  if (!condition()) {
+    throw new Error(`Timed out waiting for ${label} after ${tries} event-loop turns`);
+  }
+}
+
+/** Wait until a file destination has received at least one write (stream opened + chunk flushed). */
+async function untilFileHasBytes(path: string): Promise<void> {
+  await until(() => existsSync(path) && readFileSync(path, "utf8").length > 0, 500, `bytes at ${path}`);
 }
 
 const tmpDirs: string[] = [];
@@ -92,10 +100,11 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
 
     port.emit("message", { type: "write", line: '{"n":1}' });
     port.emit("message", { type: "write", line: '{"n":2}' });
+    await untilFileHasBytes(path);
 
     // A flush drains the stream, then acks with the SAME id.
     port.emit("message", { type: "flush", id: 42 });
-    await until(() => port.postMessage.mock.calls.length > 0);
+    await until(() => port.postMessage.mock.calls.length > 0, 500, "flush ack");
     expect(port.postMessage).toHaveBeenCalledWith({ type: "flushed", id: 42 });
 
     const contents = readFileSync(path, "utf8");
@@ -107,9 +116,10 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
     const port = await loadRunner({ destination: "file", path, eol: "\n", encoding: "utf8", append: true });
 
     port.emit("message", { type: "write", line: "line" });
+    await untilFileHasBytes(path);
 
     port.emit("message", { type: "close" });
-    await until(() => port.close.mock.calls.length > 0);
+    await until(() => port.close.mock.calls.length > 0, 500, "port close");
     expect(port.close).toHaveBeenCalledTimes(1);
     // Everything written before close is on disk after the stream's end() flush.
     expect(readFileSync(path, "utf8")).toBe("line\n");

@@ -297,18 +297,19 @@ describe.runIf(isNode)("process exit integration", () => {
     }
   });
 
-  test("`using logger` followed by process.exit still persists the file tail (hook survives until drained)", () => {
+  test("sync dispose followed by process.exit still persists the file tail (hook survives until drained)", () => {
     const dir = tmpDir();
     const target = join(dir, "using-exit.log");
     try {
+      // Subprocess runs plain Node (no TS transpile), so use Symbol.dispose — the Node 20–compatible
+      // equivalent of a synchronous `using` scope exit.
       runScript(`
         import { Logger } from "${repoRoot}/src/index.node.js";
         import { fileTransport } from "${repoRoot}/src/subpaths/transports/file.js";
-        {
-          using logger = new Logger({ type: "hidden" });
-          logger.attachTransport(fileTransport({ path: ${JSON.stringify(target)}, format: "json" }));
-          for (let i = 0; i < 50; i++) logger.info("line-" + i);
-        }
+        const logger = new Logger({ type: "hidden" });
+        logger.attachTransport(fileTransport({ path: ${JSON.stringify(target)}, format: "json" }));
+        for (let i = 0; i < 50; i++) logger.info("line-" + i);
+        logger[Symbol.dispose]();
         process.exit(0);
       `);
       const lines = readFileSync(target, "utf8").trim().split("\n");
