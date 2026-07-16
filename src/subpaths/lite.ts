@@ -17,8 +17,12 @@ import type { TLogLevel, TLogLevelName } from "../interfaces.js";
  *
  * {@link LiteLogger.getSubLogger} keeps that guarantee: a named sub-logger partially applies its label
  * with `Function.prototype.bind`, which returns another *native* function, so the devtools badge still
- * points at your call site. That is why labels are plain strings and not `%c` format specifiers — a
- * specifier would consume the argument after it instead of styling the label.
+ * points at your call site. The bound label doubles every `%` so a name can never act as a console
+ * format specifier and consume a logged value. The flip side of the same mechanism: on a NAMED logger
+ * the label occupies the console's format-string slot, so printf-style specifiers (`%s`, `%d`, `%c`,
+ * ...) in the logged MESSAGE are no longer interpolated — they print literally, with the values
+ * appended after. Unnamed loggers keep full printf semantics. If you need both a label and printf
+ * interpolation, fold the label into the message yourself: `log.info(\`app: count %d\`, n)`.
  *
  * The module has no import-time side effects (it only declares bindings), so bundlers can drop it
  * when unused.
@@ -64,13 +68,17 @@ export interface LiteLoggerOptions {
    * Label prepended to every logged line as a leading argument. Sub-loggers created with
    * {@link LiteLogger.getSubLogger} join their name onto the parent's with {@link nameSeparator}.
    *
-   * Use a plain string: a `%c`/`%s` format specifier would consume the argument that follows it
-   * rather than styling the label.
+   * Every `%` in the label is doubled before binding, so a name (even a runtime-derived one) can
+   * never act as a console format specifier and consume a logged value. Trade-off of labeling: the
+   * label occupies the console's format-string slot, so printf-style specifiers in the logged
+   * message print literally on a named logger (see the module docs).
    */
   name?: string;
   /**
-   * Separator joining a parent's `name` to a sub-logger's when nesting. Defaults to `":"`, so a
-   * `"app"` logger's `"cart"` sub-logger is labeled `"app:cart"`.
+   * Separator this logger uses when joining ITS name to a sub-logger's. Defaults to `":"`, so a
+   * `"app"` logger's `"cart"` sub-logger is labeled `"app:cart"`. A separator passed to
+   * {@link LiteLogger.getSubLogger} does not rewrite the seam the parent already owns — it only
+   * governs joins the new child performs for its own descendants.
    */
   nameSeparator?: string;
 }
@@ -92,14 +100,22 @@ function consoleMethodFor(levelId: number): "debug" | "info" | "warn" | "error" 
   return "debug"; // SILLY, TRACE, DEBUG
 }
 
+/** Normalize a label: absent or empty becomes `undefined`, so `""` never yields stray separators. */
+function normalizeName(name: string | undefined): string | undefined {
+  return name == null || name === "" ? undefined : name;
+}
+
 /**
  * Build the bound level method for `levelId`: the native `console.*` function bound to the sink so it
  * keeps the caller's source position, or the shared {@link NOOP} when the level is below `minLevel`.
  *
- * A non-empty `name` is partially applied as the first argument. `bind` is load-bearing rather than a
- * style choice: it returns another native function, so the runtime still attributes the log to the
- * caller. Prepending the label inside a wrapper (`(...args) => fn(name, ...args)`) would make that
- * wrapper the blamed frame and defeat the entire point of this module.
+ * A `name` (already normalized by the constructor) is partially applied as the first argument, with
+ * every `%` doubled — the first console argument is the format string, so an unescaped `%s`/`%d` in a
+ * runtime-derived name would consume the caller's first logged value. `bind` is load-bearing rather
+ * than a style choice: it returns another native function, so the runtime still attributes the log to
+ * the caller. Prepending the label inside a wrapper (`(...args) => fn(name, ...args)`) — even one
+ * `.bind()`-ed afterwards to look native — would make that wrapper the blamed frame and defeat the
+ * entire point of this module.
  */
 function bindLevel(levelId: number, minLevelId: number, sink: Partial<Console>, name?: string): LiteLogFn {
   if (levelId < minLevelId) {
@@ -112,15 +128,15 @@ function bindLevel(levelId: number, minLevelId: number, sink: Partial<Console>, 
   }
   // Bind to the sink so `this` is correct and, crucially, so the call frame the runtime attributes
   // the log to is the USER's call site rather than a tslog wrapper.
-  return name != null && name !== "" ? (fn as LiteLogFn).bind(sink, name) : (fn as LiteLogFn).bind(sink);
+  return name === undefined ? (fn as LiteLogFn).bind(sink) : (fn as LiteLogFn).bind(sink, name.replaceAll("%", "%%"));
 }
 
-/** Join a parent label to a child's, tolerating either side being absent. */
+/** Join a parent label to a child's (both already normalized), tolerating either side being absent. */
 function joinName(parent: string | undefined, child: string | undefined, separator: string): string | undefined {
-  if (parent == null || parent === "") {
+  if (parent === undefined) {
     return child;
   }
-  if (child == null || child === "") {
+  if (child === undefined) {
     return parent;
   }
   return `${parent}${separator}${child}`;
@@ -153,7 +169,7 @@ export class LiteLogger implements LiteLogMethods {
     const sink: Partial<Console> = options.console ?? console;
     // Unknown / unresolvable level names fall back to 0 so a typo never silences the logger entirely.
     this.minLevel = resolveLogLevelId(options.minLevel) ?? 0;
-    this.name = options.name === "" ? undefined : options.name;
+    this.name = normalizeName(options.name);
     this.#sink = sink;
     this.#nameSeparator = options.nameSeparator ?? ":";
 
@@ -167,9 +183,12 @@ export class LiteLogger implements LiteLogMethods {
   }
 
   /**
-   * A labeled child logger. Its `name` is appended to this logger's with `nameSeparator`, and every
-   * setting not named in `options` is inherited — so `getSubLogger({ name: "cart" })` on an `"app"`
-   * logger labels lines `"app:cart"` and keeps the parent's `minLevel` and sink.
+   * A labeled child logger. Its `name` is appended to this logger's with THIS logger's
+   * `nameSeparator` (a separator passed here only governs joins the child performs for its own
+   * descendants), and every setting not named in `options` is inherited — so
+   * `getSubLogger({ name: "cart" })` on an `"app"` logger labels lines `"app:cart"` and keeps the
+   * parent's `minLevel` and sink. An unresolvable `minLevel` override (a typo'd level name) inherits
+   * the parent's level rather than falling to 0, matching the full `Logger`'s sub-logger semantics.
    *
    * Unlike the full `Logger`'s sub-loggers this adds no wrapper frame: the child's level methods are
    * the same native `console.*` functions with the label partially applied, so devtools keeps blaming
@@ -182,10 +201,10 @@ export class LiteLogger implements LiteLogMethods {
    */
   public getSubLogger(options: LiteLoggerOptions = {}): LiteLogger {
     return new LiteLogger({
-      minLevel: options.minLevel ?? this.minLevel,
+      minLevel: resolveLogLevelId(options.minLevel) ?? this.minLevel,
       console: options.console ?? this.#sink,
       nameSeparator: options.nameSeparator ?? this.#nameSeparator,
-      name: joinName(this.name, options.name, options.nameSeparator ?? this.#nameSeparator),
+      name: joinName(this.name, normalizeName(options.name), this.#nameSeparator),
     });
   }
 

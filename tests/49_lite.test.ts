@@ -188,6 +188,21 @@ describe("LiteLogger name and getSubLogger", () => {
     expect(calls.warn).toEqual([["app/cart/checkout", "slow"]]);
   });
 
+  test("a nameSeparator passed to getSubLogger governs the child's own joins, not the parent's seam", () => {
+    const { sink, calls } = makeSink();
+    const app = new LiteLogger({ name: "app", console: sink });
+
+    const cart = app.getSubLogger({ name: "cart", nameSeparator: "/" });
+    cart.info("seam");
+    cart.getSubLogger({ name: "checkout" }).info("below");
+
+    // The parent joined "app"+"cart" with ITS ":" — the child's "/" only applies from cart downward.
+    expect(calls.info).toEqual([
+      ["app:cart", "seam"],
+      ["app:cart/checkout", "below"],
+    ]);
+  });
+
   test("an unnamed parent adopts the child's name, and an unnamed child keeps the parent's", () => {
     const { sink, calls } = makeSink();
 
@@ -216,34 +231,77 @@ describe("LiteLogger name and getSubLogger", () => {
     expect(calls.debug).toEqual([]); // parent's sink untouched
   });
 
+  test("an unresolvable minLevel override inherits the parent's level instead of falling to 0", () => {
+    const { sink, calls } = makeSink();
+    const app = new LiteLogger({ name: "app", minLevel: "WARN", console: sink });
+
+    // Root-constructor typos fall to 0 (never silence the logger); a sub-logger has a better
+    // fallback — the parent's level — matching the full Logger's getSubLogger semantics.
+    const child = app.getSubLogger({ name: "cart", minLevel: "WRAN" as unknown as LogLevel });
+
+    expect(child.minLevel).toBe(4);
+    child.debug("suppressed");
+    child.warn("emitted");
+    expect(calls.debug).toEqual([]);
+    expect(calls.warn).toEqual([["app:cart", "emitted"]]);
+  });
+
   test("child() is an alias of getSubLogger()", () => {
     const { sink, calls } = makeSink();
     new LiteLogger({ name: "app", console: sink }).child({ name: "cart" }).error("boom");
     expect(calls.error).toEqual([["app:cart", "boom"]]);
   });
 
-  test("sub-logger level methods stay native functions, so devtools blames the caller", () => {
+  test("sub-logger level methods stay native functions bound off the console, so devtools blames the caller", () => {
     const log = new LiteLogger({ name: "app" }).getSubLogger({ name: "cart" });
+    const CONSOLE_METHOD: Record<(typeof LEVELS)[number], string> = {
+      silly: "debug",
+      trace: "debug",
+      debug: "debug",
+      info: "info",
+      warn: "warn",
+      error: "error",
+      fatal: "error",
+    };
 
-    // The whole point of the module: Function.prototype.bind returns a native function, so the
-    // runtime attributes the log to the call site. A wrapper (`(...a) => console.info(label, ...a)`)
-    // would be user code and would capture the badge itself.
     for (const level of LEVELS) {
+      // The whole point of the module: Function.prototype.bind returns a native function, so the
+      // runtime attributes the log to the call site. A wrapper (`(...a) => console.info(label, ...a)`)
+      // would be user code and would capture the badge itself.
       expect(Function.prototype.toString.call(log[level])).toContain("[native code]");
+      // ...and the bound function must be the CONSOLE method itself, not a bound wrapper: any bound
+      // function stringifies to "[native code]", but only a bind of the real console method carries
+      // its name ("bound debug"), while a wrapped-then-bound arrow would be "bound " (anonymous).
+      expect(log[level].name).toBe(`bound ${CONSOLE_METHOD[level]}`);
     }
   });
 
-  test("an empty name is treated as no name", () => {
+  test("percent signs in names are escaped so a label can never consume logged values", async () => {
+    const { sink, calls } = makeSink();
+    const log = new LiteLogger({ name: "load %d%s", console: sink });
+    const payload = { id: 7 };
+
+    log.info(payload, 42);
+
+    // The bound label doubles every "%"; consoles render "%%" as a literal "%", so nothing in the
+    // name acts as a format specifier and the logged arguments survive untouched.
+    expect(log.name).toBe("load %d%s"); // the property stays unescaped
+    expect(calls.info).toEqual([["load %%d%%s", payload, 42]]);
+    const { format } = await import("node:util");
+    expect(format(...(calls.info[0] as [string, ...unknown[]]))).toBe("load %d%s { id: 7 } 42");
+  });
+
+  test("an empty name is treated as no name, in the constructor and in getSubLogger", () => {
     const { sink, calls } = makeSink();
     const log = new LiteLogger({ name: "", console: sink });
     expect(log.name).toBeUndefined();
     log.info("bare");
-    expect(calls.info).toEqual([["bare"]]);
-  });
 
-  test("createLiteLogger accepts a name too", () => {
-    const { sink, calls } = makeSink();
-    createLiteLogger({ name: "app", console: sink }).info("hi");
-    expect(calls.info).toEqual([["app", "hi"]]);
+    // An empty child name must not produce a trailing separator ("app:").
+    const child = new LiteLogger({ name: "app", console: sink }).getSubLogger({ name: "" });
+    expect(child.name).toBe("app");
+    child.info("kept");
+
+    expect(calls.info).toEqual([["bare"], ["app", "kept"]]);
   });
 });

@@ -459,7 +459,7 @@ Modules that need the server-only API surface (`runInContext`/`AsyncLocalStorage
 
 ### Sub-loggers on the client
 
-`LiteLogger` mirrors the server's `getSubLogger()` / `child()`, so per-area names carry across the split:
+`LiteLogger` offers the same `getSubLogger()` / `child()` calls as the server logger, so per-area names carry across the split:
 
 ```ts
 // lib/logger.client.ts
@@ -482,9 +482,34 @@ export function AddToCart({ id }: { id: string }) {
 }
 ```
 
-Sub-loggers nest to any depth, inherit `minLevel` and the sink unless overridden, and join names with `nameSeparator` (default `":"`). The label is partially applied with `Function.prototype.bind`, which returns another *native* console function — so unlike a wrapper (`(...args) => console.info(name, ...args)`), the devtools file:line badge still points at your component rather than at the logger.
+Sub-loggers nest to any depth and inherit `minLevel` and the sink unless overridden (an unresolvable `minLevel` override inherits the parent's level, as on the server). Names join with the *parent's* `nameSeparator` (default `":"`); a separator passed to `getSubLogger` only governs joins that child performs for its own descendants. The label is partially applied with `Function.prototype.bind`, which returns another *native* console function — so unlike a wrapper (`(...args) => console.info(name, ...args)`), the devtools file:line badge still points at your component rather than at the logger.
 
-Use a plain string name, not `%c`: a format specifier consumes the argument that follows it, so `%c` would swallow the first logged value instead of styling the label.
+Three things to know about that binding:
+
+- **Names can't hijack arguments.** Every `%` in a label is escaped before binding, so even a runtime-derived name containing `%s`/`%d`/`%c` renders literally instead of consuming the first logged value.
+- **Printf interpolation is off on named loggers.** The label occupies the console's format-string slot, so `log.info("count: %d", n)` prints the `%d` literally (with `n` appended) on a *named* lite logger. Unnamed loggers keep full printf semantics; if you need both, fold the label into the message yourself.
+- **`nameSeparator` and `console` are lite-only options.** Through the shared-entrypoint pattern above, `getSubLogger({ name })` works on both halves — but the full `Logger` rejects `nameSeparator`/`console` as unknown settings (a dev warning, and a **throw** under `strictConfig: true`). Keep shared call sites to `{ name, minLevel }` and set lite-only options where the client logger is constructed.
+
+Name *shape* also differs across the split: lite folds the chain into one string (`child.name === "app:cart"`), while the server logger keeps the leaf `name` plus a `parentNames` array — its JSON output never joins them, and its pretty output joins with `pretty.errorParentNamesSeparator` (also `":"` by default). Labels match visually at the defaults; code that reads names programmatically sees different shapes per half.
+
+### Client logs to Sentry (and other console-instrumenting SDKs)
+
+`tslog/lite` has no transports by design — but its methods *are* the console, and browser telemetry SDKs instrument the console globally. So lite composes with Sentry without any transport code:
+
+- **Breadcrumbs come for free.** The Sentry browser SDK's default breadcrumbs integration records `console.*` calls, so every lite log becomes a breadcrumb attached to the next error event — usually the shape you want client logs in (context around a failure, not a firehose).
+- **Promote errors to events** with one line in `Sentry.init`:
+
+```ts
+// instrumentation-client.ts / sentry.client.config.ts
+Sentry.init({
+  dsn: "...",
+  integrations: [Sentry.captureConsoleIntegration({ levels: ["error"] })],
+});
+```
+
+One caveat that follows from lite's `.bind()` design: lite captures the console method **at construction time**, and Sentry instruments the console by replacing its methods at `Sentry.init`. A `LiteLogger` constructed *before* Sentry initializes holds the original uninstrumented function and bypasses Sentry silently. With `@sentry/nextjs` the client config runs before app modules, so a module-scope `createLiteLogger(...)` is fine — but if you initialize Sentry lazily, construct your loggers after it. (Relatedly: once any SDK wraps the console, the devtools file:line badge points at the SDK's wrapper app-wide — that's inherent to console instrumentation, not to lite; add the SDK to devtools' ignore list to restore attribution.)
+
+Route around the console entirely — full `Logger` or `tslog/slim` in the browser with `attachTransport` / `tslog/transports/http` — when you need structured JSON to your own collector, sampling, or **masking**: client logs are where tokens and emails leak, lite has no masking, and Sentry's `beforeBreadcrumb` is a thin place to scrub. The trade is the one this section keeps making: transports and masking come from the full pipeline, and the full pipeline is what moves the devtools badge off your component.
 
 ## 13. Configure from environment / typed config
 

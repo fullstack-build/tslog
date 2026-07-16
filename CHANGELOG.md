@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.1.0] - 2026-07-17
+
+### Added
+- **Named sub-loggers on `tslog/lite`** — `LiteLogger` gains `name`/`nameSeparator` options and `getSubLogger()`/`child()`. The label is partially applied with `Function.prototype.bind`, so a sub-logger's level methods are still the bound native `console.*` functions and the devtools file:line badge keeps pointing at the caller. Every `%` in a label is escaped so a (possibly runtime-derived) name can never act as a console format specifier and consume a logged value. Sub-loggers nest to any depth, join names with the parent's `nameSeparator` (default `":"`), and inherit `minLevel` and the sink unless overridden; an unresolvable `minLevel` override inherits the parent's level, matching the full `Logger`. Known trade-off (documented): on a *named* lite logger the label occupies the console's format-string slot, so printf-style specifiers in messages print literally.
+- **Bundle-size budget for `tslog/lite`** — `check-bundle-size` now probes the lite subpath (~0.8 KB gzip measured, 1 KB budget).
+
 ## [5.0.2] - 2026-07-16
 
 ### Fixed

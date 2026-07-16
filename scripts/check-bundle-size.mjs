@@ -2,14 +2,17 @@
 /**
  * Bundle-size budget check (S1). Bundles representative entry usages straight from `src/` with esbuild
  * (minified ESM, browser platform — the same treatment a user's bundler applies) and fails when the
- * gzipped output exceeds its budget. Guards two promises:
+ * gzipped output exceeds its budget. Guards three promises:
  *
+ *  - `tslog/lite` stays the smallest possible leveled console (its methods are bound native
+ *    `console.*` functions; nothing from the full pipeline may leak in);
  *  - `tslog/slim` stays a genuinely small structured logger (masking, pretty, the inspect polyfill,
  *    stack parsing, and the JSON line-plan compiler must all remain tree-shaken out);
  *  - the full browser entry does not creep.
  *
- * Budgets have headroom over the measured sizes at introduction (slim ~9.3KB, full ~19.6KB); bump them
- * CONSCIOUSLY in a commit that explains the growth, never to make a red check pass.
+ * Budgets have headroom over the measured sizes at introduction (lite ~0.8KB, slim ~9.3KB, full
+ * ~19.6KB); bump them CONSCIOUSLY in a commit that explains the growth, never to make a red check
+ * pass.
  */
 import { build } from "esbuild";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -25,6 +28,15 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const entryPath = (relative) => join(root, relative).replaceAll("\\", "/");
 
 const PROBES = [
+  {
+    name: "tslog/lite (createLiteLogger, sub-logger)",
+    budgetGzipBytes: 1_024,
+    entry: `
+      import { createLiteLogger } from "${entryPath("src/subpaths/lite.ts")}";
+      const log = createLiteLogger({ name: "probe", minLevel: "INFO" });
+      log.getSubLogger({ name: "child" }).info("hi", { a: 1 });
+    `,
+  },
   {
     name: "tslog/slim (Logger, json)",
     budgetGzipBytes: 10_500,
