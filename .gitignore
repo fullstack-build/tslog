@@ -104,3 +104,14 @@ docs/.astro/
 docs/src/content/docs/
 # TypeScript incremental-build state (not used by the current configs; never commit)
 *.tsbuildinfo
+
+# E2E fixture apps (e2e/fixtures/*): deps and framework state are created at run time
+e2e/fixtures/*/node_modules/
+e2e/fixtures/*/package-lock.json
+e2e/fixtures/*/.next/
+e2e/fixtures/*/.tanstack/
+e2e/fixtures/*/.nitro/
+e2e/fixtures/*/.output/
+e2e/fixtures/*/next-env.d.ts
+e2e/fixtures/*/src/routeTree.gen.ts
+e2e/fixtures/next-turbopack/tsconfig.json

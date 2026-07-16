@@ -104,6 +104,7 @@
     "prepare": "husky",
     "build": "npm run clean-dist && npm run build-types && npm run build-esm && npm run build-browser && npm run prepare-publish",
     "clean-dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "test:e2e-apps": "node e2e/run-e2e-apps.mjs",
     "build-browser": "node build.js",
     "build-types": "tsgo -p tsconfig.types.json",
     "build-esm": "tsgo -p tsconfig.esm.json",

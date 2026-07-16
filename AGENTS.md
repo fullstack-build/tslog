@@ -29,6 +29,7 @@ npm run lint         # Biome lint check
 npm run format       # Biome format all files
 npm run check        # Biome lint + format (write)
 npm run coverage     # Run tests with coverage report
+npm run test:e2e-apps # Framework E2E: real Next.js (Turbopack) + TanStack Start dev servers (needs network + prior build)
 ```
 
 ## Build System
@@ -63,6 +64,7 @@ npm run coverage     # Run tests with coverage report
 - Run a single Node test: `npx vitest run tests/1_json_loglevel.test.ts`
 - Run a single browser test on one engine: `npx playwright test tests/26_advanced_masking.browser.test.ts --project=chromium`
 - First-time browser setup: `npx playwright install firefox webkit` (Chromium ships with the runner)
+- **Framework E2E** (`e2e/`): `npm run test:e2e-apps` packs `dist/` and runs real dev servers from `e2e/fixtures/` (Next.js + Turbopack on port 43117, TanStack Start + Vite on 43118), asserting via each app's `/api/boom` probe that log positions resolve to original `.ts` sources. Fixtures install the **latest** framework versions on purpose (upstream-change canary). Not part of `npm test` (needs network + a prior `npm run build`); CI runs it as the `test-e2e-apps` job. Run one fixture: `node e2e/run-e2e-apps.mjs next-turbopack`
 
 ## Code Style
 

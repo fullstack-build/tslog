@@ -369,7 +369,7 @@ try {
 }
 ```
 
-This works with the maps every mainstream toolchain emits — `tsc`, esbuild, webpack, Rollup, and the indexed (`sections`) format from Turbopack/Next.js dev — and bundler-virtual source paths (`webpack://…`, `[project]/…`) come out as clean project-relative paths.
+This works with the maps every mainstream toolchain emits — `tsc`, esbuild, webpack, Rollup, and the indexed (`sections`) format from Turbopack/Next.js dev — and bundler-virtual source paths (`webpack://…`, `[project]/…`) come out as clean project-relative paths. Next.js (Turbopack) and TanStack Start (Vite) dev servers are verified end-to-end in CI.
 
 Off by default in production (`NODE_ENV === "production"`) since it costs a source-map read/parse the first time each file's frame is logged (cached after that). Force it either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`. Node/Bun/Deno only — browsers already get this from devtools, so tslog never attempts it there.
 

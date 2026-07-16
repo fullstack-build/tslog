@@ -84,6 +84,24 @@ jobs:
             - name: Run tests with Bun
               run: npm run test:bun
 
+    # Real framework dev servers (Next.js + Turbopack, TanStack Start + Vite) — proves source-mapped
+    # log positions work out of the box against environments unit tests cannot reach. Fixtures install
+    # the LATEST framework versions on purpose: this job is the canary for upstream changes.
+    test-e2e-apps:
+        runs-on: ubuntu-latest
+        env:
+            CI: true
+        steps:
+            - uses: actions/checkout@v5
+            - uses: actions/setup-node@v5
+              with:
+                  node-version: 22
+            - run: npm ci
+            - name: Build
+              run: npm run build
+            - name: Run framework E2E fixtures
+              run: npm run test:e2e-apps
+
     test-deno:
         runs-on: ubuntu-latest
         steps:
