@@ -134,3 +134,79 @@ export function styleTokenToCss(token: string): string | undefined {
 export const prettyLogStyles: { [name: string]: TAnsiPair } = Object.fromEntries(
   Object.entries(STYLE_PALETTE).map(([token, definition]) => [token, definition.ansi]),
 );
+
+/** Reverse lookup for {@link ansiToCssConsoleFormat}: SGR open code -> its CSS declaration + close code. */
+const ANSI_OPEN_TO_CSS: Map<number, { css: string; close: number }> = new Map(
+  Object.values(STYLE_PALETTE)
+    .filter((definition): definition is Required<IStyleDefinition> => definition.css != null && definition.ansi[0] !== definition.ansi[1])
+    .map((definition) => [definition.ansi[0], { css: definition.css, close: definition.ansi[1] }]),
+);
+
+/**
+ * Convert an ANSI-styled string (as produced by `formatTemplate` from this palette) into a browser
+ * console format string with `%c` CSS segments.
+ *
+ * The browser `%c` path renders meta from its template directly, but pre-rendered blocks (the error
+ * template output) arrive already carrying ANSI escapes — which only Chromium's console interprets;
+ * Firefox and WebKit print them literally. This re-expresses those escapes as `%c` CSS, which all
+ * engines support. Only single-parameter SGR sequences are handled — the only form this palette emits.
+ *
+ * Literal `%` in the text is escaped as `%%` so user content can never consume a `%c` style argument.
+ */
+export function ansiToCssConsoleFormat(input: string): { text: string; styles: string[] } {
+  const parts: string[] = [];
+  const styles: string[] = [];
+  // Active styles keyed by open code; insertion order mirrors ANSI nesting so later declarations win in CSS too.
+  const active = new Map<number, { css: string; close: number }>();
+  let currentCss = "";
+  let pendingText = "";
+
+  const flush = () => {
+    if (pendingText.length === 0) {
+      return;
+    }
+    const escaped = pendingText.replace(/%/g, "%%");
+    if (currentCss.length > 0) {
+      parts.push(`%c${escaped}%c`);
+      styles.push(currentCss, "");
+    } else {
+      parts.push(escaped);
+    }
+    pendingText = "";
+  };
+
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escape codes
+  const sgrRegex = /\u001b\[(\d+)m/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
+  while ((match = sgrRegex.exec(input)) != null) {
+    pendingText += input.slice(lastIndex, match.index);
+    lastIndex = sgrRegex.lastIndex;
+
+    const code = Number(match[1]);
+    const open = ANSI_OPEN_TO_CSS.get(code);
+    if (open != null) {
+      active.set(code, open);
+    } else if (code === 0) {
+      active.clear();
+    } else {
+      // A close code deactivates every style it closes (e.g. 39 clears any foreground color, 22 both bold and dim).
+      for (const [openCode, entry] of active) {
+        if (entry.close === code) {
+          active.delete(openCode);
+        }
+      }
+    }
+
+    const nextCss = [...new Set([...active.values()].map((entry) => entry.css))].join("; ");
+    if (nextCss !== currentCss) {
+      flush();
+      currentCss = nextCss;
+    }
+  }
+  pendingText += input.slice(lastIndex);
+  flush();
+
+  return { text: parts.join(""), styles };
+}

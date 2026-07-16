@@ -101,7 +101,7 @@ registerUniversalRuntimeTests({
   stackScenario: {
     description: "simulated browser skips tslog frames",
     errorStack: "Error\ntslog@http://localhost/node_modules/.vite/deps/tslog.js:1:1\nuserFn@http://localhost/src/main.ts:12:3",
-    expectedFilePathWithLine: "/localhost/src/main.ts:12",
+    expectedFilePathWithLine: "/src/main.ts:12",
     expectedAutoIndex: 1,
   },
 });

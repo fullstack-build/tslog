@@ -1,6 +1,7 @@
 import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import {
   createRuntimeMeta,
+  detectOwnBrowserFilePattern,
   detectRuntimeInfo,
   formatErrorMessage,
   formatStackFrames,
@@ -158,18 +159,16 @@ describe("shared.ts stack-line parsers", () => {
       expect(frame.fileColumn).toBe("1");
       expect(frame.method).toBeUndefined();
       // The frame carries its own absolute URL, so fullFilePath is that URL (position stripped) even
-      // without a location.origin; filePath keeps the host as its first segment (per the regex doc).
+      // without a location.origin; filePath is the origin-relative path (host stripped before matching).
       expect(frame.fullFilePath).toBe("https://host.example/assets/app.js");
-      expect(frame.filePath).toBe("/host.example/assets/app.js");
+      expect(frame.filePath).toBe("/assets/app.js");
     });
 
     test("the frame's own URL wins over location.origin — no doubled or cross-origin host", () => {
-      // The captured path retains the host as the first path segment, so blindly prefixing
-      // location.origin used to yield https://cdn.example/cdn.example/a/b/c.js. The frame URL is
-      // authoritative now: a page-origin prefix is only for scheme-less frames.
+      // The frame URL is authoritative: a page-origin prefix is only for scheme-less frames.
       globalAny.location = { origin: "https://page.example" };
       const frame = parseBrowserStackLine("fn@https://cdn.example/a/b/c.js:2:3") as IStackFrame;
-      expect(frame.filePath).toBe("/cdn.example/a/b/c.js");
+      expect(frame.filePath).toBe("/a/b/c.js");
       expect(frame.fullFilePath).toBe("https://cdn.example/a/b/c.js");
     });
 
@@ -178,6 +177,31 @@ describe("shared.ts stack-line parsers", () => {
       expect(frame.fullFilePath).toBe("http://localhost:8080/assets/app.js");
       expect(frame.fileLine).toBe("7");
       expect(frame.fileColumn).toBe("11");
+    });
+
+    test("parses a root-level script on a host:port origin (dev-server case) in all three engine formats", () => {
+      // A `host:port` authority used to break path matching entirely, and a single-segment path was
+      // rejected by the old `{2,}` repetition — so nothing at http://localhost:5173/app.js ever parsed.
+      const lines = {
+        chromium: "    at http://localhost:5173/app.js:3:9",
+        firefox: "@http://localhost:5173/app.js:3:9",
+        webkit: "global code@http://localhost:5173/app.js:3:9",
+      };
+      for (const line of Object.values(lines)) {
+        const frame = parseBrowserStackLine(line) as IStackFrame;
+        expect(frame).toBeDefined();
+        expect(frame.filePath).toBe("/app.js");
+        expect(frame.fileNameWithLine).toBe("app.js:3");
+        expect(frame.fileLine).toBe("3");
+        expect(frame.fileColumn).toBe("9");
+        expect(frame.fullFilePath).toBe("http://localhost:5173/app.js");
+      }
+    });
+
+    test("keeps the Vite /@fs/C:/ Windows drive-letter path intact behind a host:port origin", () => {
+      const frame = parseBrowserStackLine("run@http://localhost:5173/@fs/C:/Users/dev/src/app.ts:12:5") as IStackFrame;
+      expect(frame.filePath).toBe("/@fs/C:/Users/dev/src/app.ts");
+      expect(frame.fileLine).toBe("12");
     });
 
     test("prepends location.origin to a scheme-less origin-relative frame", () => {
@@ -194,7 +218,7 @@ describe("shared.ts stack-line parsers", () => {
 
     test("drops a query string from both the captured file path and fullFilePath", () => {
       const frame = parseBrowserStackLine("fn@https://host.dev/a/bundle.js?v=9:4:2") as IStackFrame;
-      expect(frame.filePath).toBe("/host.dev/a/bundle.js");
+      expect(frame.filePath).toBe("/a/bundle.js");
       expect(frame.filePath).not.toContain("?");
       expect(frame.fullFilePath).toBe("https://host.dev/a/bundle.js");
       expect(frame.fileLine).toBe("4");
@@ -306,6 +330,69 @@ describe("shared.ts error / value formatting", () => {
     expect(message).toContain("boom");
     expect(message).toContain("E_BAD");
     expect(message).not.toContain("=>");
+  });
+
+  test("detectOwnBrowserFilePattern derives an exact-match pattern from the topmost parseable frame", () => {
+    const error = { stack: "Error\nfn@http://localhost:5173/vendor/tslog.js:1:100\nuser@http://localhost:5173/app.js:2:1" } as Error;
+    const pattern = detectOwnBrowserFilePattern(error) as RegExp;
+    expect(pattern).toBeDefined();
+    // exact file match only — the app served from the same origin must not be skipped
+    expect(pattern.test("http://localhost:5173/vendor/tslog.js")).toBe(true);
+    expect(pattern.test("http://localhost:5173/app.js")).toBe(false);
+    expect(pattern.test("http://localhost:5173/vendor/tslog.js.map")).toBe(false);
+  });
+
+  test("detectOwnBrowserFilePattern returns undefined when no frame parses", () => {
+    expect(detectOwnBrowserFilePattern({ stack: "Error\n    at <anonymous>" } as Error)).toBeUndefined();
+    expect(detectOwnBrowserFilePattern({ stack: undefined } as unknown as Error)).toBeUndefined();
+  });
+
+  test("browser provider skips frames from tslog's own served file when locating the caller", () => {
+    // Simulate the script-tag/CDN layout: tslog served as its own file, app code in another. The
+    // provider's construction-time own-file pattern only helps the real bundle; here we exercise the
+    // same mechanism through getCallerStackFrame with the detected pattern applied explicitly.
+    const ownPattern = detectOwnBrowserFilePattern({
+      stack: "Error\ninit@http://localhost:4444/tslog.js:24:1000",
+    } as Error) as RegExp;
+    const frames = [
+      { fullFilePath: "http://localhost:4444/tslog.js", filePath: "/tslog.js" },
+      { fullFilePath: "http://localhost:4444/app.js", filePath: "/app.js" },
+    ];
+    expect(envFindFirstExternalFrameIndex(frames, [ownPattern])).toBe(1);
+  });
+
+  test("formatErrorMessage excludes engine-stamped position props (Firefox/WebKit)", () => {
+    // Firefox stamps fileName/lineNumber/columnNumber and WebKit stamps line/column/sourceURL as own
+    // properties on every Error; without the exclusion the default message rendered as
+    // "http://host/app.js, 3, 14, test" on those engines.
+    const firefoxLike = new Error("ff-msg") as Error & Record<string, unknown>;
+    firefoxLike.fileName = "http://localhost:5173/app.js";
+    firefoxLike.lineNumber = 3;
+    firefoxLike.columnNumber = 14;
+    expect(formatErrorMessage(firefoxLike)).toBe("ff-msg");
+
+    const webkitLike = new Error("wk-msg") as Error & Record<string, unknown>;
+    webkitLike.line = 3;
+    webkitLike.column = 23;
+    webkitLike.sourceURL = "http://localhost:5173/app.js";
+    expect(formatErrorMessage(webkitLike)).toBe("wk-msg");
+
+    // custom props still join the message line
+    const custom = new Error("base") as Error & Record<string, unknown>;
+    custom.code = "E_X";
+    expect(formatErrorMessage(custom)).toBe("base, E_X");
+  });
+
+  test("formatErrorMessage excludes an own `name` (subclass pattern) — the badge already shows it", () => {
+    class HttpError extends Error {
+      status: number;
+      constructor(message: string, status: number) {
+        super(message);
+        this.name = "HttpError"; // own property, unlike built-ins where name lives on the prototype
+        this.status = status;
+      }
+    }
+    expect(formatErrorMessage(new HttpError("Not Found", 404))).toBe("Not Found, 404");
   });
 
   test("formatErrorMessage skips a property whose getter throws without crashing", () => {

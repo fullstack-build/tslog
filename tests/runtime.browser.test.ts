@@ -123,6 +123,6 @@ test.describe("logger environment (browser via playwright)", () => {
     expect(autoIndex).toBe(1);
 
     const frame = await getCallerStackFrame(page, Number.NaN, error);
-    expect(frame.filePathWithLine).toBe("/localhost/src/main.ts:12");
+    expect(frame.filePathWithLine).toBe("/src/main.ts:12");
   });
 });

@@ -1,6 +1,7 @@
 import { formatTemplate } from "../formatTemplate.js";
 import type { IMetaStatic, ISettings, IStackFrame } from "../interfaces.js";
 import { nativeConsoleMethod } from "../internal/nativeConsole.js";
+import { getCleanStackLines } from "./stackTrace.js";
 
 /**
  * Runtime-agnostic environment helpers shared by every {@link EnvironmentProvider}.
@@ -301,15 +302,24 @@ export function isNativeError(value: unknown): value is Error {
 
 /**
  * Matches a browser/Hermes/Safari stack frame, capturing the file path (group 1), line (group 2) and
- * column (group 3). The path capture starts at the first slash after an optional scheme, so the host
- * is retained as the leading path segment (see test 35).
+ * column (group 3). The scheme + authority (`https://host:port`) is stripped by
+ * {@link BROWSER_ORIGIN_REGEX} before this regex runs, so the capture is the origin-relative path and
+ * a single root-level segment (`/app.js`) is a valid frame. (Previously the host doubled as the
+ * leading path segment, which silently failed for hosts with a port — i.e. every dev server.)
  *
  * Each path segment is `[^:/]+`, but a single Windows drive-letter colon is allowed inside the run via
  * `(?::(?=\/))?` — a `:` is absorbed into the path only when it is immediately followed by `/`, i.e. the
  * `C:/` drive separator in a Vite `/@fs/C:/…` URL (issue #323). The trailing `:line[:col]` colons are
  * always followed by digits, never a slash, so they never match this branch and still bind to groups 2/3.
  */
-export const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+(?::(?=\/))?){2,})(?::(\d+))?(?::(\d+))?/;
+export const BROWSER_PATH_REGEX = /(?:(?:file|https?|global code|[^@]+)@)?(?:file:)?((?:\/[^:/]+(?::(?=\/))?)+)(?::(\d+))?(?::(\d+))?/;
+
+/**
+ * A URL's scheme + authority (`https://host:port`, `chrome://juggler`, `file://`) inside a stack line.
+ * Stripped before {@link BROWSER_PATH_REGEX} so the host never leaks into `filePath` — the full URL
+ * (kept for `fullFilePath`) is matched separately from the unmodified line.
+ */
+export const BROWSER_ORIGIN_REGEX = /[a-z][a-z0-9+.-]*:\/\/[^/\s)]*/i;
 
 /**
  * Resolve a transpiled/bundled `(absoluteFilePath, line, column)` back to its original source
@@ -436,7 +446,10 @@ export function parseBrowserStackLine(line: string | undefined): IStackFrame | u
     return undefined;
   }
 
-  const match = line.match(BROWSER_PATH_REGEX);
+  // Strip the scheme + authority first so `filePath` is the origin-relative path regardless of host,
+  // port, or scheme — matching against the raw URL made the host the first path segment for port-less
+  // origins while a `host:port` authority (every dev server) broke the match entirely.
+  const match = line.replace(BROWSER_ORIGIN_REGEX, "").match(BROWSER_PATH_REGEX);
   if (!match) {
     return undefined;
   }
@@ -452,10 +465,10 @@ export function parseBrowserStackLine(line: string | undefined): IStackFrame | u
   const fileColumn = match[3];
   const fileName = pathParts[pathParts.length - 1];
 
-  // The captured path retains the host as its first segment (see BROWSER_PATH_REGEX), so a frame that
-  // carries its own absolute URL is authoritative for fullFilePath — prefixing location.origin on top
-  // of it would double the host (and pick the wrong one for cross-origin scripts). The page origin is
-  // only prepended to origin-relative frames that have no scheme of their own.
+  // A frame that carries its own absolute URL is authoritative for fullFilePath — prefixing
+  // location.origin on top of it would double the host (and pick the wrong one for cross-origin
+  // scripts). The page origin is only prepended to origin-relative frames that have no scheme of
+  // their own. Matched against the ORIGINAL line: the path match above ran with the origin stripped.
   const urlMatch = line.match(/(?:https?|file):\/\/[^\s)]+/);
   let fullFilePath: string;
   if (urlMatch != null) {
@@ -479,10 +492,32 @@ export function parseBrowserStackLine(line: string | undefined): IStackFrame | u
 
 /**
  * Matches a JSC-style `func@path:line:col` frame with NO path-shape requirement — React Native bundle
- * locations are often single-segment Metro URLs (`http://host:8081/index.bundle?...`) or bare bundle
- * names (`main.jsbundle`) that {@link BROWSER_PATH_REGEX} (which demands 2+ path segments) rejects.
+ * locations are often bare bundle names (`main.jsbundle`) without any slash at all, which
+ * {@link BROWSER_PATH_REGEX} (whose path capture starts at a `/`) rejects.
  */
 const REACT_NATIVE_JSC_REGEX = /^\s*(?:([^@\s]*)@)?(.+?):(\d+):(\d+)\s*$/;
+
+/**
+ * Detect the file tslog itself is served from, as an exact-match ignore pattern for caller detection.
+ *
+ * The Node/ESM builds recognize their own frames via `import.meta.url` (`OWN_DIR_PATTERN` in
+ * `stackTrace.ts`), but the browser IIFE has no `import.meta` — so a `<script src>`/CDN tslog had no
+ * way to skip its own frames and every log's position pointed inside the bundle. The error captured
+ * HERE lives in tslog code, so its topmost parseable frame IS tslog's own file. When tslog is inlined
+ * into the app's bundle the pattern matches app frames too; caller detection then falls back to the
+ * first frame — exactly the pre-pattern behavior, so it never regresses.
+ *
+ * Returns `undefined` when no frame parses (e.g. eval contexts without file URLs).
+ */
+export function detectOwnBrowserFilePattern(positionError: Error = new Error()): RegExp | undefined {
+  for (const line of getCleanStackLines(positionError)) {
+    const ownFile = parseBrowserStackLine(line)?.fullFilePath;
+    if (ownFile) {
+      return new RegExp(`^${ownFile.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
+    }
+  }
+  return undefined;
+}
 
 /**
  * Parse a React Native stack line. RN needs a hybrid strategy:
@@ -586,12 +621,22 @@ export function formatStackFrames<LogObj>(frames: IStackFrame[], settings: ISett
 }
 
 /**
+ * Own properties every engine stamps onto errors as positional metadata (Firefox: fileName/lineNumber/
+ * columnNumber; WebKit: line/column/sourceURL). They duplicate what the stack trace already shows, so
+ * they are excluded from the message line — without this, `new Error("test")` prints as
+ * `http://host/app.js, 3, 14, test` on Firefox and `test, 3, 23, http://host/app.js` on Safari.
+ */
+const ENGINE_POSITION_PROPS = new Set(["fileName", "lineNumber", "columnNumber", "line", "column", "sourceURL"]);
+
+/**
  * Build the human-readable message line for an error by joining its own enumerable, non-function
- * properties (excluding `stack` and `cause`).
+ * properties (excluding `stack`, `cause`, and engine-stamped position properties). `name` is also
+ * excluded: subclasses assign it as an own property (`this.name = "HttpError"`), and it is always
+ * rendered separately via the `{{errorName}}` badge — joining it here printed "Not Found, HttpError, 404".
  */
 export function formatErrorMessage(error: Error): string {
   return Object.getOwnPropertyNames(error)
-    .filter((key) => key !== "stack" && key !== "cause")
+    .filter((key) => key !== "stack" && key !== "cause" && key !== "name" && !ENGINE_POSITION_PROPS.has(key))
     .reduce<string[]>((result, key) => {
       // Guarded read + stringify: own properties may have been copied from a user-supplied cause
       // object and can carry hostile getters/toString — skip them rather than crash the pipeline.

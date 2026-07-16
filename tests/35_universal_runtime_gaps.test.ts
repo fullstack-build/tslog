@@ -81,7 +81,7 @@ describe("Universal runtime robustness", () => {
       });
     });
 
-    test("Firefox async frame yields path, line and column (host kept in path by current regex)", () => {
+    test("Firefox async frame yields origin-relative path, line and column", () => {
       withStubbedGlobals(() => {
         delete globalAny.window;
         delete globalAny.document;
@@ -93,9 +93,9 @@ describe("Universal runtime robustness", () => {
         const frames = env.getErrorTrace(error);
 
         expect(frames).toHaveLength(1);
-        // BROWSER_PATH_REGEX captures from the first slash after the scheme, so the host
-        // ("example.com") is retained as the first path segment. This is the current behavior.
-        expect(frames[0]?.filePath).toBe("/example.com/script.js");
+        // The scheme + authority is stripped before path matching, so the captured path is
+        // origin-relative — the host never appears as a path segment.
+        expect(frames[0]?.filePath).toBe("/script.js");
         expect(frames[0]?.fileLine).toBe("42");
         expect(frames[0]?.fileColumn).toBe("15");
         expect(frames[0]?.fileName).toBe("script.js");

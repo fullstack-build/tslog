@@ -269,4 +269,24 @@ test.describe("Advanced error handling (browser)", () => {
       expect(combined).toContain("oops");
     });
   });
+
+  test("default pretty error output uses %c CSS styling, never raw ANSI escapes", async ({ page }) => {
+    const { calls, combined } = await captureConsole(
+      page,
+      {},
+      `
+      const logger = new tslog.Logger(settings);
+      logger.error(new Error("styled-error"));
+      return null;
+    `,
+    );
+    expect(combined).toContain("styled-error");
+    // No ANSI escape may reach any console argument in any engine (only Chromium interprets them).
+    expect(combined).not.toContain("\u001b");
+    // The error badge is rendered as a %c CSS segment inside the format string.
+    const formatString = String(calls[0]?.[0]);
+    expect(formatString).toContain("%c Error %c");
+    const styleArgs = (calls[0] ?? []).slice(1).map(String);
+    expect(styleArgs).toContain("color: #ffffff; background-color: #ff7043; font-weight: bold");
+  });
 });

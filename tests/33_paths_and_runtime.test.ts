@@ -159,9 +159,9 @@ describe("parseBrowserStackLine — non-Windows frames unchanged (regression gua
     expect(frame.method).toBeUndefined();
   });
 
-  test("no-port host is retained as the first path segment", () => {
+  test("host is stripped from the captured path regardless of port", () => {
     const frame = frameForBrowserStack("asyncFn@https://example.com/script.js:42:15");
-    expect(frame.filePath).toBe("/example.com/script.js");
+    expect(frame.filePath).toBe("/script.js");
     expect(frame.fileLine).toBe("42");
     expect(frame.fileColumn).toBe("15");
   });

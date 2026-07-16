@@ -7,10 +7,11 @@ import { jsonStringifyRecursive } from "../internal/jsonStringifyRecursive.js";
 import { buildPrettyMeta } from "../internal/metaFormatting.js";
 import { nativeConsoleMethod } from "../internal/nativeConsole.js";
 import type { FormatWithOptions } from "../render/inspect.js";
-import { styleTokenToCss } from "../render/styles.js";
+import { ansiToCssConsoleFormat, styleTokenToCss } from "../render/styles.js";
 import type { EnvironmentProvider } from "./environment.js";
 import {
   createRuntimeMeta,
+  detectOwnBrowserFilePattern,
   formatErrorMessage,
   formatStackFrames,
   getPrettyLogMethod,
@@ -128,6 +129,14 @@ export function createProviderBase(config: ProviderBaseConfig): ProviderBase {
     usesBrowserStack || isReactNative
       ? [...getDefaultIgnorePatterns(), /node_modules[\\/].*tslog/i]
       : [...getDefaultIgnorePatterns(), /node:(?:internal|vm)/i, /\binternal[\\/]/i];
+  if (usesBrowserStack) {
+    // The browser IIFE has no import.meta-based own-dir marker, so detect the file tslog is served
+    // from (script tag / CDN / dev-server deps chunk) and skip its frames in caller detection.
+    const ownFilePattern = detectOwnBrowserFilePattern();
+    if (ownFilePattern != null) {
+      callerIgnorePatterns.push(ownFilePattern);
+    }
+  }
 
   // Provider-owned cwd cache: resolved once via safeGetCwd() and reused for every stack line.
   let cachedCwd: string | null | undefined;
@@ -245,13 +254,19 @@ export function createProviderBase(config: ProviderBaseConfig): ProviderBase {
         const cssMeta = logMeta != null ? buildCssMetaOutput(settings, logMeta) : { text: sanitizedMetaMarkup, styles: [] };
         const hasCssMeta = cssMeta.text.length > 0 && cssMeta.styles.length > 0;
         const metaOutput = hasCssMeta ? cssMeta.text : sanitizedMetaMarkup;
-        // Errors stay as pre-rendered strings; native args trail as separate console arguments so
-        // DevTools keeps them interactive/collapsible.
-        const output = metaOutput + formattedArgs + (nativeArgs ? "" : logErrorsStr);
-        const trailing = nativeArgs ? [...logArgs, ...(logErrorsStr ? [logErrorsStr] : [])] : [];
+        // Errors arrive pre-rendered with ANSI styling (only Chromium's console interprets ANSI;
+        // Firefox/WebKit print the escapes literally), so they are re-expressed as `%c` CSS segments.
+        // That styling only survives inside the format string, which prints before any trailing
+        // arguments — so errors embed there unless native args must print between meta and errors,
+        // in which case they trail as plain (ANSI-stripped) text.
+        const embedErrors = !nativeArgs || logArgs.length === 0;
+        const cssErrors = embedErrors && logErrorsStr.length > 0 ? ansiToCssConsoleFormat(logErrorsStr) : { text: "", styles: [] };
+        const output = metaOutput + formattedArgs + cssErrors.text;
+        const styleArgs = [...(hasCssMeta ? cssMeta.styles : []), ...cssErrors.styles];
+        const trailing = nativeArgs ? [...logArgs, ...(!embedErrors && logErrorsStr.length > 0 ? [stripAnsi(logErrorsStr)] : [])] : [];
 
-        if (hasCssMeta) {
-          log(output, ...cssMeta.styles, ...trailing);
+        if (styleArgs.length > 0) {
+          log(output, ...styleArgs, ...trailing);
         } else {
           log(output, ...trailing);
         }

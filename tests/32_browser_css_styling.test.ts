@@ -1,6 +1,7 @@
 import { createBrowserEnvironment } from "../src/env/environment.browser.js";
 import { Logger } from "../src/index.js";
 import type { ISettings } from "../src/interfaces.js";
+import { ansiToCssConsoleFormat } from "../src/render/styles.js";
 
 describe("Browser CSS styling", () => {
   const globalAny = globalThis as Record<string, unknown>;
@@ -270,6 +271,113 @@ describe("Browser CSS styling", () => {
       const { text, styleArgs } = renderStyle(["reset", "red"]);
       expect(styleArgs).toEqual(["color: #ef5350"]);
       expect(text).toBe("%cINFO%c");
+    });
+  });
+
+  describe("ansiToCssConsoleFormat", () => {
+    test("converts a colored run into a %c segment with the palette's css", () => {
+      expect(ansiToCssConsoleFormat("\u001b[31mred\u001b[39m plain")).toEqual({
+        text: "%cred%c plain",
+        styles: ["color: #ef5350", ""],
+      });
+    });
+
+    test("stacked styles join into one css declaration; insertion order preserved", () => {
+      expect(ansiToCssConsoleFormat("\u001b[97m\u001b[101m\u001b[1m Error \u001b[22m\u001b[49m\u001b[39m")).toEqual({
+        text: "%c Error %c",
+        styles: ["color: #ffffff; background-color: #ff7043; font-weight: bold", ""],
+      });
+    });
+
+    test("close code 22 clears both bold and dim; reset 0 clears everything", () => {
+      expect(ansiToCssConsoleFormat("\u001b[1m\u001b[2ma\u001b[22mb")).toEqual({
+        text: "%ca%cb",
+        styles: ["font-weight: bold; opacity: 0.75", ""],
+      });
+      expect(ansiToCssConsoleFormat("\u001b[31m\u001b[1ma\u001b[0mb")).toEqual({
+        text: "%ca%cb",
+        styles: ["color: #ef5350; font-weight: bold", ""],
+      });
+    });
+
+    test("escapes literal % so user content cannot consume a style argument", () => {
+      expect(ansiToCssConsoleFormat("\u001b[31m50% off\u001b[39m and 10%")).toEqual({
+        text: "%c50%% off%c and 10%%",
+        styles: ["color: #ef5350", ""],
+      });
+    });
+
+    test("plain input passes through without %c markers or styles", () => {
+      expect(ansiToCssConsoleFormat("no styling here")).toEqual({ text: "no styling here", styles: [] });
+    });
+
+    test("style-only sequences around empty text produce no output segments", () => {
+      expect(ansiToCssConsoleFormat("\u001b[1m\u001b[37m\u001b[39m\u001b[22m")).toEqual({ text: "", styles: [] });
+    });
+  });
+
+  describe("errors on the CSS path render as %c segments, never raw ANSI", () => {
+    test("pre-rendered error block is embedded css-styled in the format string", () => {
+      makeCssBrowser();
+      const env = createBrowserEnvironment();
+      const settings = prettySettings({ template: "{{logLevelName}} ", styles: { logLevelName: "red", errorName: ["bold", "bgRedBright", "whiteBright"] } });
+      const meta = env.getMeta(5, "ERROR", Number.NaN, false);
+      const ansiError = env.prettyFormatErrorObj(new Error("boom"), settings);
+      expect(ansiError).toContain("\u001b[");
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", [], [ansiError], meta, settings);
+
+      const call = spy.mock.calls[0] as unknown[];
+      const text = call[0] as string;
+      expect(text).not.toContain("\u001b");
+      expect(text).toContain("%c Error %c");
+      expect(text).toContain("boom");
+      expect(call).toContain("color: #ffffff; background-color: #ff7043; font-weight: bold");
+      spy.mockRestore();
+    });
+
+    test("passObjectsNatively with no other args still embeds the styled error", () => {
+      makeCssBrowser();
+      const env = createBrowserEnvironment();
+      const settings = prettySettings({ template: "{{logLevelName}} ", passObjectsNatively: true });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false);
+      const ansiError = env.prettyFormatErrorObj(new Error("solo"), settings);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", [], [ansiError], meta, settings);
+
+      const call = spy.mock.calls[0] as unknown[];
+      const text = call[0] as string;
+      expect(text).toContain("solo");
+      expect(text).toContain("%c Error %c");
+      // every argument of the console call is escape-free
+      for (const arg of call) {
+        expect(String(arg)).not.toContain("\u001b");
+      }
+      spy.mockRestore();
+    });
+
+    test("passObjectsNatively with native args trailing keeps ordering: error follows them as plain text", () => {
+      makeCssBrowser();
+      const env = createBrowserEnvironment();
+      const settings = prettySettings({ template: "{{logLevelName}} ", passObjectsNatively: true });
+      const meta = env.getMeta(3, "INFO", Number.NaN, false);
+      const nativeObj = { a: 1 };
+      const ansiError = env.prettyFormatErrorObj(new Error("after-args"), settings);
+
+      const spy = vi.spyOn(console, "log").mockImplementation(() => undefined);
+      env.transportFormatted("", [nativeObj], [ansiError], meta, settings);
+
+      const call = spy.mock.calls[0] as unknown[];
+      // the native object trails untouched, the error string after it is ANSI-stripped and un-%c'd
+      const objIndex = call.indexOf(nativeObj);
+      expect(objIndex).toBeGreaterThan(0);
+      const trailingError = call[objIndex + 1] as string;
+      expect(trailingError).toContain("after-args");
+      expect(trailingError).not.toContain("\u001b");
+      expect(trailingError).not.toContain("%c");
+      spy.mockRestore();
     });
   });
 });

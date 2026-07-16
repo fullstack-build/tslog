@@ -36,7 +36,8 @@ const PROBES = [
   },
   {
     name: "tslog (browser entry, Logger, json)",
-    budgetGzipBytes: 21_500,
+    // 21_500 -> 21_800: ansiToCssConsoleFormat (errors rendered as %c CSS on the browser console path).
+    budgetGzipBytes: 21_800,
     entry: `
       import { Logger } from "${entryPath("src/index.browser.ts")}";
       const log = new Logger({ type: "json" });

@@ -137,7 +137,7 @@ describe("Worker and edge runtime environments", () => {
       const frames = env.getErrorTrace(error);
 
       expect(frames.length).toBeGreaterThan(0);
-      expect(frames[0]?.filePath).toContain("/localhost/worker.js");
+      expect(frames[0]?.filePath).toBe("/worker.js");
       expect(frames[0]?.fileLine).toBe("10");
     });
 
