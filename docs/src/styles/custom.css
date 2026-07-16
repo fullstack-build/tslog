@@ -101,9 +101,22 @@ body {
 }
 
 /* ── Header (custom Header.astro) ──────────────────────────────────────── */
+/*
+ * Starlight's own PageFrame.astro sizes `header.header` to exactly
+ * `--sl-nav-height` and pads it with `--sl-nav-pad-y`/`--sl-nav-pad-x` (plus
+ * extra inline-end space reserved for its mobile menu button) on the
+ * assumption its own Header content fills that padded box. Our replacement
+ * content (.tslog-header) manages its own height/padding and centers itself,
+ * so it must render *inside* that padding rather than on top of it — zero
+ * Starlight's padding out here or the header grows taller than
+ * --sl-nav-height, which desyncs it from the mobile TOC bar's
+ * `top: calc(var(--sl-nav-height) - 1px)` and `.main-frame`'s
+ * `padding-top: var(--sl-nav-height)`, leaving the TOC bar covered.
+ */
 header.header {
   display: block !important;
-  height: auto !important;
+  height: var(--sl-nav-height) !important;
+  padding: 0 !important;
   background: color-mix(in srgb, var(--ink-0) 82%, transparent);
   backdrop-filter: saturate(140%) blur(12px);
   -webkit-backdrop-filter: saturate(140%) blur(12px);
