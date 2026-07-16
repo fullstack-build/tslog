@@ -37,7 +37,7 @@ function logObjDepsFor<LogObj>(logger: Logger<LogObj>, maxErrorCauseDepth = 5): 
     isError: (value): value is Error => runtime.isError(value),
     isBuffer: (value) => runtime.isBuffer(value),
     // biome-ignore lint/suspicious/noExplicitAny: stack frame typing irrelevant for these tests
-    getErrorTrace: (error) => runtime.getErrorTrace(error) as any,
+    getErrorTrace: (error) => runtime.getErrorTrace(error) as unknown,
     maxErrorCauseDepth,
   };
 }

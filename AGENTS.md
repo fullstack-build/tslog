@@ -37,7 +37,7 @@ npm run coverage     # Run tests with coverage report
 - **tsgo** (`@typescript/native-preview`, the TypeScript 7 native compiler) emits the ESM output (`dist/esm/`) and the declaration files (`dist/types/`).
 - **esbuild** (`build.js`) bundles the browser IIFE (`dist/browser/index.js`, global `tslog`) from `src/index.browser.ts`.
 - `"type": "module"` — the project is ESM throughout.
-- `npm run build` = `build-types` → `build-esm` → `build-browser` → `prepare-publish`.
+- `npm run build` = `clean-dist` (wipes `dist/` so stale files never ship) → `build-types` → `build-esm` → `build-browser` → `prepare-publish`.
 - **Conditional exports** in `package.json` pick the entry per runtime: `node` → `index.node.js`, `browser`/`worker` → `index.browser.js`, `deno`/`bun`/`react-native`/`default` → `index.universal.js`. Subpaths (`tslog/transports/*`, `tslog/presets/*`, `tslog/otel`, `tslog/serializers`, `tslog/lite`, `tslog/slim`, `tslog/console`, `tslog/testing`, `tslog/pretty/box`, `tslog/throttle`, `tslog/cli`) are individually mapped and tree-shakeable (`sideEffects: false`, audited by `npm run audit-sideeffects`; gzip budgets for the slim/full browser bundles enforced by `npm run check-bundle-size`).
 - The `tslog` bin (NDJSON pretty-printer) is `dist/esm/subpaths/cli.js`.
 

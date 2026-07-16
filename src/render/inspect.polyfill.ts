@@ -135,18 +135,19 @@ function arrayToHash(array: unknown[]): { [key: string]: unknown } {
   return hash;
 }
 
-function formatArray(ctx: ICtx, value: string[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, keys: string[]): string[] {
-  const output = [];
+function formatArray(ctx: ICtx, value: unknown[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, keys: string[]): string[] {
+  const output: string[] = [];
+  const arrObj = value as InspectableObject;
   for (let i = 0, l = value.length; i < l; ++i) {
     if (hasOwn(value, String(i))) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys, String(i), true));
+      output.push(formatProperty(ctx, arrObj, recurseTimes, visibleKeys, String(i), true));
     } else {
       output.push("");
     }
   }
   keys.forEach((key: string) => {
     if (!key.match(/^\d+$/)) {
-      output.push(formatProperty(ctx, value, recurseTimes, visibleKeys, key, true));
+      output.push(formatProperty(ctx, arrObj, recurseTimes, visibleKeys, key, true));
     }
   });
   return output;
@@ -161,8 +162,17 @@ function formatDate(value: Date): string {
   return Number.isNaN(value.valueOf()) ? "Invalid Date" : Date.prototype.toISOString.call(value);
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: util.inspect polyfill compatibility
-export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
+type Inspectable = {
+  [key: string]: unknown;
+  inspect?: (recurseTimes: number, ctx: ICtx) => unknown;
+  toString?: () => string;
+  constructor?: { prototype?: unknown };
+  name?: string;
+} & ((...args: never[]) => unknown);
+
+type InspectableObject = object & Record<string | number | symbol, unknown>;
+
+export function formatValue(ctx: ICtx, value: unknown, recurseTimes = 0): string {
   // Provide a hook for user-specified inspect functions.
   // Check that value is an object with an inspect function on it
   if (
@@ -170,18 +180,19 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
     value != null &&
     isFunction(value) &&
     // Filter out the util module, it's inspect function is special
-    value?.inspect !== inspect &&
+    (value as Inspectable).inspect !== inspect &&
     // Also filter out any prototype objects using the circular check.
-    !(value?.constructor && value?.constructor.prototype === value)
+    !((value as Inspectable).constructor && (value as Inspectable).constructor?.prototype === value)
   ) {
-    if (typeof value.inspect !== "function" && value.toString != null) {
-      return value.toString();
+    const fn = value as Inspectable;
+    if (typeof fn.inspect !== "function" && fn.toString != null) {
+      return fn.toString();
     }
-    let ret = value?.inspect(recurseTimes, ctx);
+    let ret = fn.inspect?.(recurseTimes, ctx);
     if (!isString(ret)) {
       ret = formatValue(ctx, ret, recurseTimes);
     }
-    return ret;
+    return ret as string;
   }
 
   // Primitive types cannot have properties
@@ -198,9 +209,10 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   }
 
   // Look up the keys of the object.
+  const obj = value as object;
   let keys: string[];
   try {
-    keys = Object.keys(value);
+    keys = Object.keys(obj);
   } catch {
     // An always-throwing `ownKeys` Proxy trap: degrade to no enumerable keys so inspect() stays total
     // instead of letting the trap's error escape the render path.
@@ -209,7 +221,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   const visibleKeys = arrayToHash(keys);
   try {
     if (ctx.showHidden && Object.getOwnPropertyNames) {
-      keys = Object.getOwnPropertyNames(value);
+      keys = Object.getOwnPropertyNames(obj);
     }
   } catch {
     // A stateful Proxy can satisfy Object.keys above and still throw from its ownKeys trap on this
@@ -240,7 +252,7 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
       }
       /* v8 ignore next 3 -- stylize is always a function via the public inspect(); legacy port branch kept for structural fidelity */
     } else {
-      return value;
+      return String(value);
     }
   }
 
@@ -256,7 +268,8 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   // Make functions say that they are functions
   if (isFunction(value)) {
-    const n = value.name ? `: ${value.name}` : "";
+    const fn = value as { name?: string };
+    const n = fn.name ? `: ${fn.name}` : "";
     base = ` [Function${n}]`;
   }
 
@@ -272,10 +285,11 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
 
   // Make error with message first say the error
   if (isError(value)) {
-    base = ` ${formatError(value)}`;
+    base = ` ${formatError(value as Error)}`;
   }
 
-  if (keys.length === 0 && (!array || value.length === 0)) {
+  const arr = array ? (value as unknown[]) : [];
+  if (keys.length === 0 && (!array || arr.length === 0)) {
     return braces[0] + base + braces[1];
   }
 
@@ -290,11 +304,12 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   ctx.seen.push(value);
 
   let output: string[];
+  const objForFormat = value as InspectableObject;
   if (array) {
-    output = formatArray(ctx, value, recurseTimes, visibleKeys, keys);
+    output = formatArray(ctx, objForFormat as unknown as unknown[], recurseTimes, visibleKeys, keys);
   } else {
     output = keys.map((key) => {
-      return formatProperty(ctx, value, recurseTimes, visibleKeys, key, array);
+      return formatProperty(ctx, objForFormat, recurseTimes, visibleKeys, key, array);
     });
   }
 
@@ -303,14 +318,21 @@ export function formatValue(ctx: ICtx, value: any, recurseTimes = 0): string {
   return reduceToSingleString(output, base, braces);
 }
 
-function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibleKeys: { [key: string]: unknown }, key: string, array: boolean): string {
+function formatProperty(
+  ctx: ICtx,
+  value: InspectableObject,
+  recurseTimes: number,
+  visibleKeys: { [key: string]: unknown },
+  key: string,
+  array: boolean,
+): string {
   let name: string | undefined;
   let str: string | undefined;
   let desc: PropertyDescriptor = { value: void 0 };
   try {
     // ie6 › navigator.toString
     // throws Error: Object doesn't support this property or method
-    desc.value = value[key as unknown as number];
+    desc.value = (value as Record<string | number, unknown>)[key as unknown as number];
   } catch {
     // ignore
   }
@@ -339,9 +361,9 @@ function formatProperty(ctx: ICtx, value: string[], recurseTimes: number, visibl
   if (!str) {
     if (ctx.seen.indexOf(desc.value) < 0) {
       if (isNull(recurseTimes)) {
-        str = formatValue(ctx, desc.value, undefined);
+        str = formatValue(ctx, desc.value as unknown, undefined);
       } else {
-        str = formatValue(ctx, desc.value, recurseTimes - 1);
+        str = formatValue(ctx, desc.value as unknown, recurseTimes - 1);
       }
       if (str.indexOf("\n") > -1) {
         if (array) {

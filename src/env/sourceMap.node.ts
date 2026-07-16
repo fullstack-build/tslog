@@ -13,7 +13,8 @@ import { normalizeFilePath, type SourceMapResolver } from "./shared.js";
  * manual fallback, not a duplicate of Node's native behavior.
  *
  * Zero runtime dependencies (project convention): this hand-rolls a minimal source-map v3 consumer
- * (Base64-VLQ decode + a segment scan) instead of pulling in the `source-map` package. `node:fs` and
+ * (Base64-VLQ decode + a segment scan, including indexed maps — the `sections` form emitted by
+ * Turbopack and other concatenating bundlers) instead of pulling in the `source-map` package. `node:fs` and
  * `node:module` are resolved lazily via `createRequire`, never imported at module top level, so this
  * file stays side-effect free and is only ever reached from the Node/universal (Bun/Deno) providers —
  * never from the browser bundle.
@@ -33,6 +34,13 @@ interface RawSourceMap {
   names?: string[];
   mappings?: string;
   sourceRoot?: string;
+  sections?: SourceMapSection[];
+}
+
+interface SourceMapSection {
+  offset: { line: number; column: number };
+  map?: RawSourceMap;
+  url?: string; // external sub-map url (relative to outer map)
 }
 
 /** One decoded mapping segment: generated position -> original position. */
@@ -50,13 +58,31 @@ export interface OriginalPosition {
   column: number;
 }
 
-interface ParsedSourceMap {
+/** A parsed flat (non-indexed) map: per-line segments ready for binary search. */
+interface ParsedFlatMap {
+  kind: "flat";
   sources: string[];
   sourceRoot: string;
   /** Directory the map's relative `sources` entries resolve against: the `.map` file's own directory (the generated file's for inline `data:` maps). */
   mapDir: string;
   segmentsByLine: Map<number, MappingSegment[]>;
 }
+
+/** One parsed section of an index map: 0-based generated offset plus its (eagerly parsed) sub-map. */
+interface ParsedSection {
+  offsetLine: number;
+  offsetColumn: number;
+  /** Parsed sub-map; `undefined` when the section's `map`/`url` was missing or unparsable. */
+  map?: ParsedSourceMap;
+}
+
+/** A parsed index map (`sections`, emitted by Turbopack and other concatenating bundlers). */
+interface ParsedSectionedMap {
+  kind: "sectioned";
+  sections: ParsedSection[];
+}
+
+type ParsedSourceMap = ParsedFlatMap | ParsedSectionedMap;
 
 /** Decode one Base64-VLQ run into signed integers (source-map spec: 5 mantissa bits/char, MSB = continuation, LSB = sign). */
 function decodeVlq(segment: string): number[] {
@@ -123,10 +149,27 @@ function parseMappings(mappings: string): Map<number, MappingSegment[]> {
 }
 
 function requireNodeModule<T>(name: string): T | undefined {
+  // Bundlers rewrite a variable-argument `require(name)` into an always-throwing stub (Turbopack:
+  // "expression is too dynamic"), which would silently disable source-map resolution inside bundled
+  // server apps (Next.js dev). `process.getBuiltinModule` is a plain runtime call bundlers leave
+  // untouched, so try it first (Node >= 20.16, Deno 2, modern Bun); `createRequire` stays as the
+  // fallback for older Node 20.x, where this module only ever runs unbundled.
+  const getBuiltin = typeof process !== "undefined" ? process.getBuiltinModule : undefined;
+  if (typeof getBuiltin === "function") {
+    try {
+      const resolved = getBuiltin(name) as T | undefined;
+      if (resolved != null) {
+        return resolved;
+      }
+      /* v8 ignore next 3 -- defensive: getBuiltinModule("node:fs") cannot throw on the runtimes that reach it */
+    } catch {
+      // fall through to createRequire
+    }
+  }
+  /* v8 ignore next 6 -- reachable only on runtimes without getBuiltinModule (Node 20.0-20.15); the test runners are newer */
   try {
     const require = createRequire(import.meta.url);
     return require(name) as T;
-    /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node/Bun/Deno; covers exotic loaders */
   } catch {
     return undefined;
   }
@@ -196,7 +239,20 @@ function loadRawSourceMap(filePath: string, fs: FsLike): LoadedSourceMap | undef
       return { raw: JSON.parse(decoded) as RawSourceMap, mapDir: dirnameOf(filePath) };
     }
 
-    const mapPath = joinPath(dirnameOf(filePath), mappingUrl);
+    // `sourceMappingURL` is a URL, so file names containing characters like `[`/`]` arrive
+    // percent-encoded — Turbopack references its on-disk `[root-of-the-server]__x._.js.map` as
+    // `%5Broot-of-the-server%5D__x._.js.map`. Prefer the decoded name for the on-disk lookup and
+    // fall back to the raw one (a literal `%` in a file name is legal too).
+    let decodedUrl = mappingUrl;
+    try {
+      decodedUrl = decodeURIComponent(mappingUrl);
+    } catch {
+      // Malformed escape sequence (e.g. a raw "%" in the file name): keep the undecoded URL.
+    }
+    let mapPath = joinPath(dirnameOf(filePath), decodedUrl);
+    if (!fs.existsSync(mapPath) && decodedUrl !== mappingUrl) {
+      mapPath = joinPath(dirnameOf(filePath), mappingUrl);
+    }
     if (!fs.existsSync(mapPath)) {
       return undefined;
     }
@@ -233,19 +289,91 @@ function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
   }
 
   const loaded = loadRawSourceMap(filePath, fs);
-  if (loaded?.raw.mappings == null || loaded.raw.sources == null || loaded.raw.sources.length === 0) {
-    parsedMapCache.set(filePath, null);
-    return undefined;
+  const parsed = loaded != null ? parseRawMap(loaded.raw, loaded.mapDir, fs) : undefined;
+  parsedMapCache.set(filePath, parsed ?? null);
+  return parsed;
+}
+
+/** Index maps must not nest further index maps (spec), but cap the parse recursion defensively anyway. */
+const MAX_SECTION_DEPTH = 2;
+
+/**
+ * Parse a raw map — flat or indexed (`sections`, emitted by Turbopack/Next.js dev and other
+ * concatenating bundlers) — into its cached representation. Section sub-maps, whether inline (`map`)
+ * or external (`url`, resolved relative to the outer map), are parsed eagerly right here, so the
+ * whole structure is built exactly once per generated file and resolution never touches the disk
+ * again — logging through a sectioned map stays as cheap as through a flat one.
+ */
+function parseRawMap(raw: RawSourceMap, mapDir: string, fs: FsLike, depth = 0): ParsedSourceMap | undefined {
+  if (raw.sections && raw.sections.length > 0) {
+    /* v8 ignore next -- defensive: the spec forbids nested index maps, so real-world depth never exceeds 1 */
+    if (depth >= MAX_SECTION_DEPTH) return undefined;
+    const sections: ParsedSection[] = [];
+    for (const section of raw.sections) {
+      /* v8 ignore next 2 -- `offset` is required by the spec; the ?? 0 guards malformed maps only */
+      const offsetLine = section.offset?.line ?? 0;
+      const offsetColumn = section.offset?.column ?? 0;
+      let subRaw = section.map;
+      let subMapDir = mapDir;
+      if (subRaw == null && section.url != null) {
+        // External sub-map (rare): load it once at parse time, relative to the outer map's directory.
+        try {
+          const subPath = joinPath(mapDir, section.url);
+          if (fs.existsSync(subPath)) {
+            subRaw = JSON.parse(fs.readFileSync(subPath, "utf8")) as RawSourceMap;
+            subMapDir = dirnameOf(subPath);
+          }
+        } catch {
+          // Unreadable/malformed external sub-map: keep the section, resolution inside it just misses.
+        }
+      }
+      sections.push({ offsetLine, offsetColumn, map: subRaw != null ? parseRawMap(subRaw, subMapDir, fs, depth + 1) : undefined });
+    }
+    return { kind: "sectioned", sections };
   }
 
-  const parsed: ParsedSourceMap = {
-    sources: loaded.raw.sources,
-    sourceRoot: loaded.raw.sourceRoot ?? "",
-    mapDir: loaded.mapDir,
-    segmentsByLine: parseMappings(loaded.raw.mappings),
-  };
-  parsedMapCache.set(filePath, parsed);
-  return parsed;
+  if (raw.mappings && raw.sources && raw.sources.length > 0) {
+    return { kind: "flat", sources: raw.sources, sourceRoot: raw.sourceRoot ?? "", mapDir, segmentsByLine: parseMappings(raw.mappings) };
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolve a 0-based generated position inside a parsed map. Flat maps do the classic per-line
+ * segment binary search; sectioned (index) maps select the last section starting at or before the
+ * position, shift the position into the section's coordinate space, and recurse into its sub-map.
+ */
+function resolveInParsedMap(map: ParsedSourceMap, line0: number, column0: number): OriginalPosition | undefined {
+  if (map.kind === "flat") {
+    const segments = map.segmentsByLine.get(line0);
+    if (segments == null || segments.length === 0) {
+      return undefined;
+    }
+    const segment = findSegment(segments, column0) ?? segments[0];
+    const source = map.sources[segment.sourceIndex];
+    if (source == null) {
+      return undefined;
+    }
+    const resolvedSource = resolveSourcePath(source, map.sourceRoot, map.mapDir);
+    return { source: resolvedSource, line: segment.origLine + 1, column: segment.origColumn + 1 };
+  }
+
+  // Sections are ordered by increasing offset; pick the last one starting at or before the position.
+  let selected: ParsedSection | undefined;
+  for (const section of map.sections) {
+    if (line0 > section.offsetLine || (line0 === section.offsetLine && column0 >= section.offsetColumn)) {
+      selected = section;
+    } else {
+      break;
+    }
+  }
+  if (selected?.map == null) {
+    return undefined;
+  }
+  const relLine0 = line0 - selected.offsetLine;
+  const relColumn0 = line0 === selected.offsetLine ? Math.max(0, column0 - selected.offsetColumn) : column0;
+  return resolveInParsedMap(selected.map, relLine0, relColumn0);
 }
 
 /** Matches a URL-scheme prefix (`webpack://`, `webpack-internal://`, `file://`, ...) on a `sources` entry. */
@@ -259,25 +387,47 @@ const SOURCE_SCHEME_REGEX = /^[a-z][a-z0-9+.-]*:\/\//i;
  * their project-relative tail (the virtual path has no on-disk anchor, so the readable tail is the best
  * available), and anchor plain relative paths to `mapDir` so `dist/app.js.map` + `../src/app.ts` yields
  * the real on-disk `src/app.ts`.
+ *
+ * Bracket-prefixed virtual sources from modern bundlers (Turbopack's `[project]/src/app.ts`) get the
+ * same tail treatment as scheme-prefixed ones, so they come out as the clean `src/app.ts` users
+ * expect in logs.
  */
 function resolveSourcePath(source: string, sourceRoot: string, mapDir: string): string {
   const combined = sourceRoot.length > 0 ? joinPath(sourceRoot, source) : source;
+
   if (combined.startsWith("file://")) {
     const stripped = normalizeFilePath(combined.replace(/^file:\/\//, ""));
     return stripped.length > 0 ? stripped : combined;
   }
+
+  // Bundler-virtual bracket prefix (Turbopack `[project]/src/x.ts`, `[root of the server]/...`):
+  // like the scheme case below, the path is project-root-relative with no on-disk anchor at the
+  // map's location, so report the readable tail instead of wrongly anchoring it to `mapDir`.
+  const bracketMatch = combined.match(/^\[[^\]]+\]\/(.+)$/);
+  if (bracketMatch?.[1]) {
+    const cleaned = normalizeFilePath(bracketMatch[1]);
+    /* v8 ignore next -- defensive: `(.+)` guarantees a non-empty tail; normalizeFilePath collapses to empty only for degenerate inputs like "./" */
+    return cleaned.length > 0 ? cleaned : combined;
+  }
+
   const scheme = combined.match(SOURCE_SCHEME_REGEX);
   if (scheme != null) {
     // Bundler-virtual path: drop the scheme and the namespace segment (e.g. webpack://_N_E/./src/x.ts).
+    // For virtual sources we prefer the cleaned project-relative tail over joining to the map dir.
     const rest = combined.slice(scheme[0].length);
     const slash = rest.indexOf("/");
     const tail = slash === -1 ? rest : rest.slice(slash + 1);
     const cleaned = normalizeFilePath(tail);
-    return cleaned.length > 0 ? cleaned : combined;
+    if (cleaned.length > 0) {
+      return cleaned;
+    }
+    return combined; // fall back to the (still virtual) original for degenerate cases
   }
+
   if (/^([A-Za-z]:)?[/\\]/.test(combined)) {
     return combined;
   }
+
   // normalizeFilePath already falls back to its input when normalization collapses to empty, and
   // joinPath(mapDir, combined) always produces a non-empty string, so no empty-check is needed here.
   return normalizeFilePath(joinPath(mapDir, combined));
@@ -313,25 +463,14 @@ export function resolveOriginalPosition(filePath: string, line: number, column: 
   if (!Number.isFinite(line) || line < 1) {
     return undefined;
   }
+
   const map = getParsedSourceMap(filePath);
   if (map == null) {
     return undefined;
   }
 
-  const segments = map.segmentsByLine.get(line - 1);
-  if (segments == null || segments.length === 0) {
-    return undefined;
-  }
-
   const zeroBasedColumn = Number.isFinite(column) && column >= 1 ? column - 1 : 0;
-  const segment = findSegment(segments, zeroBasedColumn) ?? segments[0];
-  const source = map.sources[segment.sourceIndex];
-  if (source == null) {
-    return undefined;
-  }
-
-  const resolvedSource = resolveSourcePath(source, map.sourceRoot, map.mapDir);
-  return { source: resolvedSource, line: segment.origLine + 1, column: segment.origColumn + 1 };
+  return resolveInParsedMap(map, line - 1, zeroBasedColumn);
 }
 
 /** Clear the parsed-source-map cache. Exposed for tests only. */

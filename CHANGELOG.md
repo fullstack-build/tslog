@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.1] - 2026-07-16
+
+A patch release that makes source-mapped error positions work out of the box with modern bundler output (Turbopack/Next.js dev, Rollup, Webpack) — verified end-to-end against a live `next dev --turbopack` server (Next.js 16). No API or settings changes.
+
+### Fixed
+- **Indexed source maps (`sections`)** — the resolver now understands the sectioned map format emitted by Turbopack (Next.js dev) and other concatenating bundlers: section offsets are walked, positions are shifted into the section's coordinate space, and per-section sub-maps (inline `map` or external `url`) resolve like flat maps. Previously such frames kept pointing at the generated chunk. Everything — including section sub-maps — is parsed once per file and cached, so logging through a sectioned map stays as cheap as through a flat one. Verified against real Rollup and Webpack (ts-loader) output in the test suite.
+- **Source-map resolution inside bundled server apps** — bundlers rewrite tslog's dynamic `require(name)` into an always-throwing stub (Turbopack: "expression is too dynamic"), which silently disabled resolution in bundled apps even when the maps were fine. `node:fs` is now acquired via `process.getBuiltinModule` first (a plain runtime call bundlers leave untouched), with `createRequire` kept as the fallback for Node < 20.16.
+- **Percent-encoded `sourceMappingURL`s** — the reference is a URL, so file names with `[`/`]` arrive percent-encoded (Turbopack: `%5Broot-of-the-server%5D__x._.js.map`); it is now decoded for the on-disk lookup, with the raw name as fallback for files literally containing `%`.
+- **Turbopack virtual source paths** — bracket-prefixed sources such as `[project]/src/app.ts` now reduce to the clean project-relative `src/app.ts` in log output (as `webpack://` sources already did) instead of being wrongly anchored to the map's directory.
+- **Caller detection around bundler runtime frames** — unremapped Turbopack runtime chunks (`[root-of-the-server]__….js`, `[turbopack]_runtime.js`) are skipped when locating the user's call site.
+- **Packaging** — `npm run build` now wipes `dist/` first (new `clean-dist` script), so stale files from earlier builds can no longer ship: 5.0.0 accidentally included a leftover v4 `cjs/` directory (unreferenced by the exports map, so imports were unaffected).
+
+
 ## [5.0.0] - 2026-07-14
 
 A ground-up rewrite. tslog is now ESM-only, zero-dependency, Node >=20, and built with TypeScript 7 / ES2022. Settings are grouped, JSON output is fields-first, and the logger gains a middleware pipeline, async transports, JSONPath masking, OpenTelemetry/pino/GenAI presets, ready-made file/http/ringbuffer/worker transports, and tree-shakeable subpath modules. v5 also adds first-class support for agents and LLMs — fields-first calls, agent/session correlation, and OTel-GenAI attributes; [OpenClaw](https://openclaw.ai) uses tslog for its agent logging. This is a breaking release — see [MIGRATION_v4_to_v5.md](MIGRATION_v4_to_v5.md) for the upgrade path.

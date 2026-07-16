@@ -608,8 +608,7 @@ export interface ISettingsParam<LogObj> {
    * implementation works too. Sub-loggers inherit it. When set, it takes precedence over the automatic
    * resolution.
    */
-  // biome-ignore lint/suspicious/noExplicitAny: existential — AsyncLocalStorage<T> for ANY user T must be assignable
-  contextStorage?: IContextStorage<any>;
+  contextStorage?: IContextStorage<unknown>;
 }
 
 /**
@@ -678,8 +677,7 @@ export interface ISettings<LogObj> extends ISettingsParam<LogObj> {
   /** Resolved strict-config flag (always present). See {@link ISettingsParam.strictConfig}. */
   strictConfig: boolean;
   /** The injected async-context storage (kept by reference), or `undefined` for automatic resolution. See {@link ISettingsParam.contextStorage}. */
-  // biome-ignore lint/suspicious/noExplicitAny: existential — mirrors ISettingsParam.contextStorage
-  contextStorage?: IContextStorage<any>;
+  contextStorage?: IContextStorage<unknown>;
   /** The injectable clock (kept by reference), or `undefined` for the runtime's `new Date()`. See {@link ISettingsParam.clock}. */
   clock?: () => Date;
 }

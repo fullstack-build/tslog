@@ -102,3 +102,5 @@ CLAUDE.local.md
 # Astro (docs)
 docs/.astro/
 docs/src/content/docs/
+# TypeScript incremental-build state (not used by the current configs; never commit)
+*.tsbuildinfo

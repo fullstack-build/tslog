@@ -13,7 +13,7 @@ describe("JSON: Log level", () => {
   });
 
   test("log object", (): void => {
-    const logObj: any = logger.log(123, "test", "Test");
+    const logObj: unknown = logger.log(123, "test", "Test");
     expect(logObj?.["0"]).toContain("Test");
     expect(logObj?._logMeta?.logLevelId === 123).toBeTruthy();
     expect(logObj?._logMeta?.logLevelName).toContain("test");

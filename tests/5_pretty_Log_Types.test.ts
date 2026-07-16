@@ -207,7 +207,7 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
-    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+    expect((errorLog?.stack as Record<string, unknown>)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
 
   test("Error with multiple parameters", (): void => {
@@ -220,7 +220,7 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
     expect(errorLog?.nativeError).toBeInstanceOf(Error);
-    expect((errorLog?.stack as any)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+    expect((errorLog?.stack as Record<string, unknown>)[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
 
   test("string and Error", (): void => {
@@ -230,8 +230,8 @@ describe("Pretty: Log Types", () => {
     expect(getConsoleLogStripped()).toContain("test");
     expect(getConsoleLogStripped()).toContain("error stack:\n");
     expect(getConsoleLogStripped()).toContain("5_pretty_Log_Types.test.ts");
-    expect((errorLog?.["1"] as any)?.nativeError).toBeInstanceOf(Error);
-    expect((errorLog?.["1"] as any)?.stack[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
+    expect((errorLog?.["1"] as Record<string, unknown>)?.nativeError).toBeInstanceOf(Error);
+    expect((errorLog?.["1"] as Record<string, unknown>)?.stack[0]?.fileName).toBe("5_pretty_Log_Types.test.ts");
   });
 
   test("Error cause chain pretty output", (): void => {

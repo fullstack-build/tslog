@@ -3,7 +3,7 @@ let consoleOutput = "";
 export function mockConsoleLog(resetConsoleOutput = false, printConsole = false) {
   const storeLog = (inputs: unknown) => {
     if (printConsole) {
-      process.stdout.write("console.log: " + inputs + "\n");
+      process.stdout.write(`console.log: ${inputs}\n`);
     }
     consoleOutput += inputs;
   };

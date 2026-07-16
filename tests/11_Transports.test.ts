@@ -2,7 +2,7 @@ import { Logger } from "../src";
 
 describe("Transports", () => {
   test("attach one transport", (): void => {
-    const transports: any[] = [];
+    const transports: unknown[] = [];
     const logger = new Logger({ type: "hidden" });
     logger.attachTransport((logObj) => {
       transports.push(logObj);
@@ -14,7 +14,7 @@ describe("Transports", () => {
   });
 
   test("attach two transport", (): void => {
-    const transports: any[] = [];
+    const transports: unknown[] = [];
     const logger = new Logger({ type: "hidden" });
     logger.attachTransport((logObj) => {
       transports.push(logObj);

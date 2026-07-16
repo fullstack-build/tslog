@@ -62,7 +62,6 @@ registerUniversalRuntimeTests({
     };
     const originalWindow = globalAny.window;
     const originalDocument = globalAny.document;
-    const originalNavigator = globalAny.navigator;
     const originalLocation = globalAny.location;
 
     globalAny.window = {};

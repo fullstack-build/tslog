@@ -32,7 +32,7 @@ describe("transport behaviour", () => {
     expect(consoleSpy).toHaveBeenCalled();
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("%c"));
     expect(call).toBeDefined();
-    expect(call && call.length).toBeGreaterThan(1);
+    expect(call?.length).toBeGreaterThan(1);
 
     consoleSpy.mockRestore();
 
@@ -290,7 +290,7 @@ describe("transport behaviour", () => {
 
     const call = consoleSpy.mock.calls.find((entry) => typeof entry[0] === "string" && entry[0].includes("static output"));
     expect(call).toBeDefined();
-    expect(call && call.length).toBe(1);
+    expect(call?.length).toBe(1);
 
     consoleSpy.mockRestore();
 

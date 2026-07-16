@@ -38,12 +38,21 @@ const OWN_DIR_PATTERN: RegExp | undefined =
 
 const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   /(?:^|[\\/])node_modules[\\/].*tslog/i,
+  /node_modules_tslog/i,
   /(?:^|[\\/])deps[\\/].*tslog/i,
   // The published bundle layout, so a frame in dist/esm or dist/cjs of *the tslog package* is internal.
   // Anchored to `tslog/dist/...` rather than any bare `tslog/` substring.
   /(?:^|[\\/])tslog[\\/]dist[\\/](?:esm|cjs)[\\/]/i,
   /* v8 ignore next -- unreachable under the Node ESM runner where OWN_DIR_PATTERN is non-null; live in the browser IIFE and user bundles where it is undefined */
   ...(OWN_DIR_PATTERN != null ? [OWN_DIR_PATTERN] : []),
+  // Runtime-chunk names from modern bundlers (Turbopack/Next.js dev). These are *generated* names —
+  // successful source-map remapping has already turned user frames into real `src/...` paths before
+  // this check runs, so only unremapped bundler-runtime frames still match.
+  /\[root[ -]of[ -]the[ -]/i,
+  /\[turbopack\]/i,
+  // Turbopack dev chunk ids mangle paths with underscores (e.g. node_modules_tslog_esm_...._.js).
+  /chunks.*tslog/i,
+  /_tslog_/i,
 ];
 
 /**
