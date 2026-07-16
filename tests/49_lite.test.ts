@@ -152,3 +152,98 @@ describe("LiteLogger factory and ready instance", () => {
     expect(calls).toEqual([["w"], ["e"]]);
   });
 });
+
+// Named loggers and getSubLogger(): the label is partially applied with .bind() so the level methods
+// stay native console functions and devtools keeps blaming the caller (RECIPES 12c).
+describe("LiteLogger name and getSubLogger", () => {
+  const LEVELS = ["silly", "trace", "debug", "info", "warn", "error", "fatal"] as const;
+
+  test("a named logger prepends its label and leaves logged arguments untouched", () => {
+    const { sink, calls } = makeSink();
+    const payload = { id: 7 };
+
+    new LiteLogger({ name: "app", console: sink }).info("add to cart", payload);
+
+    expect(calls.info).toHaveLength(1);
+    expect(calls.info[0][0]).toBe("app");
+    expect(calls.info[0][1]).toBe("add to cart");
+    expect(calls.info[0][2]).toBe(payload); // same reference: still inspectable in devtools
+  });
+
+  test("getSubLogger joins its name onto the parent's", () => {
+    const { sink, calls } = makeSink();
+    const app = new LiteLogger({ name: "app", console: sink });
+
+    app.getSubLogger({ name: "cart" }).info("checkout");
+
+    expect(calls.info).toEqual([["app:cart", "checkout"]]);
+  });
+
+  test("sub-loggers nest to any depth and honor a custom nameSeparator", () => {
+    const { sink, calls } = makeSink();
+    const app = new LiteLogger({ name: "app", console: sink, nameSeparator: "/" });
+
+    app.getSubLogger({ name: "cart" }).getSubLogger({ name: "checkout" }).warn("slow");
+
+    expect(calls.warn).toEqual([["app/cart/checkout", "slow"]]);
+  });
+
+  test("an unnamed parent adopts the child's name, and an unnamed child keeps the parent's", () => {
+    const { sink, calls } = makeSink();
+
+    new LiteLogger({ console: sink }).getSubLogger({ name: "cart" }).info("a");
+    new LiteLogger({ name: "app", console: sink }).getSubLogger().info("b");
+    new LiteLogger({ console: sink }).getSubLogger().info("c");
+
+    expect(calls.info).toEqual([["cart", "a"], ["app", "b"], ["c"]]); // unlabeled logs stay bare
+  });
+
+  test("sub-loggers inherit minLevel and sink but can override them", () => {
+    const { sink, calls } = makeSink();
+    const other = makeSink();
+    const app = new LiteLogger({ name: "app", minLevel: "WARN", console: sink });
+
+    const inherited = app.getSubLogger({ name: "cart" });
+    expect(inherited.minLevel).toBe(4);
+    inherited.debug("suppressed");
+    inherited.warn("emitted");
+    expect(calls.debug).toEqual([]);
+    expect(calls.warn).toEqual([["app:cart", "emitted"]]);
+
+    const overridden = app.getSubLogger({ name: "loud", minLevel: "SILLY", console: other.sink });
+    overridden.debug("verbose");
+    expect(other.calls.debug).toEqual([["app:loud", "verbose"]]);
+    expect(calls.debug).toEqual([]); // parent's sink untouched
+  });
+
+  test("child() is an alias of getSubLogger()", () => {
+    const { sink, calls } = makeSink();
+    new LiteLogger({ name: "app", console: sink }).child({ name: "cart" }).error("boom");
+    expect(calls.error).toEqual([["app:cart", "boom"]]);
+  });
+
+  test("sub-logger level methods stay native functions, so devtools blames the caller", () => {
+    const log = new LiteLogger({ name: "app" }).getSubLogger({ name: "cart" });
+
+    // The whole point of the module: Function.prototype.bind returns a native function, so the
+    // runtime attributes the log to the call site. A wrapper (`(...a) => console.info(label, ...a)`)
+    // would be user code and would capture the badge itself.
+    for (const level of LEVELS) {
+      expect(Function.prototype.toString.call(log[level])).toContain("[native code]");
+    }
+  });
+
+  test("an empty name is treated as no name", () => {
+    const { sink, calls } = makeSink();
+    const log = new LiteLogger({ name: "", console: sink });
+    expect(log.name).toBeUndefined();
+    log.info("bare");
+    expect(calls.info).toEqual([["bare"]]);
+  });
+
+  test("createLiteLogger accepts a name too", () => {
+    const { sink, calls } = makeSink();
+    createLiteLogger({ name: "app", console: sink }).info("hi");
+    expect(calls.info).toEqual([["app", "hi"]]);
+  });
+});

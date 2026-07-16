@@ -51,7 +51,7 @@ On Node, json lines go through a buffered stdout sink (batched `process.stdout.w
 
 ## Size-critical builds (subpaths)
 - `tslog/slim` — `Logger`/`createLogger` with the SAME JSON pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size. No masking (`mask` settings THROW), no pretty (`type: "pretty"` throws; default type is "json"), no stack capture (`_logMeta.path` absent, error `stack` arrays empty), no `fromEnv`, no settings validation.
-- `tslog/lite` — `lite`/`createLiteLogger({ minLevel })`: the seven level methods ARE bound native `console.*` functions (devtools shows YOUR file:line), level gating only — no JSON pipeline, no `_logMeta`, no masking, no transports. Pick slim for structured JSON, lite for a leveled console.
+- `tslog/lite` — `lite`/`createLiteLogger({ minLevel, name, nameSeparator, console })`: the seven level methods ARE bound native `console.*` functions (devtools shows YOUR file:line), level gating plus named `getSubLogger`/`child` only — no JSON pipeline, no `_logMeta`, no masking, no transports. `name` is prepended as a leading argument; sub-loggers join names with `nameSeparator` (default `":"`) and inherit `minLevel`/sink unless overridden. Pick slim for structured JSON, lite for a leveled console.
 
 ## Testing (subpath)
 - `tslog/testing` — `createTestLogger(settings?, { now?, normalize? })` (in-memory capture: `logs`/`lines`/`clear`; `now` freezes ONLY this logger's clock; `normalize: true` makes output snapshot-stable), `mockLogger()` (recording level methods), `normalizeMeta(recordOrLine)` (pin date/hostname/runtimeVersion, drop `_logMeta.path`).
@@ -61,6 +61,8 @@ On Node, json lines go through a buffered stdout sink (batched `process.stdout.w
 - Never pass `mask` settings to `tslog/slim` (they throw) — use the full `tslog` entry where masking is needed.
 - Use `getSubLogger`/`child` per request/agent, `runInContext` for correlation.
 - Next.js (and other full-stack frameworks): full `Logger` in server code (route handlers, server components), `createLiteLogger` from `tslog/lite` in `"use client"` components — lite's methods are bound native `console.*`, so devtools attributes logs to the user's component with source maps.
+- To keep one shared logger entrypoint across both halves, route it through a `package.json` `imports` subpath with a `browser` condition (`default` = server). Never key that on the `react-server` condition: it only covers Server Components, so route handlers and server actions silently get the client logger. Such a shared entrypoint must not `import "server-only"`.
+- Client sub-loggers: use `LiteLogger`'s own `getSubLogger({ name })`/`child({ name })` — it binds the label onto the native console method, so the devtools file:line badge stays on the caller. Never hand-roll a wrapper (`(...args) => console.info(label, ...args)`); that moves the badge onto the wrapper. Use a plain string name, not `%c` (it would consume the next argument).
 - Always set `mask.keys`/`mask.paths` when logging objects that may hold secrets or prompts.
 
 ## Links

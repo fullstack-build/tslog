@@ -427,6 +427,65 @@ Why `tslog/lite` on the client: each level method **is** the bound native `conso
 
 The same split works for any Vite-SSR framework (TanStack Start, etc.): full `Logger` in server routes/loaders, `tslog/lite` in components.
 
+### Keeping one import path (retrofitting an existing codebase)
+
+The split above asks every call site to know which half it wants. In a codebase that already funnels logging through a single module — `import { log } from "@/lib/logger"` in hundreds of files — keep that entrypoint and let the bundler pick the half, with no call-site churn:
+
+```jsonc
+// package.json — "#logger-impl" is a private import subpath, resolved per bundle target
+{
+  "imports": {
+    "#logger-impl": {
+      "browser": "./src/lib/logger.client.ts",
+      "default": "./src/lib/logger.server.ts"
+    }
+  }
+}
+```
+
+```ts
+// src/lib/logger.ts — the unchanged entrypoint every file already imports
+export { log } from "#logger-impl";
+```
+
+`logger.server.ts` and `logger.client.ts` stay exactly as above. Client bundles resolve `#logger-impl` through the `browser` condition; every server runtime falls through to `default`. Needs `moduleResolution: "bundler"` (or `node16`/`nodenext`) in `tsconfig.json`. The `imports` field and its `browser` condition are honored by Next.js/Turbopack, Vite, webpack, and esbuild.
+
+Two caveats specific to this shape:
+
+- **Don't key it on the `react-server` condition.** It reads like the "am I on the server?" switch and is not: React applies `react-server` only to Server Components, so route handlers and server actions resolve *without* it and would silently receive the client logger — no error, no build failure, just logs that stop reaching your transports. The `browser` condition keys on the bundle target, which is the distinction actually meant here.
+- **Drop the `import "server-only"` guard** from `logger.server.ts` if you added it. The shared entrypoint is reachable from client components by design, which is exactly what that guard fails the build for. The `browser` condition is what enforces the split here — and it keeps the full `Logger` and its transports out of the client bundle just the same.
+
+Modules that need the server-only API surface (`runInContext`/`AsyncLocalStorage` wiring, `attachTransport`) should import `./logger.server` directly instead of going through the shim.
+
+### Sub-loggers on the client
+
+`LiteLogger` mirrors the server's `getSubLogger()` / `child()`, so per-area names carry across the split:
+
+```ts
+// lib/logger.client.ts
+import { createLiteLogger } from "tslog/lite";
+
+export const log = createLiteLogger({
+  name: "app",
+  minLevel: process.env.NODE_ENV === "production" ? "WARN" : "SILLY",
+});
+```
+
+```tsx
+"use client";
+import { log } from "../lib/logger.client";
+
+const cartLog = log.getSubLogger({ name: "cart" }); // labels lines "app:cart"
+
+export function AddToCart({ id }: { id: string }) {
+  return <button onClick={() => cartLog.info("add to cart", { id })}>Add</button>;
+}
+```
+
+Sub-loggers nest to any depth, inherit `minLevel` and the sink unless overridden, and join names with `nameSeparator` (default `":"`). The label is partially applied with `Function.prototype.bind`, which returns another *native* console function — so unlike a wrapper (`(...args) => console.info(name, ...args)`), the devtools file:line badge still points at your component rather than at the logger.
+
+Use a plain string name, not `%c`: a format specifier consumes the argument that follows it, so `%c` would swallow the first logged value instead of styling the label.
+
 ## 13. Configure from environment / typed config
 
 ```ts

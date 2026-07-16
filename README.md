@@ -682,11 +682,17 @@ export const log = new Logger({
 import { createLiteLogger } from "tslog/lite";
 
 export const log = createLiteLogger({
+  name: "app",
   minLevel: process.env.NODE_ENV === "production" ? "WARN" : "SILLY",
 });
+
+// per-area sub-loggers work here too, labeling lines "app:cart":
+export const cartLog = log.getSubLogger({ name: "cart" });
 ```
 
-Server-side you get the full pipeline — pretty output with original `.ts` positions in dev (Turbopack source maps work out of the box), structured JSON for collectors in production. Client-side, `tslog/lite`'s level methods **are** the bound native `console.*` methods, so the file:line badge devtools attaches to each log points at *your component* (source-mapped by devtools) and logged objects stay live and collapsible. The same split works for TanStack Start and other Vite-SSR frameworks. Details and variations in [RECIPES.md](RECIPES.md).
+Server-side you get the full pipeline — pretty output with original `.ts` positions in dev (Turbopack source maps work out of the box), structured JSON for collectors in production. Client-side, `tslog/lite`'s level methods **are** the bound native `console.*` methods, so the file:line badge devtools attaches to each log points at *your component* (source-mapped by devtools) and logged objects stay live and collapsible. `getSubLogger()` keeps that property — it binds the name onto the native method instead of wrapping it. The same split works for TanStack Start and other Vite-SSR frameworks.
+
+Retrofitting a codebase that already imports one shared logger module everywhere: keep that single entrypoint and let a `browser` conditional `imports` subpath pick the half, so no call site changes. Don't reach for the `react-server` condition — it covers only Server Components, and silently hands route handlers and server actions the client logger. That variation, plus client-side sub-loggers, in [RECIPES.md](RECIPES.md).
 
 Error trackers and log platforms plug in as transports — no vendor-specific logger needed. Two worked examples follow; the same two patterns (a `write` function for SDK-based services, `httpTransport` for HTTP ingestion APIs) cover Datadog, Loki, Axiom and friends.
 
@@ -875,7 +881,7 @@ The falsy stand-in still evaluates its arguments, so to skip *expensive* payload
 
 | Import | What it gives you |
 |--------|-------------------|
-| `tslog/lite` | `lite` (ready instance), `LiteLogger`, `createLiteLogger(opts?)` — minimal console wrappers, no mask/stack/clone, preserves native console line numbers |
+| `tslog/lite` | `lite` (ready instance), `LiteLogger`, `createLiteLogger(opts?)` — minimal console wrappers with named `getSubLogger`/`child`, no mask/stack/clone, preserves native console line numbers |
 | `tslog/slim` | `Logger`, `createLogger` — the smallest structured-JSON build: the full pipeline (levels, sub-loggers, bindings, custom levels, middleware, `runInContext`, transports) at less than half the bundle size, minus masking/pretty/stack capture (`mask` and `type: "pretty"` throw instead of silently degrading) |
 | `tslog/testing` | `createTestLogger(settings?, { now?, normalize? })` → `{ logger, logs, lines, clear }`, plus `mockLogger(settings?)` and `normalizeMeta(recordOrLine)` for snapshot-stable output |
 | `tslog/throttle` | `throttle({ windowMs, key?, now? })` middleware (off by default), `defaultThrottleKey` |
