@@ -371,6 +371,8 @@ try {
 
 This works with the maps every mainstream toolchain emits — `tsc`, esbuild, webpack, Rollup, and the indexed (`sections`) format from Turbopack/Next.js dev — and bundler-virtual source paths (`webpack://…`, `[project]/…`) come out as clean project-relative paths. Next.js (Turbopack) and TanStack Start (Vite) dev servers are verified end-to-end in CI.
 
+**Next.js dev log mirroring:** `next dev` mirrors server-side console output into the browser devtools with a `Server` badge, as raw terminal text. tslog's ANSI colors in that mirror render fine in Chrome (its console interprets ANSI) but appear as literal `[32m…` escapes in Safari and Firefox — that's the mirror, not tslog's own browser output. If it bothers you, run the dev server with `NO_COLOR=1` or configure the server logger with `pretty: { style: false }` in development; the text is unchanged, only terminal colors are lost.
+
 Off by default in production (`NODE_ENV === "production"`) since it costs a source-map read/parse the first time each file's frame is logged (cached after that). Force it either way with `TSLOG_SOURCE_MAPS=on` / `TSLOG_SOURCE_MAPS=off`. Node/Bun/Deno only — browsers already get this from devtools, so tslog never attempts it there.
 
 ## 12b. Smallest browser / edge bundle (`tslog/slim`)
@@ -385,6 +387,45 @@ log.info("request", { requestId: crypto.randomUUID() }); // same flat fields-fir
 ```
 
 Kept: levels, sub-loggers, bindings, custom levels, middleware, `runInContext` correlation, transports. Dropped: masking, pretty output, stack capture (`_logMeta.path`; error `stack` arrays are empty), `fromEnv`, settings validation. Develop against the full entry, ship slim.
+
+## 12c. Next.js / TanStack Start: full-stack logging (server + client)
+
+Use the full `Logger` on the server and `tslog/lite` in `"use client"` components. Two files, no other setup:
+
+```ts
+// lib/logger.server.ts — route handlers, server components, server actions
+import "server-only"; // optional guard: importing this from client code fails the build
+import { Logger } from "tslog";
+
+export const log = new Logger({
+  name: "app",
+  // pretty with original .ts positions in dev (Turbopack source maps work out of the box);
+  // structured JSON for log collectors in production:
+  type: process.env.NODE_ENV === "production" ? "json" : "pretty",
+});
+```
+
+```ts
+// lib/logger.client.ts — "use client" components
+import { createLiteLogger } from "tslog/lite";
+
+export const log = createLiteLogger({
+  minLevel: process.env.NODE_ENV === "production" ? "WARN" : "SILLY",
+});
+```
+
+```tsx
+"use client";
+import { log } from "../lib/logger.client";
+
+export function AddToCart({ id }: { id: string }) {
+  return <button onClick={() => log.info("add to cart", { id })}>Add</button>;
+}
+```
+
+Why `tslog/lite` on the client: each level method **is** the bound native `console.*` method, so the file:line badge devtools attaches to every log line points at *your component* — source-mapped by devtools to the original `.tsx` — and logged objects stay live and collapsible. The full `Logger` also runs in the browser, but any wrapped console makes that badge point at the wrapper, and printed positions under a bundler dev server show the served chunk path (browser-side source-map resolution is intentionally not done — `.map` fetches would be async, logging is synchronous).
+
+The same split works for any Vite-SSR framework (TanStack Start, etc.): full `Logger` in server routes/loaders, `tslog/lite` in components.
 
 ## 13. Configure from environment / typed config
 

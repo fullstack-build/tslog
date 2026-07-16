@@ -60,6 +60,7 @@ On Node, json lines go through a buffered stdout sink (batched `process.stdout.w
 - Prefer `type: "json"` and `minLevel: "INFO"` for machine-read logs.
 - Never pass `mask` settings to `tslog/slim` (they throw) — use the full `tslog` entry where masking is needed.
 - Use `getSubLogger`/`child` per request/agent, `runInContext` for correlation.
+- Next.js (and other full-stack frameworks): full `Logger` in server code (route handlers, server components), `createLiteLogger` from `tslog/lite` in `"use client"` components — lite's methods are bound native `console.*`, so devtools attributes logs to the user's component with source maps.
 - Always set `mask.keys`/`mask.paths` when logging objects that may hold secrets or prompts.
 
 ## Links

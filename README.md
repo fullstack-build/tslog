@@ -660,7 +660,33 @@ log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "compl
 ```
 
 
-## Integrations: Sentry & Better Stack
+## Integrations: Next.js/TanStack Start, Sentry & Better Stack
+
+### Next.js, TanStack Start (and other full-stack frameworks)
+
+Use the full `Logger` on the server and `tslog/lite` in `"use client"` components — two files, no other setup:
+
+```typescript
+// lib/logger.server.ts — route handlers, server components, server actions
+import "server-only"; // optional guard: importing this from client code fails the build
+import { Logger } from "tslog";
+
+export const log = new Logger({
+  name: "app",
+  type: process.env.NODE_ENV === "production" ? "json" : "pretty",
+});
+```
+
+```typescript
+// lib/logger.client.ts — "use client" components
+import { createLiteLogger } from "tslog/lite";
+
+export const log = createLiteLogger({
+  minLevel: process.env.NODE_ENV === "production" ? "WARN" : "SILLY",
+});
+```
+
+Server-side you get the full pipeline — pretty output with original `.ts` positions in dev (Turbopack source maps work out of the box), structured JSON for collectors in production. Client-side, `tslog/lite`'s level methods **are** the bound native `console.*` methods, so the file:line badge devtools attaches to each log points at *your component* (source-mapped by devtools) and logged objects stay live and collapsible. The same split works for TanStack Start and other Vite-SSR frameworks. Details and variations in [RECIPES.md](RECIPES.md).
 
 Error trackers and log platforms plug in as transports — no vendor-specific logger needed. Two worked examples follow; the same two patterns (a `write` function for SDK-based services, `httpTransport` for HTTP ingestion APIs) cover Datadog, Loki, Axiom and friends.
 

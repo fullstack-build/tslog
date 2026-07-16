@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.0.2] - 2026-07-16
+
+### Fixed
+- **Readable default styling on light devtools themes** — the default pretty styles color timestamps, log positions, and logger names `white`, which the browser CSS path rendered as a near-white hex: invisible on light consoles (the Safari/Chrome default theme). Foreground `white`/`whiteBright` now contribute no `color:` declaration, so that text keeps the console's own default color and is readable in both light and dark themes. Terminal ANSI output is unchanged; background tokens keep their palette hex.
+
+### Added
+- **Next.js full-stack logging recipe** — new RECIPES §12c: the full `Logger` on the server (pretty with original `.ts` positions in dev, JSON in production; optionally guarded with `server-only`) and `tslog/lite` in `"use client"` components, whose level methods are the bound native `console.*` functions — so the devtools file:line badge points at your component instead of a logger wrapper in a bundled chunk, and logged objects stay live and collapsible. The same split works for TanStack Start and other Vite-SSR frameworks.
+
+
 ## [5.0.1] - 2026-07-16
 
 A patch release that makes source-mapped error positions work out of the box with modern bundler output (Turbopack/Next.js dev, Rollup, Webpack) — verified end-to-end against live Next.js 16 (`next dev --turbopack`) and TanStack Start (Vite) dev servers — and fixes the default browser console output (error styling, stack parsing, log positions), verified in real Chromium, Firefox, and WebKit. No API or settings changes.
