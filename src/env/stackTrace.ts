@@ -38,6 +38,11 @@ const OWN_DIR_PATTERN: RegExp | undefined =
 
 const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   /(?:^|[\\/])node_modules[\\/].*tslog/i,
+  // Turbopack dev chunk ids mangle module paths with underscores when a package gets its own chunk
+  // (node_modules_tslog_esm_..._.js). Merged multi-package chunks get a content hash instead
+  // (node_modules_<hash>._.js) — those are handled by source-map remapping, after which the frame
+  // matches the plain node_modules pattern above. Anchored on "node_modules_tslog" per M1.12: a
+  // broader name-based match (e.g. any "_tslog_") would misclassify user files like my_tslog_util.ts.
   /node_modules_tslog/i,
   /(?:^|[\\/])deps[\\/].*tslog/i,
   // The published bundle layout, so a frame in dist/esm or dist/cjs of *the tslog package* is internal.
@@ -50,9 +55,6 @@ const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   // this check runs, so only unremapped bundler-runtime frames still match.
   /\[root[ -]of[ -]the[ -]/i,
   /\[turbopack\]/i,
-  // Turbopack dev chunk ids mangle paths with underscores (e.g. node_modules_tslog_esm_...._.js).
-  /chunks.*tslog/i,
-  /_tslog_/i,
 ];
 
 /**
