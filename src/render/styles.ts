@@ -73,7 +73,11 @@ export const STYLE_PALETTE: Record<string, IStyleDefinition> = {
   blue: { ansi: [34, 39], css: `color: ${COLOR_HEX.blue}` },
   magenta: { ansi: [35, 39], css: `color: ${COLOR_HEX.magenta}` },
   cyan: { ansi: [36, 39], css: `color: ${COLOR_HEX.cyan}` },
-  white: { ansi: [37, 39], css: `color: ${COLOR_HEX.white}` },
+  // Foreground white/whiteBright get NO css: in a terminal they mean "default text on a dark
+  // background", but a browser console's theme is unknown — forcing the near-white hex renders
+  // invisible text on light devtools themes (Safari/Chrome default). Omitting the declaration keeps
+  // the console's own default text color, which is correct in both themes. Backgrounds keep the hex.
+  white: { ansi: [37, 39] },
 
   // Bright color
   blackBright: { ansi: [90, 39], css: `color: ${COLOR_HEX.blackBright}` },
@@ -83,7 +87,7 @@ export const STYLE_PALETTE: Record<string, IStyleDefinition> = {
   blueBright: { ansi: [94, 39], css: `color: ${COLOR_HEX.blueBright}` },
   magentaBright: { ansi: [95, 39], css: `color: ${COLOR_HEX.magentaBright}` },
   cyanBright: { ansi: [96, 39], css: `color: ${COLOR_HEX.cyanBright}` },
-  whiteBright: { ansi: [97, 39], css: `color: ${COLOR_HEX.whiteBright}` },
+  whiteBright: { ansi: [97, 39] },
 
   // background color
   bgBlack: { ansi: [40, 49], css: `background-color: ${COLOR_HEX.black}` },

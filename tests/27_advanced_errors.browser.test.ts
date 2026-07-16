@@ -287,6 +287,6 @@ test.describe("Advanced error handling (browser)", () => {
     const formatString = String(calls[0]?.[0]);
     expect(formatString).toContain("%c Error %c");
     const styleArgs = (calls[0] ?? []).slice(1).map(String);
-    expect(styleArgs).toContain("color: #ffffff; background-color: #ff7043; font-weight: bold");
+    expect(styleArgs).toContain("background-color: #ff7043; font-weight: bold");
   });
 });

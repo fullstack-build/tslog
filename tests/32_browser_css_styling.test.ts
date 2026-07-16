@@ -240,8 +240,9 @@ describe("Browser CSS styling", () => {
 
       test("non-matching level falls back to '*' (tokens joined into one css string)", () => {
         const { text, styleArgs } = renderStyle({ INFO: "blue", "*": ["bold", "white"] }, { id: 4, name: "WARN" });
-        // multiple tokens for one placeholder are joined with "; " into a single css argument
-        expect(styleArgs).toEqual(["font-weight: bold; color: #fafafa"]);
+        // multiple tokens for one placeholder are joined with "; " into a single css argument;
+        // foreground white contributes no css (console default text color, readable in any theme)
+        expect(styleArgs).toEqual(["font-weight: bold"]);
         expect(text).toBe("%cWARN%c");
       });
 
@@ -285,7 +286,8 @@ describe("Browser CSS styling", () => {
     test("stacked styles join into one css declaration; insertion order preserved", () => {
       expect(ansiToCssConsoleFormat("\u001b[97m\u001b[101m\u001b[1m Error \u001b[22m\u001b[49m\u001b[39m")).toEqual({
         text: "%c Error %c",
-        styles: ["color: #ffffff; background-color: #ff7043; font-weight: bold", ""],
+        // whiteBright (97) contributes no css — the badge text keeps the console's default color.
+        styles: ["background-color: #ff7043; font-weight: bold", ""],
       });
     });
 
@@ -333,7 +335,7 @@ describe("Browser CSS styling", () => {
       expect(text).not.toContain("\u001b");
       expect(text).toContain("%c Error %c");
       expect(text).toContain("boom");
-      expect(call).toContain("color: #ffffff; background-color: #ff7043; font-weight: bold");
+      expect(call).toContain("background-color: #ff7043; font-weight: bold");
       spy.mockRestore();
     });
 
