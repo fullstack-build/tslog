@@ -397,13 +397,15 @@ describe("masking: numeric mask keys", () => {
   });
 });
 
-describe("masking: Buffer / Error / URL / Date pass-through", () => {
-  test("an Error value passes through untouched (its message is not masked)", () => {
+describe("masking: Error cloning and Buffer / URL / Date pass-through", () => {
+  test("an Error value is replaced by a masked clone and the caller's instance is untouched", () => {
     const engine = maskEngine({ regex: [/secret/g] });
     const err = new Error("secret message");
     const [out] = engine.mask([err]);
-    expect(out).toBe(err);
-    expect((out as Error).message).toBe("secret message");
+    expect(out).not.toBe(err);
+    expect(out).toBeInstanceOf(Error);
+    expect((out as Error).message).toBe("[***] message");
+    expect(err.message).toBe("secret message");
   });
 
   test("a Buffer-like value (per predicate) passes through untouched", () => {
