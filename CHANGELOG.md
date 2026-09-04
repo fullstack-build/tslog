@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.2.0] - Unreleased
+
+### Changed
+- **Logged errors are cloned** — with `mask` configured, an `Error` argument is replaced by a masked clone like every other argument, and that clone is what transports receive as `nativeError`. It is a real `Error` with the source's prototype (no subclass constructor runs), so `instanceof`, JSON error detection and Sentry-style transports keep working, and the caller's instance is never modified. Without `mask`, errors pass through untouched as before.
+
+### Fixed
+- **Masking inside errors** — a secret in an error's message, in a property assigned to the error or down the `cause` chain no longer reaches the JSON line, the pretty error block or `nativeError` in plaintext. `mask.regex` covers the message and the `<name>: <message>` header of a V8 stack (frames are left alone, so a broad pattern cannot corrupt positions), `mask.keys`/`regex`/`paths` cover every other own property and the whole `cause` chain. `name`, `message` and `stack` are exempt from `mask.keys`, so `keys: ["name"]` does not blank every error, while `mask.paths` can still target them. (#214, #361)
+
 ## [5.1.0] - 2026-07-17
 
 ### Added
