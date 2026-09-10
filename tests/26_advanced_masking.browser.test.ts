@@ -179,4 +179,17 @@ test.describe("Advanced masking (browser)", () => {
     expect(result.nested).toBe("[***]");
     expect(result.original).toBe("t-1");
   });
+
+  test("a DOMException keeps its name and masked message", async ({ page }) => {
+    const result = await inPage<{ name: unknown; message: unknown; nativeName: unknown; isDomException: boolean }>(
+      page,
+      { type: "hidden" },
+      `
+      const logger = new tslog.Logger({ ...settings, mask: { regex: [/SECRET_[0-9]+/] } });
+      const logObj = logger.error(new DOMException("aborted key=SECRET_1", "AbortError"));
+      return { name: logObj.name, message: logObj.message, nativeName: logObj.nativeError.name, isDomException: logObj.nativeError instanceof DOMException };
+    `,
+    );
+    expect(result).toEqual({ name: "AbortError", message: "aborted key=[***]", nativeName: "AbortError", isDomException: true });
+  });
 });

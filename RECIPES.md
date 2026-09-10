@@ -180,7 +180,7 @@ const detach = log.attachTransport({
 
 ## 7b. Send errors and logs to Sentry
 
-Errors as Sentry issues: the record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy.
+Errors as Sentry issues: the record a transport receives still carries the native `Error` instance (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain — not a stringified copy. With `mask` configured, `nativeError` is the masked clone: still a real `Error` with the same stack and `cause` chain, so secrets stay out of Sentry too.
 
 ```ts
 import * as Sentry from "@sentry/node";

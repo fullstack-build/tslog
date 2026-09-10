@@ -513,6 +513,21 @@ describe("Masking inside errors", () => {
     expect(Object.prototype.toString.call(logObj.nativeError)).toBe("[object Error]");
   });
 
+  test("a DOMException keeps its name and message, which it serves from getters the clone cannot answer", () => {
+    // `fetch` and AbortController reject with these. Their `name`/`message` getters read internal slots.
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const logObj = logger.error(new DOMException("aborted key=SECRET_1", "AbortError")) as ErrorRecord;
+    expect(logObj.name).toBe("AbortError");
+    expect(logObj.message).toBe("aborted key=[***]");
+    expect(logObj.nativeError).toBeInstanceOf(DOMException);
+    expect(logObj.nativeError?.name).toBe("AbortError");
+    expect(logObj.nativeError?.message).toBe("aborted key=[***]");
+
+    // The copied `message` goes through the same masking as an own one, so `mask.paths` reaches it.
+    const pathed = new Logger({ type: "hidden", mask: { paths: ["message"] } });
+    expect((pathed.error(new DOMException("aborted", "AbortError")) as ErrorRecord).message).toBe("[***]");
+  });
+
   test("an error that references itself through an own property resolves to one masked clone", () => {
     const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
     const engine = new MaskingEngine(logger.settings, { isError: (value): value is Error => value instanceof Error, isBuffer: () => false });

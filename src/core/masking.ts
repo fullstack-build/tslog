@@ -619,7 +619,16 @@ export class MaskingEngine<LogObj> {
       // Always redefine `stack` on the clone. `new Error()` captured tslog's own frames, and on Firefox `stack`
       // is an accessor on the prototype that would keep reporting them. On V8 and WebKit it is already an own
       // property, so the Set only adds it where it is missing.
-      for (const prop of new Set([...Object.getOwnPropertyNames(source), "stack"])) {
+      const props = new Set([...Object.getOwnPropertyNames(source), "stack"]);
+      // DOMException (AbortError, TimeoutError, ...) serves `name` and `message` from prototype getters that read
+      // internal slots, and a class can do the same with #private fields. The clone has neither, so those getters
+      // throw on it. Copy such a property from the source like an own one.
+      for (const prop of ["name", "message"]) {
+        if (!props.has(prop) && throwsOnRead(clone, prop)) {
+          props.add(prop);
+        }
+      }
+      for (const prop of props) {
         const builtIn = prop === "name" || prop === "message" || prop === "stack";
         const descriptor = Object.getOwnPropertyDescriptor(source, prop);
         let masked: unknown;
@@ -689,6 +698,16 @@ function safeRead(source: object, prop: string): unknown {
     return (source as Record<string, unknown>)[prop];
   } catch {
     return undefined;
+  }
+}
+
+/** Whether reading `target[prop]` throws, as a getter does when it needs internal state the target lacks. */
+function throwsOnRead(target: object, prop: string): boolean {
+  try {
+    Reflect.get(target, prop);
+    return false;
+  } catch {
+    return true;
   }
 }
 
