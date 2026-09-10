@@ -684,13 +684,22 @@ export class MaskingEngine<LogObj> {
    */
   private maskStackHeader(stack: string, message: unknown, ctx: MaskContext): string {
     let headerEnd = stack.indexOf("\n    at ");
-    if (headerEnd === -1) {
-      // No frame lines. Either a V8 stack without frames (`Error.stackTraceLimit = 0`), which is all header,
-      // or a Firefox/Safari stack, which is all frames. Only a header contains the message.
-      if (typeof message !== "string" || message.length === 0 || !stack.includes(message)) {
-        return stack;
+    if (typeof message === "string" && message.length > 0) {
+      const messageStart = stack.indexOf(message);
+      const firstLineEnd = stack.indexOf("\n");
+      if (messageStart !== -1 && (firstLineEnd === -1 || messageStart < firstLineEnd)) {
+        // The header is "<name>: <message>", so a message that starts on the first line is the header's own.
+        // It can span several lines and even contain a frame-shaped line (a message that embeds another
+        // error's stack), so the frames begin at the first separator AFTER it. Without one the stack is all
+        // header (`Error.stackTraceLimit = 0`). A message that is not on the first line changed after V8
+        // formatted the header, and the first separator stays the boundary.
+        const framesStart = stack.indexOf("\n    at ", messageStart + message.length);
+        headerEnd = framesStart === -1 ? stack.length : framesStart;
       }
-      headerEnd = stack.length;
+    }
+    if (headerEnd === -1) {
+      // Neither a header nor frame lines: a Firefox/Safari stack, which is all frames.
+      return stack;
     }
     return this.maskString(stack.slice(0, headerEnd), ctx) + stack.slice(headerEnd);
   }

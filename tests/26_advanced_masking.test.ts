@@ -488,6 +488,44 @@ describe("Masking inside errors", () => {
     expect(logObj.nativeError?.stack?.split("\n")[0]).toBe("Error: key=[***]");
   });
 
+  test("a multi-line message with a frame-shaped line inside is masked up to the real frames", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    // A message that embeds another error's stack puts a frame-shaped line inside the header. Cutting the
+    // header at that line would leave everything after it in the stack unmasked.
+    const err = new Error("upstream failed: key=SECRET_1\n    at fetchToken (auth.js:10:3)\nretrying with key=SECRET_2");
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("upstream failed: key=[***]\n    at fetchToken (auth.js:10:3)\nretrying with key=[***]");
+    expect(logObj.nativeError?.stack).not.toContain("SECRET_");
+    expect(JSON.stringify(logObj.stack)).not.toContain("SECRET_");
+    // The real frames after the header are untouched.
+    expect(logObj.stack?.some((frame) => frame.fileName === "26_advanced_masking.test.ts")).toBe(true);
+  });
+
+  test("a message changed after formatting to text that occurs in the frames leaves the frames alone", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [/[0-9]{3,}/] } });
+    const err = new Error("key=123456");
+    // V8 formats the header once, here still "Error: key=123456".
+    expect(err.stack).toContain("key=123456");
+    // The new message occurs in every frame path, but never on the header line, so it must not move the boundary.
+    err.message = "26_advanced_masking";
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.nativeError?.stack?.split("\n")[0]).toBe("Error: key=[***]");
+    expect(logObj.stack?.[0]?.fileLine).toMatch(/^[0-9]+$/);
+    expect(logObj.stack?.[0]?.filePath).toMatch(/26_advanced_masking\.test\.ts$/);
+  });
+
+  test("an error without a message still has its header masked and its frames left alone", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [/[0-9]{3,}/, /Error/] } });
+    const logObj = logger.error(new Error()) as ErrorRecord;
+    expect(logObj.message).toBe("");
+    // With nothing to anchor on, the header ends at the first frame separator. Runtimes differ on whether the
+    // header is "Error" or "Error: ", so only the masked name is checked.
+    const header = logObj.nativeError?.stack?.split("\n")[0] ?? "";
+    expect(header).toMatch(/^\[\*\*\*\]/);
+    expect(header).not.toContain("Error");
+    expect(logObj.stack?.[0]?.fileLine).toMatch(/^[0-9]+$/);
+  });
+
   test("a frameless V8 stack is masked as a whole", () => {
     const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
     const err = new Error("key=SECRET_1");
