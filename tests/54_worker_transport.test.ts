@@ -134,13 +134,16 @@ class FakeWorker extends EventEmitter {
   unref(): void {
     this.unrefs++;
   }
-  /** Simulate an unexpected thread death via the "error" (or "exit") event the transport listens for. */
+  /**
+   * Simulate an unexpected thread death. Like a real Worker, an uncaught exception emits "error" and
+   * THEN "exit" (the thread is terminated), so the transport sees two events for one death; a plain
+   * `die()` is a bare "exit" (the thread stopped without throwing).
+   */
   die(error?: Error): void {
     if (error) {
       this.emit("error", error);
-    } else {
-      this.emit("exit", 1);
     }
+    this.emit("exit", 1);
   }
 }
 
@@ -157,16 +160,20 @@ interface MockSetup {
 
 /**
  * Load a FRESH worker.ts with `node:worker_threads` mocked. `opts.workerThreadsThrows` makes the
- * dynamic import reject (off-Node path). `opts.runnerFileExists` forces the built-runner branch by
- * mocking `node:fs`'s existsSync; `opts.fsThrows` makes the fallback fs loader/runner-probe fail.
+ * dynamic import reject (off-Node path); `opts.ctorThrows` makes every `new Worker(...)` throw (a spawn
+ * that fails on Node). `opts.runnerFileExists` forces the built-runner branch by mocking `node:fs`'s
+ * existsSync; `opts.fsMock` overrides `node:fs` members (e.g. to capture the inline-fallback appends).
  */
 async function loadMocked(
-  opts: { workerThreadsThrows?: boolean; runnerFileExists?: boolean; fsMock?: Record<string, unknown> } = {},
+  opts: { workerThreadsThrows?: boolean; ctorThrows?: boolean; runnerFileExists?: boolean; fsMock?: Record<string, unknown> } = {},
 ): Promise<{ mod: WorkerModule; setup: MockSetup }> {
   const queue: FakeWorker[] = [];
   const workers: FakeWorker[] = [];
   // The transport calls `new Worker(...)`, and Vitest 4 runs the implementation with `new`, so it cannot be an arrow.
   const ctor = vi.fn(function (_url: unknown, _o: unknown) {
+    if (opts.ctorThrows) {
+      throw new Error("spawn exploded");
+    }
     const w = queue.shift() ?? new FakeWorker();
     workers.push(w);
     return w;
@@ -346,6 +353,8 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
     await settle();
     const first = setup.workers[0];
 
+    // An uncaught exception in the thread surfaces as "error" followed by "exit" (see FakeWorker.die):
+    // ONE death, so the user gets ONE report — the trailing "exit" must not be reported again.
     first.die(new Error("thread boom")); // unexpected death → reset; next write respawns
     await settle();
     expect(errSpy).toHaveBeenCalledTimes(1);
@@ -421,7 +430,7 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
     errSpy.mockRestore();
   });
 
-  test("off-Node: no worker_threads → writes fall back to an inline synchronous fs append", async () => {
+  test("off-Node: no worker_threads → writes fall back to inline synchronous fs appends, in order", async () => {
     const appended: Array<{ path: unknown; chunk: unknown; opts: unknown }> = [];
     const path = tmpFile();
     const { mod } = await loadMocked({
@@ -435,9 +444,18 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
       },
     });
     const t = mod.workerTransport({ destination: "file", path, format: "json" });
-    t.write({} as never, "off-node");
-    await settle();
-    expect(appended).toEqual([{ path, chunk: "off-node\n", opts: { encoding: "utf8", flag: "a" } }]);
+    // The first write loads node:fs lazily; the later ones reuse the cached module. Each write is awaited
+    // before the next on purpose: Vitest hands the REAL module to the second of two concurrent dynamic
+    // imports of a doMock'd builtin, which would route a concurrent second line past the mock.
+    for (const line of ["off-node-1", "off-node-2", "off-node-3"]) {
+      t.write({} as never, line);
+      await settleUntil(() => appended.some((a) => a.chunk === `${line}\n`));
+    }
+    expect(appended).toEqual([
+      { path, chunk: "off-node-1\n", opts: { encoding: "utf8", flag: "a" } },
+      { path, chunk: "off-node-2\n", opts: { encoding: "utf8", flag: "a" } },
+      { path, chunk: "off-node-3\n", opts: { encoding: "utf8", flag: "a" } },
+    ]);
 
     await t[Symbol.asyncDispose](); // off-Node dispose has no thread to tear down
   });
@@ -608,6 +626,83 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
     await t[Symbol.asyncDispose]();
   });
 
+  test("malformed or unknown worker messages are ignored and leave the pending round-trip (and its ref) intact", async () => {
+    const { mod, setup } = await loadMocked();
+    const t = mod.workerTransport({ destination: "stdout" });
+    t.write({} as never, "queued");
+    await settleUntil(() => setup.workers.length > 0);
+    const w = setup.workers[0];
+    w.autoAckFlush = false;
+
+    let done = false;
+    const flushing = t.flush().then(() => {
+      done = true;
+    });
+    await settleUntil(() => w.posted.some((m) => m.type === "flush"));
+    const id = w.posted.find((m) => m.type === "flush")?.id;
+    const unrefsBefore = w.unrefs;
+
+    // Only a well-formed `{type:"flushed", id}` for the outstanding id may settle the round-trip; anything
+    // else the thread might post is dropped without throwing (a throw in a port listener would crash the process).
+    for (const junk of [undefined, null, "flushed", { type: "progress", id }, { type: "flushed" }, { type: "flushed", id: String(id) }]) {
+      expect(() => w.emit("message", junk)).not.toThrow();
+    }
+    await settle();
+    expect(done).toBe(false);
+    expect(w.unrefs).toBe(unrefsBefore); // still holding the event loop open for the drain
+
+    w.emit("message", { type: "flushed", id });
+    await flushing;
+    expect(done).toBe(true);
+    expect(w.unrefs).toBe(unrefsBefore + 1); // released once the real ack landed
+
+    await t[Symbol.asyncDispose]();
+  });
+
+  test("a late ack from a dead worker is ignored and does not release the replacement's flush ref", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { mod, setup } = await loadMocked();
+    const t = mod.workerTransport({ destination: "stdout" });
+    t.write({} as never, "a");
+    await settleUntil(() => setup.workers.length > 0);
+    const first = setup.workers[0];
+    first.autoAckFlush = false;
+
+    const f1 = t.flush(); // parked on `first`
+    await settleUntil(() => first.posted.some((m) => m.type === "flush"));
+    const staleId = first.posted.find((m) => m.type === "flush")?.id;
+    first.die(new Error("thread boom")); // the death settles f1, not an ack
+    await f1;
+
+    t.write({} as never, "b"); // respawns → `second` is the live worker
+    await settleUntil(() => setup.workers.length > 1);
+    const second = setup.workers[1];
+    second.autoAckFlush = false;
+    let secondDone = false;
+    const f2 = t.flush().then(() => {
+      secondDone = true;
+    });
+    await settleUntil(() => second.posted.some((m) => m.type === "flush"));
+    const liveId = second.posted.find((m) => m.type === "flush")?.id;
+    const unrefsBefore = second.unrefs;
+
+    // Node delivers a worker's port messages and its error/exit on different channels, so the dead
+    // thread's ack for the already-settled id can still arrive late. It must not throw, must not settle
+    // the replacement's round-trip, and must not drop the ref holding the loop open for that round-trip.
+    expect(() => first.emit("message", { type: "flushed", id: staleId })).not.toThrow();
+    await settle();
+    expect(secondDone).toBe(false);
+    expect(second.unrefs).toBe(unrefsBefore);
+
+    second.emit("message", { type: "flushed", id: liveId }); // only the live worker's own ack settles it
+    await f2;
+    expect(secondDone).toBe(true);
+    expect(second.unrefs).toBe(unrefsBefore + 1);
+
+    await t[Symbol.asyncDispose]();
+    errSpy.mockRestore();
+  });
+
   test("a worker death with a flush outstanding settles that flush (it never hangs)", async () => {
     const { mod, setup } = await loadMocked();
     const t = mod.workerTransport({ destination: "stdout" });
@@ -702,25 +797,49 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
   test("a spawn that rejects unexpectedly falls back to an inline write", async () => {
     const appended: Array<{ fd: unknown; chunk: unknown }> = [];
     // Make the Worker ctor throw so the spawn promise rejects → write's reject handler runs inlineWrite.
-    const throwingCtor = vi.fn(function () {
-      throw new Error("spawn exploded");
-    });
-    const actualFs = await import("node:fs");
-    vi.resetModules();
-    vi.doMock("node:worker_threads", () => ({ Worker: throwingCtor }));
-    vi.doMock("node:fs", () => ({
-      ...actualFs,
-      existsSync: () => false,
-      mkdirSync: () => undefined,
-      appendFileSync: (fd: unknown, chunk: unknown) => {
-        appended.push({ fd, chunk });
+    const { mod } = await loadMocked({
+      ctorThrows: true,
+      fsMock: {
+        existsSync: () => false,
+        mkdirSync: () => undefined,
+        appendFileSync: (fd: unknown, chunk: unknown) => {
+          appended.push({ fd, chunk });
+        },
       },
-    }));
-    const mod = (await import("../src/subpaths/transports/worker.js")) as WorkerModule;
+    });
     const t = mod.workerTransport({ destination: "stdout", eol: "\n" });
     t.write({} as never, "after-spawn-fail");
     await settleUntil(() => appended.length > 0);
     expect(appended).toEqual([{ fd: 1, chunk: "after-spawn-fail\n" }]);
+    await t[Symbol.asyncDispose]();
+  });
+
+  test("flush after a failed spawn resolves (inline writes are synchronous) and never surfaces the spawn error", async () => {
+    const appended: Array<{ fd: unknown; chunk: unknown }> = [];
+    const { mod } = await loadMocked({
+      ctorThrows: true,
+      fsMock: {
+        existsSync: () => false,
+        mkdirSync: () => undefined,
+        appendFileSync: (fd: unknown, chunk: unknown) => {
+          appended.push({ fd, chunk });
+        },
+      },
+    });
+    const t = mod.workerTransport({ destination: "stdout", eol: "\n" });
+    t.write({} as never, "first");
+    await settleUntil(() => appended.length > 0);
+    // The line already landed inline, so there is nothing to drain: flush() resolves instead of rejecting
+    // with the (already handled) spawn failure — `await sink.flush()` in teardown must not throw.
+    await expect(t.flush()).resolves.toBeUndefined();
+    // The transport keeps working inline afterwards, and each later flush resolves the same way.
+    t.write({} as never, "second");
+    await settleUntil(() => appended.length > 1);
+    await expect(t.flush()).resolves.toBeUndefined();
+    expect(appended).toEqual([
+      { fd: 1, chunk: "first\n" },
+      { fd: 1, chunk: "second\n" },
+    ]);
     await t[Symbol.asyncDispose]();
   });
 

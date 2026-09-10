@@ -31,10 +31,14 @@ const OWN_DIR_MARKER: string | undefined = (() => {
   }
 })();
 
-/** A frame whose path begins with tslog's actual own directory is internal (location-based, name-independent). */
-/* v8 ignore next 2 -- unreachable under the Node ESM runner where OWN_DIR_MARKER always resolves; live in the browser IIFE and user bundles where it is undefined */
-const OWN_DIR_PATTERN: RegExp | undefined =
-  OWN_DIR_MARKER != null ? new RegExp(`^(?:file://)?${OWN_DIR_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\\\/]`, "i") : undefined;
+/**
+ * A frame whose path begins with tslog's actual own directory is internal (location-based,
+ * name-independent). Kept as a spreadable list so {@link DEFAULT_IGNORE_PATTERNS} needs no
+ * conditional: empty in the browser IIFE and user bundles, where no marker resolves.
+ */
+/* v8 ignore next -- the empty arm is unreachable under the Node ESM runner where OWN_DIR_MARKER always resolves; live in the browser IIFE and user bundles where it is undefined */
+const OWN_DIR_PATTERNS: RegExp[] =
+  OWN_DIR_MARKER != null ? [new RegExp(`^(?:file://)?${OWN_DIR_MARKER.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}[\\\\/]`, "i")] : [];
 
 const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   /(?:^|[\\/])node_modules[\\/].*tslog/i,
@@ -48,8 +52,7 @@ const DEFAULT_IGNORE_PATTERNS: RegExp[] = [
   // The published bundle layout, so a frame in dist/esm or dist/cjs of *the tslog package* is internal.
   // Anchored to `tslog/dist/...` rather than any bare `tslog/` substring.
   /(?:^|[\\/])tslog[\\/]dist[\\/](?:esm|cjs)[\\/]/i,
-  /* v8 ignore next -- unreachable under the Node ESM runner where OWN_DIR_PATTERN is non-null; live in the browser IIFE and user bundles where it is undefined */
-  ...(OWN_DIR_PATTERN != null ? [OWN_DIR_PATTERN] : []),
+  ...OWN_DIR_PATTERNS,
   // Runtime-chunk names from modern bundlers (Turbopack/Next.js dev). These are *generated* names —
   // successful source-map remapping has already turned user frames into real `src/...` paths before
   // this check runs, so only unremapped bundler-runtime frames still match.

@@ -91,7 +91,11 @@ export interface WorkerTransportOptions<LogObj> {
  * narrowed to required so callers can drive draining + shutdown directly in tests/teardown.
  */
 export interface WorkerTransport<LogObj> extends Transport<LogObj> {
-  /** Round-trip the worker so it drains its queue; resolves once the worker acks. */
+  /**
+   * Round-trip the worker so it drains its queue; resolves once the worker acks. Resolves immediately
+   * while writes go inline (off-Node, a failed spawn, or after maxRespawns): inline writes are
+   * synchronous, so there is nothing buffered to drain.
+   */
   flush(): Promise<void>;
   /** Flush, then close the worker's destination and terminate the worker thread. */
   [Symbol.asyncDispose](): Promise<void>;
@@ -234,7 +238,6 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
   let respawns = 0;
   // Set when the worker died more often than maxRespawns allows: every later write goes inline.
   let workerGaveUp = false;
-  let deathReported = false;
   let unregisterExitHook: (() => void) | null = null;
 
   // Set once we've learned the runtime has no worker_threads: we then write inline (synchronously) on the
@@ -242,6 +245,8 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
   let fallbackFs: FallbackFs | null | undefined;
 
   // Pending flush round-trips keyed by a monotonically increasing id; resolved when the worker acks.
+  // flushChain (below) serializes round-trips, so at most ONE entry is outstanding at any time; the id
+  // is what lets a late ack from an already-replaced worker be told apart from the live round-trip.
   const pendingFlushes = new Map<number, () => void>();
   let nextFlushId = 1;
   // Whether anything was posted since the last completed flush. A flush with nothing queued is a
@@ -276,7 +281,11 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
     }
   }
 
-  /** An unexpected worker death: reset so the next write respawns, or give up after maxRespawns. */
+  /**
+   * An unexpected worker death: reset so the next write respawns, or give up after maxRespawns. Reported
+   * once per death: a real Worker emits `error` and then `exit`, and the first of the two nulls `worker`,
+   * so the second (and any later event from that thread) is dropped by the stale-worker guard.
+   */
   function handleWorkerDeath(died: WorkerLike, error?: unknown): void {
     if (worker !== died) {
       return; // stale event from an already-replaced worker — must not settle the NEW worker's flushes
@@ -291,16 +300,13 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
     if (respawns > maxRespawns) {
       workerGaveUp = true;
     }
-    if (!deathReported) {
-      deathReported = true;
-      try {
-        nativeConsoleMethod("error")(
-          `tslog: worker transport "${options.name ?? "worker"}" thread died unexpectedly${workerGaveUp ? "; falling back to inline writes" : "; respawning on the next write"}`,
-          error,
-        );
-      } catch {
-        // the report itself must never throw
-      }
+    try {
+      nativeConsoleMethod("error")(
+        `tslog: worker transport "${options.name ?? "worker"}" thread died unexpectedly${workerGaveUp ? "; falling back to inline writes" : "; respawning on the next write"}`,
+        error,
+      );
+    } catch {
+      // the report itself must never throw
     }
   }
 
@@ -339,7 +345,6 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
         // refs the worker again so an awaited drain cannot be cut short by process exit.
         created.unref?.();
         worker = created;
-        deathReported = false;
         return created;
       })();
     }
@@ -423,7 +428,9 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
           return;
         }
         queuedSinceFlush = false;
-        const w = await ensureWorker();
+        // A spawn that rejected (`new Worker()` threw) already routed every write inline, like the
+        // off-Node case below — so flush() resolves as "nothing to drain" instead of surfacing that error.
+        const w = await ensureWorker().catch(() => null);
         if (w == null) {
           // Inline fallback writes synchronously, so there is nothing buffered to drain.
           return;
@@ -438,15 +445,16 @@ export function workerTransport<LogObj = unknown>(options: WorkerTransportOption
             w.ref?.();
             w.postMessage({ type: "flush", id });
           } catch {
+            // Worker died between check and post — nothing left to drain. This was the only outstanding
+            // round-trip (flushChain serializes them), so release the event-loop handle again.
             pendingFlushes.delete(id);
-            if (pendingFlushes.size === 0) {
-              w.unref?.();
-            }
-            resolve(); // worker died between check and post — nothing left to drain
+            w.unref?.();
+            resolve();
           }
         });
       };
       const chained = flushChain.then(run);
+      /* v8 ignore next -- run() cannot reject: a failed spawn is absorbed at the ensureWorker() await and the round-trip executor guards ref()/postMessage(); the catch only keeps a future rejection from poisoning every later flush */
       flushChain = chained.catch(() => undefined);
       return chained;
     },

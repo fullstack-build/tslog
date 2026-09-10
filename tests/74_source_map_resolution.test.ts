@@ -307,6 +307,22 @@ describe("source-map resolution (issue #307)", () => {
     });
   });
 
+  test("a generated line holding only 1-field (unmapped) segments has no original position; later lines still resolve", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "unmapped.js");
+      const mapPath = join(dir, "unmapped.js.map");
+      await writeFile(jsPath, "line one\nline two\nline three\n//# sourceMappingURL=unmapped.js.map\n");
+      // Minifiers emit 1-field segments ("A" = a generated column with no source) for unmapped output.
+      // Line 2 (index 1) carries only such a segment, so it gets no entry and the caller keeps the
+      // transpiled position; line 3 (index 2) is the SIMPLE_MAPPINGS segment and must still resolve
+      // with the running deltas intact.
+      await writeFile(mapPath, JSON.stringify({ version: 3, sources: ["unmapped.ts"], names: [], mappings: ";A;UACQ" }));
+
+      expect(resolveOriginalPosition(jsPath, 2, 1)).toBeUndefined();
+      expect(resolveOriginalPosition(jsPath, 3, 11)).toEqual({ source: join(dir, "unmapped.ts"), line: 2, column: 9 });
+    });
+  });
+
   test("findSegment stops scanning once a later segment's column exceeds the requested column", async () => {
     await withTempDir(async (dir) => {
       const jsPath = join(dir, "multi.js");

@@ -163,7 +163,7 @@ src/
 
 ## Quality Standards
 
-- Target **100% test coverage** — but only with meaningful tests, no padding
+- **100% test coverage** on statements, branches, functions and lines — enforced by `coverage.thresholds` in `vitest.config.ts` (`npm run coverage`, CI's Node 20 job, fails below it) — but only with meaningful tests, no padding. Vitest 4 counts the implicit `else` of every `if` as a branch and binds `/* v8 ignore next */` to a single AST node (`next N` counts are ignored; use `/* v8 ignore else */` before an `if` for a truly unreachable else path)
 - Every new feature **must** have corresponding tests
 - Every new feature **must** be reflected in the docs (`docs/`)
 - Don't write tests just to hit coverage numbers; each test should verify real behavior

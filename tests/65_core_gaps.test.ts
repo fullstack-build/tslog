@@ -1416,6 +1416,20 @@ describe("settings: warn-only mode (non-strict) emits diagnostics without throwi
     });
     expect(() => validateSettingsParam(hostile as never)).not.toThrow();
   });
+
+  test("a settings object whose contextStorage getter throws is skipped without crashing", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const hostile = {
+      minLevel: 3,
+      get contextStorage(): unknown {
+        throw new Error("no contextStorage read");
+      },
+    };
+    // The read itself throws a plain Error (not a TslogConfigError), so the guard swallows it and the pass
+    // carries on: a valid minLevel and only known keys produce no diagnostic at all.
+    expect(() => validateSettingsParam(hostile as never)).not.toThrow();
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
 });
 
 describe("settings: normalizeSettings resolution", () => {

@@ -565,14 +565,15 @@ function looksLikeErrorObject(value: unknown): value is IErrorObject {
   return candidate.nativeError instanceof Error && typeof candidate.name === "string" && Array.isArray(candidate.stack);
 }
 
-/** Best-effort raw stack STRING for one error, preferring the native `Error#stack`. */
+/**
+ * Best-effort raw stack STRING for one error, preferring the native `Error#stack`. Every caller gates
+ * on {@link looksLikeErrorObject} / {@link isPlainErrorLike} first, so `nativeError` is always a real
+ * `Error` here (a JSON/worker round-tripped error object never passes those checks).
+ */
 function ownStackString(error: IErrorObject): string | undefined {
-  const native = error.nativeError;
-  if (native != null) {
-    const stack = safeStringProp(native, "stack");
-    if (stack !== undefined) {
-      return stack;
-    }
+  const stack = safeStringProp(error.nativeError, "stack");
+  if (stack !== undefined) {
+    return stack;
   }
   if (!Array.isArray(error.stack) || error.stack.length === 0) {
     return undefined;

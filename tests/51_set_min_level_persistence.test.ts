@@ -82,6 +82,16 @@ describe("browser log-level persistence (M4.6, stubbed localStorage)", () => {
     expect(logger.settings.minLevel).toBe(4);
   });
 
+  test("leaves the configured minLevel alone when the persisted token resolves to no level", () => {
+    // A stale token — e.g. a custom level name persisted by a previous build that no longer registers it —
+    // must not disturb filtering: the configured minLevel stays in force.
+    (globalThis as { localStorage?: unknown }).localStorage = { getItem: () => "NOTICE", setItem: () => {} };
+    const logger = new Logger<LevelLog>({ type: "hidden", minLevel: 3, persistLevel: true });
+    expect(logger.settings.minLevel).toBe(3);
+    expect(logger.log(2, "DEBUG", "x")).toBeUndefined();
+    expect(logger.log(3, "INFO", "x")).toBeDefined();
+  });
+
   test("honors a custom persistLevelKey", () => {
     const store: Record<string, string> = { "myapp:lvl": "5" };
     (globalThis as { localStorage?: unknown }).localStorage = {

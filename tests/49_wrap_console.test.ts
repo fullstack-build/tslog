@@ -106,6 +106,27 @@ describe("wrapConsole / restoreConsole (M3.10)", () => {
     expect(console.log).toBe(nativeLog);
   });
 
+  test("a method the console lacked before the wrap is forwarded while wrapped and put back to undefined on restore", () => {
+    const nativeDebug = console.debug;
+    const { logger, captured } = makeLogger();
+    // A minimal console (some embedded runtimes ship only a subset of the WHATWG methods). An own
+    // `undefined` is the faithful simulation here: a plain `delete` would fall through to
+    // Console.prototype.debug on Node.
+    (console as Partial<Console>).debug = undefined;
+    try {
+      wrapConsole(logger);
+      console.debug("routed anyway");
+      expect(captured).toEqual([{ level: "DEBUG", message: "routed anyway" }]);
+
+      restoreConsole();
+      // Back to the pre-wrap shape: no forwarder is left behind still routing into the old logger.
+      expect(console.debug).toBeUndefined();
+      expect(isConsoleWrapped()).toBe(false);
+    } finally {
+      console.debug = nativeDebug;
+    }
+  });
+
   test("restoreConsole is a no-op when the console was never wrapped", () => {
     const nativeLog = console.log;
     expect(isConsoleWrapped()).toBe(false);

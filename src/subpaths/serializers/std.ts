@@ -146,12 +146,11 @@ function toErrorObject(error: Error, depth = 0, seen: Set<unknown> = new Set()):
     return errorObject;
   }
 
+  // `toError` returns an Error cause as-is (already checked against `seen`) and wraps anything else in
+  // a FRESH Error that cannot be in `seen` yet, so the raw-value check is the only one needed.
   const causeValue = (error as { cause?: unknown }).cause;
   if (causeValue != null && !seen.has(causeValue)) {
-    const normalizedCause = toError(causeValue);
-    if (!seen.has(normalizedCause)) {
-      errorObject.cause = toErrorObject(normalizedCause, depth + 1, seen);
-    }
+    errorObject.cause = toErrorObject(toError(causeValue), depth + 1, seen);
   }
 
   return errorObject;

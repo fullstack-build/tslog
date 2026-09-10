@@ -29,10 +29,8 @@ export function inspect(obj: unknown, opts?: InspectOptions) {
     stylize: stylizeNoColor,
   };
 
-  if (opts != null) {
-    // got an "options" object
-    _extend(ctx, opts);
-  }
+  // Merge the caller's options (a missing or non-object value is a no-op inside _extend).
+  _extend(ctx, opts);
   // set default options
   if (isUndefined(ctx.showHidden)) ctx.showHidden = false;
   if (isUndefined(ctx.depth)) ctx.depth = 2;
@@ -426,9 +424,9 @@ function reduceToSingleString(output: string[], base: string, braces: string[]):
   return `${braces[0] + (base === "" ? "" : `${base}\n`)}  ${output.join(",\n  ")} ${braces[1]}`;
 }
 
-function _extend(origin: object, add: object): object {
+function _extend(origin: object, add: unknown): object {
   const typedOrigin = origin as { [key: string]: unknown };
-  // Don't do anything if add isn't an object
+  // Don't do anything if add isn't an object (covers the optional/null options of inspect and formatWithOptions)
   if (!add || !isObject(add)) return origin;
 
   const clonedAdd = { ...add } as { [key: string]: unknown };
@@ -448,10 +446,8 @@ export function formatWithOptions(inspectOptions: InspectOptions, ...args: unkno
     stylize: stylizeNoColor,
   };
 
-  if (inspectOptions != null) {
-    // got an "options" object
-    _extend(ctx, inspectOptions);
-  }
+  // Merge the caller's options (a missing or non-object value is a no-op inside _extend).
+  _extend(ctx, inspectOptions);
 
   const first = args[0];
   let a = 0;

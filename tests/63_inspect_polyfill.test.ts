@@ -448,6 +448,11 @@ describe("formatWithOptions - format specifiers", () => {
   test("an unrecognized specifier is left in place and the arg is appended", () => {
     expect(fmt("q %q x", "Y")).toBe("q %q x Y");
   });
+  test("a specifier left over once the args are used up stays literal (node:util.format parity)", () => {
+    // `%s` consumes the only arg; the trailing `%d` has nothing to bind and is kept as-is, exactly
+    // like `util.format("%s then %d", "X")`.
+    expect(fmt("%s then %d", "X")).toBe("X then %d");
+  });
   test("trailing extra args are appended, non-strings inspected", () => {
     expect(fmt("just", "extra", { o: 1 })).toBe("just extra {\n  o: 1 \n}");
   });
@@ -479,5 +484,11 @@ describe("formatWithOptions / inspect - non-object options are ignored (_extend 
   test("inspect with a primitive options value falls back to defaults", () => {
     // _extend early-returns when `add` isn't an object, so bogus options are a no-op.
     expect(strip(inspect({ a: 1 }, 5 as unknown as Record<string, never>))).toBe("{\n  a: 1 \n}");
+  });
+  test("inspect with no options at all applies the defaults (colors on, depth 2)", () => {
+    const rendered = inspect({ a: { b: { c: { d: 1 } } } });
+    const stripped = strip(rendered);
+    expect(stripped).not.toBe(rendered); // colorized by default
+    expect(stripped).toBe("{\n  a: \n   {\n     b: \n      {\n        c: [Object] \n      } \n   } \n}");
   });
 });

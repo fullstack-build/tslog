@@ -38,7 +38,8 @@ interface RawSourceMap {
 }
 
 interface SourceMapSection {
-  offset: { line: number; column: number };
+  /** Required by the spec; optional here because the raw JSON is untrusted (see parseRawMap). */
+  offset?: { line: number; column: number };
   map?: RawSourceMap;
   url?: string; // external sub-map url (relative to outer map)
 }
@@ -158,6 +159,7 @@ function requireNodeModule<T>(name: string): T | undefined {
   if (typeof getBuiltin === "function") {
     try {
       const resolved = getBuiltin(name) as T | undefined;
+      /* v8 ignore else -- defensive: the sole caller asks for "node:fs", which every runtime implementing getBuiltinModule resolves; the fall-through only guards the generic signature */
       if (resolved != null) {
         return resolved;
       }
@@ -177,13 +179,16 @@ function requireNodeModule<T>(name: string): T | undefined {
 
 type FsLike = { readFileSync: (path: string, encoding: "utf8") => string; existsSync: (path: string) => boolean };
 
-let cachedFs: FsLike | null | undefined;
+// `node:fs`, probed exactly once on first use. A failed probe (undefined) is cached too and never
+// retried — the flag, not a sentinel value, records that the probe ran.
+let cachedFs: FsLike | undefined;
+let fsProbed = false;
 function getFs(): FsLike | undefined {
-  if (cachedFs === undefined) {
-    /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node/Bun/Deno, the only runtimes this resolver is wired into */
-    cachedFs = requireNodeModule<FsLike>("node:fs") ?? null;
+  if (!fsProbed) {
+    fsProbed = true;
+    cachedFs = requireNodeModule<FsLike>("node:fs");
   }
-  return cachedFs ?? undefined;
+  return cachedFs;
 }
 
 function dirnameOf(filePath: string): string {
@@ -275,10 +280,9 @@ function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
   // Defensive cap: a pathological process could load thousands of modules with source maps. Evict
   // the oldest entry (FIFO — the cost of re-reading one file is negligible) to bound memory.
   if (parsedMapCache.size >= PARSED_MAP_CACHE_LIMIT) {
-    const firstKey = parsedMapCache.keys().next().value;
-    if (firstKey !== undefined) {
-      parsedMapCache.delete(firstKey);
-    }
+    // The cache is non-empty here, so its first key always exists.
+    const [firstKey] = parsedMapCache.keys();
+    parsedMapCache.delete(firstKey);
   }
 
   const fs = getFs();
@@ -288,8 +292,15 @@ function getParsedSourceMap(filePath: string): ParsedSourceMap | undefined {
     return undefined;
   }
 
-  const loaded = loadRawSourceMap(filePath, fs);
-  const parsed = loaded != null ? parseRawMap(loaded.raw, loaded.mapDir, fs) : undefined;
+  // A map that is valid JSON but structurally hostile (`"sections": [null]`, `"mappings": 123`, ...) must
+  // degrade to "no map" — cached like any other miss — rather than throw a TypeError into the log call.
+  let parsed: ParsedSourceMap | undefined;
+  try {
+    const loaded = loadRawSourceMap(filePath, fs);
+    parsed = loaded != null ? parseRawMap(loaded.raw, loaded.mapDir, fs) : undefined;
+  } catch {
+    parsed = undefined;
+  }
   parsedMapCache.set(filePath, parsed ?? null);
   return parsed;
 }
@@ -310,7 +321,8 @@ function parseRawMap(raw: RawSourceMap, mapDir: string, fs: FsLike, depth = 0): 
     if (depth >= MAX_SECTION_DEPTH) return undefined;
     const sections: ParsedSection[] = [];
     for (const section of raw.sections) {
-      /* v8 ignore next 2 -- `offset` is required by the spec; the ?? 0 guards malformed maps only */
+      // `offset` is required by the spec; a malformed section without one is anchored at 0:0 rather
+      // than throwing — this parse runs outside any try/catch, so a TypeError here would reach the log call.
       const offsetLine = section.offset?.line ?? 0;
       const offsetColumn = section.offset?.column ?? 0;
       let subRaw = section.map;

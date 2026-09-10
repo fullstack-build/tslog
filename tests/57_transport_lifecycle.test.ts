@@ -77,6 +77,39 @@ describe("logger.flush() covers in-flight async writes", () => {
       errorSpy.mockRestore();
     }
   });
+
+  test("flush() awaits every in-flight write on the same transport, not only the first", async () => {
+    const delivered: string[] = [];
+    const gates: Array<() => void> = [];
+    const logger = new Logger({ type: "hidden" });
+    logger.attachTransport({
+      name: "gated",
+      format: "json",
+      async write(_record, line): Promise<void> {
+        // Each write blocks on its own manually-released gate (no wall clock).
+        await new Promise<void>((resolve) => gates.push(resolve));
+        delivered.push(line);
+      },
+    });
+
+    logger.info("first");
+    logger.info("second");
+    expect(gates).toHaveLength(2);
+    let flushed = false;
+    const flush = logger.flush().then(() => {
+      flushed = true;
+    });
+    // Release only the first write: flush must keep waiting on the second.
+    gates[0]();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(delivered).toHaveLength(1);
+    expect(delivered[0]).toContain('"first"');
+    expect(flushed).toBe(false);
+    gates[1]();
+    await flush;
+    expect(delivered).toHaveLength(2);
+    expect(delivered[1]).toContain('"second"');
+  });
 });
 
 describe("disposal ownership", () => {

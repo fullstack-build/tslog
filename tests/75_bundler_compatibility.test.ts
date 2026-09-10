@@ -340,6 +340,42 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
     });
   });
 
+  test("a malformed sectioned map whose section lacks `offset` is anchored at 0:0 instead of throwing", async () => {
+    await withTempDir(async (dir) => {
+      const jsPath = join(dir, "no-offset-chunk.js");
+      const mapPath = join(dir, "no-offset-chunk.js.map");
+      await writeFile(jsPath, "pre\n  const x = 1;\n//# sourceMappingURL=no-offset-chunk.js.map\n");
+      // `offset` is required by the spec, but the map parse runs outside any try/catch: a section
+      // without it must degrade (anchor at 0:0) rather than surface a TypeError into the log call.
+      const malformed = { version: 3, sections: [{ map: { version: 3, sources: ["[project]/src/x.ts"], names: [], mappings: ";UACI" } }] };
+      await writeFile(mapPath, JSON.stringify(malformed));
+
+      let resolved: OriginalPosition | undefined;
+      expect(() => {
+        resolved = resolveOriginalPosition(jsPath, 2, 11);
+      }).not.toThrow();
+      expect(resolved).toEqual({ source: "src/x.ts", line: 2, column: 5 });
+    });
+  });
+
+  test("a structurally hostile map (valid JSON, wrong shapes) degrades to the transpiled position instead of throwing", async () => {
+    await withTempDir(async (dir) => {
+      // Both parse without a JSON error and would blow up deeper in the walk (`null.offset`, `(123).split`):
+      // the resolver must swallow that, report "no original position", and cache the miss.
+      const hostile: Array<[string, unknown]> = [
+        ["null-section.js", { version: 3, sections: [null] }],
+        ["numeric-mappings.js", { version: 3, sources: ["a.ts"], names: [], mappings: 123 }],
+      ];
+      for (const [name, map] of hostile) {
+        const jsPath = join(dir, name);
+        await writeFile(jsPath, `const x = 1;\n//# sourceMappingURL=${name}.map\n`);
+        await writeFile(join(dir, `${name}.map`), JSON.stringify(map));
+        expect(() => resolveOriginalPosition(jsPath, 1, 7)).not.toThrow();
+        expect(resolveOriginalPosition(jsPath, 1, 7)).toBeUndefined();
+      }
+    });
+  });
+
   test("Rollup + Webpack outputs still work when the call site is inside an async function (realistic frame)", async () => {
     // This is mostly a regression guard: async functions produce slightly different stack shapes.
     const rollup = (await import("rollup")).rollup;

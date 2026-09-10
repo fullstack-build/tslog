@@ -253,6 +253,12 @@ describe("tslog/cli (M3.11)", () => {
       // The `--level=` numeric branch (cli.ts 243): a digits-only value becomes a number.
       expect(parseCliArgs(["--level=3"])).toEqual({ minLevel: 3 });
     });
+
+    test("ignores unknown flags and positional args without derailing the known ones", () => {
+      // `kubectl logs api | npx tslog --follow -l warn app.log --no-color`: the unrecognized tokens are
+      // skipped and the recognized flags around them still take effect.
+      expect(parseCliArgs(["--follow", "-l", "warn", "app.log", "--no-color"])).toEqual({ minLevel: "warn", color: false });
+    });
   });
 
   describe("color resolution (no explicit --color/--no-color)", () => {

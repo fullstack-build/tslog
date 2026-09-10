@@ -109,6 +109,36 @@ describe("BaseLogger internals", () => {
     expect(inner[0]).toBe(cyclic);
   });
 
+  test("a frozen default LogObj (read-only properties) is cloned per call instead of throwing", () => {
+    // Config constants are commonly frozen (`Object.freeze` / `as const`); the per-call clone used to copy
+    // the read-only descriptor first and then assign over it, which throws in strict-mode ESM.
+    const defaults = Object.freeze({ tenant: "acme", nested: Object.freeze({ region: "eu" }) });
+    const logger = new Logger({ type: "hidden" }, defaults);
+    const record = logger.info("x") as unknown as Record<string, unknown>;
+    expect(record.tenant).toBe("acme");
+    expect(record.nested).toEqual({ region: "eu" });
+    expect(record.nested).not.toBe(defaults.nested);
+    expect(Object.isFrozen(defaults)).toBe(true);
+  });
+
+  test("a getter on the default LogObj is evaluated once per log call, like a function field", () => {
+    let calls = 0;
+    const defaults = {
+      get seq(): number {
+        return ++calls;
+      },
+      requestId: () => `req-${calls}`,
+    };
+    const logger = new Logger({ type: "hidden" }, defaults);
+    const first = logger.info("first") as unknown as Record<string, unknown>;
+    const second = logger.info("second") as unknown as Record<string, unknown>;
+    expect([first.seq, second.seq]).toEqual([1, 2]);
+    expect([first.requestId, second.requestId]).toEqual(["req-1", "req-2"]);
+    // The clone holds the snapshot as a plain value: reading it again does not re-run the getter.
+    expect(second.seq).toBe(2);
+    expect(calls).toBe(2);
+  });
+
   test("mask key lookup caches normalized values in case-insensitive mode", () => {
     const logger = new Logger({
       type: "json",

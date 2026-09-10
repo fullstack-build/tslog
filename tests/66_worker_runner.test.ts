@@ -191,6 +191,27 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
     expect(port.close).toHaveBeenCalledTimes(1);
   });
 
+  test("a message of an unknown type is ignored: no write, no ack, no close, and the runner stays usable", async () => {
+    const path = tmpLog();
+    const port = await loadRunner({ destination: "file", path, eol: "\n", encoding: "utf8", append: true });
+
+    // Only write/flush/close are protocol messages; anything else (e.g. from a newer main-thread
+    // worker.js talking to an older runner) must be dropped rather than crash the thread or close it.
+    expect(() => port.emit("message", { type: "rotate" })).not.toThrow();
+    expect(port.postMessage).not.toHaveBeenCalled();
+    expect(port.close).not.toHaveBeenCalled();
+    expect(existsSync(path)).toBe(false); // no stream was opened for it
+
+    port.emit("message", { type: "write", line: "still-alive" });
+    await untilFileHasBytes(path);
+    port.emit("message", { type: "flush", id: 3 });
+    await until(() => port.postMessage.mock.calls.length > 0, 10000, "flush ack");
+    // Exactly one ack, for the real flush: the unknown message produced none.
+    expect(port.postMessage).toHaveBeenCalledTimes(1);
+    expect(port.postMessage).toHaveBeenCalledWith({ type: "flushed", id: 3 });
+    expect(readFileSync(path, "utf8")).toBe("still-alive\n");
+  });
+
   test("a thrown destination error is swallowed — the worker never crashes", async () => {
     // Point at a path whose parent CANNOT be created (a regular file used as a directory) so the lazy
     // ensureStream()/mkdirSync throws inside the message handler's try. It must be swallowed.

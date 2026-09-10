@@ -113,13 +113,24 @@ describe("JSON line plan is byte-identical to the object path", () => {
       logger.info({ userId: 1 }, "pino style"),
       logger.info("message first", { spread: true }),
       logger.info("msg", { tenant: "evil", fresh: 1 }),
+      logger.info({ tenant: "evil", fresh: 1 }, "msg"),
       logger.info("msg", { message: "smuggled", level: "fake", time: "fake", _logMeta: { v: 0 }, ok: true }),
-      logger.info({ message: "smuggled", level: "fake", ok: true }, "real message"),
+      logger.info({ message: "smuggled", level: "fake", time: "fake", _logMeta: { v: 0 }, ok: true }, "real message"),
       logger.info("msg", { 0: "zero", 5: "five" }),
       logger.info("msg", { fn: () => 1, missing: undefined, big: 5n }),
     ];
-    for (const logObj of cases) {
-      expectPlannedLineMatchesObjectPath(logObj, logger.settings);
+    const lines = cases.map((logObj) => expectPlannedLineMatchesObjectPath(logObj, logger.settings));
+    // Both orders apply the same collision rules: the default LogObj's `tenant` wins over the spread field,
+    // and a smuggled `_logMeta` never replaces (or duplicates) the runtime meta block.
+    for (const line of [lines[2], lines[3]]) {
+      expect(line).toContain('"tenant":"acme"');
+      expect(line).not.toContain('"tenant":"evil"');
+      expect(line).toContain('"fresh":1');
+    }
+    for (const line of [lines[4], lines[5]]) {
+      expect(line).toContain('"v":5');
+      expect(line).not.toContain('"v":0');
+      expect(line.match(/"_logMeta":/g)).toHaveLength(1);
     }
   });
 
@@ -153,7 +164,8 @@ describe("JSON line plan is byte-identical to the object path", () => {
   test("__proto__ own keys are dropped on both paths without prototype pollution", () => {
     const logger = new Logger({ type: "hidden", stack: { capture: "off" } });
     const poisoned = JSON.parse('{"__proto__": {"polluted": true}, "z": 2}');
-    const cases = [logger.info(poisoned), logger.info("msg", poisoned)];
+    // Single object, message-first spread, and pino object-first spread all drop the own __proto__ key.
+    const cases = [logger.info(poisoned), logger.info("msg", poisoned), logger.info(poisoned, "msg")];
     for (const logObj of cases) {
       const line = expectPlannedLineMatchesObjectPath(logObj, logger.settings);
       expect(line).toContain('"z":2');
