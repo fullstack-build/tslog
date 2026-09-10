@@ -265,6 +265,12 @@ describe("shared.ts stack-line parsers", () => {
       expect(parseReactNativeStackLine("foo@[native code]:0:0", noCwd)).toBeUndefined();
     });
 
+    test("a JSC native-code frame without any position (`forEach@[native code]`) yields no frame", () => {
+      // JSC prints native frames with no :line:col at all, so the JSC regex cannot match the line;
+      // the browser parser finds no path either — the line is dropped instead of becoming a junk frame.
+      expect(parseReactNativeStackLine("forEach@[native code]", noCwd)).toBeUndefined();
+    });
+
     test("falls through to the browser parser for a multi-segment URL frame", () => {
       const frame = parseReactNativeStackLine("bar@http://localhost:8081/index.bundle:117:42", noCwd) as IStackFrame;
       expect(frame).toBeDefined();
@@ -673,6 +679,27 @@ describe("createBrowserEnvironment provider", () => {
       // Skip the wrapper frame so auto-detection lands on the user frame.
       const frame = env.getCallerStackFrame(Number.NaN, error, [/wrapper\/lib\.js/]);
       expect(frame.fileName).toBe("main.js");
+    });
+
+    test("own-file detection is best-effort: a provider built while Error.stackTraceLimit is 0 still resolves callers", () => {
+      makeBrowser();
+      // With stack capture disabled (a common production perf setting) the Error captured at
+      // construction carries no frames, so no own-file pattern can be derived. Construction must not
+      // depend on it, and the default ignore patterns must still apply to later lookups.
+      const savedLimit = Error.stackTraceLimit;
+      Error.stackTraceLimit = 0;
+      let env: ReturnType<typeof createBrowserEnvironment>;
+      try {
+        env = createBrowserEnvironment();
+      } finally {
+        Error.stackTraceLimit = savedLimit;
+      }
+      const error = {
+        stack: "Error\nlog@http://h/node_modules/tslog/dist/browser/index.js:1:1\nuser@http://h/app/main.js:2:2",
+      } as Error;
+      const frame = env.getCallerStackFrame(Number.NaN, error);
+      expect(frame.fileName).toBe("main.js");
+      expect(frame.fileLine).toBe("2");
     });
   });
 

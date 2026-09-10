@@ -114,7 +114,8 @@ export function wrapConsole(logger: ConsoleLikeLogger): () => void {
 /**
  * Restore the native `console.log/info/debug/warn/error` methods captured by {@link wrapConsole}.
  *
- * A no-op when the console was never wrapped (or was already restored). After restoring, the captured
+ * A no-op when the console was never wrapped (or was already restored). A method the console did not have
+ * before the wrap goes back to `undefined` rather than being left forwarding. After restoring, the captured
  * originals are released so a subsequent `wrapConsole` captures fresh references.
  */
 export function restoreConsole(): void {
@@ -123,10 +124,9 @@ export function restoreConsole(): void {
   }
 
   for (const method of WRAPPED_METHODS) {
-    const original = originalMethods[method];
-    if (original != null) {
-      (console as Record<WrappedConsoleMethod, (...args: unknown[]) => void>)[method] = original;
-    }
+    // Put back exactly what was captured — including `undefined` for a method the console lacked before
+    // the wrap — so no forwarder is left behind routing into a stale logger.
+    (console as Partial<Record<WrappedConsoleMethod, (...args: unknown[]) => void>>)[method] = originalMethods[method];
   }
 
   originalMethods = undefined;

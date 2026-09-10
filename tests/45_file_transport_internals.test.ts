@@ -152,6 +152,43 @@ describe.runIf(isNode)("fileTransport (opened-stream internals)", () => {
     });
   });
 
+  test("a late error from an already-abandoned stream does not tear down its replacement", async () => {
+    await withTempDir(async (dir) => {
+      const path = join(dir, "stale.log");
+      const first = makeControllableStream();
+      const second = makeControllableStream();
+      let opened = 0;
+      const fileTransport = await loadFileTransport(() => (opened++ === 0 ? first.stream : second.stream));
+      const seen: string[] = [];
+      const transport = fileTransport<unknown>({ path, exitHooks: false, onError: (_error, context) => seen.push(context) });
+
+      // Open the first stream, break it (abandoned), and let the next write open the replacement.
+      transport.write(META, "one");
+      await waitFor(() => first.chunks.length === 1);
+      first.confirmNext();
+      await transport.flush();
+      first.emitError(new Error("first failure"));
+      transport.write(META, "two");
+      await waitFor(() => second.chunks.length === 1);
+      second.confirmNext();
+      await transport.flush();
+      expect(opened).toBe(2);
+
+      // The abandoned stream fires ANOTHER error (a destroyed fs stream can still emit late). It is
+      // reported, but must not null out the healthy replacement: the next write lands on the second
+      // stream and no third stream is opened.
+      first.emitError(new Error("stale failure"));
+      expect(seen).toEqual(["write", "write"]);
+      transport.write(META, "three");
+      await waitFor(() => second.chunks.length === 2);
+      second.confirmNext();
+      await transport.flush();
+      expect(second.chunks).toEqual(["two\n", "three\n"]);
+      expect(opened).toBe(2);
+      await transport[Symbol.asyncDispose]();
+    });
+  });
+
   test("registered exit hook drives flushSync (drainSync) and flush (flushAsync)", async () => {
     await withTempDir(async (dir) => {
       const path = join(dir, "exit-hook.log");

@@ -421,6 +421,31 @@ describe.runIf(isNode)("stdoutSink: synchronous exit drain (drainSync)", () => {
     }
   });
 
+  test("a repeated exit drain reuses the fd path and writes only the lines buffered since the previous drain", async () => {
+    // `process.on("exit")` listeners can run more than once (user code or a harness calling
+    // `process.emit("exit")`): every drain must go through fs.writeSync — never the stream fallback —
+    // and emit only what was buffered after the previous drain, so no line prints twice.
+    const seen: string[] = [];
+    const writeSyncSpy = vi.spyOn(fs, "writeSync").mockImplementation(((_fd: number, data: Uint8Array) => {
+      seen.push(Buffer.from(data).toString("utf8"));
+      return data.length;
+    }) as never);
+    const stdout = fakeStdout(7);
+    const getter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);
+    try {
+      const { sink, runExitDrain } = await freshSinkWithExitDrain();
+      sink.write('{"m":"drain-1"}');
+      runExitDrain();
+      sink.write('{"m":"drain-2"}');
+      runExitDrain();
+      expect(seen).toEqual(['{"m":"drain-1"}\n', '{"m":"drain-2"}\n']);
+      expect(stdout.captured).toHaveLength(0);
+    } finally {
+      writeSyncSpy.mockRestore();
+      getter.mockRestore();
+    }
+  });
+
   test("drainSync on an empty buffer is a no-op (nothing written)", async () => {
     const stdout = fakeStdout(1);
     const getter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);

@@ -186,6 +186,14 @@ describe("stdSerializers.req", () => {
     expect(out.url).toBe("/koa");
   });
 
+  test("omits the url key entirely when the request carries no string url", () => {
+    // A partial/duck-typed request (e.g. a hand-built one in a job runner) may have no url at all; the
+    // serialized shape must then lack the key rather than carry an `undefined`-valued one.
+    const out = req({ method: "GET", headers: { host: "example.test" } }) as Record<string, unknown>;
+    expect(Object.hasOwn(out, "url")).toBe(false);
+    expect(out).toStrictEqual({ method: "GET", headers: { host: "example.test" } });
+  });
+
   test("redacts headers supplied as an array of [name, value] pairs", () => {
     const out = req({
       method: "GET",
@@ -226,6 +234,20 @@ describe("stdSerializers.res", () => {
 
     const webRes = res({ status: 201, headers: { etag: "abc" } }) as Record<string, unknown>;
     expect(webRes.statusCode).toBe(201);
+  });
+
+  test("omits statusCode when the response carries none (headers-only shape)", () => {
+    // A response whose status is not yet known (or a duck-typed one) yields no `statusCode` key at all.
+    const out = res({ headers: { etag: "abc" } }) as Record<string, unknown>;
+    expect(Object.hasOwn(out, "statusCode")).toBe(false);
+    expect(out).toStrictEqual({ headers: { etag: "abc" } });
+  });
+
+  test("omits headers when the response carries none (status-only shape)", () => {
+    // Neither `headers` nor `getHeaders()` present: the key is left out rather than set to undefined.
+    const out = res({ statusCode: 204 }) as Record<string, unknown>;
+    expect(Object.hasOwn(out, "headers")).toBe(false);
+    expect(out).toStrictEqual({ statusCode: 204 });
   });
 
   test("passes through a non-object value unchanged", () => {

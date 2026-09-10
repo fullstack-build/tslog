@@ -33,6 +33,19 @@ describe("bindings", () => {
     }
   });
 
+  test("several colliding keys are all overridden per call and the logger's own bindings stay intact", () => {
+    const logger = new Logger({ type: "hidden", ...capture, bindings: { env: "prod", region: "eu", tenant: "acme" } });
+    const cases = [logger.info("msg", { env: "override", region: "us" }), logger.info({ env: "override", region: "us" }, "msg")];
+    for (const logObj of cases) {
+      const parsed = JSON.parse(jsonLine(logObj, logger)) as Record<string, unknown>;
+      expect(parsed).toMatchObject({ env: "override", region: "us", tenant: "acme" });
+    }
+    // Dropping the colliding keys works on a per-call copy: the shared bindings are untouched, so a
+    // collision-free call still carries all three.
+    expect(logger.settings.bindings).toEqual({ env: "prod", region: "eu", tenant: "acme" });
+    expect(JSON.parse(jsonLine(logger.info("plain"), logger))).toMatchObject({ env: "prod", region: "eu", tenant: "acme" });
+  });
+
   test("bindings merge down the sub-logger chain, child keys win", () => {
     const root = new Logger({ type: "hidden", ...capture, bindings: { tenant: "acme", tier: "free" } });
     const child = root.child({ bindings: { requestId: "r-1", tier: "paid" } });
@@ -157,6 +170,32 @@ describe("custom level methods", () => {
       expect(output).toContain('binding "2" was dropped');
     } finally {
       warnSpy.mockRestore();
+    }
+  });
+
+  test("production silences the collision and dropped-binding diagnostics without changing behavior", () => {
+    const savedNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const logger = new Logger({
+        type: "hidden",
+        ...capture,
+        // "constructor" passes validateCustomLevel but collides with the class constructor member.
+        customLevels: { constructor: 9 },
+        bindings: { message: "hijack", kept: "yes" },
+      });
+      // No method was installed over the class constructor; the level still logs via log(id, name, ...).
+      expect(typeof (logger as unknown as { constructor: unknown }).constructor).toBe("function");
+      const line = jsonLine(logger.log(9, "constructor", "real message"), logger);
+      expect(line).toContain('"message":"real message"');
+      expect(line).toContain('"kept":"yes"');
+      expect(line).not.toContain("hijack");
+      expect(warnSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+      if (savedNodeEnv === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = savedNodeEnv;
     }
   });
 

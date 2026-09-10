@@ -1,6 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 import type { ILogObjMeta, IMeta } from "../src/index.js";
-import { createTestLogger, mockLogger } from "../src/subpaths/testing.js";
+import { createTestLogger, mockLogger, normalizeMeta } from "../src/subpaths/testing.js";
 
 // M4.5 — `tslog/testing`: createTestLogger (capture transport) + mockLogger (recording level methods).
 
@@ -162,6 +162,21 @@ describe("mockLogger", () => {
     log.info.mockClear();
     expect(log.info.calls).toEqual([]);
     expect(log.warn.calls).toEqual([["y"]]);
+  });
+});
+
+describe("normalizeMeta", () => {
+  test("pins only the meta fields that exist — a slimmed meta block gets no date/hostname/runtimeVersion invented", () => {
+    // A line whose meta was trimmed before persisting (or produced by another tool) carries none of the
+    // volatile fields; normalizing it must leave the block exactly as it was rather than add pinned keys
+    // that would then show up in snapshots.
+    const slimMeta = { logLevelId: 3, logLevelName: "INFO" };
+    const line = JSON.stringify({ message: "m", _logMeta: slimMeta });
+    const normalizedLine = JSON.parse(normalizeMeta(line)) as Record<string, unknown>;
+    expect(normalizedLine._logMeta).toEqual(slimMeta);
+
+    const record = { message: "m", _logMeta: { ...slimMeta } };
+    expect(normalizeMeta(record)._logMeta).toEqual(slimMeta);
   });
 });
 

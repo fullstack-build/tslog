@@ -25,9 +25,10 @@ import {
 function captureRecord(
   logArgs: unknown[],
   settingsParam: Record<string, unknown> = {},
+  defaultLogObj?: Record<string, unknown>,
 ): { record: Record<string, unknown> & ILogObjMeta; settings: ISettings<unknown> } {
   let captured: (Record<string, unknown> & ILogObjMeta) | undefined;
-  const logger = new Logger({ type: "hidden", ...settingsParam });
+  const logger = new Logger({ type: "hidden", ...settingsParam }, defaultLogObj);
   logger.attachTransport((record) => {
     captured = record as Record<string, unknown> & ILogObjMeta;
   });
@@ -124,6 +125,20 @@ describe("presets/otel", () => {
       const otel = toOtelRecord(record, settings, { getSpanContext: () => undefined });
       expect(otel.TraceId).toBeUndefined();
       expect(otel.SpanId).toBeUndefined();
+    });
+
+    test("a span context without usable ids contributes no TraceId/SpanId (never an empty string)", () => {
+      const { record, settings } = captureRecord(["partially traced"]);
+      // No active span, but the shim still reports trace flags: there is nothing to correlate on.
+      const flagsOnly = toOtelRecord(record, settings, { getSpanContext: () => ({ traceFlags: 0 }) });
+      expect(Object.hasOwn(flagsOnly, "TraceId")).toBe(false);
+      expect(Object.hasOwn(flagsOnly, "SpanId")).toBe(false);
+      expect(flagsOnly.TraceFlags).toBe(0);
+      // Empty-string ids (the "no span" placeholder some tracer shims return) are dropped the same way,
+      // so a backend never indexes an empty correlation key.
+      const emptyIds = toOtelRecord(record, settings, { getSpanContext: () => ({ traceId: "", spanId: "" }) });
+      expect(Object.hasOwn(emptyIds, "TraceId")).toBe(false);
+      expect(Object.hasOwn(emptyIds, "SpanId")).toBe(false);
     });
 
     test("isolates a throwing context getter (never breaks logging)", () => {
@@ -277,6 +292,13 @@ describe("presets/otel OTLP/JSON (the collector wire format)", () => {
       expect(attr(otlp.attributes, "userId")).toEqual({ intValue: "42" });
       expect(attr(otlp.attributes, "ratio")).toEqual({ doubleValue: 0.5 });
       expect(attr(otlp.attributes, "ok")).toEqual({ boolValue: true });
+    });
+
+    test("omits observedTimeUnixNano when observedTimestamp is false (the downstream stamps its own)", () => {
+      const { record, settings } = captureRecord(["observed downstream"]);
+      const otlp = toOtlpLogRecord(record, settings, { observedTimestamp: false });
+      expect(Object.hasOwn(otlp, "observedTimeUnixNano")).toBe(false);
+      expect(otlp.timeUnixNano).toMatch(/^\d+$/);
     });
 
     test("carries a named logger as the logger.name attribute", () => {
@@ -553,6 +575,32 @@ describe("presets/otel record-splitting and timestamp edges", () => {
     expect((otel.Attributes as Record<string, unknown>)["0"]).toBeUndefined();
   });
 
+  test("spreading fields never assigns an own __proto__ key (no prototype pollution of Attributes)", () => {
+    // Fields parsed from untrusted JSON can carry an OWN `__proto__` key; assigning it onto the attribute
+    // bag would swap the bag's prototype instead of adding a field. The key is skipped outright.
+    const poisoned = JSON.parse('{"__proto__": {"polluted": true}, "x": 1}') as Record<string, unknown>;
+    const { record, settings } = captureRecord([poisoned, "spread me"]);
+    const otel = toOtelRecord(record, settings);
+    expect(otel.Body).toBe("spread me");
+    expect(otel.Attributes).toStrictEqual({ x: 1 });
+    expect(Object.getPrototypeOf(otel.Attributes)).toBe(Object.prototype);
+    expect((otel.Attributes as { polluted?: unknown }).polluted).toBeUndefined();
+    expect(Object.hasOwn(otel.Attributes, "__proto__")).toBe(false);
+    // The OTLP attribute list is built from the same split, so it carries no __proto__ entry either.
+    const otlp = toOtlpLogRecord(record, settings);
+    expect(otlp.attributes?.map((entry) => entry.key)).toEqual(["x"]);
+    expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
+  });
+
+  test("a spread field never overwrites a key already on the record (the default LogObj wins, like the JSON renderer)", () => {
+    // Fields of `new Logger(settings, defaultLogObj)` are merged into every record and win on collision;
+    // a per-call field of the same name must not clobber them in the OTel attribute bag either.
+    const { record, settings } = captureRecord([{ service: "impostor", region: "eu" }, "hi"], {}, { service: "api" });
+    const otel = toOtelRecord(record, settings);
+    expect(otel.Body).toBe("hi");
+    expect(otel.Attributes).toStrictEqual({ service: "api", region: "eu" });
+  });
+
   test("no _logMeta block: OTLP severity is UNSPECIFIED and the timestamp falls back to Date.now()", () => {
     const settings = defaultSettings();
     const before = BigInt(Date.now()) * 1_000_000n;
@@ -601,6 +649,21 @@ describe("presets/otel toOtlpLogRecord error edges", () => {
     // the compacted cause is a nested kvlist with its own name/message
     const causeKv = byKey("cause")?.kvlistValue?.values ?? [];
     expect(causeKv.find((e) => e.key === "message")?.value).toEqual({ stringValue: "deep cause" });
+  });
+
+  test("a compacted extra error with no stack at all omits the stack key instead of emitting an empty value", () => {
+    // The SECOND error gets the compact form; with its native stack scrubbed and therefore no parsed
+    // frames either, the compact kvlist carries name/message only — no `stack` entry holding an empty
+    // AnyValue, mirroring how the first error omits exception.stacktrace.
+    const stackless = new Error("no stack");
+    stackless.stack = undefined;
+    const { record, settings } = captureRecord(["boom", new Error("primary"), stackless]);
+    const otlp = toOtlpLogRecord(record, settings);
+    const extra = attr(otlp.attributes, settings.json.errorKey)?.arrayValue?.values ?? [];
+    expect(extra).toHaveLength(1);
+    const kv = extra[0].kvlistValue?.values ?? [];
+    expect(kv.map((e) => e.key)).toEqual(["name", "message"]);
+    expect(kv.find((e) => e.key === "message")?.value).toEqual({ stringValue: "no stack" });
   });
 
   test("an attribute holding an ARRAY of serialized errors maps them all (first -> exception.*, rest compacted)", () => {

@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { EventEmitter } from "node:events";
 import { getStdoutJsonSink } from "../src/env/stdoutSink.node.js";
 import { Logger as UniversalLogger } from "../src/index.js";
 import { Logger as NodeLogger } from "../src/index.node.js";
@@ -302,6 +303,36 @@ describe("review fixes: accounting and hostile streams", () => {
       logger.info("stream B");
       getStdoutJsonSink().flushSync();
       expect(listenersB).toContain("error");
+    } finally {
+      stdoutGetter.mockRestore();
+    }
+  });
+
+  test("the error guard swallows a stream 'error' event (EPIPE) so it never becomes an uncaught exception", () => {
+    // A real EventEmitter: emitting "error" with no listener THROWS (Node's unhandled-error rule) —
+    // which is exactly what an EPIPE on process.stdout does to the process once the consumer closes
+    // the pipe. The guard the sink installs must absorb it, and logging must carry on afterwards.
+    const captured: string[] = [];
+    class FakeStdout extends EventEmitter {
+      write(chunk: string, cb?: () => void): boolean {
+        captured.push(chunk);
+        cb?.();
+        return true;
+      }
+    }
+    const stdout = new FakeStdout();
+    const stdoutGetter = vi.spyOn(process, "stdout", "get").mockReturnValue(stdout as unknown as NodeJS.WriteStream);
+    try {
+      const logger = jsonLogger();
+      logger.info("before EPIPE");
+      getStdoutJsonSink().flushSync();
+      expect(stdout.listenerCount("error")).toBe(1);
+      const epipe = Object.assign(new Error("write EPIPE"), { code: "EPIPE" });
+      expect(() => stdout.emit("error", epipe)).not.toThrow();
+      logger.info("after EPIPE");
+      getStdoutJsonSink().flushSync();
+      expect(captured.join("")).toContain('"before EPIPE"');
+      expect(captured.join("")).toContain('"after EPIPE"');
     } finally {
       stdoutGetter.mockRestore();
     }

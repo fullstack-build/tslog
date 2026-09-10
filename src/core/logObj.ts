@@ -54,7 +54,8 @@ export function cloneError<T extends Error>(error: T): T {
 /**
  * Deeply clones a value while executing any zero-purpose field that is a function (e.g. a `requestId`
  * generator on the default LogObj), so every log gets a freshly evaluated value. Arrays and Dates are
- * cloned; objects are rebuilt preserving prototype and property descriptors; primitives pass through.
+ * cloned; objects are rebuilt with the source's prototype and per-property enumerability as plain writable
+ * data properties (frozen sources stay loggable, accessors are read once); primitives pass through.
  * Circular references are short-circuited with a shallow copy via a `seen` list.
  */
 export function recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | Array<unknown>)[] = []): T {
@@ -74,10 +75,14 @@ export function recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | 
     return Object.getOwnPropertyNames(source).reduce(
       (o, prop) => {
         const descriptor = Object.getOwnPropertyDescriptor(source, prop);
+        /* v8 ignore else -- typing-only: getOwnPropertyDescriptor is typed `| undefined`, but for a key getOwnPropertyNames just reported on the same object it is only undefined when a Proxy ownKeys trap invents a ghost key — no supported default LogObj shape does that */
         if (descriptor) {
-          Object.defineProperty(o, prop, descriptor);
           const value = (source as Record<string, unknown>)[prop];
-          o[prop] = typeof value === "function" ? value() : recursiveCloneAndExecuteFunctions(value, seen);
+          const cloned = typeof value === "function" ? value() : recursiveCloneAndExecuteFunctions(value, seen);
+          // Define a plain data property holding the evaluated value; only enumerability is carried over (it
+          // decides whether the field is spread into the record). Copying the source descriptor and assigning
+          // afterwards threw in strict mode on a frozen/read-only source or a getter-only accessor.
+          Object.defineProperty(o, prop, { value: cloned, writable: true, enumerable: descriptor.enumerable, configurable: true });
         }
         return o;
       },
@@ -94,9 +99,7 @@ export function recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | 
  * `seen` set prevents infinite loops on self-referential cause chains.
  */
 export function toErrorObject(error: Error, deps: LogObjDeps, depth = 0, seen: Set<Error> = new Set()): IErrorObject {
-  if (!seen.has(error)) {
-    seen.add(error);
-  }
+  seen.add(error);
 
   const errorObject: IErrorObject = {
     nativeError: error,

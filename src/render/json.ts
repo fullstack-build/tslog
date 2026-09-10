@@ -719,14 +719,13 @@ function renderPlannedLine<LogObj>(record: LogObj & ILogObjMeta, settings: ISett
   let spreadSource: Record<string, unknown> | undefined;
   const spreadShape = hasMessageKey ? undefined : getSpreadShapeHint(recordObj);
   if (spreadShape !== undefined) {
-    const leading = recordObj["0"];
-    const trailing = recordObj["1"];
-    if (spreadShape === "object-first" && typeof leading === "object" && leading !== null) {
-      messageValue = trailing;
-      spreadSource = leading as Record<string, unknown>;
-    } else if (spreadShape === "message-first" && typeof trailing === "object" && trailing !== null) {
-      messageValue = leading;
-      spreadSource = trailing as Record<string, unknown>;
+    // The hint names which positional slot holds the plain object to spread; the other slot is the message.
+    const fieldsKey = spreadShape === "object-first" ? "0" : "1";
+    const fields = recordObj[fieldsKey];
+    /* v8 ignore else -- unreachable: toLogObj sets the hint only when that slot held a plain object, in the same pass that stores it there, and nothing between toLogObj and rendering rewrites positional values (middleware and masking run on the args BEFORE toLogObj); the typeof guard only protects the cast on a hand-built record */
+    if (typeof fields === "object" && fields !== null) {
+      messageValue = recordObj[fieldsKey === "0" ? "1" : "0"];
+      spreadSource = fields as Record<string, unknown>;
     }
   }
   const spreading = spreadSource !== undefined;
