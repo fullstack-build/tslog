@@ -607,7 +607,11 @@ export class MaskingEngine<LogObj> {
     const prototype = Object.getPrototypeOf(source);
     // An error from another realm (node:vm, an iframe) fails `instanceof Error` here but still has the Error tag.
     const isErrorInstance = source instanceof Error || Object.prototype.toString.call(source) === "[object Error]";
-    const clone: Error = isErrorInstance ? Object.setPrototypeOf(new Error(), prototype) : Object.create(prototype);
+    // Settle the clone's own `stack` while its prototype is still Error.prototype. Node 20 formats a pending stack
+    // when `stack` is redefined, which reads `name` and `message`, and on a DOMException prototype those throw.
+    const clone: Error = isErrorInstance
+      ? Object.setPrototypeOf(Object.defineProperty(new Error(), "stack", { value: undefined, writable: true, configurable: true }), prototype)
+      : Object.create(prototype);
     ctx.seen.set(source, clone);
     if (ctx.inertClones != null && this.isPathInert(ctx)) {
       ctx.inertClones.add(clone);
