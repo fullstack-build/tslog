@@ -13,7 +13,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                node-version: ['20', '22', '24', '26', 'latest']
+                node-version: ['22', '24', '26', 'latest']
 
         env:
             CI: true
@@ -35,18 +35,18 @@ jobs:
               run: npm run check-bundle-size
 
             # Run the full test suite on every supported Node version.
-            # Coverage + Codecov report only on the minimum supported version (20)
+            # Coverage + Codecov report only on the minimum supported version (22)
             # to avoid redundant uploads and overhead.
             - name: Run tests (with coverage)
-              if: matrix.node-version == '20'
+              if: matrix.node-version == '22'
               run: npm run coverage
 
             - name: Run tests
-              if: matrix.node-version != '20'
+              if: matrix.node-version != '22'
               run: npm test
 
             - name: Report coverage
-              if: matrix.node-version == '20'
+              if: matrix.node-version == '22'
               uses: codecov/codecov-action@v5
               with:
                   token: ${{ secrets.CODECOV_TOKEN }}

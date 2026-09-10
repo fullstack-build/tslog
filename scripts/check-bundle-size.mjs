@@ -50,7 +50,9 @@ const PROBES = [
     name: "tslog (browser entry, Logger, json)",
     // 21_500 -> 21_800: ansiToCssConsoleFormat (errors rendered as %c CSS on the browser console path).
     // 21_800 -> 22_200: MaskingEngine.maskError (logged Errors are cloned and masked instead of passed through).
-    budgetGzipBytes: 22_200,
+    // 22_200 -> 22_400: esbuild 0.28 emits TS parameter properties as class field declarations (ES2022
+    // define semantics, as tsc does); no source change, and CI had measured exactly 22_200 before it.
+    budgetGzipBytes: 22_400,
     entry: `
       import { Logger } from "${entryPath("src/index.browser.ts")}";
       const log = new Logger({ type: "json" });

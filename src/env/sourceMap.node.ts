@@ -153,8 +153,8 @@ function requireNodeModule<T>(name: string): T | undefined {
   // Bundlers rewrite a variable-argument `require(name)` into an always-throwing stub (Turbopack:
   // "expression is too dynamic"), which would silently disable source-map resolution inside bundled
   // server apps (Next.js dev). `process.getBuiltinModule` is a plain runtime call bundlers leave
-  // untouched, so try it first (Node >= 20.16, Deno 2, modern Bun); `createRequire` stays as the
-  // fallback for older Node 20.x, where this module only ever runs unbundled.
+  // untouched, so try it first (Node >= 22.3, Deno 2, modern Bun); `createRequire` stays as the
+  // fallback for Node 22.0-22.2, where this module only ever runs unbundled.
   const getBuiltin = typeof process !== "undefined" ? process.getBuiltinModule : undefined;
   if (typeof getBuiltin === "function") {
     try {
@@ -168,7 +168,7 @@ function requireNodeModule<T>(name: string): T | undefined {
       // fall through to createRequire
     }
   }
-  /* v8 ignore next 6 -- reachable only on runtimes without getBuiltinModule (Node 20.0-20.15); the test runners are newer */
+  /* v8 ignore next 6 -- reachable only on runtimes without getBuiltinModule (Node 22.0-22.2); the test runners are newer */
   try {
     const require = createRequire(import.meta.url);
     return require(name) as T;

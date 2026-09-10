@@ -6,7 +6,7 @@ import { assertEquals, assertExists } from "jsr:@std/assert";
 
 // Runtime import from the built ESM output. Deno would otherwise infer types from the
 // compiled JS, where optional parameters look required — these tests assert runtime
-// behavior, so type the boundary loosely; the type surface is checked by tsgo.
+// behavior, so type the boundary loosely; the type surface is checked by tsc.
 // deno-lint-ignore no-explicit-any
 const { Logger } = (await import("../dist/esm/index.js")) as unknown as { Logger: new (settings?: unknown) => any };
 

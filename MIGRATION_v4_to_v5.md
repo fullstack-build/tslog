@@ -74,7 +74,7 @@ You should upgrade to v5 when you want one or more of these. None of them exist 
 | | v4 | v5 |
 |---|---|---|
 | Module system | ESM **and** CJS (`require` worked) | **ESM-only** — no CJS, no `require` |
-| Node.js | 16+ | **20+** |
+| Node.js | 16+ | **22+** (20+ up to 5.1) |
 | TS target | es2020 | **es2022** |
 | Runtime deps | none | none |
 
@@ -709,7 +709,7 @@ silently degrading. Develop against `tslog`, ship `tslog/slim`.
 
 ## Migration checklist
 
-- [ ] Move the app (or the file importing tslog) to **ESM**; bump Node to **20+**, TS target to **es2022**.
+- [ ] Move the app (or the file importing tslog) to **ESM**; bump Node to **22+** (20+ for tslog 5.0–5.1), TS target to **es2022**.
 - [ ] Replace `require("tslog")` with `import`.
 - [ ] Translate every flat setting key to its **grouped path** (table in §2).
 - [ ] Replace `hideLogPositionForProduction` with `stack.capture: "off"` (or drop it for `type: "json"`).

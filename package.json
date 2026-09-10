@@ -106,8 +106,8 @@
     "clean-dist": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "test:e2e-apps": "node e2e/run-e2e-apps.mjs",
     "build-browser": "node build.js",
-    "build-types": "tsgo -p tsconfig.types.json",
-    "build-esm": "tsgo -p tsconfig.esm.json",
+    "build-types": "tsc -p tsconfig.types.json",
+    "build-esm": "tsc -p tsconfig.esm.json",
     "audit-sideeffects": "node scripts/audit-sideeffects.mjs",
     "bench": "node benchmarks/bench.mjs",
     "lint": "biome lint .",
@@ -133,7 +133,7 @@
     "version": "npm run sync-version"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "np": {
     "yarn": false,
@@ -144,29 +144,29 @@
     "directory": "dist"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.14",
-    "@playwright/test": "^1.50.0",
+    "@biomejs/biome": "2.5.13",
+    "@playwright/test": "^1.63.0",
     "@rollup/plugin-node-resolve": "16.0.3",
     "@rollup/plugin-typescript": "12.3.0",
-    "@types/node": "^24.5.2",
-    "@typescript/native-preview": "^7.0.0-dev.20260629.1",
-    "@vitest/coverage-v8": "^4.1.11",
-    "bson": "^6.10.4",
-    "esbuild": "^0.25.10",
-    "graphql": "^16.14.2",
+    "@types/node": "^26.5.1",
+    "@vitest/coverage-v8": "^5.0.0",
+    "bson": "^7.3.2",
+    "esbuild": "^0.28.2",
+    "graphql": "^17.0.2",
     "husky": "^9.1.7",
-    "np": "^11.0.2",
-    "playwright": "^1.50.0",
-    "rollup": "4.62.2",
+    "np": "^12.1.1",
+    "playwright": "^1.63.0",
+    "rollup": "4.63.1",
     "ts-loader": "9.6.2",
-    "tsx": "^4.19.2",
-    "typescript": "^5.9.2",
-    "vitest": "^4.1.11",
-    "webpack": "5.108.4",
-    "webpack-cli": "7.2.1"
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "typescript-6": "npm:typescript@^6.0.3",
+    "vitest": "^5.0.0",
+    "webpack": "5.110.3",
+    "webpack-cli": "7.2.3"
   },
   "overrides": {
-    "tmp": "^0.2.5"
+    "tmp": "^0.2.7"
   },
   "sideEffects": false,
   "keywords": [
