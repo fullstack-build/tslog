@@ -54,8 +54,8 @@ export function cloneError<T extends Error>(error: T): T {
 /**
  * Deeply clones a value while executing any zero-purpose field that is a function (e.g. a `requestId`
  * generator on the default LogObj), so every log gets a freshly evaluated value. Arrays and Dates are
- * cloned; objects are rebuilt preserving prototype and data-property descriptors (frozen sources stay
- * loggable), accessors are read once and stored as plain values; primitives pass through.
+ * cloned; objects are rebuilt with the source's prototype and per-property enumerability as plain writable
+ * data properties (frozen sources stay loggable, accessors are read once); primitives pass through.
  * Circular references are short-circuited with a shallow copy via a `seen` list.
  */
 export function recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | Array<unknown>)[] = []): T {
@@ -79,16 +79,10 @@ export function recursiveCloneAndExecuteFunctions<T>(source: T, seen: (object | 
         if (descriptor) {
           const value = (source as Record<string, unknown>)[prop];
           const cloned = typeof value === "function" ? value() : recursiveCloneAndExecuteFunctions(value, seen);
-          // Carry the evaluated value inside the descriptor instead of assigning after defineProperty: on a
-          // frozen/read-only source (writable: false) or a getter-only accessor that assignment throws in
-          // strict mode. Accessors are materialized as plain data properties holding the log-time snapshot.
-          Object.defineProperty(
-            o,
-            prop,
-            descriptor.get === undefined && descriptor.set === undefined
-              ? { ...descriptor, value: cloned }
-              : { value: cloned, writable: true, enumerable: descriptor.enumerable, configurable: descriptor.configurable },
-          );
+          // Define a plain data property holding the evaluated value; only enumerability is carried over (it
+          // decides whether the field is spread into the record). Copying the source descriptor and assigning
+          // afterwards threw in strict mode on a frozen/read-only source or a getter-only accessor.
+          Object.defineProperty(o, prop, { value: cloned, writable: true, enumerable: descriptor.enumerable, configurable: true });
         }
         return o;
       },
