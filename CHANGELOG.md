@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
-## [5.2.0] - Unreleased
+## [5.2.0] - 2026-09-11
 
 ### Changed
 - **Logged errors are cloned** — with `mask` configured, an `Error` argument is replaced by a masked clone like every other argument, and that clone is what transports receive as `nativeError`. It is a real `Error` with the source's prototype (no subclass constructor runs), so `instanceof`, JSON error detection and Sentry-style transports keep working, and the caller's instance is never modified. Without `mask`, errors pass through untouched as before.
