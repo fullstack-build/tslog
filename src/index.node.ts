@@ -1,7 +1,8 @@
 import { BaseLogger } from "./BaseLogger.js";
 import { fullCoreFeatures } from "./core/features.full.js";
-export { fullCoreFeatures };
+
 export type { CoreFeatures, MaskingFeatureDeps, MaskingLike } from "./core/features.js";
+export { fullCoreFeatures };
 
 import { settingsFromEnv } from "./core/fromEnv.js";
 import type { EnvironmentProvider } from "./env/environment.js";

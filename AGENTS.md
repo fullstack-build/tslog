@@ -35,7 +35,8 @@ npm run test:e2e-apps # Framework E2E: real Next.js (Turbopack) + TanStack Start
 ## Build System
 
 - **ESM-only.** There is no CJS build and no `require("tslog")` — v5 dropped dual publishing.
-- **tsgo** (`@typescript/native-preview`, the TypeScript 7 native compiler) emits the ESM output (`dist/esm/`) and the declaration files (`dist/types/`).
+- **tsc** from `typescript` 7 (the native compiler) emits the ESM output (`dist/esm/`) and the declaration files (`dist/types/`).
+- `typescript` 7 has no JS compiler API, so a second install, `typescript-6` (`npm:typescript@6`), serves the bundler-compatibility tests: ts-loader gets `compiler: "typescript-6"`, and `vitest.config.ts` aliases `typescript` → `typescript-6` for the inlined `@rollup/plugin-typescript`.
 - **esbuild** (`build.js`) bundles the browser IIFE (`dist/browser/index.js`, global `tslog`) from `src/index.browser.ts`.
 - `"type": "module"` — the project is ESM throughout.
 - `npm run build` = `clean-dist` (wipes `dist/` so stale files never ship) → `build-types` → `build-esm` → `build-browser` → `prepare-publish`.
@@ -143,7 +144,7 @@ src/
 - **master** — stable releases, CI runs on push/PR
 - **development** — active development branch
 - Pre-commit hook via **Husky v9** (`.husky/pre-commit`) runs: test → check (biome) → build
-- CI: GitHub Actions on Node 20 (coverage + browser), Bun (latest), Deno (v2.x); uploads to Codecov
+- CI: GitHub Actions on Node 22, 24, 26 and latest (coverage on 22), Playwright browsers, Bun (latest), Deno (v2.x); uploads to Codecov
 
 ## Publishing
 
@@ -154,16 +155,16 @@ src/
 
 ## Key Conventions
 
-- Node.js 20+ required (`package.json` `engines`); ES2022 target
+- Node.js 22+ required (`package.json` `engines`); ES2022 target
 - npm only (engine-strict in `.npmrc`)
 - Zero runtime dependencies
-- TypeScript 7 (tsgo) strict mode throughout; ESM-only
+- TypeScript 7 (`tsc` from `typescript` 7) strict mode throughout; ESM-only
 - Tests are numbered by feature area (e.g., `1_json_loglevel`, `5_pretty_Log_Types`)
 - Browser-specific code isolated in `index.browser.ts` and `tests/support/`
 
 ## Quality Standards
 
-- **100% test coverage** on statements, branches, functions and lines — enforced by `coverage.thresholds` in `vitest.config.ts` (`npm run coverage`, CI's Node 20 job, fails below it) — but only with meaningful tests, no padding. Vitest 4 counts the implicit `else` of every `if` as a branch and binds `/* v8 ignore next */` to a single AST node (`next N` counts are ignored; use `/* v8 ignore else */` before an `if` for a truly unreachable else path)
+- **100% test coverage** on statements, branches, functions and lines — enforced by `coverage.thresholds` in `vitest.config.ts` (`npm run coverage`, CI's Node 22 job, fails below it) — but only with meaningful tests, no padding. Vitest 4+ counts the implicit `else` of every `if` as a branch and binds `/* v8 ignore next */` to a single AST node (`next N` counts are ignored; use `/* v8 ignore else */` before an `if` for a truly unreachable else path)
 - Every new feature **must** have corresponding tests
 - Every new feature **must** be reflected in the docs (`docs/`)
 - Don't write tests just to hit coverage numbers; each test should verify real behavior

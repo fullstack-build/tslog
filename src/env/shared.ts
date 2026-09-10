@@ -185,7 +185,7 @@ export function createRuntimeMeta(info: RuntimeInfo): RuntimeMetaStatic {
 /**
  * Resolve a host name for server runtimes. The environment variables (HOSTNAME/HOST/COMPUTERNAME)
  * are consulted first — they are the explicit override and what containers set — then the OS hostname
- * (`Deno.hostname()` on Deno, else `process.getBuiltinModule("node:os")` — Node 20.16+, Bun, Deno 2;
+ * (`Deno.hostname()` on Deno, else `process.getBuiltinModule("node:os")` — Node 22.3+, Bun, Deno 2;
  * the synchronous, import-free builtin accessor, so this module never imports `node:os`), then
  * `location.hostname`. Returns
  * `undefined` when nothing resolves. Every probe is guarded: Deno throws `NotCapable` on env reads

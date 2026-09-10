@@ -231,5 +231,5 @@ export function createLiteLogger(options: LiteLoggerOptions = {}): LiteLogger {
 /** A ready-to-use lite logger at the default level (everything is emitted). */
 export const lite: LiteLogger = new LiteLogger();
 
-export { DEFAULT_LOG_LEVEL_NAMES };
 export type { TLogLevel, TLogLevelName };
+export { DEFAULT_LOG_LEVEL_NAMES };

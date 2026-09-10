@@ -336,5 +336,5 @@ export function mockLogger<LogObj = ILogObj>(settings?: ISettingsParam<LogObj>):
   return logger;
 }
 
-export { LogLevel };
 export type { ILogObj, ILogObjMeta, IMeta, ISettingsParam, TLogLevelName };
+export { LogLevel };

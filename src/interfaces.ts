@@ -1,4 +1,5 @@
 import type { InspectOptions } from "./internal/InspectOptions.interface.js";
+
 export type { InspectOptions };
 
 /** The log level ids used by the default logging methods (silly … fatal). */

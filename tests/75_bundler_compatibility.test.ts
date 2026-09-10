@@ -66,7 +66,7 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
           compilerOptions: {
             target: "ES2022",
             module: "ESNext",
-            moduleResolution: "node",
+            moduleResolution: "bundler",
             sourceMap: true,
             declaration: false,
             strict: true,
@@ -140,11 +140,10 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
           compilerOptions: {
             target: "ES2022",
             module: "ESNext",
-            moduleResolution: "node",
+            moduleResolution: "bundler",
             sourceMap: true,
             esModuleInterop: true,
             strict: true,
-            outDir: "dist",
           },
           include: ["src"],
         }),
@@ -166,6 +165,8 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
                 {
                   loader: "ts-loader",
                   options: {
+                    // `typescript` is TS 7, which has no JS compiler API; see the alias in vitest.config.ts.
+                    compiler: "typescript-6",
                     transpileOnly: true,
                     compilerOptions: { sourceMap: true },
                   },
@@ -399,7 +400,7 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
       await writeFile(
         tsconfigPath,
         JSON.stringify({
-          compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "node", sourceMap: true },
+          compilerOptions: { target: "ES2022", module: "ESNext", moduleResolution: "bundler", sourceMap: true },
         }),
       );
 

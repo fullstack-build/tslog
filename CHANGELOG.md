@@ -5,6 +5,8 @@ All notable changes to this project are documented here. This project adheres to
 ## [5.2.0] - 2026-09-11
 
 ### Changed
+- **Node.js 22 or newer is required** — Node 20 reached end-of-life in April 2026, so `engines.node` is now `>=22` and CI no longer tests it. Stay on `tslog@5.1.0` if you still run Node 20. Nothing in the runtime code relied on dropping it; Bun, Deno and browsers are unaffected.
+- **Built with stable TypeScript 7.0** — the ESM output and declarations are emitted by `tsc` from `typescript@7` instead of the `@typescript/native-preview` dev builds.
 - **Logged errors are cloned** — with `mask` configured, an `Error` argument is replaced by a masked clone like every other argument, and that clone is what transports receive as `nativeError`. It is a real `Error` with the source's prototype (no subclass constructor runs), so `instanceof`, JSON error detection and Sentry-style transports keep working, and the caller's instance is never modified. Without `mask`, errors pass through untouched as before.
 
 ### Fixed

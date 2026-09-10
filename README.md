@@ -82,7 +82,7 @@ Donations help me allocate more time for my open source work.
 The per-runtime details are below.
 
 > [!IMPORTANT]
-> **tslog v5 is ESM-only and requires Node.js ≥ 20.** There is no CommonJS build and no `require("tslog")`. If you cannot move to ESM or off Node 16/18 yet, stay on **`tslog@4.11.0`** — it keeps CJS, Node 16+ and the v4 JSON shape. See **[Upgrading from v4?](#upgrading-from-v4)**.
+> **tslog v5 is ESM-only and requires Node.js ≥ 22** (5.0–5.1 also ran on Node 20; stay on **`tslog@5.1.0`** if you are still on it). There is no CommonJS build and no `require("tslog")`. If you cannot move to ESM or off Node 16/18 yet, stay on **`tslog@4.11.0`** — it keeps CJS, Node 16+ and the v4 JSON shape. See **[Upgrading from v4?](#upgrading-from-v4)**.
 
 ### Node.js
 
@@ -1061,7 +1061,7 @@ Whichever logger you come from, `createTestLogger` from `tslog/testing` captures
 > [!IMPORTANT]
 > **`tslog@4.11.0` is the safe staying point.** Most of the v5 performance wins (faster lazy stack capture, transport isolation, masking fixes) were back-ported to **4.11.0 with zero breaking changes**. If you are on the 4.x line and just want the wins, `npm install tslog@4.11.0` keeps your existing settings, CJS `require`, Node 16+, and the v4 JSON shape exactly as they are. There is no deprecation pressure.
 
-Move to **v5** when you actually want its new capabilities: opt-in structured JSON output, the flat fields-first JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent DX. v5 is ESM-only and requires Node ≥ 20.
+Move to **v5** when you actually want its new capabilities: opt-in structured JSON output, the flat fields-first JSON shape, grouped settings, `use()` middleware, per-transport level/format, the presets, and the AI/agent DX. v5 is ESM-only and requires Node ≥ 22 (≥ 20 up to 5.1).
 
 👉 **Full guide: [MIGRATION_v4_to_v5.md](./MIGRATION_v4_to_v5.md)** — it maps every removed v4 setting (`stylePrettyLogs`, `prettyLogTemplate`, `maskValuesOfKeys`, `metaProperty`, `hideLogPositionForProduction`, the whole `overwrite.*` family, …) to its v5 replacement.
 

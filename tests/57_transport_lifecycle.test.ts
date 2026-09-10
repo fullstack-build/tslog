@@ -334,7 +334,7 @@ describe.runIf(isNode)("process exit integration", () => {
     const dir = tmpDir();
     const target = join(dir, "using-exit.log");
     try {
-      // Subprocess runs plain Node (no TS transpile), so use Symbol.dispose — the Node 20–compatible
+      // Subprocess runs plain Node (no TS transpile), so use Symbol.dispose — the Node 22–compatible
       // equivalent of a synchronous `using` scope exit.
       runScript(`
         import { Logger } from "${repoRoot}/src/index.node.js";

@@ -9,6 +9,11 @@ export default defineConfig({
     exclude: ["tests/**/*.browser.test.ts"],
     testTimeout: 100_000,
     clearMocks: true,
+    // The `typescript` package is TS 7 (tslog's own build), which has no JS compiler API. The bundler
+    // compatibility tests drive @rollup/plugin-typescript, which imports that API from "typescript" at load
+    // time, so inline the plugin and hand it the TS 6 install (ts-loader takes `compiler: "typescript-6"`).
+    alias: { typescript: "typescript-6" },
+    server: { deps: { inline: ["@rollup/plugin-typescript"] } },
     coverage: {
       provider: "v8",
       include: ["src/**"],
@@ -22,7 +27,7 @@ export default defineConfig({
         "src/index.browser.ts",
       ],
       reporter: ["text", "lcov", "clover", "json"],
-      // Hard floor: `npm run coverage` (CI's Node 20 job) fails below 100% on every metric instead of
+      // Hard floor: `npm run coverage` (CI's Node 22 job) fails below 100% on every metric instead of
       // reporting a drop quietly — Codecov is not configured to enforce anything.
       thresholds: { statements: 100, branches: 100, functions: 100, lines: 100 },
     },
