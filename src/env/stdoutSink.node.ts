@@ -157,8 +157,8 @@ function createStdoutJsonSink(): StdoutJsonSink {
         const require = createRequire(import.meta.url);
         const fs = require("node:fs") as { writeSync: (fd: number, data: Uint8Array) => number };
         fsWriteSync = typeof fs.writeSync === "function" ? fs.writeSync : null;
-        /* v8 ignore next 3 -- defensive: node:fs is always resolvable on Node; covers exotic loaders */
       } catch {
+        /* v8 ignore next -- defensive: node:fs is always resolvable on Node; covers exotic loaders */
         fsWriteSync = null;
       }
     }

@@ -96,12 +96,13 @@ interface MaskKeysCache {
  * post-construction mutations of `mask.keys` / `mask.placeholder` take effect) and the runtime's
  * {@link MaskingPredicates}, keeping the core free of runtime imports.
  *
- * Behavior preserved from the v4 monolith: Error/Buffer pass-through, Date/URL cloning, the
- * `$`-escape fix for the placeholder, numeric mask-key normalization, and getter-only robustness
- * (a throwing getter yields `null` rather than aborting the mask). v5 improvements per contract:
- * a zero-clone fast path, a memoizing `WeakMap` cycle/shared-reference guard (a repeat visit returns
- * the same MASKED clone, never an unmasked copy), masking inside `Map`/`Set` contents, mask regexes
- * always applied globally, `Set.has` key matching, and a single placeholder `$`-escape per invocation.
+ * Behavior preserved from the v4 monolith: Buffer pass-through, Date/URL cloning, the `$`-escape fix
+ * for the placeholder, numeric mask-key normalization, and getter-only robustness (a throwing getter
+ * yields `null` rather than aborting the mask). v5 improvements per contract: a zero-clone fast path,
+ * a memoizing `WeakMap` cycle/shared-reference guard (a repeat visit returns the same MASKED clone,
+ * never an unmasked copy), masking inside `Map`/`Set` contents and inside Errors (see {@link maskError}),
+ * mask regexes always applied globally, `Set.has` key matching, and a single placeholder `$`-escape
+ * per invocation.
  */
 export class MaskingEngine<LogObj> {
   private maskKeysCache?: MaskKeysCache;
@@ -390,8 +391,10 @@ export class MaskingEngine<LogObj> {
       }
     }
 
-    if (this.predicates.isError(source) || this.predicates.isBuffer(source)) {
+    if (this.predicates.isBuffer(source)) {
       return source as T;
+    } else if (this.predicates.isError(source)) {
+      return this.maskError(source, ctx) as T;
     } else if (source instanceof Map) {
       // Mask INSIDE the Map: a key matching `mask.keys` (string, or number/bigint — normalized the
       // same way getMaskKeys stringifies numeric mask keys) redacts its value like an object property
@@ -541,14 +544,19 @@ export class MaskingEngine<LogObj> {
       }
     } else {
       if (typeof source === "string") {
-        let modifiedSource: string = source;
-        for (const regEx of ctx.regexes) {
-          modifiedSource = modifiedSource.replace(regEx, ctx.escapedPlaceholder);
-        }
-        return modifiedSource as unknown as T;
+        return this.maskString(source, ctx) as unknown as T;
       }
       return source;
     }
+  }
+
+  /** Replace every match of every mask regex in a string. The regexes are already global, see toGlobalRegex. */
+  private maskString(value: string, ctx: MaskContext): string {
+    let masked = value;
+    for (const regEx of ctx.regexes) {
+      masked = masked.replace(regEx, ctx.escapedPlaceholder);
+    }
+    return masked;
   }
 
   /**
@@ -576,6 +584,143 @@ export class MaskingEngine<LogObj> {
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Clone an Error and mask the clone, so a secret in the message, in a property assigned to the error or in
+   * the `cause` chain is redacted like in any other argument: in the JSON line, in the pretty error block and
+   * in the `nativeError` that transports receive.
+   *
+   * A real Error is cloned as `new Error()` with its prototype swapped for the source's. That keeps
+   * `instanceof`, the `[object Error]` tag and `isNativeError` working downstream without running the
+   * subclass constructor, which may need arguments. An error-like object (anything else the runtime
+   * predicate accepts) is cloned as a plain object with the same prototype, so it still prints and
+   * serializes as an object. Every property is read once, guarded, and defined fresh on the clone, so
+   * read-only or getter-only properties cannot throw and the caller's error is never written to.
+   *
+   * `mask.keys` does not apply to `name`, `message` and `stack`: `keys: ["name"]` is a normal PII setting
+   * and must not blank every error. `mask.regex` still masks their text and `mask.paths` can target them.
+   * All other own properties (`code`, `cause`, the `errors` of an AggregateError, ...) are masked like the
+   * properties of a plain object, which covers the whole `cause` chain.
+   */
+  private maskError(source: Error, ctx: MaskContext): Error {
+    const prototype = Object.getPrototypeOf(source);
+    // An error from another realm (node:vm, an iframe) fails `instanceof Error` here but still has the Error tag.
+    const isErrorInstance = source instanceof Error || Object.prototype.toString.call(source) === "[object Error]";
+    // Settle the clone's own `stack` while its prototype is still Error.prototype. Node 20 formats a pending stack
+    // when `stack` is redefined, which reads `name` and `message`, and on a DOMException prototype those throw.
+    const clone: Error = isErrorInstance
+      ? Object.setPrototypeOf(Object.defineProperty(new Error(), "stack", { value: undefined, writable: true, configurable: true }), prototype)
+      : Object.create(prototype);
+    ctx.seen.set(source, clone);
+    if (ctx.inertClones != null && this.isPathInert(ctx)) {
+      ctx.inertClones.add(clone);
+    }
+    ctx.inProgress?.add(source);
+    try {
+      const caseInsensitive = this.settings.mask.caseInsensitive === true;
+      const hasPaths = ctx.paths.length > 0;
+      // Always redefine `stack` on the clone. `new Error()` captured tslog's own frames, and on Firefox `stack`
+      // is an accessor on the prototype that would keep reporting them. On V8 and WebKit it is already an own
+      // property, so the Set only adds it where it is missing.
+      const props = new Set([...Object.getOwnPropertyNames(source), "stack"]);
+      // DOMException (AbortError, TimeoutError, ...) serves `name` and `message` from prototype getters that read
+      // internal slots, and a class can do the same with #private fields. The clone has neither, so those getters
+      // throw on it. Copy such a property from the source like an own one.
+      for (const prop of ["name", "message"]) {
+        if (!props.has(prop) && throwsOnRead(clone, prop)) {
+          props.add(prop);
+        }
+      }
+      for (const prop of props) {
+        const builtIn = prop === "name" || prop === "message" || prop === "stack";
+        const descriptor = Object.getOwnPropertyDescriptor(source, prop);
+        let masked: unknown;
+        let removed = false;
+        if (!builtIn && ctx.keySet.has(caseInsensitive ? prop.toLowerCase() : prop)) {
+          masked = this.settings.mask.censor === "hash" ? this.hashToken(safeRead(source, prop)) : this.settings.mask.placeholder;
+        } else {
+          if (hasPaths) {
+            ctx.segmentStack.push(prop);
+          }
+          try {
+            if (hasPaths && this.matchesPath(ctx)) {
+              removed = this.settings.mask.censor === "remove";
+              masked = removed ? undefined : this.censorValue(safeRead(source, prop), ctx);
+            } else if (prop === "stack") {
+              const stack = safeRead(source, "stack");
+              masked = typeof stack === "string" ? this.maskStackHeader(stack, safeRead(source, "message"), ctx) : stack;
+            } else {
+              masked = this.recurseProperty(source, prop, ctx);
+            }
+          } finally {
+            if (hasPaths) {
+              ctx.segmentStack.pop();
+            }
+          }
+        }
+        // A property removed by `censor: "remove"` is left off the clone. `stack` still has to be set (see
+        // above), so it becomes `undefined`.
+        if (removed && prop !== "stack") {
+          continue;
+        }
+        // Always define a plain writable value. Copying a getter could hand back the unmasked value, and a
+        // frozen source must not produce a frozen clone. Only enumerability is copied, because it decides what
+        // `JSON.stringify(nativeError)` and the pretty message line (which joins own properties) show.
+        Object.defineProperty(clone, prop, { value: masked, enumerable: descriptor?.enumerable === true, writable: true, configurable: true });
+      }
+    } finally {
+      ctx.inProgress?.delete(source);
+    }
+    return clone;
+  }
+
+  /**
+   * Mask the header of a V8-style stack with `mask.regex` and leave the frames alone. Node, Bun, Deno,
+   * Chromium and Hermes start the stack with "<name>: <message>" and follow with "    at ..." frame lines,
+   * so the header repeats whatever secret the message had. The frames are skipped because a token or digit
+   * pattern would also hit chunk hashes and `line:col` positions. Firefox and Safari stacks have no header,
+   * only frames, so they come back unchanged.
+   */
+  private maskStackHeader(stack: string, message: unknown, ctx: MaskContext): string {
+    let headerEnd = stack.indexOf("\n    at ");
+    if (typeof message === "string" && message.length > 0) {
+      const messageStart = stack.indexOf(message);
+      const firstLineEnd = stack.indexOf("\n");
+      if (messageStart !== -1 && (firstLineEnd === -1 || messageStart < firstLineEnd)) {
+        // The header is "<name>: <message>", so a message that starts on the first line is the header's own.
+        // It can span several lines and even contain a frame-shaped line (a message that embeds another
+        // error's stack), so the frames begin at the first separator AFTER it. Without one the stack is all
+        // header (`Error.stackTraceLimit = 0`). A message that is not on the first line changed after V8
+        // formatted the header, and the first separator stays the boundary.
+        const framesStart = stack.indexOf("\n    at ", messageStart + message.length);
+        headerEnd = framesStart === -1 ? stack.length : framesStart;
+      }
+    }
+    if (headerEnd === -1) {
+      // Neither a header nor frame lines: a Firefox/Safari stack, which is all frames.
+      return stack;
+    }
+    return this.maskString(stack.slice(0, headerEnd), ctx) + stack.slice(headerEnd);
+  }
+}
+
+/** Read `source[prop]` without throwing. A getter or Proxy trap that throws yields `undefined`. */
+function safeRead(source: object, prop: string): unknown {
+  try {
+    return (source as Record<string, unknown>)[prop];
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether reading `target[prop]` throws, as a getter does when it needs internal state the target lacks. */
+function throwsOnRead(target: object, prop: string): boolean {
+  try {
+    Reflect.get(target, prop);
+    return false;
+  } catch {
+    return true;
   }
 }
 

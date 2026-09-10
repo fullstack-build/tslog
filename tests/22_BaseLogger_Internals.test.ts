@@ -305,13 +305,15 @@ describe("BaseLogger internals", () => {
     expect(result.name).toBe("Error");
   });
 
-  test("recursion guard recognizes error instances", () => {
+  test("recursion guard clones error instances instead of passing them through", () => {
     const logger = new Logger({ type: "json" });
     const engine = maskingEngineFor(logger);
 
     const error = new Error("boom");
     const result = engine.recursiveCloneAndMaskValuesOfKeys(error, []);
-    expect(result).toBe(error);
+    expect(result).not.toBe(error);
+    expect(result).toBeInstanceOf(Error);
+    expect(result.message).toBe("boom");
   });
 
   test("recursive masking clones error prototypes when encountered", () => {

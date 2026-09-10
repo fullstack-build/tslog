@@ -211,6 +211,35 @@ describe.runIf(isNode)("worker.runner (worker-thread side)", () => {
     expect(port.postMessage).toHaveBeenCalledWith({ type: "flushed", id: 99 });
   });
 
+  test("a flush still acks when the drain write throws, so the main thread's flush() never hangs", async () => {
+    const port = new FakePort();
+    const actualFs = await import("node:fs");
+    vi.resetModules();
+    vi.doMock("node:worker_threads", () => ({
+      parentPort: port,
+      workerData: { destination: "file", path: tmpLog(), eol: "\n", encoding: "utf8", append: true },
+    }));
+    vi.doMock("node:fs", () => ({
+      ...actualFs,
+      mkdirSync: () => undefined,
+      // A stream that takes lines but throws on the zero-length write drain() uses to wait for the queue.
+      createWriteStream: () => ({
+        write: (chunk: string) => {
+          if (chunk === "") {
+            throw new Error("stream broke");
+          }
+          return true;
+        },
+      }),
+    }));
+    await import(RUNNER);
+
+    port.emit("message", { type: "write", line: "queued" });
+    port.emit("message", { type: "flush", id: 5 });
+    await until(() => port.postMessage.mock.calls.length > 0, 10000, "flush ack");
+    expect(port.postMessage).toHaveBeenCalledWith({ type: "flushed", id: 5 });
+  });
+
   test("importing the runner with a null parentPort does not throw", async () => {
     vi.resetModules();
     vi.doMock("node:worker_threads", () => ({ parentPort: null, workerData: { destination: "stdout", eol: "\n", encoding: "utf8", append: true } }));

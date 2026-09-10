@@ -236,6 +236,7 @@ export function formatValue(ctx: ICtx, value: unknown, recurseTimes = 0): string
 
   // Some type of object without properties can be shortcutted.
   if (keys.length === 0) {
+    /* v8 ignore else -- stylize is always a function via the public inspect(); legacy port branch kept for structural fidelity */
     if (isFunction(ctx.stylize)) {
       if (isFunction(value)) {
         const name = value.name ? `: ${value.name}` : "";
@@ -250,7 +251,6 @@ export function formatValue(ctx: ICtx, value: unknown, recurseTimes = 0): string
       if (isError(value)) {
         return formatError(value as Error);
       }
-      /* v8 ignore next 3 -- stylize is always a function via the public inspect(); legacy port branch kept for structural fidelity */
     } else {
       return String(value);
     }

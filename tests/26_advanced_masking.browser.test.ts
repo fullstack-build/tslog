@@ -146,4 +146,50 @@ test.describe("Advanced masking (browser)", () => {
     );
     expect(result).toBe("<REDACTED>");
   });
+
+  test("mask.regex masks an error's message in the record and on the native handle", async ({ page }) => {
+    const result = await inPage<{ message: unknown; native: unknown; isError: boolean; original: unknown }>(
+      page,
+      { type: "hidden" },
+      `
+      const logger = new tslog.Logger({ ...settings, mask: { regex: [/SECRET_[0-9]+/] } });
+      const err = new Error("connecting to https://example.org/?key=SECRET_123456");
+      const logObj = logger.error(err);
+      return { message: logObj.message, native: logObj.nativeError.message, isError: logObj.nativeError instanceof Error, original: err.message };
+    `,
+    );
+    expect(result.message).toBe("connecting to https://example.org/?key=[***]");
+    expect(result.native).toBe("connecting to https://example.org/?key=[***]");
+    expect(result.isError).toBe(true);
+    expect(result.original).toBe("connecting to https://example.org/?key=SECRET_123456");
+  });
+
+  test("mask.keys masks own properties assigned to an error", async ({ page }) => {
+    const result = await inPage<{ token: unknown; nested: unknown; original: unknown }>(
+      page,
+      { type: "hidden", mask: { keys: ["token"] } },
+      `
+      const logger = new tslog.Logger(settings);
+      const err = Object.assign(new Error("boom"), { token: "t-1", extensions: { token: "t-2" } });
+      const logObj = logger.error(err);
+      return { token: logObj.nativeError.token, nested: logObj.nativeError.extensions.token, original: err.token };
+    `,
+    );
+    expect(result.token).toBe("[***]");
+    expect(result.nested).toBe("[***]");
+    expect(result.original).toBe("t-1");
+  });
+
+  test("a DOMException keeps its name and masked message", async ({ page }) => {
+    const result = await inPage<{ name: unknown; message: unknown; nativeName: unknown; isDomException: boolean }>(
+      page,
+      { type: "hidden" },
+      `
+      const logger = new tslog.Logger({ ...settings, mask: { regex: [/SECRET_[0-9]+/] } });
+      const logObj = logger.error(new DOMException("aborted key=SECRET_1", "AbortError"));
+      return { name: logObj.name, message: logObj.message, nativeName: logObj.nativeError.name, isDomException: logObj.nativeError instanceof DOMException };
+    `,
+    );
+    expect(result).toEqual({ name: "AbortError", message: "aborted key=[***]", nativeName: "AbortError", isDomException: true });
+  });
 });

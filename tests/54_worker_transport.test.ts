@@ -165,7 +165,8 @@ async function loadMocked(
 ): Promise<{ mod: WorkerModule; setup: MockSetup }> {
   const queue: FakeWorker[] = [];
   const workers: FakeWorker[] = [];
-  const ctor = vi.fn((_url: unknown, _o: unknown) => {
+  // The transport calls `new Worker(...)`, and Vitest 4 runs the implementation with `new`, so it cannot be an arrow.
+  const ctor = vi.fn(function (_url: unknown, _o: unknown) {
     const w = queue.shift() ?? new FakeWorker();
     workers.push(w);
     return w;
@@ -701,7 +702,7 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
   test("a spawn that rejects unexpectedly falls back to an inline write", async () => {
     const appended: Array<{ fd: unknown; chunk: unknown }> = [];
     // Make the Worker ctor throw so the spawn promise rejects → write's reject handler runs inlineWrite.
-    const throwingCtor = vi.fn(() => {
+    const throwingCtor = vi.fn(function () {
       throw new Error("spawn exploded");
     });
     const actualFs = await import("node:fs");
@@ -769,7 +770,11 @@ describe.runIf(isNode)("worker transport — main-thread logic (mocked worker_th
     // Mock node:url to throw so runnerFileExists's try/catch returns false; spawn still succeeds via eval.
     const actualFs = await import("node:fs");
     vi.resetModules();
-    vi.doMock("node:worker_threads", () => ({ Worker: vi.fn(() => new FakeWorker()) }));
+    vi.doMock("node:worker_threads", () => ({
+      Worker: vi.fn(function () {
+        return new FakeWorker();
+      }),
+    }));
     vi.doMock("node:fs", () => ({ ...actualFs }));
     vi.doMock("node:url", () => {
       throw new Error("no url module");

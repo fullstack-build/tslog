@@ -81,8 +81,8 @@ export function createNodeEnvironment(): EnvironmentProvider {
           AsyncLocalStorage: new <T>() => { run<R>(s: T, f: () => R): R; getStore(): T | undefined };
         };
         return createAsyncContextStore(AsyncLocalStorage);
-        /* v8 ignore next 3 -- defensive: node:async_hooks is always resolvable on Node; the probe fallback covers exotic loaders */
       } catch {
+        /* v8 ignore next -- defensive: node:async_hooks is always resolvable on Node; the probe fallback covers exotic loaders */
         return createAsyncContextStore();
       }
     },
