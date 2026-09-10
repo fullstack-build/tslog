@@ -186,6 +186,8 @@ describe("Masking leak fixes (shared references, cycles, regex flags, Map/Set)",
 
     const logObj = logger.info("cards 1111-2222 and 3333-4444");
     expect(logObj?.["0"]).toBe("cards [***] and [***]");
+    // The global variant is cached per regex; the next call reuses it and still masks every occurrence.
+    expect(logger.info("cards 5555-6666 and 7777-8888")?.["0"]).toBe("cards [***] and [***]");
   });
 
   test("a sticky-only mask regex is applied globally instead of masking nothing", () => {
@@ -575,6 +577,63 @@ describe("Masking inside errors", () => {
     const logObj = logger.error(err) as ErrorRecord;
     expect(logObj.message).toBe("key=[***]");
     expect(logObj.nativeError?.hostile).toBeNull();
+  });
+
+  test("a throwing getter matched by mask.paths is still censored, and the censor sees undefined", () => {
+    const seen: unknown[] = [];
+    const censor = (value: unknown) => {
+      seen.push(value);
+      return "[gone]";
+    };
+    const logger = new Logger({ type: "hidden", mask: { paths: ["hostile"], censor } });
+    const err = new Error("boom");
+    Object.defineProperty(err, "hostile", {
+      get() {
+        throw new Error("trap");
+      },
+      enumerable: true,
+      configurable: true,
+    });
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.nativeError?.hostile).toBe("[gone]");
+    expect(seen).toEqual([undefined]);
+  });
+
+  test("mask.caseInsensitive applies to an error's own properties", () => {
+    const logger = new Logger({ type: "hidden", mask: { keys: ["TOKEN"], caseInsensitive: true } });
+    const native = (logger.error(Object.assign(new Error("boom"), { token: "t-1", Token: "t-2" })) as ErrorRecord).nativeError;
+    expect(native?.token).toBe("[***]");
+    expect(native?.Token).toBe("[***]");
+  });
+
+  test('censor: "hash" gives a key-matched error property the same token as in a plain object', () => {
+    const logger = new Logger({ type: "hidden", mask: { keys: ["token"], censor: "hash" } });
+    const fromError = (logger.error(Object.assign(new Error("boom"), { token: "t-1" })) as ErrorRecord).nativeError?.token;
+    const fromObject = (logger.info({ token: "t-1" }) as Record<string, unknown>).token;
+    expect(fromError).toMatch(/^\[hash:[0-9a-f]{8}\]$/);
+    expect(fromError).toBe(fromObject);
+  });
+
+  test("an error without a stack string is masked and keeps no stack", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new Error("key=SECRET_1");
+    // V8 keeps `stack` as an own property, so deleting it leaves the error without any stack.
+    delete err.stack;
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(logObj.nativeError?.stack).toBeUndefined();
+  });
+
+  test('censor: "remove" drops a path-matched own property of an error and clears a matched stack', () => {
+    const logger = new Logger({ type: "hidden", mask: { paths: ["token", "stack"], censor: "remove" } });
+    const err = Object.assign(new Error("boom"), { token: "t-1", code: "E_AUTH" });
+    const native = (logger.error(err) as ErrorRecord).nativeError as Record<string, unknown>;
+    expect(Object.hasOwn(native, "token")).toBe(false);
+    expect(native.code).toBe("E_AUTH");
+    // `stack` cannot simply be left off: the clone would fall back to the frames of tslog's own `new Error()`.
+    expect(native.stack).toBeUndefined();
+    expect(err.token).toBe("t-1");
+    expect(err.stack).toContain("boom");
   });
 
   test("an error nested below the deepest mask.paths depth is still cloned and masked", () => {

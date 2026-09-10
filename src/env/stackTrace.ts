@@ -25,8 +25,8 @@ const OWN_DIR_MARKER: string | undefined = (() => {
     const path = url.replace(/^file:\/\//, "").replace(/[\\/]env[\\/]stackTrace\.[a-z]+(?:\?.*)?$/i, "");
     /* v8 ignore next -- unreachable under the Node ESM runner (our URL ends with env/stackTrace.<ext>); live in user bundles whose URL keeps path === url */
     return path === url ? undefined : path;
-    /* v8 ignore next 3 -- defensive: reading import.meta.url and the string replaces cannot throw in a real runtime */
   } catch {
+    /* v8 ignore next -- defensive: reading import.meta.url and the string replaces cannot throw in a real runtime */
     return undefined;
   }
 })();
