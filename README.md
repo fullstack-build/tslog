@@ -496,7 +496,12 @@ const log = new Logger({
 });
 ```
 
-Masking is leak-proof by construction: `regex` patterns are always applied **globally** (every occurrence in a string is redacted, whether or not you wrote the `g` flag), shared references and circular structures resolve to the same *masked* clone (a secret can never escape through a second reference to the same object), and `mask.keys` / `regex` also apply **inside `Map` and `Set`** contents (`mask.paths` does not descend into them).
+Masking is leak-proof by construction:
+
+- `regex` patterns are always applied **globally**: every occurrence in a string is redacted, whether or not you wrote the `g` flag.
+- Shared references and circular structures resolve to the same *masked* clone, so a secret can never escape through a second reference to the same object.
+- `keys` and `regex` also apply **inside `Map` and `Set`** contents (`paths` does not descend into them).
+- **Errors are masked like any other object.** A logged `Error`, top-level or nested, is replaced by a masked clone and the caller's instance stays untouched. `regex` covers the `message` and the `<name>: <message>` header of a V8-style stack, but never the frames, so a broad pattern cannot corrupt `line:col` positions. `keys`, `regex` and `paths` cover every other own property (`code`, `extensions`, ...) and the `cause` chain. `keys` skips `name`, `message` and `stack`, so `keys: ["name"]` does not blank every error, while `paths` can still target them (`paths: ["message"]`).
 
 The `censor` option controls *how* a **`paths`-matched** value is replaced (`keys`- and `regex`-matched values always use `placeholder`, with one exception below):
 
@@ -700,7 +705,7 @@ Error trackers and log platforms plug in as transports — no vendor-specific lo
 
 [Sentry](https://sentry.io) has two ingestion paths: **issues** (error tracking) and **[Sentry Logs](https://docs.sentry.io/platforms/javascript/guides/node/logs/)** (structured logs, searchable next to your traces). A tslog transport covers each — run one or both.
 
-**Errors → Sentry issues.** Forward `ERROR`/`FATAL` records while keeping your normal console/JSON output. The record a transport receives still carries the **native `Error` instance** (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain, proper issue grouping — not a stringified copy:
+**Errors → Sentry issues.** Forward `ERROR`/`FATAL` records while keeping your normal console/JSON output. The record a transport receives still carries the **native `Error` instance** (as `nativeError` on the serialized error), so Sentry gets the real exception — full stack and `cause` chain, proper issue grouping — not a stringified copy. With `mask` configured, `nativeError` is the masked clone: still a real `Error` with the same stack and `cause` chain, so grouping works and secrets stay out of Sentry too:
 
 ```typescript
 import * as Sentry from "@sentry/node";

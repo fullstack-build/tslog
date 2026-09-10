@@ -1,4 +1,9 @@
+import { runInNewContext } from "node:vm";
+import { MaskingEngine } from "../src/core/masking.js";
 import { Logger } from "../src/index.js";
+import type { ILogObjMeta } from "../src/interfaces.js";
+import { renderJson } from "../src/render/json.js";
+import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 
 describe("Advanced masking", () => {
   test("masks keys in deeply nested structure (5+ levels)", () => {
@@ -325,5 +330,268 @@ describe("Masking leak fixes (shared references, cycles, regex flags, Map/Set)",
     expect(((logObj?.a as Map<string, unknown>).get("k") as Record<string, unknown>)?.b).toBe("inside-map");
     // …while the same path outside the Map does not match "plain.b" either (different segments).
     expect((logObj?.plain as Record<string, unknown>)?.b).toBe("outside");
+  });
+});
+
+class HttpError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "HttpError";
+    this.status = status;
+  }
+}
+
+/** A subclass that cannot be constructed blindly: `new error.constructor()` without arguments throws. */
+class StatusError extends Error {
+  constructor(status: number) {
+    if (typeof status !== "number") {
+      throw new TypeError("StatusError needs a numeric status");
+    }
+    super(`status ${status} key=SECRET_777`);
+    this.name = "StatusError";
+  }
+}
+
+type AnyRecord = Record<string, unknown> & ILogObjMeta;
+type ErrorRecord = {
+  name?: string;
+  message?: string;
+  stack?: { fileName?: string; filePath?: string; fileLine?: string }[];
+  nativeError?: Error & Record<string, unknown>;
+  cause?: ErrorRecord;
+};
+
+describe("Masking inside errors", () => {
+  const SECRET = /SECRET_[0-9]+/;
+
+  // Issue #361: a secret inside an Error is masked the same way as in a string argument.
+  test("mask.regex masks an error's message in the record, the JSON line and the native handle", () => {
+    const logger = new Logger<AnyRecord>({ type: "hidden", mask: { regex: [SECRET] } });
+    const record = logger.error(new Error("connecting to https://example.org/?key=SECRET_123456")) as AnyRecord;
+    const logObj = record as ErrorRecord;
+    expect(logObj.message).toBe("connecting to https://example.org/?key=[***]");
+    expect(logObj.nativeError?.message).toBe("connecting to https://example.org/?key=[***]");
+
+    const line = renderJson(record, logger.settings);
+    expect(line).toContain('"message":"connecting to https://example.org/?key=[***]"');
+    expect(line).not.toContain("SECRET_123456");
+  });
+
+  test("the pretty error block carries the masked message and own properties", () => {
+    mockConsoleLog(true);
+    const logger = new Logger({ type: "pretty", pretty: { style: false }, mask: { regex: [SECRET], keys: ["token"] } });
+    const err = Object.assign(new Error("connecting to https://example.org/?key=SECRET_123456"), { token: "SECRET_999" });
+    logger.error(err);
+
+    const out = getConsoleLogStripped();
+    expect(out).toContain("connecting to https://example.org/?key=[***]");
+    expect(out).not.toContain("SECRET_123456");
+    expect(out).not.toContain("SECRET_999");
+  });
+
+  // Issue #214: properties assigned onto an error are masked too, since they show in pretty output and reach transports.
+  test("mask.keys masks own properties assigned to an error, nested included", () => {
+    const logger = new Logger({ type: "hidden", mask: { keys: ["token", "phoneNumber"] } });
+    const err = Object.assign(new Error("boom"), { token: "t-1", extensions: { serviceName: "upstream", variables: { phoneNumber: "555" } } });
+    const native = (logger.error(err) as ErrorRecord).nativeError as Record<string, unknown>;
+    const extensions = native.extensions as Record<string, Record<string, unknown>>;
+    expect(native.token).toBe("[***]");
+    expect(extensions.variables.phoneNumber).toBe("[***]");
+    expect(extensions.serviceName).toBe("upstream");
+    // The caller's error is untouched.
+    expect(err.token).toBe("t-1");
+    expect(err.extensions.variables.phoneNumber).toBe("555");
+  });
+
+  test("the cause chain is masked, for Error and string causes", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const outer = new Error("outer", { cause: new Error("inner key=SECRET_1", { cause: "root key=SECRET_2" }) });
+    const logObj = logger.error(outer) as ErrorRecord;
+    expect(logObj.message).toBe("outer");
+    expect(logObj.cause?.message).toBe("inner key=[***]");
+    expect(logObj.cause?.cause?.message).toBe("root key=[***]");
+  });
+
+  test("mask.keys never touches name/message/stack, while mask.paths can censor them", () => {
+    const keyed = new Logger({ type: "hidden", mask: { keys: ["name", "message", "stack", "status"] } });
+    const byKeys = keyed.error(new HttpError("Not Found", 404)) as ErrorRecord;
+    expect(byKeys.name).toBe("HttpError");
+    expect(byKeys.message).toBe("Not Found");
+    expect(byKeys.stack?.length).toBeGreaterThan(0);
+    // An own property of the same error is still masked by key.
+    expect(byKeys.nativeError?.status).toBe("[***]");
+
+    const pathed = new Logger({ type: "hidden", mask: { paths: ["message"] } });
+    const byPath = pathed.error(new HttpError("Not Found", 404)) as ErrorRecord;
+    expect(byPath.message).toBe("[***]");
+    expect(byPath.name).toBe("HttpError");
+  });
+
+  test("the caller's error is never mutated and the clone keeps the subclass", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new HttpError("key=SECRET_1", 404);
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(err.message).toBe("key=SECRET_1");
+    expect(logObj.nativeError).not.toBe(err);
+    expect(logObj.nativeError).toBeInstanceOf(HttpError);
+    expect(logObj.nativeError?.name).toBe("HttpError");
+    expect(logObj.nativeError?.status).toBe(404);
+  });
+
+  test("an Error subclass whose constructor requires arguments is cloned without running it", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const logObj = logger.error(new StatusError(503)) as ErrorRecord;
+    expect(logObj.message).toBe("status 503 key=[***]");
+    expect(logObj.nativeError).toBeInstanceOf(StatusError);
+  });
+
+  test("the message repeated in the stack header is masked too", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    // With a name other than `Error` the header line survives stack sanitizing, and the " at " in the message
+    // makes the parser read it as a frame. So the secret would land in the parsed `stack` array as well.
+    const logObj = logger.error(new TypeError("failed at https://example.org/?key=SECRET_1")) as ErrorRecord;
+    expect(logObj.message).toBe("failed at https://example.org/?key=[***]");
+    expect(logObj.nativeError?.stack).not.toContain("SECRET_1");
+    expect(JSON.stringify(logObj.stack)).not.toContain("SECRET_1");
+  });
+
+  test("stack frames still parse after masking (frames are not regex-masked)", () => {
+    // A digit pattern would mangle every `line:col` if it ran over the stack string.
+    const logger = new Logger({ type: "hidden", mask: { regex: [/[0-9]{3,}/] } });
+    const logObj = logger.error(new Error("key=123456")) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(logObj.stack?.[0]?.fileName).toBe("26_advanced_masking.test.ts");
+    expect(logObj.stack?.[0]?.fileLine).toMatch(/^[0-9]+$/);
+  });
+
+  test("a masked message that also occurs in the frame paths leaves the frames alone", () => {
+    // Every frame of this file has "tests" in its path. Only the header may change, the paths must stay.
+    const logger = new Logger({ type: "hidden", mask: { regex: [/tests/] } });
+    const logObj = logger.error(new Error("tests")) as ErrorRecord;
+    expect(logObj.message).toBe("[***]");
+    expect(logObj.nativeError?.stack?.split("\n")[0]).toBe("Error: [***]");
+    expect(logObj.stack?.[0]?.fileName).toBe("26_advanced_masking.test.ts");
+    expect(logObj.stack?.[0]?.filePath).toMatch(/tests\/26_advanced_masking\.test\.ts$/);
+  });
+
+  test("a stack header formatted before the message changed is masked too", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new Error("key=SECRET_1");
+    // V8 formats the header on the first read of `stack` and keeps that text afterwards.
+    expect(err.stack).toContain("SECRET_1");
+    err.message = "sanitized";
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("sanitized");
+    expect(logObj.nativeError?.stack?.split("\n")[0]).toBe("Error: key=[***]");
+  });
+
+  test("a frameless V8 stack is masked as a whole", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new Error("key=SECRET_1");
+    // This is what V8 produces under `Error.stackTraceLimit = 0`. Bun gives no stack at all there, so the
+    // string is set by hand.
+    err.stack = "Error: key=SECRET_1";
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.nativeError?.stack).toBe("Error: key=[***]");
+  });
+
+  test("a frames-only stack (Firefox, Safari) is left untouched", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [/[0-9]{3,}/] } });
+    const err = new Error("key=123456");
+    err.stack = "handler@https://example.org/app.3f9a8c1.js:120:4567\n@https://example.org/app.3f9a8c1.js:1:1";
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(logObj.nativeError?.stack).toBe(err.stack);
+  });
+
+  test("a cross-realm error is cloned as a real Error", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = runInNewContext("new Error('key=SECRET_1')") as Error;
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(Object.prototype.toString.call(logObj.nativeError)).toBe("[object Error]");
+  });
+
+  test("a DOMException keeps its name and message, which it serves from getters the clone cannot answer", () => {
+    // `fetch` and AbortController reject with these. Their `name`/`message` getters read internal slots.
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const logObj = logger.error(new DOMException("aborted key=SECRET_1", "AbortError")) as ErrorRecord;
+    expect(logObj.name).toBe("AbortError");
+    expect(logObj.message).toBe("aborted key=[***]");
+    expect(logObj.nativeError).toBeInstanceOf(DOMException);
+    expect(logObj.nativeError?.name).toBe("AbortError");
+    expect(logObj.nativeError?.message).toBe("aborted key=[***]");
+
+    // The copied `message` goes through the same masking as an own one, so `mask.paths` reaches it.
+    const pathed = new Logger({ type: "hidden", mask: { paths: ["message"] } });
+    expect((pathed.error(new DOMException("aborted", "AbortError")) as ErrorRecord).message).toBe("[***]");
+  });
+
+  test("an error that references itself through an own property resolves to one masked clone", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const engine = new MaskingEngine(logger.settings, { isError: (value): value is Error => value instanceof Error, isBuffer: () => false });
+    const err = new Error("key=SECRET_1") as Error & { self?: unknown };
+    err.self = err;
+    const [out] = engine.mask([err]) as (Error & { self?: unknown })[];
+    expect(out).not.toBe(err);
+    expect(out.message).toBe("key=[***]");
+    expect(out.self).toBe(out);
+  });
+
+  // Issue #217: read-only own properties on an Error must not break the masking clone.
+  test("read-only and frozen own properties on an error neither throw nor escape masking", () => {
+    const logger = new Logger({ type: "hidden", mask: { keys: ["token"] } });
+    const err = new Error("boom");
+    Object.defineProperty(err, "token", { value: "t-1", writable: false, enumerable: true, configurable: false });
+    Object.defineProperty(err, "kept", { value: "keep", writable: false, enumerable: true, configurable: false });
+    Object.freeze(err);
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.nativeError?.token).toBe("[***]");
+    expect(logObj.nativeError?.kept).toBe("keep");
+    expect(logObj.message).toBe("boom");
+  });
+
+  // Issue #234: some SDK errors expose `message` through a getter only.
+  test("a getter-only message is read through the getter and masked on the clone", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new Error("placeholder");
+    Object.defineProperty(err, "message", { get: () => "key=SECRET_1", enumerable: false, configurable: true });
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(logObj.nativeError?.message).toBe("key=[***]");
+  });
+
+  test("a throwing getter on an error's own property yields null, like on a plain object, instead of throwing", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const err = new Error("key=SECRET_1");
+    Object.defineProperty(err, "hostile", {
+      get() {
+        throw new Error("trap");
+      },
+      enumerable: true,
+      configurable: true,
+    });
+    const logObj = logger.error(err) as ErrorRecord;
+    expect(logObj.message).toBe("key=[***]");
+    expect(logObj.nativeError?.hostile).toBeNull();
+  });
+
+  test("an error nested below the deepest mask.paths depth is still cloned and masked", () => {
+    // At `wrap.err` no configured path can match any more, so the engine may reuse the clone for the second
+    // reference instead of cloning again.
+    const logger = new Logger({ type: "hidden", mask: { paths: ["wrap.other"], regex: [SECRET] } });
+    const err = new Error("key=SECRET_1");
+    const logObj = logger.info({ wrap: { err, again: err } }) as Record<string, Record<string, ErrorRecord>>;
+    expect(logObj.wrap.err.message).toBe("key=[***]");
+    expect(logObj.wrap.again).toBe(logObj.wrap.err);
+    expect(err.message).toBe("key=SECRET_1");
+  });
+
+  test("the clone keeps message and stack non-enumerable, so JSON.stringify(nativeError) is unchanged", () => {
+    const logger = new Logger({ type: "hidden", mask: { regex: [SECRET] } });
+    const logObj = logger.error(new Error("key=SECRET_1")) as ErrorRecord;
+    expect(JSON.stringify(logObj.nativeError)).toBe("{}");
+    expect(Object.keys(logObj.nativeError ?? {})).toEqual([]);
   });
 });

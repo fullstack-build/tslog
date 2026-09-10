@@ -49,7 +49,8 @@ const PROBES = [
   {
     name: "tslog (browser entry, Logger, json)",
     // 21_500 -> 21_800: ansiToCssConsoleFormat (errors rendered as %c CSS on the browser console path).
-    budgetGzipBytes: 21_800,
+    // 21_800 -> 22_200: MaskingEngine.maskError (logged Errors are cloned and masked instead of passed through).
+    budgetGzipBytes: 22_200,
     entry: `
       import { Logger } from "${entryPath("src/index.browser.ts")}";
       const log = new Logger({ type: "json" });
