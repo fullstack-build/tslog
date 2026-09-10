@@ -16,6 +16,7 @@ test("Server and Page initiated", async ({ page }) => {
 });
 
 test("silly", async ({ page }) => {
+  const before = Date.now();
   await page.evaluate(() => {
     // v5/M3a: with type "json" the env-aware default resolves stack.capture to "off", so _logMeta.path is
     // no longer populated by default. This test asserts the captured path object, so opt into full stack
@@ -24,6 +25,7 @@ test("silly", async ({ page }) => {
     const logger = new tslog.Logger({ type: "json", stack: { capture: "full" } });
     logger.silly("Test");
   });
+  const after = Date.now();
 
   const combined = consoleMessages.join("\n");
   // v5 flat shape: a bare string lands under the top-level "message" key (M2.1/M2.2),
@@ -31,15 +33,23 @@ test("silly", async ({ page }) => {
   expect(combined).toContain('"message":"Test"');
   expect(combined).toContain('"level":"SILLY"');
   expect(combined).toContain('"levelId":0');
-  expect(combined).toContain(`"time":"${new Date().toISOString().split("T")[0]}`); // ignore time
   // runtime meta still nested under _logMeta, which now also carries the schema version v: 5.
   expect(combined).toContain('"_logMeta":{');
   expect(combined).toContain('"v":5');
   expect(combined).toContain('"runtime":"browser"');
-  expect(combined).toContain(`"date":"${new Date().toISOString().split(".")[0]}`); // ignore ms
   expect(combined).toContain('"logLevelId":0');
   expect(combined).toContain('"logLevelName":"SILLY"');
   expect(combined).toContain('"path":{');
+
+  // The page stamps the line, so check that both timestamps fall within the call. Comparing them to "now"
+  // to the second failed whenever the round trip crossed a second boundary. The slack covers browsers that
+  // coarsen their clock.
+  const line = JSON.parse(consoleMessages.find((msg) => msg.includes('"message":"Test"')) ?? "{}") as { time?: string; _logMeta?: { date?: string } };
+  for (const stamp of [line.time, line._logMeta?.date]) {
+    expect(stamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    expect(Date.parse(stamp as string)).toBeGreaterThanOrEqual(before - 1000);
+    expect(Date.parse(stamp as string)).toBeLessThanOrEqual(after + 1000);
+  }
 });
 
 test("pretty", async ({ page }) => {
