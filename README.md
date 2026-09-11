@@ -532,6 +532,8 @@ interface Transport<LogObj> {
 }
 ```
 
+`line` is the record rendered in the transport's `format` (the logger's `type` when unset; `json` for `hidden`). A `"pretty"` line is always plain text: the ANSI colors a TTY console gets never reach a file, HTTP or buffer sink.
+
 `attachTransport` accepts a full `Transport` object **or** a bare function, and **returns a detach function**:
 
 ```typescript

@@ -58,8 +58,9 @@ export interface EnvironmentProvider {
    * Build the plain-text pretty log line (meta markup + inspected args + rendered errors) as a string,
    * WITHOUT writing it anywhere. This is the runtime-agnostic "prettyFormat path" the format pipeline's
    * `pretty()` stage delegates to so attached transports and per-transport `format: "pretty"` get a
-   * pretty line. ANSI styling follows `settings.pretty.style`; browser CSS `%c` styling is NOT applied
-   * here (that is exclusive to the live console via {@link transportFormatted}).
+   * pretty line. ANSI styling follows `settings.pretty.style` (the `pretty()` stage passes it off, so
+   * transport lines are always plain; the `tslog` CLI passes it through); browser CSS `%c` styling is NOT
+   * applied here (that is exclusive to the live console via {@link transportFormatted}).
    *
    * @param maskedArgs - the masked log arguments (errors are split out and rendered into the line).
    * @param meta - the record's {@link IMeta} block (drives the meta markup and the log-level method).

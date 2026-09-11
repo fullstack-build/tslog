@@ -292,6 +292,9 @@ log.info("ready");
 // the buffered file output is flushed when the `await using` scope ends
 ```
 
+Prefer a human-readable file? Use `format: "pretty"`: transport lines are always plain text, so the file
+never picks up the console's ANSI colors.
+
 Built-in exit safety: the file transport registers guarded exit hooks by default (`exitHooks: false`
 opts out) — an async flush on `beforeExit` and a synchronous drain on `exit`, so even a bare
 `process.exit(0)` or an uncaught exception does not lose the buffered tail. fs errors (disk full,
