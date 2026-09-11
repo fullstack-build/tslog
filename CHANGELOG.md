@@ -15,6 +15,7 @@ All notable changes to this project are documented here. This project adheres to
 - **Worker transport `flush()` after a failed spawn** — when `new Worker()` threw, every write already went inline, yet each later `flush()` rejected with the spawn error (and `logger.flush()` reported a transport error every time). It now resolves like the off-Node inline path.
 - **`restoreConsole()` on a partial console** — a method the console did not have before `wrapConsole()` is put back to `undefined` instead of leaving tslog's forwarder installed.
 - **Masking inside errors** — a secret in an error's message, in a property assigned to the error or down the `cause` chain no longer reaches the JSON line, the pretty error block or `nativeError` in plaintext. `mask.regex` covers the message and the `<name>: <message>` header of a V8 stack (frames are left alone, so a broad pattern cannot corrupt positions), `mask.keys`/`regex`/`paths` cover every other own property and the whole `cause` chain. `name`, `message` and `stack` are exempt from `mask.keys`, so `keys: ["name"]` does not blank every error, while `mask.paths` can still target them. (#214, #361)
+- **No ANSI colors in transport output** — on an interactive terminal the pretty line handed to attached transports carried the console's ANSI escape codes, so a `fileTransport` (or an HTTP / ring-buffer sink) on a pretty logger wrote color codes into the log. A transport's `"pretty"` line is now always plain text; the console stays colored. (#375)
 
 ## [5.1.0] - 2026-07-17
 

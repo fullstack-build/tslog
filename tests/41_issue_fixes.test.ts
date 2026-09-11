@@ -1,10 +1,14 @@
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { createUniversalEnvironment } from "../src/env/environment.universal.js";
 import { Logger } from "../src/index.js";
 import type { IMeta } from "../src/interfaces.js";
 import { consoleSupportsCssStyling, isWorkerEnvironment } from "../src/internal/environment.js";
 import { buildPrettyMeta } from "../src/internal/metaFormatting.js";
 import { inspect } from "../src/render/inspect.polyfill.js";
-import { getConsoleLogStripped, mockConsoleLog } from "./helper.js";
+import { fileTransport } from "../src/subpaths/transports/file.js";
+import { getConsoleLog, getConsoleLogStripped, mockConsoleLog } from "./helper.js";
 
 // Regression tests for fixed GitHub issues. Each assertion fails against the pre-fix code.
 
@@ -158,5 +162,59 @@ describe("#262: Web Workers are treated as CSS-capable consoles", () => {
     delete globalAny.importScripts;
     delete globalAny.CSS;
     expect(consoleSupportsCssStyling()).toBe(false);
+  });
+});
+
+describe("#375: pretty transport lines carry no ANSI escapes, even when the console is styled", () => {
+  // `pretty.style: true` is what a logger resolves to on an interactive TTY.
+  const styled = () => new Logger({ type: "pretty", stack: { capture: "off" }, pretty: { style: true, passObjectsNatively: false } });
+
+  test("an attached transport gets a plain line while the console stays colored", () => {
+    mockConsoleLog(true, false);
+    const logger = styled();
+    const lines: string[] = [];
+    logger.attachTransport({ write: (_record, line) => lines.push(line) });
+    logger.error("payment failed", { orderId: 7 }, new Error("card declined"));
+
+    expect(lines).toHaveLength(1);
+    expect(lines[0]).not.toContain("\u001b");
+    expect(lines[0]).toContain("ERROR");
+    expect(lines[0]).toContain("payment failed");
+    expect(lines[0]).toContain("orderId: 7");
+    expect(lines[0]).toContain("card declined");
+    expect(getConsoleLog()).toContain("\u001b[");
+
+    // Rendering the plain transport line must not switch the logger's own console styling off.
+    mockConsoleLog(true, false);
+    logger.info("again", { a: 1 });
+    expect(logger.settings.pretty.style).toBe(true);
+    expect(logger.settings.pretty.inspectOptions.colors).toBe(true);
+    expect(getConsoleLog()).toContain("\u001b[33m1\u001b[39m");
+  });
+
+  test("an explicit per-transport format: 'pretty' is plain too", () => {
+    const logger = new Logger({ type: "hidden", stack: { capture: "off" }, pretty: { style: true } });
+    const lines: string[] = [];
+    logger.attachTransport({ format: "pretty", write: (_record, line) => lines.push(line) });
+    logger.info("hello", { a: 1 });
+
+    expect(lines[0]).toContain("hello");
+    expect(lines[0]).not.toContain("\u001b");
+  });
+
+  test("fileTransport writes an uncolored pretty file (the reported setup)", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "tslog-375-"));
+    const path = join(dir, "app.log");
+    mockConsoleLog(true, false);
+    const logger = styled();
+    const file = fileTransport({ path, exitHooks: false });
+    logger.attachTransport(file);
+    logger.info("written to disk", { a: 1 });
+    await file[Symbol.asyncDispose]();
+
+    const contents = await readFile(path, "utf8");
+    await rm(dir, { recursive: true, force: true });
+    expect(contents).toContain("written to disk");
+    expect(contents).not.toContain("\u001b");
   });
 });

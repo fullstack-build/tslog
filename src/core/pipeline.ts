@@ -117,8 +117,10 @@ export function json<LogObj>(): FormatStage<LogObj> {
  * meta markup, error rendering, and ANSI handling, so all runtimes share one implementation.
  *
  * This stage produces the plain-text pretty line used by attached transports and per-transport
- * `format: "pretty"`. The live console (which may add browser CSS `%c` styling) is still driven by the
- * provider's `transportFormatted` from the core.
+ * `format: "pretty"`. The line is always rendered WITHOUT ANSI styling, whatever `pretty.style` says:
+ * `style` follows the console (an interactive TTY), while transports write to files, HTTP endpoints and
+ * buffers where escape codes are noise. The live console (ANSI, or browser CSS `%c` styling) is still
+ * driven by the provider's `transportFormatted` from the core.
  *
  * @param provider - the runtime environment provider (Node, browser, or universal).
  * @example
@@ -128,8 +130,20 @@ export function pretty<LogObj>(provider: EnvironmentProvider): FormatStage<LogOb
   return (record, settings) => {
     const meta = record[settings.meta.property] as unknown as IMeta | undefined;
     const maskedArgs = getMaskedArgs(record, settings.meta.property);
-    return provider.prettyFormatLine(maskedArgs, meta, settings);
+    return provider.prettyFormatLine(maskedArgs, meta, unstyled(settings));
   };
+}
+
+/**
+ * A view of `settings` with pretty styling off, for the {@link pretty} stage. Built per call (not cached)
+ * so later `logger.settings.pretty` changes are always honored; `inspectOptions` is copied because
+ * `prettyFormatLine` writes `colors` into it, and the console path must keep its own value.
+ */
+function unstyled<LogObj>(settings: ISettings<LogObj>): ISettings<LogObj> {
+  if (settings.pretty.style === false) {
+    return settings;
+  }
+  return { ...settings, pretty: { ...settings.pretty, style: false, inspectOptions: { ...settings.pretty.inspectOptions } } };
 }
 
 /**
