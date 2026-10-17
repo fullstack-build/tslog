@@ -1,3 +1,4 @@
+import { KNOWN_PRETTY_PLACEHOLDERS } from "../core/settings.js";
 import { formatNumberAddZeros } from "../formatNumberAddZeros.js";
 import { formatTemplate } from "../formatTemplate.js";
 import type { IMeta, ISettings } from "../interfaces.js";
@@ -18,7 +19,7 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   }
 
   let template = settings.pretty.template;
-  const placeholderValues: Record<string, string | number> = {};
+  const placeholderValues: Record<string, string | number> = Object.create(null);
 
   // Middleware (or a hostile clock) can smuggle a non-Date or an Invalid Date into meta.date. The
   // JSON path renders those as an honest marker; the pretty path must degrade the same way instead of
@@ -90,6 +91,20 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   placeholderValues.name = combinedName;
   placeholderValues.nameWithDelimiterPrefix = combinedName.length > 0 ? settings.pretty.errorLoggerNameDelimiter + combinedName : "";
   placeholderValues.nameWithDelimiterSuffix = combinedName.length > 0 ? combinedName + settings.pretty.errorLoggerNameDelimiter : "";
+
+  // Resolve custom values before either ANSI or CSS rendering. Never inspect formatted output.
+  for (const [key, callback] of Object.entries(settings.pretty.placeholders)) {
+    if (KNOWN_PRETTY_PLACEHOLDERS.has(key) || typeof callback !== "function" || !template.includes(`{{${key}}}`)) {
+      continue;
+    }
+    try {
+      const value = callback(meta, settings.pretty);
+      placeholderValues[key] = typeof value === "string" ? value : "";
+    } catch {
+      // A display extension must not prevent the original log from reaching its sinks.
+      placeholderValues[key] = "";
+    }
+  }
 
   return {
     text: formatTemplate(settings, template, placeholderValues),

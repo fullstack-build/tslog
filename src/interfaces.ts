@@ -393,6 +393,15 @@ export interface IPrettySettings {
    */
   template?: string;
   /**
+   * Synchronous values for custom tokens in `pretty.template`, styled through `pretty.styles`.
+   * Built-in token names are reserved. Only referenced tokens are evaluated; callbacks must be pure
+   * (a record may be formatted more than once). A thrown callback renders an empty value.
+   * This does not extend error templates or add fields to JSON records.
+   * @example { template: "{{shortTime}} {{logLevelName}} ", placeholders: { shortTime: meta => meta.date.toISOString().slice(11, 23) } }
+   */
+  placeholders?: Record<string, (meta: Readonly<IMeta>, pretty: Readonly<IResolvedPrettySettings>) => string>;
+
+  /**
    * Template for the error header (name + message) when an `Error` is logged in pretty mode.
    * @example { pretty: { errorTemplate: "\n{{errorName}} {{errorMessage}}\n{{errorStack}}" } }
    */
@@ -444,6 +453,8 @@ export interface IPrettySettings {
 }
 
 export interface IPrettyLogStyles {
+  /** Styles for built-in and registered custom pretty placeholders. */
+  [placeholder: string]: TStyle | undefined;
   yyyy?: TStyle;
   mm?: TStyle;
   dd?: TStyle;

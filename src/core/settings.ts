@@ -77,6 +77,7 @@ const KNOWN_GROUP_KEYS: Record<string, Set<string>> = {
   pretty: new Set([
     "enabled",
     "template",
+    "placeholders",
     "errorTemplate",
     "errorStackTemplate",
     "errorParentNamesSeparator",
@@ -362,6 +363,29 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
     }
   }
 
+  const customPlaceholders = settings.pretty?.placeholders;
+  if (customPlaceholders != null) {
+    if (typeof customPlaceholders !== "object" || Array.isArray(customPlaceholders)) {
+      report({
+        code: "INVALID_PRETTY_PLACEHOLDER",
+        setting: "pretty.placeholders",
+        message: "pretty.placeholders must be a map of callbacks.",
+        suggestion: "Use an object mapping token names to synchronous string-returning functions.",
+      });
+    } else {
+      for (const [key, callback] of Object.entries(customPlaceholders)) {
+        if (!key || /[{}\s]/.test(key) || KNOWN_PRETTY_PLACEHOLDERS.has(key) || typeof callback !== "function") {
+          report({
+            code: "INVALID_PRETTY_PLACEHOLDER",
+            setting: `pretty.placeholders.${key}`,
+            message: `Invalid custom pretty placeholder "${key}".`,
+            suggestion: "Use a non-reserved token name without whitespace/braces and a synchronous string-returning callback.",
+          });
+        }
+      }
+    }
+  }
+
   // Unknown template placeholders (typos like {{loglevelname}}).
   const template = settings.pretty?.template;
   if (typeof template === "string") {
@@ -370,7 +394,7 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
     while ((match = placeholderRegex.exec(template)) != null) {
       const key = match[1];
-      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key)) {
+      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key) && !(Object.hasOwn(customPlaceholders ?? {}, key) && typeof customPlaceholders?.[key] === "function")) {
         report({
           code: "UNKNOWN_PRETTY_PLACEHOLDER",
           setting: "pretty.template",
@@ -470,6 +494,7 @@ export function normalizeSettings<LogObj>(settings?: ISettingsParam<LogObj>): IS
     persistLevel: settings?.persistLevel,
     persistLevelKey: settings?.persistLevelKey,
     pretty: {
+      placeholders: settings?.pretty?.placeholders ?? {},
       template:
         settings?.pretty?.template ?? "{{yyyy}}.{{mm}}.{{dd}} {{hh}}:{{MM}}:{{ss}}:{{ms}}\t{{logLevelName}}\t{{filePathWithLine}}{{nameWithDelimiterPrefix}}\t",
       errorTemplate: settings?.pretty?.errorTemplate ?? "\n{{errorName}} {{errorMessage}}\nerror stack:\n{{errorStack}}",
