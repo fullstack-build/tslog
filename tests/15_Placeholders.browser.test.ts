@@ -5,11 +5,6 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/", { waitUntil: "load" });
 });
 
-// The v4 test "It supports adding custom placeholders" relied on settings.overwrite.addPlaceholders,
-// which is removed in v5 (M2.6). The pretty placeholder set is now fixed (built in metaFormatting from
-// _logMeta) with no hook to inject arbitrary {{custom}} placeholders. Mirroring the Node migration, the
-// intent (placeholder rendering into the pretty template) is preserved with the built-in placeholders.
-
 test.describe("Placeholders (browser)", () => {
   test("renders the built-in logLevelName placeholder into the pretty template", async ({ page }) => {
     const { combined } = await captureConsole(
@@ -43,4 +38,35 @@ test.describe("Placeholders (browser)", () => {
     expect(combined).toContain("{{custom}}");
     expect(combined).toContain("message");
   });
+});
+
+test("custom tokens use native CSS styling and preserve object arguments after template changes", async ({ page }) => {
+  const { calls, returnValue } = await captureConsole(
+    page,
+    {},
+    `
+    const payload = { items: [1, 2] };
+    const logger = new tslog.Logger({
+      strictConfig: true,
+      clock: () => new Date("2026-10-17T01:02:03.004Z"),
+      pretty: {
+        style: true, passObjectsNatively: true,
+        template: "[{{logLevelName}}] {{shortTime}} ",
+        placeholders: { shortTime: meta => meta.date.toISOString().slice(11, 23) },
+        styles: { shortTime: "blackBright" },
+      },
+    });
+    const record = logger.info("response", payload);
+    logger.settings.pretty.template = "{{shortTime}} -- {{logLevelName}} ";
+    logger.info("second", payload);
+    return { unchanged: payload.items.length === 2, hasCustomField: "shortTime" in record };
+  `,
+  );
+  expect(calls[0][0]).toBe("[INFO] %c01:02:03.004%c ");
+  expect(calls[0][1]).toContain("color:");
+  expect(calls[0][2]).toBe("");
+  expect(calls[0][3]).toBe("response");
+  expect(calls[0][4]).toEqual({ items: [1, 2] });
+  expect(calls[1][0]).toBe("%c01:02:03.004%c -- INFO ");
+  expect(returnValue).toEqual({ unchanged: true, hasCustomField: false });
 });

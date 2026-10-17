@@ -810,6 +810,27 @@ The transport batches, retries with exponential backoff, bounds every request wi
 
 Pretty output is configured entirely under the `pretty` group. Templates use `{{placeholder}}` tokens and per-placeholder styles.
 
+Custom pretty tokens can be provided through `pretty.placeholders` without replacing the native formatter:
+
+```ts
+const log = new Logger({
+  pretty: {
+    template: "{{shortTime}} {{logLevelName}} ",
+    placeholders: { shortTime: (meta) => meta.date.toISOString().slice(11, 23) },
+    styles: { shortTime: "blackBright" },
+  },
+});
+```
+
+This example uses UTC. Callbacks receive `(meta, pretty)`; use `pretty.timeZone` when implementing
+local/UTC-sensitive values. Names of built-in tokens are reserved. Child loggers merge callback maps
+(child names win). Only tokens referenced in `pretty.template` are evaluated, once per token per
+formatting pass; callbacks must be pure because one record may be formatted multiple times. A thrown
+callback or non-string result renders an empty value. ANSI and browser CSS styling use the same token
+values, so punctuation inside a custom value is styled as a unit. This does not extend error templates
+or add fields to JSON output. `strictConfig: true` rejects invalid callback maps and reserved names.
+
+
 ```typescript
 const log = new Logger({
   type: "pretty",

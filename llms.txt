@@ -69,3 +69,5 @@ On Node, json lines go through a buffered stdout sink (batched `process.stdout.w
 ## Links
 - Recipes: ./RECIPES.md
 - Repo: https://github.com/fullstack-build/tslog
+
+- `pretty.placeholders: Record<string, (meta: Readonly<IMeta>, pretty: Readonly<IResolvedPrettySettings>) => string>` registers custom tokens in `pretty.template` (not error templates). Apply styles via `pretty.styles[token]`. Built-in names are reserved; child maps merge with child callbacks winning. Only referenced tokens run; callbacks must be pure and may run in multiple formatting passes. Thrown callbacks/non-string values render empty. Custom values do not enter JSON records. Example: `pretty: { template: "{{shortTime}} {{logLevelName}} ", placeholders: { shortTime: meta => meta.date.toISOString().slice(11, 23) }, styles: { shortTime: "blackBright" } }` (UTC).
