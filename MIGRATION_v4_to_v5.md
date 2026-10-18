@@ -261,7 +261,7 @@ cleanly into two well-defined extension points:
 | `overwrite.mask(args)` | A `middleware` that rewrites `ctx.args`, or the built-in `mask` group / `serialize()` middleware. |
 | `overwrite.toLogObj(args, logObj)` | A `middleware` that rewrites `ctx.args` into the shape you want. |
 | `overwrite.addMeta(logObj, id, name)` | A `middleware` that writes onto `ctx.meta` (attached under `_logMeta`). |
-| `overwrite.addPlaceholders(meta, values)` | A `middleware` that stashes values on `ctx.meta` for a formatter to read. |
+| `overwrite.addPlaceholders(meta, values)` | `pretty.placeholders` for custom pretty-template values; middleware plus a formatter for other output. |
 | `overwrite.formatMeta(meta)` | A custom `LogFormatter` (per-transport `format`) or `pretty.template`. |
 | `overwrite.formatLogObj(args, settings)` | A custom `LogFormatter` (per-transport `format`). |
 | `overwrite.transportFormatted(markup, …)` | A `Transport` whose `format` produces the line and `write` consumes it. |

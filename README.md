@@ -320,7 +320,7 @@ v5 settings are organized into **groups** — there are no flat keys like `prett
 
 | Group     | Keys |
 |-----------|------|
-| `pretty`  | `template`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `passObjectsNatively` (boolean), `inspectOptions`, `enabled` |
+| `pretty`  | `template`, `placeholders`, `errorTemplate`, `errorStackTemplate`, `errorParentNamesSeparator`, `errorLoggerNameDelimiter`, `style` (boolean), `timeZone` (`"UTC" \| "local"`), `styles`, `levelMethod`, `passObjectsNatively` (boolean), `inspectOptions`, `enabled` |
 | `json`    | `messageKey` (`"message"`), `levelKey` (`"level"`), `levelIdKey` (`"levelId"`), `timeKey` (`"time"`), `time` (`"iso" \| "epoch" \| false \| fn`), `errorKey` (`"error"`), `numericLevel` (`true`), `stableKeyOrder` (`false`) |
 | `mask`    | `keys` (`[]`), `caseInsensitive`, `regex` (`RegExp[]`), `placeholder` (`"[***]"`), `paths` (JSONPath-lite), `censor` (`string \| "remove" \| "hash" \| fn`), `hashLabel` (`"hash"`) |
 | `stack`   | `capture` (`"off" \| "lazy" \| "auto" \| "full"`), `internalFramePatterns` (`RegExp[]`) |
@@ -847,6 +847,22 @@ new Logger({
 ```
 
 On Node.js, object formatting uses native `util.inspect`; tune it with `pretty.inspectOptions`. For example, `pretty.inspectOptions.breakLength` controls when inspected objects wrap onto multiple lines — set it high (e.g. `Infinity`) to keep an object on a single line while preserving color, which is handy in log aggregators (CloudWatch, Datadog) that treat each line as one entry.
+
+### Custom placeholders (`pretty.placeholders`)
+
+`pretty.placeholders` adds your own `{{tokens}}` to `pretty.template`. Each callback gets the record's meta and the resolved `pretty` settings and returns the value to render (a string or number); style it through `pretty.styles` like a built-in token, so a composite value such as `HH:mm:ss.SSS` is colored as one unit:
+
+```typescript
+const log = new Logger({
+  pretty: {
+    template: "{{shortTime}} {{logLevelName}} ",
+    placeholders: { shortTime: (meta) => meta.date.toISOString().slice(11, 23) }, // UTC; read `pretty.timeZone` for local time
+    styles: { shortTime: "blackBright" },
+  },
+});
+```
+
+Only tokens the template references are evaluated, once per formatting pass, and a callback that throws renders an empty value, so a display extension can never drop a log. Built-in names are reserved, sub-loggers inherit the parent's map (a child entry with the same name wins), and the tokens apply to the meta template only — not to the error templates or to JSON output. `strictConfig: true` rejects reserved names, non-callback entries and misspelled `pretty.styles` keys (`UNKNOWN_PRETTY_STYLE`); otherwise they warn in development.
 
 ### Interactive objects in the browser console (`pretty.passObjectsNatively`)
 

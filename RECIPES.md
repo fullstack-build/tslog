@@ -558,3 +558,20 @@ new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_0
 ```
 
 `_logMeta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.
+
+## 16. Custom pretty placeholders (`pretty.placeholders`)
+
+```ts
+const log = new Logger({
+  pretty: {
+    template: "{{shortTime}} {{logLevelName}} {{reqId}} ",
+    placeholders: {
+      shortTime: (meta) => meta.date.toISOString().slice(11, 23), // "01:02:03.004" (UTC; check `pretty.timeZone` for local)
+      reqId: (meta) => String((meta as { requestId?: string }).requestId ?? "-"), // runInContext / middleware fields land on meta
+    },
+    styles: { shortTime: "blackBright", reqId: "cyan" },
+  },
+});
+```
+
+Callbacks run only for tokens the template references and must be synchronous and pure (a record can be formatted more than once). A throw or a non-string/number result renders empty. Built-in names are reserved; sub-loggers inherit the parent's map. Pretty meta template only — error templates and JSON output are unaffected.
