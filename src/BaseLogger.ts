@@ -649,7 +649,11 @@ export class BaseLogger<LogObj> {
       customLevels: mergedCustomLevels,
       // Deep-merge each grouped object so a sub-logger overriding ONE field of a group keeps the parent's
       // other resolved defaults for that group (per-group shallow merge over the parent's resolved values).
-      pretty: { ...this.settings.pretty, ...settings?.pretty },
+      pretty: {
+        ...this.settings.pretty,
+        ...settings?.pretty,
+        placeholders: { ...this.settings.pretty.placeholders, ...settings?.pretty?.placeholders },
+      },
       json: { ...this.settings.json, ...settings?.json },
       mask: { ...this.settings.mask, ...settings?.mask },
       stack: { ...this.settings.stack, ...settings?.stack },

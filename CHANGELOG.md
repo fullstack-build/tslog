@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.4.0] - 2026-10-18
+
+### Added
+- **Custom pretty placeholders** — `pretty.placeholders: { token: (meta, pretty) => string | number }` registers your own `{{token}}`s for `pretty.template`, styled through `pretty.styles` like the built-in ones, so a composite value such as `HH:mm:ss.SSS` is colored as one unit. Only tokens the template references are evaluated; a throwing callback renders empty and never drops the log; built-in names are reserved; sub-loggers inherit the parent's map. Meta template only — error templates and JSON output are unchanged. Thanks @clayzx.
+- **`pretty.styles` key validation** — a misspelled style key (`styles: { logLevelNmae }`) now warns in development with a did-you-mean, or throws `TslogConfigError` (`UNKNOWN_PRETTY_STYLE`) under `strictConfig`, since `IPrettyLogStyles` accepts any key to allow styling custom placeholders.
+
+## [5.3.0] - 2026-10-18
+
+### Changed
+- Development dependency updates only (security advisories in `brace-expansion`, `source-map-js`, `smol-toml`, `devalue`; `sharp` in the docs site). No runtime or API changes — the published package is functionally identical to 5.2.0.
+
 ## [5.2.0] - 2026-09-11
 
 ### Changed

@@ -6,12 +6,6 @@ describe("Placeholders", () => {
     mockConsoleLog(true, false);
   });
 
-  // Deleted: "It supports adding custom placeholders".
-  // That test relied on settings.overwrite.addPlaceholders, which is removed in v5 (M2.6). The pretty
-  // placeholder set is now fixed (built in metaFormatting.buildPrettyMeta from _logMeta) and there is no
-  // replacement hook to inject arbitrary {{custom}} placeholders — neither middleware nor per-transport
-  // format feeds into the pretty template's placeholder map. So this is a genuinely-removed feature.
-
   test("renders the built-in logLevelName placeholder into the pretty template", (): void => {
     const logger = new Logger({
       type: "pretty",

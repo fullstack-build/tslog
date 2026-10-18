@@ -393,6 +393,17 @@ export interface IPrettySettings {
    */
   template?: string;
   /**
+   * Custom `{{token}}` placeholders for `pretty.template`: each callback receives the record's meta and the
+   * resolved `pretty` settings and returns the value to render (a string or number; anything else, or a
+   * throw, renders empty). Style a custom token through `pretty.styles`, like a built-in one. Built-in
+   * names are reserved, only tokens the template references run, and sub-loggers merge the parent's map
+   * (a child entry wins). Callbacks should be pure: a record can be formatted more than once. Does not
+   * apply to the error templates and adds nothing to JSON output.
+   * @example { pretty: { template: "{{shortTime}} {{logLevelName}} ", placeholders: { shortTime: (meta) => meta.date.toISOString().slice(11, 23) }, styles: { shortTime: "blackBright" } } }
+   */
+  placeholders?: Record<string, (meta: Readonly<IMeta>, pretty: Readonly<IResolvedPrettySettings>) => string | number>;
+
+  /**
    * Template for the error header (name + message) when an `Error` is logged in pretty mode.
    * @example { pretty: { errorTemplate: "\n{{errorName}} {{errorMessage}}\n{{errorStack}}" } }
    */
@@ -444,6 +455,12 @@ export interface IPrettySettings {
 }
 
 export interface IPrettyLogStyles {
+  /**
+   * Any further key styles a custom `pretty.placeholders` token. Because this accepts every name, a
+   * misspelled built-in key is caught at runtime instead (`UNKNOWN_PRETTY_STYLE`: a dev warning, or a
+   * `TslogConfigError` under `strictConfig`).
+   */
+  [placeholder: string]: TStyle | undefined;
   yyyy?: TStyle;
   mm?: TStyle;
   dd?: TStyle;
