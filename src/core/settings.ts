@@ -10,6 +10,7 @@ import {
   stdoutIsTTY,
 } from "../internal/environment.js";
 import { nativeConsoleMethod } from "../internal/nativeConsole.js";
+import { KNOWN_PRETTY_PLACEHOLDERS, KNOWN_PRETTY_STYLE_KEYS } from "../internal/prettyPlaceholders.js";
 import { TslogConfigError } from "./config.js";
 import { resolveLogLevelId, validateCustomLevel } from "./levels.js";
 import { normalizeTransport } from "./transports.js";
@@ -20,33 +21,6 @@ export { resolveLogLevelId };
 
 /** Valid values for the `stack.capture` setting. */
 export type TStackCapture = "off" | "lazy" | "auto" | "full";
-
-/**
- * Pretty-log template placeholders recognized by tslog. Used to warn (in development only) about
- * likely typos such as `{{loglevelname}}` instead of `{{logLevelName}}`.
- */
-export const KNOWN_PRETTY_PLACEHOLDERS = new Set([
-  "yyyy",
-  "mm",
-  "dd",
-  "hh",
-  "MM",
-  "ss",
-  "ms",
-  "dateIsoStr",
-  "rawIsoStr",
-  "logLevelName",
-  "name",
-  "nameWithDelimiterPrefix",
-  "nameWithDelimiterSuffix",
-  "fullFilePath",
-  "filePathWithLine",
-  "fileNameWithLine",
-  "fileName",
-  "filePath",
-  "fileLine",
-  "fileColumn",
-]);
 
 /** Every key accepted at the top level of {@link ISettingsParam}. Drives the unknown-key check. */
 const KNOWN_TOP_LEVEL_KEYS = new Set([
@@ -363,26 +337,29 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
     }
   }
 
+  // Custom placeholders: a plain object of callbacks whose names are usable as `{{token}}` and do not
+  // shadow a built-in. A valid custom name is then accepted by the template and styles checks below.
   const customPlaceholders = settings.pretty?.placeholders;
-  if (customPlaceholders != null) {
-    if (typeof customPlaceholders !== "object" || Array.isArray(customPlaceholders)) {
+  const customNames =
+    customPlaceholders != null && typeof customPlaceholders === "object" && !Array.isArray(customPlaceholders) ? Object.keys(customPlaceholders) : undefined;
+  const isCustomPlaceholder = (key: string): boolean => customNames?.includes(key) === true && typeof customPlaceholders?.[key] === "function";
+  if (customPlaceholders != null && customNames == null) {
+    report({
+      code: "INVALID_PRETTY_PLACEHOLDER",
+      setting: "pretty.placeholders",
+      message: "pretty.placeholders must be an object of callbacks.",
+      suggestion: "Use e.g. { shortTime: (meta) => meta.date.toISOString().slice(11, 23) }.",
+    });
+  }
+  for (const key of customNames ?? []) {
+    if (!key || /[{}\s]/.test(key) || KNOWN_PRETTY_PLACEHOLDERS.has(key) || !isCustomPlaceholder(key)) {
+      const why = KNOWN_PRETTY_PLACEHOLDERS.has(key) ? "shadows a built-in placeholder" : "needs a name without whitespace/braces and a callback";
       report({
         code: "INVALID_PRETTY_PLACEHOLDER",
-        setting: "pretty.placeholders",
-        message: "pretty.placeholders must be a map of callbacks.",
-        suggestion: "Use an object mapping token names to synchronous string-returning functions.",
+        setting: `pretty.placeholders.${key}`,
+        message: `pretty.placeholders.${key} ${why}.`,
+        suggestion: `Fix "pretty.placeholders.${key}": it ${why}.`,
       });
-    } else {
-      for (const [key, callback] of Object.entries(customPlaceholders)) {
-        if (!key || /[{}\s]/.test(key) || KNOWN_PRETTY_PLACEHOLDERS.has(key) || typeof callback !== "function") {
-          report({
-            code: "INVALID_PRETTY_PLACEHOLDER",
-            setting: `pretty.placeholders.${key}`,
-            message: `Invalid custom pretty placeholder "${key}".`,
-            suggestion: "Use a non-reserved token name without whitespace/braces and a synchronous string-returning callback.",
-          });
-        }
-      }
     }
   }
 
@@ -394,12 +371,32 @@ export function validateSettingsParam<LogObj>(settings: ISettingsParam<LogObj> |
     // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
     while ((match = placeholderRegex.exec(template)) != null) {
       const key = match[1];
-      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key) && !(Object.hasOwn(customPlaceholders ?? {}, key) && typeof customPlaceholders?.[key] === "function")) {
+      if (!KNOWN_PRETTY_PLACEHOLDERS.has(key) && !isCustomPlaceholder(key)) {
         report({
           code: "UNKNOWN_PRETTY_PLACEHOLDER",
           setting: "pretty.template",
-          message: `pretty.template references unknown placeholder "{{${key}}}"; check the spelling (e.g. "{{logLevelName}}").`,
+          message: `pretty.template references unknown placeholder "{{${key}}}"; check the spelling (e.g. "{{logLevelName}}") or register it in pretty.placeholders.`,
           suggestion: `Remove or fix "{{${key}}}" — see the recognized placeholders (e.g. "{{logLevelName}}", "{{filePathWithLine}}").`,
+        });
+      }
+    }
+  }
+
+  // Unknown style keys (typos like `styles: { logLevelNmae }`). `IPrettyLogStyles` accepts any key so custom
+  // placeholders can be styled, so this check is what catches a misspelled built-in.
+  const styles = settings.pretty?.styles;
+  if (styles != null && typeof styles === "object") {
+    for (const key of Object.keys(styles)) {
+      if (!KNOWN_PRETTY_STYLE_KEYS.has(key) && !isCustomPlaceholder(key)) {
+        const closest = nearestKey(key, [...KNOWN_PRETTY_STYLE_KEYS, ...(customNames ?? [])]);
+        report({
+          code: "UNKNOWN_PRETTY_STYLE",
+          setting: `pretty.styles.${key}`,
+          message: `pretty.styles references unknown placeholder "${key}"${closest != null ? ` — did you mean "${closest}"?` : ""}`,
+          suggestion:
+            closest != null
+              ? `Rename "pretty.styles.${key}" to "pretty.styles.${closest}".`
+              : `Remove "pretty.styles.${key}" or register it in pretty.placeholders.`,
         });
       }
     }

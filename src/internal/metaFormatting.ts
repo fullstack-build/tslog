@@ -1,7 +1,7 @@
-import { KNOWN_PRETTY_PLACEHOLDERS } from "../core/settings.js";
 import { formatNumberAddZeros } from "../formatNumberAddZeros.js";
 import { formatTemplate } from "../formatTemplate.js";
 import type { IMeta, ISettings } from "../interfaces.js";
+import { KNOWN_PRETTY_PLACEHOLDERS } from "./prettyPlaceholders.js";
 
 export interface PrettyMetaRenderResult {
   text: string;
@@ -92,16 +92,18 @@ export function buildPrettyMeta<LogObj>(settings: ISettings<LogObj>, meta?: IMet
   placeholderValues.nameWithDelimiterPrefix = combinedName.length > 0 ? settings.pretty.errorLoggerNameDelimiter + combinedName : "";
   placeholderValues.nameWithDelimiterSuffix = combinedName.length > 0 ? combinedName + settings.pretty.errorLoggerNameDelimiter : "";
 
-  // Resolve custom values before either ANSI or CSS rendering. Never inspect formatted output.
+  // Custom placeholders resolve here, before the ANSI and CSS renderers, so both style the value as one
+  // token. Only tokens the template references run; a built-in name (rejected by validation in strict
+  // mode, warned about otherwise) never shadows the value computed above.
   for (const [key, callback] of Object.entries(settings.pretty.placeholders)) {
     if (KNOWN_PRETTY_PLACEHOLDERS.has(key) || typeof callback !== "function" || !template.includes(`{{${key}}}`)) {
       continue;
     }
     try {
       const value = callback(meta, settings.pretty);
-      placeholderValues[key] = typeof value === "string" ? value : "";
+      placeholderValues[key] = typeof value === "string" || typeof value === "number" ? value : "";
     } catch {
-      // A display extension must not prevent the original log from reaching its sinks.
+      // A throwing callback renders empty; a display extension must never keep the log from its sinks.
       placeholderValues[key] = "";
     }
   }

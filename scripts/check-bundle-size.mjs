@@ -52,7 +52,9 @@ const PROBES = [
     // 21_800 -> 22_200: MaskingEngine.maskError (logged Errors are cloned and masked instead of passed through).
     // 22_200 -> 22_400: esbuild 0.28 emits TS parameter properties as class field declarations (ES2022
     // define semantics, as tsc does); no source change, and CI had measured exactly 22_200 before it.
-    budgetGzipBytes: 22_400,
+    // 22_400 -> 23_000: pretty.placeholders (custom template tokens resolved in buildPrettyMeta) and the
+    // settings validation for them and for unknown pretty.styles keys; measured 22_780.
+    budgetGzipBytes: 23_000,
     entry: `
       import { Logger } from "${entryPath("src/index.browser.ts")}";
       const log = new Logger({ type: "json" });

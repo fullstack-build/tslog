@@ -559,24 +559,19 @@ new Logger({ type: "json", json: { time: (d) => String(BigInt(d.getTime()) * 1_0
 
 `_logMeta.date` always stays a UTC ISO string; `json.time` only shapes the top-level key.
 
-## Custom short timestamps
-
-Custom pretty tokens can be provided through `pretty.placeholders` without replacing the native formatter:
+## 16. Custom pretty placeholders (`pretty.placeholders`)
 
 ```ts
 const log = new Logger({
   pretty: {
-    template: "{{shortTime}} {{logLevelName}} ",
-    placeholders: { shortTime: (meta) => meta.date.toISOString().slice(11, 23) },
-    styles: { shortTime: "blackBright" },
+    template: "{{shortTime}} {{logLevelName}} {{reqId}} ",
+    placeholders: {
+      shortTime: (meta) => meta.date.toISOString().slice(11, 23), // "01:02:03.004" (UTC; check `pretty.timeZone` for local)
+      reqId: (meta) => String((meta as { requestId?: string }).requestId ?? "-"), // runInContext / middleware fields land on meta
+    },
+    styles: { shortTime: "blackBright", reqId: "cyan" },
   },
 });
 ```
 
-This example uses UTC. Callbacks receive `(meta, pretty)`; use `pretty.timeZone` when implementing
-local/UTC-sensitive values. Names of built-in tokens are reserved. Child loggers merge callback maps
-(child names win). Only tokens referenced in `pretty.template` are evaluated, once per token per
-formatting pass; callbacks must be pure because one record may be formatted multiple times. A thrown
-callback or non-string result renders an empty value. ANSI and browser CSS styling use the same token
-values, so punctuation inside a custom value is styled as a unit. This does not extend error templates
-or add fields to JSON output. `strictConfig: true` rejects invalid callback maps and reserved names.
+Callbacks run only for tokens the template references and must be synchronous and pure (a record can be formatted more than once). A throw or a non-string/number result renders empty. Built-in names are reserved; sub-loggers inherit the parent's map. Pretty meta template only — error templates and JSON output are unaffected.
