@@ -189,6 +189,20 @@ describe("Browser CSS styling", () => {
       expect(renderStyle("bgRedBright").styleArgs).toContain("background-color: #ff7043");
     });
 
+    test("a hex token maps to a custom foreground color (#394)", () => {
+      expect(renderStyle("#00FF00").styleArgs).toContain("color: #00ff00");
+      expect(renderStyle("#0f0").styleArgs).toContain("color: #00ff00");
+    });
+
+    test("a bg-prefixed hex token maps to a custom background color", () => {
+      expect(renderStyle("bg#123456").styleArgs).toContain("background-color: #123456");
+    });
+
+    test("a malformed hex or unknown token contributes no css", () => {
+      expect(renderStyle("#12345").styleArgs).toEqual([]);
+      expect(renderStyle("notAColor").styleArgs).toEqual([]);
+    });
+
     test("bold maps to font-weight", () => {
       expect(renderStyle("bold").styleArgs).toContain("font-weight: bold");
     });
@@ -281,6 +295,17 @@ describe("Browser CSS styling", () => {
         text: "%cred%c plain",
         styles: ["color: #ef5350", ""],
       });
+    });
+
+    test("converts 24-bit hex-token colors back into css; their close codes clear them", () => {
+      expect(ansiToCssConsoleFormat("\u001b[38;2;0;255;0mfg\u001b[39m \u001b[48;2;17;34;51mbg\u001b[49m")).toEqual({
+        text: "%cfg%c %cbg%c",
+        styles: ["color: #00ff00", "", "background-color: #112233", ""],
+      });
+    });
+
+    test("other multi-parameter SGR sequences are ignored", () => {
+      expect(ansiToCssConsoleFormat("\u001b[38;5;82mx\u001b[39m")).toEqual({ text: "x", styles: [] });
     });
 
     test("stacked styles join into one css declaration; insertion order preserved", () => {

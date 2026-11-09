@@ -54,7 +54,9 @@ const PROBES = [
     // define semantics, as tsc does); no source change, and CI had measured exactly 22_200 before it.
     // 22_400 -> 23_000: pretty.placeholders (custom template tokens resolved in buildPrettyMeta) and the
     // settings validation for them and for unknown pretty.styles keys; measured 22_780.
-    budgetGzipBytes: 23_000,
+    // 23_000 -> 23_500: hex colors in pretty.styles (CSS, 24-bit ANSI, and decoding those back to CSS for
+    // error blocks) plus masking of toJSON() results (#394, #395); measured 23_234 locally.
+    budgetGzipBytes: 23_500,
     entry: `
       import { Logger } from "${entryPath("src/index.browser.ts")}";
       const log = new Logger({ type: "json" });

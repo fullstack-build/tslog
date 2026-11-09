@@ -569,7 +569,7 @@ const log = new Logger({
       shortTime: (meta) => meta.date.toISOString().slice(11, 23), // "01:02:03.004" (UTC; check `pretty.timeZone` for local)
       reqId: (meta) => String((meta as { requestId?: string }).requestId ?? "-"), // runInContext / middleware fields land on meta
     },
-    styles: { shortTime: "blackBright", reqId: "cyan" },
+    styles: { shortTime: "blackBright", reqId: "#ff8800" }, // palette token or hex color ("#rgb", "#rrggbb", "bg#rrggbb")
   },
 });
 ```

@@ -110,23 +110,67 @@ export const STYLE_PALETTE: Record<string, IStyleDefinition> = {
   bgWhiteBright: { ansi: [107, 49], css: `background-color: ${COLOR_HEX.whiteBright}` },
 };
 
+/** A custom hex color token: `"#rgb"` / `"#rrggbb"` (foreground) or `"bg#rgb"` / `"bg#rrggbb"` (background). */
+const HEX_TOKEN = /^(bg)?#([0-9a-f]{3}|[0-9a-f]{6})$/i;
+
+interface IHexColor {
+  background: boolean;
+  /** Normalized lower-case `#rrggbb`. */
+  hex: string;
+  rgb: [number, number, number];
+}
+
+function parseHexToken(token: string): IHexColor | undefined {
+  const match = HEX_TOKEN.exec(token);
+  if (match == null) {
+    return undefined;
+  }
+  const digits = (match[2] as string).toLowerCase();
+  const full = digits.length === 3 ? digits.replace(/./g, "$&$&") : digits;
+  const rgb: [number, number, number] = [parseInt(full.slice(0, 2), 16), parseInt(full.slice(2, 4), 16), parseInt(full.slice(4, 6), 16)];
+  return { background: match[1] != null, hex: `#${full}`, rgb };
+}
+
 /**
- * Returns the ANSI `[open, close]` pair for a style token, or `undefined` for an unknown token.
- *
- * Note: the legacy ANSI rendering path (`formatTemplate` / inspect polyfill) reads pairs directly
- * off the {@link prettyLogStyles} map and silently ignores unknown tokens; this helper mirrors that
- * by returning `undefined` rather than throwing.
+ * Returns the ANSI `[open, close]` pair for a named style token, or `undefined` for an unknown token.
+ * Hex tokens have no single-code pair; see {@link styleTokenToSgr}.
  */
 export function styleTokenToAnsi(token: string): TAnsiPair | undefined {
   return STYLE_PALETTE[token]?.ansi;
 }
 
 /**
+ * Returns the SGR parameter strings `[open, close]` for a style token: a palette token's codes
+ * (`["31", "39"]`), or a 24-bit color for a hex token (`"#00ff00"` → `["38;2;0;255;0", "39"]`,
+ * `"bg#00ff00"` → `["48;2;0;255;0", "49"]`). Unknown tokens return `undefined` and are left unstyled.
+ */
+export function styleTokenToSgr(token: string): [string, string] | undefined {
+  const ansi = STYLE_PALETTE[token]?.ansi;
+  if (ansi != null) {
+    return [String(ansi[0]), String(ansi[1])];
+  }
+  const hex = parseHexToken(token);
+  if (hex == null) {
+    return undefined;
+  }
+  return hex.background ? [`48;2;${hex.rgb.join(";")}`, "49"] : [`38;2;${hex.rgb.join(";")}`, "39"];
+}
+
+/**
  * Returns the CSS declaration for a style token (e.g. `"color: #ef5350"`, `"font-weight: bold"`),
- * or `undefined` if the token has no CSS mapping. Identical to the old `BaseLogger.styleTokenToCss`.
+ * `"color: #00ff00"` / `"background-color: #00ff00"` for a hex token, or `undefined` if the token
+ * has no CSS mapping.
  */
 export function styleTokenToCss(token: string): string | undefined {
-  return STYLE_PALETTE[token]?.css;
+  const palette = STYLE_PALETTE[token];
+  if (palette != null) {
+    return palette.css;
+  }
+  const hex = parseHexToken(token);
+  if (hex == null) {
+    return undefined;
+  }
+  return `${hex.background ? "background-color" : "color"}: ${hex.hex}`;
 }
 
 /**
@@ -146,6 +190,16 @@ const ANSI_OPEN_TO_CSS: Map<number, { css: string; close: number }> = new Map(
     .map((definition) => [definition.ansi[0], { css: definition.css, close: definition.ansi[1] }]),
 );
 
+/** CSS for a 24-bit SGR color (`38;2;r;g;b` foreground, `48;2;r;g;b` background), as emitted for hex tokens. */
+function truecolorToCss(params: string): { css: string; close: number } | undefined {
+  const match = /^([34])8;2;(\d{1,3});(\d{1,3});(\d{1,3})$/.exec(params);
+  if (match == null) {
+    return undefined;
+  }
+  const hex = `#${[match[2], match[3], match[4]].map((part) => Number(part).toString(16).padStart(2, "0")).join("")}`;
+  return match[1] === "3" ? { css: `color: ${hex}`, close: 39 } : { css: `background-color: ${hex}`, close: 49 };
+}
+
 /**
  * Convert an ANSI-styled string (as produced by `formatTemplate` from this palette) into a browser
  * console format string with `%c` CSS segments.
@@ -153,15 +207,16 @@ const ANSI_OPEN_TO_CSS: Map<number, { css: string; close: number }> = new Map(
  * The browser `%c` path renders meta from its template directly, but pre-rendered blocks (the error
  * template output) arrive already carrying ANSI escapes — which only Chromium's console interprets;
  * Firefox and WebKit print them literally. This re-expresses those escapes as `%c` CSS, which all
- * engines support. Only single-parameter SGR sequences are handled — the only form this palette emits.
+ * engines support. Handles the palette's single-parameter SGR codes and the 24-bit `38;2;r;g;b` /
+ * `48;2;r;g;b` colors emitted for hex tokens.
  *
  * Literal `%` in the text is escaped as `%%` so user content can never consume a `%c` style argument.
  */
 export function ansiToCssConsoleFormat(input: string): { text: string; styles: string[] } {
   const parts: string[] = [];
   const styles: string[] = [];
-  // Active styles keyed by open code; insertion order mirrors ANSI nesting so later declarations win in CSS too.
-  const active = new Map<number, { css: string; close: number }>();
+  // Active styles keyed by their SGR parameters; insertion order mirrors ANSI nesting so later declarations win in CSS too.
+  const active = new Map<string, { css: string; close: number }>();
   let currentCss = "";
   let pendingText = "";
 
@@ -180,7 +235,7 @@ export function ansiToCssConsoleFormat(input: string): { text: string; styles: s
   };
 
   // biome-ignore lint/suspicious/noControlCharactersInRegex: matching ANSI escape codes
-  const sgrRegex = /\u001b\[(\d+)m/g;
+  const sgrRegex = /\u001b\[([\d;]+)m/g;
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   // biome-ignore lint/suspicious/noAssignInExpressions: standard regex exec loop
@@ -188,10 +243,11 @@ export function ansiToCssConsoleFormat(input: string): { text: string; styles: s
     pendingText += input.slice(lastIndex, match.index);
     lastIndex = sgrRegex.lastIndex;
 
-    const code = Number(match[1]);
-    const open = ANSI_OPEN_TO_CSS.get(code);
+    const params = match[1] as string;
+    const code = Number(params);
+    const open = ANSI_OPEN_TO_CSS.get(code) ?? truecolorToCss(params);
     if (open != null) {
-      active.set(code, open);
+      active.set(params, open);
     } else if (code === 0) {
       active.clear();
     } else {

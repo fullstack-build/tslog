@@ -836,6 +836,12 @@ const log = new Logger({
 });
 ```
 
+Besides the named palette tokens (`red`, `blueBright`, `bgYellow`, `bold`, ...), a style can be a hex color: `"#00ff00"` or `"#0f0"` sets the text color and `"bg#00ff00"` the background. Browsers apply it as CSS; terminals get a 24-bit ANSI color, which most modern terminals support. Hex tokens mix freely with named ones (`["#ff8800", "bold"]`), and a token tslog does not recognize leaves the value unstyled.
+
+```typescript
+new Logger({ pretty: { styles: { fileNameWithLine: "#00ff00", logLevelName: { WARN: ["bg#ff8800", "bold"] } } } });
+```
+
 Route levels to specific console methods with `pretty.levelMethod`:
 
 ```typescript
