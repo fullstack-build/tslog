@@ -46,7 +46,6 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
 
   test("Rollup + source maps: resolves back to original .ts", async () => {
     const rollup = (await import("rollup")).rollup;
-    const nodeResolve = (await import("@rollup/plugin-node-resolve")).default;
     const typescript = (await import("@rollup/plugin-typescript")).default;
 
     await withTempDir(async (dir) => {
@@ -78,7 +77,6 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
       const bundle = await rollup({
         input: entry,
         plugins: [
-          nodeResolve({ extensions: [".ts", ".js"] }),
           // @ts-expect-error loose plugin types in test
           typescript({
             tsconfig: tsconfigPath,
@@ -380,7 +378,6 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
   test("Rollup + Webpack outputs still work when the call site is inside an async function (realistic frame)", async () => {
     // This is mostly a regression guard: async functions produce slightly different stack shapes.
     const rollup = (await import("rollup")).rollup;
-    const nodeResolve = (await import("@rollup/plugin-node-resolve")).default;
     const typescript = (await import("@rollup/plugin-typescript")).default;
 
     await withTempDir(async (dir) => {
@@ -407,7 +404,6 @@ describe("bundler source map compatibility (Rollup, Webpack, Turbopack)", () => 
       const bundle = await rollup({
         input: entry,
         plugins: [
-          nodeResolve({ extensions: [".ts", ".js"] }),
           // @ts-expect-error
           typescript({ tsconfig: tsconfigPath, outputToFilesystem: false }),
         ],
