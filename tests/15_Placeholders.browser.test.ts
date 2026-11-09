@@ -70,3 +70,24 @@ test("custom tokens use native CSS styling and preserve object arguments after t
   expect(calls[1][0]).toBe("%c01:02:03.004%c -- INFO ");
   expect(returnValue).toEqual({ unchanged: true, hasCustomField: false });
 });
+
+test("hex color tokens in pretty.styles become CSS colors (#394)", async ({ page }) => {
+  const { calls } = await captureConsole(
+    page,
+    {},
+    `
+    const logger = new tslog.Logger({
+      pretty: {
+        style: true, passObjectsNatively: true,
+        template: "{{logLevelName}} {{name}} ",
+        styles: { logLevelName: ["#00ff00", "bold"], name: "bg#123" },
+      },
+      name: "app",
+    });
+    logger.info("hex");
+  `,
+  );
+  expect(calls[0][0]).toBe("%cINFO%c %capp%c ");
+  expect(calls[0][1]).toBe("color: #00ff00; font-weight: bold");
+  expect(calls[0][3]).toBe("background-color: #112233");
+});

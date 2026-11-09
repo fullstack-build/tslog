@@ -501,6 +501,7 @@ Masking is leak-proof by construction:
 - `regex` patterns are always applied **globally**: every occurrence in a string is redacted, whether or not you wrote the `g` flag.
 - Shared references and circular structures resolve to the same *masked* clone, so a secret can never escape through a second reference to the same object.
 - `keys` and `regex` also apply **inside `Map` and `Set`** contents (`paths` does not descend into them).
+- **Values with `toJSON()` are masked by their serialized form.** Class instances (including ones with `#private` fields), Immutable.js collections and other objects that serialize through `toJSON()` have it called on the original value, and its result is masked like any other value at the same path, so the JSON line and a pretty error `cause` show the masked result. Pretty output of the object itself still inspects its own (masked) properties.
 - **Errors are masked like any other object.** A logged `Error`, top-level or nested, is replaced by a masked clone and the caller's instance stays untouched. `regex` covers the `message` and the `<name>: <message>` header of a V8-style stack, but never the frames, so a broad pattern cannot corrupt `line:col` positions. `keys`, `regex` and `paths` cover every other own property (`code`, `extensions`, ...) and the `cause` chain. `keys` skips `name`, `message` and `stack`, so `keys: ["name"]` does not blank every error, while `paths` can still target them (`paths: ["message"]`).
 
 The `censor` option controls *how* a **`paths`-matched** value is replaced (`keys`- and `regex`-matched values always use `placeholder`, with one exception below):
@@ -833,6 +834,12 @@ const log = new Logger({
     },
   },
 });
+```
+
+Besides the named palette tokens (`red`, `blueBright`, `bgYellow`, `bold`, ...), a style can be a hex color: `"#00ff00"` or `"#0f0"` sets the text color and `"bg#00ff00"` the background. Browsers apply it as CSS; terminals get a 24-bit ANSI color, which most modern terminals support. Hex tokens mix freely with named ones (`["#ff8800", "bold"]`), and a token tslog does not recognize leaves the value unstyled.
+
+```typescript
+new Logger({ pretty: { styles: { fileNameWithLine: "#00ff00", logLevelName: { WARN: ["bg#ff8800", "bold"] } } } });
 ```
 
 Route levels to specific console methods with `pretty.levelMethod`:

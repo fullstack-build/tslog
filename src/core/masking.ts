@@ -492,7 +492,7 @@ export class MaskingEngine<LogObj> {
       }
       ctx.inProgress?.add(source);
       try {
-        return Object.getOwnPropertyNames(source).reduce((o, prop) => {
+        const clone = Object.getOwnPropertyNames(source).reduce((o, prop) => {
           const lookupKey = !caseInsensitive ? (prop as string) : typeof prop === "string" ? prop.toLowerCase() : String(prop).toLowerCase();
           if (ctx.keySet.has(lookupKey)) {
             // A key match normally redacts with the placeholder. When `censor` is `"hash"` (M4.3), key masking
@@ -538,7 +538,9 @@ export class MaskingEngine<LogObj> {
 
           o[prop] = this.recurseProperty(source, prop, ctx);
           return o;
-        }, baseObject) as T;
+        }, baseObject);
+        this.maskToJSON(source, clone, ctx);
+        return clone as T;
       } finally {
         ctx.inProgress?.delete(source);
       }
@@ -548,6 +550,40 @@ export class MaskingEngine<LogObj> {
       }
       return source;
     }
+  }
+
+  /**
+   * Give the clone of an object with a `toJSON` method (own or inherited: Immutable.js collections, classes
+   * that serialize `#private` fields or closure state) a `toJSON` that returns the MASKED result of the
+   * source's own `toJSON`. Without this, `JSON.stringify(clone)` would run the original `toJSON` on the clone:
+   * it either returns the unmasked data it reads from elsewhere, or throws because the clone lacks the
+   * private slots. `toJSON` runs on the source, and its result is masked at the same path position, so
+   * `mask.keys`, `mask.paths` and `mask.regex` all apply to what is actually written.
+   *
+   * The override is non-enumerable unless the source's own `toJSON` was enumerable, so pretty output still
+   * shows the clone's own masked properties. When the source's `toJSON` throws, the override is `undefined`:
+   * the clone then serializes its own (masked) properties instead of dropping the log line.
+   */
+  private maskToJSON(source: object, clone: Record<string, unknown>, ctx: MaskContext): void {
+    let toJSON: unknown;
+    try {
+      toJSON = (source as { toJSON?: unknown }).toJSON;
+    } catch {
+      return;
+    }
+    if (typeof toJSON !== "function") {
+      return;
+    }
+    let value: (() => unknown) | undefined;
+    try {
+      const masked = this.recurse(toJSON.call(source, ""), ctx);
+      value = () => masked;
+    } catch {
+      value = undefined;
+    }
+    // The `undefined` fallback is never enumerable: the JSON renderer would print an own undefined as "[undefined]".
+    const enumerable = value !== undefined && Object.getOwnPropertyDescriptor(source, "toJSON")?.enumerable === true;
+    Object.defineProperty(clone, "toJSON", { value, enumerable, writable: true, configurable: true });
   }
 
   /** Replace every match of every mask regex in a string. The regexes are already global, see toGlobalRegex. */
