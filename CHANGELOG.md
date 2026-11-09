@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented here. This project adheres to [Semantic Versioning](https://semver.org/).
 
+## [5.5.0] - 2026-11-09
+
+### Fixed
+- **Masking applies to values serialized through `toJSON()`** (#395) — with `mask` configured, an object whose `toJSON()` builds its output from data that is not a plain own property (a closure, Immutable.js collections, classes with `#private` fields) was written unmasked in JSON output and in a pretty error's non-Error `cause`. A class whose `toJSON()` reads `#private` fields made the whole JSON line disappear. `toJSON()` now runs on the original value and its result is masked at the same path, so `keys`, `paths` and `regex` all apply. If it throws, the object's own masked properties are serialized instead. Thanks @trackoor.
+- **JSON render failures are reported** — when a value cannot be serialized (a `toJSON()` or getter that throws), the default JSON output still skips the line, but now reports it on `console.error` instead of dropping it silently.
+
 ## [5.4.0] - 2026-10-18
 
 ### Added

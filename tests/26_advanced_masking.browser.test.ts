@@ -192,4 +192,36 @@ test.describe("Advanced masking (browser)", () => {
     );
     expect(result).toEqual({ name: "AbortError", message: "aborted key=[***]", nativeName: "AbortError", isDomException: true });
   });
+
+  test("masks the toJSON result of #private-field classes and closures (#395)", async ({ page }) => {
+    const result = await inPage<{ lines: string[]; errors: number }>(
+      page,
+      { type: "hidden", mask: { keys: ["password"] } },
+      `
+      class User {
+        #password;
+        constructor(name, password) { this.name = name; this.#password = password; }
+        toJSON() { return { name: this.name, password: this.#password }; }
+      }
+      const lines = [];
+      let errors = 0;
+      const originalError = console.error;
+      console.error = () => { errors++; };
+      try {
+        const logger = new tslog.Logger(settings);
+        logger.attachTransport({ format: "json", write: (_record, line) => { lines.push(line); } });
+        logger.info("closure", { user: { toJSON: () => ({ name: "ada", password: "hunter2" }) } });
+        logger.info("private", { user: new User("ada", "hunter2") });
+      } finally {
+        console.error = originalError;
+      }
+      return { lines, errors };
+    `,
+    );
+    expect(result.errors).toBe(0);
+    expect(result.lines).toHaveLength(2);
+    for (const line of result.lines) {
+      expect(JSON.parse(line).user).toEqual({ name: "ada", password: "[***]" });
+    }
+  });
 });

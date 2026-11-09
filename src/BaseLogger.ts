@@ -369,16 +369,25 @@ export class BaseLogger<LogObj> {
       const metaMarkup = this.features.buildPrettyMetaText?.(this.settings, recordMeta) ?? "";
       this.runtime.transportFormatted(metaMarkup, prettyArgs, prettyErrors, recordMeta, this.settings);
     } else if (this.settings.type === "json") {
+      let line: string | undefined;
       try {
-        const line = this.features.renderJson(record, this.settings);
-        // The runtime's default sink when it has one (Node: batched fd-1 writes), console otherwise.
-        if (this.runtime.writeJsonLine != null) {
-          this.runtime.writeJsonLine(line);
-        } else {
-          nativeConsoleMethod("log")(line);
+        line = this.features.renderJson(record, this.settings);
+      } catch (error) {
+        // A value that cannot be serialized (a throwing toJSON or getter) must not crash logging, but the
+        // dropped line is reported, like a failing transport format, instead of vanishing silently.
+        reportRenderError(error);
+      }
+      if (line !== undefined) {
+        try {
+          // The runtime's default sink when it has one (Node: batched fd-1 writes), console otherwise.
+          if (this.runtime.writeJsonLine != null) {
+            this.runtime.writeJsonLine(line);
+          } else {
+            nativeConsoleMethod("log")(line);
+          }
+        } catch {
+          // never let the default sink crash logging
         }
-      } catch {
-        // never let the default sink crash logging
       }
     }
 
@@ -763,5 +772,14 @@ export class BaseLogger<LogObj> {
     const template = this.settings.pretty.template ?? "";
     const stackPlaceholders = /{{\s*(file(Name|Path|Line|PathWithLine|NameWithLine)|fullFilePath)\s*}}/;
     return stackPlaceholders.test(template);
+  }
+}
+
+/** Report a JSON render failure on the native console without ever throwing (a broken console is tolerated). */
+function reportRenderError(error: unknown): void {
+  try {
+    nativeConsoleMethod("error")("tslog: could not render the JSON log line", error);
+  } catch {
+    // ignore secondary failures while reporting
   }
 }
