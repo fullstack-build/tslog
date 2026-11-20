@@ -668,7 +668,7 @@ log.info(genai({ model: "claude", inputTokens: 318, outputTokens: 142 }), "compl
 ```
 
 
-## Integrations: Next.js/TanStack Start, Sentry & Better Stack
+## Integrations: Next.js/TanStack Start, Sentry, Better Stack & Axiom
 
 ### Next.js, TanStack Start (and other full-stack frameworks)
 
@@ -702,7 +702,7 @@ Server-side you get the full pipeline — pretty output with original `.ts` posi
 
 Retrofitting a codebase that already imports one shared logger module everywhere: keep that single entrypoint and let a `browser` conditional `imports` subpath pick the half, so no call site changes. Don't reach for the `react-server` condition — it covers only Server Components, and silently hands route handlers and server actions the client logger. That variation, plus client-side sub-loggers and shipping client logs to Sentry, in [RECIPES.md](RECIPES.md).
 
-Error trackers and log platforms plug in as transports — no vendor-specific logger needed. Two worked examples follow; the same two patterns (a `write` function for SDK-based services, `httpTransport` for HTTP ingestion APIs) cover Datadog, Loki, Axiom and friends.
+Error trackers and log platforms plug in as transports — no vendor-specific logger needed. Three worked examples follow; the same two patterns (a `write` function for SDK-based services, `httpTransport` for HTTP ingestion APIs) cover Datadog, Loki and friends.
 
 ### Sentry
 
@@ -805,6 +805,41 @@ await log.flush();
 ```
 
 The transport batches, retries with exponential backoff, bounds every request with a timeout, caps its buffer, and flushes on `beforeExit`/`pagehide` — see [Transports](#transports). Field names are yours to shape if your dashboards expect different columns, e.g. `json: { levelKey: "severity" }`.
+
+### Axiom
+
+[Axiom](https://axiom.co) ingests JSON over HTTP too, so the built-in `httpTransport` is all you need. Send to the ingest URL of your dataset on the edge domain of its region (for example `us-east-1.aws.edge.axiom.co` or `eu-central-1.aws.edge.axiom.co`), and name the time field `_time`, which Axiom uses as the event timestamp:
+
+```typescript
+import { Logger } from "tslog";
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({
+  type: "json",
+  // Axiom reads the timestamp from "_time"
+  json: { timeKey: "_time" },
+});
+
+log.attachTransport(
+  httpTransport({
+    // AXIOM_DOMAIN is the edge domain of the dataset's region
+    url: `https://${process.env.AXIOM_DOMAIN}/v1/ingest/${process.env.AXIOM_DATASET}`,
+    // an API token with permission to ingest into the dataset
+    headers: { authorization: `Bearer ${process.env.AXIOM_TOKEN}` },
+    format: "json",
+    // Axiom accepts a JSON array of events per request
+    bodyFormat: "array",
+    batchSize: 50,
+    flushIntervalMs: 2000,
+  }),
+);
+
+log.info({ userId: 42 }, "user logged in");
+// → stdout JSON + batched POSTs; "userId" lands as a queryable field
+
+// drain the buffer before shutdown (await using does this automatically)
+await log.flush();
+```
 
 
 ## Pretty output & templates

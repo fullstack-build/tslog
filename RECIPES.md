@@ -242,6 +242,29 @@ log.attachTransport(
 await log.flush(); // drain before shutdown (await using does this automatically)
 ```
 
+## 7d. Ship to Axiom
+
+Axiom ingests JSON over HTTP: point `httpTransport` at your dataset's ingest URL on the edge domain of its region, authorize with an API token, and rename the time key to `_time`.
+
+```ts
+import { httpTransport } from "tslog/transports/http";
+
+const log = new Logger({ type: "json", json: { timeKey: "_time" } }); // Axiom reads the timestamp from "_time"
+
+log.attachTransport(
+  httpTransport({
+    url: `https://${process.env.AXIOM_DOMAIN}/v1/ingest/${process.env.AXIOM_DATASET}`, // AXIOM_DOMAIN: e.g. us-east-1.aws.edge.axiom.co
+    headers: { authorization: `Bearer ${process.env.AXIOM_TOKEN}` }, // API token with ingest permission
+    format: "json",
+    bodyFormat: "array", // Axiom accepts a JSON array of events per request
+    batchSize: 50,
+    flushIntervalMs: 2000,
+  }),
+);
+
+await log.flush(); // drain before shutdown (await using does this automatically)
+```
+
 ## 8. Emit pino-shaped NDJSON (drop-in for pino consumers)
 
 ```ts
