@@ -90,6 +90,19 @@ describe("throttle (M4.7)", () => {
     expect(metaOf(logs[1]).repeated).toBe(1);
   });
 
+  test("different nested dates pass through while equal timestamps collapse", () => {
+    const clock = fakeClock();
+    const { logger, logs } = createTestLogger();
+    logger.use(throttle({ windowMs: 1000, now: clock.now }));
+
+    logger.info({ at: new Date(1234) }, "completed");
+    logger.info({ at: new Date(1234) }, "completed");
+    logger.info({ at: new Date(5678) }, "completed");
+
+    expect(logs).toHaveLength(2);
+    expect(metaOf(logs[1]).repeated).toBe(1);
+  });
+
   test("off by default — no throttle middleware means no effect", () => {
     const { logger, logs } = createTestLogger();
 
@@ -237,6 +250,15 @@ describe("throttle (M4.7)", () => {
       // Exercises stableStringify's null branch and the `String(value)` path for nested non-strings.
       expect(keyFor({ x: null, y: 5, z: true })).toBe(keyFor({ z: true, y: 5, x: null }));
       expect(keyFor({ x: null })).not.toBe(keyFor({ x: 0 }));
+    });
+
+    test("dates inside nested arrays retain their timestamp and type", () => {
+      const key = keyFor({ nested: [new Date(1234)] });
+      expect(key).toBe(keyFor({ nested: [new Date(1234)] }));
+      expect(key).not.toBe(keyFor({ nested: [new Date(5678)] }));
+      expect(key).not.toBe(keyFor({ nested: [1234] }));
+      expect(key).not.toBe(keyFor({ nested: ["d:1234"] }));
+      expect(key).not.toBe(keyFor({ nested: [{}] }));
     });
 
     test("depth beyond the cap collapses to an ellipsis placeholder", () => {
